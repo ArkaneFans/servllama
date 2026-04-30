@@ -1,0 +1,163 @@
+{
+  "@@locale": "en",
+  "appTitle": "ServLlama",
+  "commonAuto": "Auto",
+  "commonOptional": "Optional",
+  "commonRename": "Rename",
+  "commonCancel": "Cancel",
+  "commonSave": "Save",
+  "commonDelete": "Delete",
+  "commonEnable": "Enable",
+  "commonDisable": "Disable",
+  "drawerAllHistoryTooltip": "All history",
+  "drawerServer": "Server",
+  "drawerSettings": "Settings",
+  "chatSearchHint": "Search chats...",
+  "chatNewSession": "New conversation",
+  "chatCreateSessionTooltip": "New conversation",
+  "chatHistoryTitle": "Chat history",
+  "chatSessionEmpty": "No conversations yet",
+  "chatSessionNotFound": "No matching conversations",
+  "chatMoreActions": "More actions",
+  "chatRenameSessionTitle": "Rename conversation",
+  "chatRenameSessionHint": "Enter conversation name",
+  "chatDeleteSessionTitle": "Delete conversation",
+  "chatDeleteSessionConfirm": "Delete \"{sessionTitle}\"?",
+  "@chatDeleteSessionConfirm": {
+    "placeholders": {
+      "sessionTitle": {
+        "type": "String"
+      }
+    }
+  },
+  "chatSelectModel": "Select model",
+  "chatRefreshModels": "Refresh models",
+  "chatLoadedModels": "Loaded models",
+  "chatAvailableModels": "Available models",
+  "chatNoModels": "No {title}",
+  "@chatNoModels": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "chatHeroTitle": "Start chatting",
+  "chatHeroDescriptionReady": "Send a message to start chatting with your local model.",
+  "chatHeroDescriptionStartServer": "Start the server first, then load a model to begin your AI conversation.",
+  "chatHeroDescriptionSelectModel": "The server is running. Load a model to begin your AI conversation.",
+  "chatStartServer": "Start server",
+  "chatStartingServer": "Starting...",
+  "chatLoadingModel": "Loading model...",
+  "chatInputHintStartServer": "Start the server first",
+  "chatInputHintLoadingModel": "Model loading...",
+  "chatInputHintSelectModel": "Choose a model first",
+  "chatInputHintModelUnavailable": "Current model is not loaded",
+  "chatInputHintEnterMessage": "Enter a message",
+  "chatSend": "Send",
+  "chatStop": "Stop",
+  "chatUnloadModel": "Unload model",
+  "chatModelStatusLoaded": "Loaded",
+  "chatModelStatusLoading": "Loading",
+  "chatModelStatusAvailable": "Available",
+  "chatModelStatusFailed": "Load failed",
+  "chatReasoningProcess": "Reasoning",
+  "settingsTitle": "Settings",
+  "settingsSectionGeneral": "General",
+  "settingsSectionAbout": "About",
+  "settingsThemeMode": "Theme mode",
+  "settingsLanguage": "App language",
+  "settingsUnavailable": "Coming soon",
+  "settingsAbout": "About",
+  "settingsThemeModeSheetTitle": "Theme mode",
+  "settingsLanguageSheetTitle": "App language",
+  "themeModeSystem": "Follow system",
+  "themeModeLight": "Light",
+  "themeModeDark": "Dark",
+  "languageModeSystem": "Follow system",
+  "languageModeChinese": "Simplified Chinese",
+  "languageModeEnglish": "English",
+  "aboutTitle": "About",
+  "aboutDescription": "Turn your phone into a powerful LLM inference server, no Termux required",
+  "aboutVersion": "Version {version}",
+  "@aboutVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "aboutVersionCopied": "Version copied",
+  "aboutStarOnGitHub": "Star on GitHub",
+  "aboutLicense": "Open source license",
+  "serverTitle": "Server",
+  "serverMenuConfig": "Server config",
+  "serverMenuLogs": "Logs",
+  "serverMenuModels": "Model management",
+  "serverStatusRunning": "Running",
+  "serverStatusStopped": "Stopped",
+  "serverStart": "Start",
+  "serverStop": "Stop",
+  "serverBaseUrlLabel": "API Base URL",
+  "serverBaseUrlCopied": "API Base URL copied",
+  "serverCopyBaseUrl": "Copy API Base URL",
+  "serverConfigTitle": "Server config",
+  "serverConfigSectionNetwork": "Network & access",
+  "serverConfigListenMode": "Listen scope",
+  "serverConfigListenModeDescription": "Local loopback is for local-only use, while listen on all allows external access.",
+  "serverConfigListenLocalhost": "Local loopback",
+  "serverConfigListenAllInterfaces": "Listen on all",
+  "serverConfigPort": "Port",
+  "serverConfigPortDescription": "The server listening port",
+  "serverConfigApiKey": "API key",
+  "serverConfigApiKeyDescription": "Leave empty to disable verification.",
+  "serverConfigSectionInference": "Inference",
+  "serverConfigContextSize": "Context size",
+  "serverConfigContextSizeDescription": "The maximum number of context tokens the model can attend to",
+  "serverConfigBatchSize": "Batch size",
+  "serverConfigBatchSizeDescription": "Affects throughput and memory usage",
+  "serverConfigSectionPerformance": "Performance",
+  "serverConfigCpuThreads": "CPU threads",
+  "serverConfigCpuThreadsDescription": "The number of CPU threads allocated to model inference",
+  "serverConfigParallelSlots": "Parallel slots",
+  "serverConfigParallelSlotsDescription": "Controls how many requests the server can handle at the same time",
+  "serverConfigSectionAdvanced": "Advanced",
+  "serverConfigFlashAttention": "Flash Attention",
+  "serverConfigFlashAttentionDescription": "Reduces memory usage and inference time for some models",
+  "serverConfigUseMmap": "Use mmap",
+  "serverConfigUseMmapSubtitle": "Improves model loading performance",
+  "serverConfigSectionReset": "Reset",
+  "serverConfigResetTitle": "Restore default config",
+  "serverConfigResetSubtitle": "All default values will be saved immediately after confirmation.",
+  "serverConfigResetDialogTitle": "Restore default config",
+  "serverConfigResetDialogContent": "All settings will be reset to defaults. Continue?",
+  "serverConfigResetAction": "Restore defaults",
+  "modelManagementTitle": "Model management",
+  "modelManagementImport": "Import model",
+  "modelManagementImporting": "Importing...",
+  "modelManagementEmptyTitle": "No models imported yet",
+  "modelManagementEmptyDescription": "After tapping \"Import model\", your local GGUF model list will appear here.",
+  "modelManagementDeleteDialogTitle": "Delete model",
+  "modelManagementDeleteDialogContent": "Delete {modelName}? This removes the model file and cannot be undone.",
+  "@modelManagementDeleteDialogContent": {
+    "placeholders": {
+      "modelName": {
+        "type": "String"
+      }
+    }
+  },
+  "modelManagementDeleteTooltip": "Delete",
+  "serverLogsTitle": "Logs",
+  "serverLogsCopyAll": "Copy all",
+  "serverLogsClear": "Clear",
+  "serverLogsCopied": "Logs copied",
+  "serverLogsCount": "{count} logs total",
+  "@serverLogsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "serverLogsEmpty": "No logs yet"
+}

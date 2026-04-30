@@ -1,0 +1,163 @@
+{
+  "@@locale": "zh",
+  "appTitle": "ServLlama",
+  "commonAuto": "自动",
+  "commonOptional": "可选",
+  "commonRename": "修改名称",
+  "commonCancel": "取消",
+  "commonSave": "保存",
+  "commonDelete": "删除",
+  "commonEnable": "开启",
+  "commonDisable": "关闭",
+  "drawerAllHistoryTooltip": "全部历史",
+  "drawerServer": "服务器",
+  "drawerSettings": "设置",
+  "chatSearchHint": "搜索聊天...",
+  "chatNewSession": "新对话",
+  "chatCreateSessionTooltip": "新建对话",
+  "chatHistoryTitle": "聊天历史",
+  "chatSessionEmpty": "暂无对话",
+  "chatSessionNotFound": "未找到匹配对话",
+  "chatMoreActions": "更多操作",
+  "chatRenameSessionTitle": "修改对话名称",
+  "chatRenameSessionHint": "输入对话名称",
+  "chatDeleteSessionTitle": "删除对话",
+  "chatDeleteSessionConfirm": "确定删除“{sessionTitle}”吗？",
+  "@chatDeleteSessionConfirm": {
+    "placeholders": {
+      "sessionTitle": {
+        "type": "String"
+      }
+    }
+  },
+  "chatSelectModel": "选择模型",
+  "chatRefreshModels": "刷新模型",
+  "chatLoadedModels": "已加载模型",
+  "chatAvailableModels": "可用模型",
+  "chatNoModels": "暂无{title}",
+  "@chatNoModels": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "chatHeroTitle": "开始对话",
+  "chatHeroDescriptionReady": "输入一条消息，开始与你的本地模型对话。",
+  "chatHeroDescriptionStartServer": "请先启动服务器，然后加载一个模型，马上开始你的AI对话~",
+  "chatHeroDescriptionSelectModel": "服务器已启动，请加载一个模型，马上开始你的 AI 对话~",
+  "chatStartServer": "启动服务器",
+  "chatStartingServer": "启动中...",
+  "chatLoadingModel": "加载模型中...",
+  "chatInputHintStartServer": "请先启动服务器",
+  "chatInputHintLoadingModel": "模型加载中...",
+  "chatInputHintSelectModel": "请先选择模型",
+  "chatInputHintModelUnavailable": "当前模型未加载",
+  "chatInputHintEnterMessage": "输入消息",
+  "chatSend": "发送",
+  "chatStop": "停止",
+  "chatUnloadModel": "卸载模型",
+  "chatModelStatusLoaded": "已加载",
+  "chatModelStatusLoading": "加载中",
+  "chatModelStatusAvailable": "可加载",
+  "chatModelStatusFailed": "加载失败",
+  "chatReasoningProcess": "深度思考",
+  "settingsTitle": "设置",
+  "settingsSectionGeneral": "通用",
+  "settingsSectionAbout": "关于",
+  "settingsThemeMode": "主题模式",
+  "settingsLanguage": "应用语言",
+  "settingsUnavailable": "暂未开放",
+  "settingsAbout": "关于",
+  "settingsThemeModeSheetTitle": "主题模式",
+  "settingsLanguageSheetTitle": "应用语言",
+  "themeModeSystem": "跟随系统",
+  "themeModeLight": "浅色",
+  "themeModeDark": "深色",
+  "languageModeSystem": "跟随系统",
+  "languageModeChinese": "简体中文",
+  "languageModeEnglish": "English",
+  "aboutTitle": "关于",
+  "aboutDescription": "将你的手机变成强大的大模型推理服务器，无需Termux",
+  "aboutVersion": "版本 {version}",
+  "@aboutVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "aboutVersionCopied": "版本号已复制",
+  "aboutStarOnGitHub": "在 GitHub 上点亮 Star",
+  "aboutLicense": "开源许可",
+  "serverTitle": "服务器",
+  "serverMenuConfig": "服务器配置",
+  "serverMenuLogs": "日志",
+  "serverMenuModels": "模型管理",
+  "serverStatusRunning": "运行中",
+  "serverStatusStopped": "已停止",
+  "serverStart": "启动",
+  "serverStop": "停止",
+  "serverBaseUrlLabel": "API Base URL",
+  "serverBaseUrlCopied": "API Base URL 已复制",
+  "serverCopyBaseUrl": "复制 API Base URL",
+  "serverConfigTitle": "服务器配置",
+  "serverConfigSectionNetwork": "网络与访问",
+  "serverConfigListenMode": "监听范围",
+  "serverConfigListenModeDescription": "本地回环仅本机使用，监听所有允许外部访问",
+  "serverConfigListenLocalhost": "本地回环",
+  "serverConfigListenAllInterfaces": "监听所有",
+  "serverConfigPort": "端口",
+  "serverConfigPortDescription": "服务器监听端口",
+  "serverConfigApiKey": "API Key",
+  "serverConfigApiKeyDescription": "留空则不启用校验。",
+  "serverConfigSectionInference": "推理参数",
+  "serverConfigContextSize": "上下文长度",
+  "serverConfigContextSizeDescription": "模型能关注的最大上下文toekn数量",
+  "serverConfigBatchSize": "批处理大小",
+  "serverConfigBatchSizeDescription": "影响吞吐和内存占用",
+  "serverConfigSectionPerformance": "性能",
+  "serverConfigCpuThreads": "CPU 线程数",
+  "serverConfigCpuThreadsDescription": "为模型推理分配的CPU线程数量",
+  "serverConfigParallelSlots": "并行槽位",
+  "serverConfigParallelSlotsDescription": "控制服务器同时处理的请求数",
+  "serverConfigSectionAdvanced": "高级",
+  "serverConfigFlashAttention": "Flash Attention",
+  "serverConfigFlashAttentionDescription": "降低某些模型的内存使用量和推理时间",
+  "serverConfigUseMmap": "使用 mmap",
+  "serverConfigUseMmapSubtitle": "提高模型的加载性能",
+  "serverConfigSectionReset": "重置",
+  "serverConfigResetTitle": "恢复默认配置",
+  "serverConfigResetSubtitle": "确认后会立即保存全部默认值。",
+  "serverConfigResetDialogTitle": "恢复默认配置",
+  "serverConfigResetDialogContent": "所有配置项将恢复默认值，确定继续吗？",
+  "serverConfigResetAction": "恢复默认",
+  "modelManagementTitle": "模型管理",
+  "modelManagementImport": "导入模型",
+  "modelManagementImporting": "导入中...",
+  "modelManagementEmptyTitle": "还没有导入模型",
+  "modelManagementEmptyDescription": "点击右下角“导入模型”后，这里会显示本地 GGUF 模型列表。",
+  "modelManagementDeleteDialogTitle": "删除模型",
+  "modelManagementDeleteDialogContent": "确定删除 {modelName} 吗？这会移除模型文件，且无法恢复。",
+  "@modelManagementDeleteDialogContent": {
+    "placeholders": {
+      "modelName": {
+        "type": "String"
+      }
+    }
+  },
+  "modelManagementDeleteTooltip": "删除",
+  "serverLogsTitle": "日志",
+  "serverLogsCopyAll": "复制全部",
+  "serverLogsClear": "清空",
+  "serverLogsCopied": "日志已复制",
+  "serverLogsCount": "共 {count} 条日志",
+  "@serverLogsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "serverLogsEmpty": "暂无日志输出"
+}
