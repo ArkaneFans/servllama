@@ -59,3 +59,4 @@ You can also copy the ServLlama server base URL into other AI client apps such a
 ## 🙏 Acknowledgements
 
 - [`llama.cpp`](https://github.com/ggml-org/llama.cpp): The core capabilities of this app are powered by `llama.cpp`.
+- [`Linux DO Community`](https://linux.do/).

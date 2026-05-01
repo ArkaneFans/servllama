@@ -58,3 +58,4 @@ ServLlama 的核心原理是使用交叉编译的llama-server直接在Android系
 ## 🙏 鸣谢
 
 - [`llama.cpp`](https://github.com/ggml-org/llama.cpp)：本应用核心功能基于llama.cpp实现。
+- [`Linux DO 社区`](https://linux.do/)。
