@@ -6,6 +6,7 @@ import 'package:servllama/core/services/llama_server_service.dart';
 import 'package:servllama/core/services/model_storage_paths.dart';
 import 'package:servllama/core/services/server_launch_args_builder.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
+import 'package:servllama/core/utils/network_utils.dart';
 
 class ServerProvider extends ChangeNotifier {
   ServerProvider({
@@ -35,6 +36,7 @@ class ServerProvider extends ChangeNotifier {
   String _host = '127.0.0.1';
   int _port = 8080;
   String? _lastError;
+  String? _pendingDisplayHost;
 
   bool get isRunning => _isRunning;
   bool get isBusy => _isBusy;
@@ -42,8 +44,24 @@ class ServerProvider extends ChangeNotifier {
   int get port => _port;
   String? get lastError => _lastError;
 
-  String get displayAddress => '$_host:$_port';
+  String get displayAddress {
+    if (_host == '0.0.0.0') {
+      _refreshDisplayHost();
+      return '${_pendingDisplayHost ?? _host}:$_port';
+    }
+    return '$_host:$_port';
+  }
+
   String get baseUrl => 'http://$displayAddress';
+
+  void _refreshDisplayHost() {
+    NetworkUtils.getLocalIpAddress().then((ip) {
+      if (ip != null && ip != _pendingDisplayHost) {
+        _pendingDisplayHost = ip;
+        notifyListeners();
+      }
+    });
+  }
 
   void setEndpoint({String? host, int? port}) {
     var changed = false;
