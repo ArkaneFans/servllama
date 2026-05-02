@@ -168,6 +168,9 @@ class FakeLlamaServerService implements LlamaServerService {
   }
 
   @override
+  void initForegroundTask() {}
+
+  @override
   Future<bool> startServer({List<String>? args}) async {
     startedArgs = args;
     _isRunning = true;
