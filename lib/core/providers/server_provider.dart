@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:servllama/core/services/llama_server_service.dart';
 import 'package:servllama/core/services/model_storage_paths.dart';
 import 'package:servllama/core/services/server_launch_args_builder.dart';
@@ -92,6 +93,17 @@ class ServerProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // Android 13+ require notification permissions
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        final notificationPermission =
+            await FlutterForegroundTask.checkNotificationPermission();
+        if (notificationPermission != NotificationPermission.granted) {
+          await FlutterForegroundTask.requestNotificationPermission();
+        }
+      }
+
+      _serverService.initForegroundTask();
+
       final settings = await _settingsLoader.load();
       final modelsDirectoryPath = await _modelStoragePaths
           .getModelsDirectoryPath();

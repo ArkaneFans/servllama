@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:servllama/core/logging/app_logger.dart';
+import 'package:servllama/core/services/foreground_task_service.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
 import 'package:servllama/core/storage/server_prefs_keys.dart';
 
@@ -27,6 +28,9 @@ class LlamaServerService {
   final StreamController<bool> _runningStateController =
       StreamController<bool>.broadcast();
 
+  final ForegroundTaskService _foregroundTaskService = ForegroundTaskService();
+  bool _foregroundTaskInitialized = false;
+
   Process? _process;
   bool _lastRunningState = false;
 
@@ -36,6 +40,13 @@ class LlamaServerService {
   Stream<bool> get runningStateStream => _runningStateController.stream;
 
   bool get isRunning => _process != null;
+
+  // Should be called once at app startup or before first use
+  void initForegroundTask() {
+    if (_foregroundTaskInitialized) return;
+    _foregroundTaskService.init();
+    _foregroundTaskInitialized = true;
+  }
 
   Future<String> _getBinaryDirectoryPath() async {
     final directory = await getApplicationSupportDirectory();
@@ -91,12 +102,20 @@ class LlamaServerService {
       _process = process;
       _emitRunningState(true);
 
+      // final address = _extractHostFromArgs(arguments);
+      await _foregroundTaskService.start(
+        notificationTitle: 'ServLlama 正在运行',
+        notificationText: 'ServLlama服务正在后台运行中',
+      );
+
       process.stdout.transform(utf8.decoder).listen(_handleStdout);
       process.stderr.transform(utf8.decoder).listen(_handleStderr);
-      process.exitCode.then((code) {
+      process.exitCode.then((code) async {
         _logger.pageInfo('Server exited with code: $code', channel: LogChannel.server);
         _process = null;
         _emitRunningState(false);
+
+        await _foregroundTaskService.stop();
       });
 
       _logger.pageInfo(
@@ -108,6 +127,9 @@ class LlamaServerService {
       _logger.pageError('Server started failed', channel: LogChannel.server, error: error);
       _process = null;
       _emitRunningState(false);
+
+      await _foregroundTaskService.stop();
+
       return false;
     }
   }
@@ -262,11 +284,17 @@ class LlamaServerService {
       _process!.kill(ProcessSignal.sigkill);
       _process = null;
       _emitRunningState(false);
+
+      await _foregroundTaskService.stop();
+
       return true;
     } catch (error) {
       _logger.pageError('Failed to stop service', channel: LogChannel.server, error: error);
       _process = null;
       _emitRunningState(false);
+
+      await _foregroundTaskService.stop();
+
       return false;
     }
   }
@@ -274,6 +302,7 @@ class LlamaServerService {
   void dispose() {
     stopServer();
     _runningStateController.close();
+    _foregroundTaskService.dispose();
   }
 
   void _emitRunningState(bool isRunning) {

@@ -291,6 +291,9 @@ class _ControllableLlamaServerService implements LlamaServerService {
   }
 
   @override
+  void initForegroundTask() {}
+
+  @override
   Future<bool> startServer({List<String>? args}) async {
     final started = await (startCompleter?.future ?? Future<bool>.value(true));
     if (started) {
