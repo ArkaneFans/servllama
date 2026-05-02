@@ -104,8 +104,8 @@ class LlamaServerService {
 
       // final address = _extractHostFromArgs(arguments);
       await _foregroundTaskService.start(
-        notificationTitle: 'ServLlama 正在运行',
-        notificationText: 'ServLlama服务正在后台运行中',
+        notificationTitle: 'ServLlama is running',
+        notificationText: 'ServLlama server is running in the background',
       );
 
       process.stdout.transform(utf8.decoder).listen(_handleStdout);
