@@ -812,6 +812,48 @@ abstract class AppLocalizations {
   /// **'Delete'**
   String get modelManagementDeleteTooltip;
 
+  /// No description provided for @modelMmprojBadgeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Multimodal'**
+  String get modelMmprojBadgeLabel;
+
+  /// No description provided for @modelManagementSettingsTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get modelManagementSettingsTooltip;
+
+  /// No description provided for @modelSettingsNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model name'**
+  String get modelSettingsNameLabel;
+
+  /// No description provided for @modelSettingsMmprojLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Multimodal projector'**
+  String get modelSettingsMmprojLabel;
+
+  /// No description provided for @modelSettingsImportMmproj.
+  ///
+  /// In en, this message translates to:
+  /// **'Import mmproj file'**
+  String get modelSettingsImportMmproj;
+
+  /// No description provided for @modelSettingsRemoveMmproj.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove mmproj'**
+  String get modelSettingsRemoveMmproj;
+
+  /// No description provided for @modelSettingsRemoveMmprojConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove mmproj file for {modelName}?'**
+  String modelSettingsRemoveMmprojConfirm(String modelName);
+
   /// No description provided for @serverLogsTitle.
   ///
   /// In en, this message translates to:

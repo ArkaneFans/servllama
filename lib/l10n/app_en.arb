@@ -147,6 +147,20 @@
     }
   },
   "modelManagementDeleteTooltip": "Delete",
+  "modelMmprojBadgeLabel": "Multimodal",
+  "modelManagementSettingsTooltip": "Settings",
+  "modelSettingsNameLabel": "Model name",
+  "modelSettingsMmprojLabel": "Multimodal projector",
+  "modelSettingsImportMmproj": "Import mmproj file",
+  "modelSettingsRemoveMmproj": "Remove mmproj",
+  "modelSettingsRemoveMmprojConfirm": "Remove mmproj file for {modelName}?",
+  "@modelSettingsRemoveMmprojConfirm": {
+    "placeholders": {
+      "modelName": {
+        "type": "String"
+      }
+    }
+  },
   "serverLogsTitle": "Logs",
   "serverLogsCopyAll": "Copy all",
   "serverLogsClear": "Clear",

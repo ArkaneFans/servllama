@@ -2,7 +2,14 @@ import 'package:hive/hive.dart';
 
 part 'chat_message_record.g.dart';
 
-enum ChatRole { user, assistant }
+@HiveType(typeId: 3)
+enum ChatRole {
+  @HiveField(0)
+  user,
+
+  @HiveField(1)
+  assistant,
+}
 
 @HiveType(typeId: 1)
 class ChatMessageRecord {

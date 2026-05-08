@@ -375,6 +375,29 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modelManagementDeleteTooltip => '删除';
 
   @override
+  String get modelMmprojBadgeLabel => '多模态';
+
+  @override
+  String get modelManagementSettingsTooltip => '设置';
+
+  @override
+  String get modelSettingsNameLabel => '模型名称';
+
+  @override
+  String get modelSettingsMmprojLabel => '多模态投影器';
+
+  @override
+  String get modelSettingsImportMmproj => '导入 mmproj 文件';
+
+  @override
+  String get modelSettingsRemoveMmproj => '移除 mmproj';
+
+  @override
+  String modelSettingsRemoveMmprojConfirm(String modelName) {
+    return '确定移除 $modelName 的 mmproj 文件吗？';
+  }
+
+  @override
   String get serverLogsTitle => '日志';
 
   @override

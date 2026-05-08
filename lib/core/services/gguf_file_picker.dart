@@ -14,6 +14,14 @@ class GgufFilePicker {
   final Future<FilePickerResult?> Function()? _pickFiles;
 
   Future<PickedGgufFile?> pickSingle() async {
+    return _pickSingleGguf();
+  }
+
+  Future<PickedGgufFile?> pickSingleMmproj() async {
+    return _pickSingleGguf();
+  }
+
+  Future<PickedGgufFile?> _pickSingleGguf() async {
     final result =
         await (_pickFiles?.call() ??
             FilePicker.platform.pickFiles(
@@ -27,12 +35,12 @@ class GgufFilePicker {
 
     final file = result.files.single;
     if (!_isGgufFileName(file.name)) {
-      throw StateError('仅支持导入 .gguf 模型文件。');
+      throw StateError('仅支持导入 .gguf 文件。');
     }
 
     final filePath = file.path;
     if (filePath == null || filePath.isEmpty) {
-      throw StateError('无法获取所选模型文件的路径。');
+      throw StateError('无法获取所选文件的路径。');
     }
 
     return PickedGgufFile(path: filePath, fileName: file.name);

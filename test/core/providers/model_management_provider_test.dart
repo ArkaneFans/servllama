@@ -97,6 +97,105 @@ void main() {
       expect(provider.models, isEmpty);
     });
 
+    test('importMmproj updates list and importing state on success', () async {
+      final repository = FakeLocalModelRepository(
+        initialModels: <ModelDescriptor>[
+          _descriptor(id: 'm1', modelName: 'vision'),
+        ],
+      );
+      final provider = ModelManagementProvider(
+        repository: repository,
+        filePicker: FakeGgufFilePicker(
+          pickedMmprojFile: const PickedGgufFile(
+            path: 'C:\\mock\\mmproj-f16.gguf',
+            fileName: 'mmproj-f16.gguf',
+          ),
+        ),
+        logger: AppLogger(),
+      );
+
+      await provider.load();
+      final future = provider.importMmproj('m1');
+
+      expect(provider.isImportingMmproj, isTrue);
+      expect(provider.importingMmprojModelId, 'm1');
+
+      final message = await future;
+
+      expect(message, 'mmproj 导入成功: vision');
+      expect(provider.isImportingMmproj, isFalse);
+      expect(provider.importingMmprojModelId, isNull);
+      expect(provider.models.single.mmprojFilePath, 'C:\\mock\\mmproj-f16.gguf');
+    });
+
+    test('renameModel updates list and clears renaming state', () async {
+      final repository = FakeLocalModelRepository(
+        initialModels: <ModelDescriptor>[
+          _descriptor(id: 'm1', modelName: 'before'),
+        ],
+      );
+      final provider = ModelManagementProvider(
+        repository: repository,
+        filePicker: FakeGgufFilePicker(),
+        logger: AppLogger(),
+      );
+
+      await provider.load();
+      final future = provider.renameModel('m1', 'after');
+
+      expect(provider.isRenaming, isTrue);
+      expect(provider.renamingModelId, 'm1');
+
+      final message = await future;
+
+      expect(message, '模型已重命名为: after');
+      expect(provider.isRenaming, isFalse);
+      expect(provider.renamingModelId, isNull);
+      expect(provider.models.single.modelName, 'after');
+    });
+
+    test('removeMmproj clears mmproj metadata', () async {
+      final repository = FakeLocalModelRepository(
+        initialModels: <ModelDescriptor>[
+          _descriptor(
+            id: 'm1',
+            modelName: 'vision',
+            mmprojFilePath: 'C:\\models\\vision\\mmproj-f16.gguf',
+          ),
+        ],
+      );
+      final provider = ModelManagementProvider(
+        repository: repository,
+        filePicker: FakeGgufFilePicker(),
+        logger: AppLogger(),
+      );
+
+      await provider.load();
+      final message = await provider.removeMmproj('m1');
+
+      expect(message, 'mmproj 已移除: vision');
+      expect(provider.models.single.mmprojFilePath, isNull);
+    });
+
+    test(
+      'formats file picker errors for mmproj import message',
+      () async {
+        final provider = ModelManagementProvider(
+          repository: FakeLocalModelRepository(),
+          filePicker: FakeGgufFilePicker(
+            error: PlatformException(code: 'FilePicker', message: '文件不可用'),
+          ),
+          logger: AppLogger(),
+        );
+
+        final message = await provider.importMmproj('m1');
+
+        expect(message, 'mmproj 导入失败: 文件不可用');
+        expect(provider.isImportingMmproj, isFalse);
+        expect(provider.importingMmprojModelId, isNull);
+      },
+    );
+
     test(
       'returns error message and resets state when repository throws',
       () async {
@@ -153,6 +252,9 @@ class FakeLocalModelRepository extends LocalModelRepository {
   Completer<ModelDescriptor>? importCompleter;
   Object? importError;
   Object? deleteError;
+  Object? importMmprojError;
+  Object? renameError;
+  Object? removeMmprojError;
 
   @override
   Future<List<ModelDescriptor>> listModels() async =>
@@ -187,6 +289,53 @@ class FakeLocalModelRepository extends LocalModelRepository {
     _models.removeWhere((model) => model.id == modelId);
   }
 
+  @override
+  Future<ModelDescriptor> importMmproj(
+    String modelId,
+    PickedGgufFile pickedFile,
+  ) async {
+    if (importMmprojError != null) {
+      throw importMmprojError!;
+    }
+
+    final index = _models.indexWhere((model) => model.id == modelId);
+    final updated = _models[index].copyWith(mmprojFilePath: pickedFile.path);
+    _models[index] = updated;
+    return updated;
+  }
+
+  @override
+  Future<ModelDescriptor> removeMmproj(String modelId) async {
+    if (removeMmprojError != null) {
+      throw removeMmprojError!;
+    }
+
+    final index = _models.indexWhere((model) => model.id == modelId);
+    final updated = _models[index].copyWith(mmprojFilePath: null);
+    _models[index] = updated;
+    return updated;
+  }
+
+  @override
+  Future<ModelDescriptor> renameModel(String modelId, String newName) async {
+    if (renameError != null) {
+      throw renameError!;
+    }
+
+    final index = _models.indexWhere((model) => model.id == modelId);
+    final current = _models[index];
+    final updated = current.copyWith(
+      modelName: newName,
+      storedDirectoryPath: 'C:\\models\\$newName',
+      storedFilePath: 'C:\\models\\$newName\\${current.storedFilePath.split('\\').last}',
+      mmprojFilePath: current.mmprojFilePath == null
+          ? null
+          : 'C:\\models\\$newName\\${current.mmprojFilePath!.split('\\').last}',
+    );
+    _models[index] = updated;
+    return updated;
+  }
+
   String _deriveModelName(String fileName) {
     const suffix = '.gguf';
     if (fileName.toLowerCase().endsWith(suffix)) {
@@ -197,9 +346,10 @@ class FakeLocalModelRepository extends LocalModelRepository {
 }
 
 class FakeGgufFilePicker extends GgufFilePicker {
-  FakeGgufFilePicker({this.pickedFile, this.error});
+  FakeGgufFilePicker({this.pickedFile, this.pickedMmprojFile, this.error});
 
   final PickedGgufFile? pickedFile;
+  final PickedGgufFile? pickedMmprojFile;
   final Object? error;
 
   @override
@@ -209,12 +359,21 @@ class FakeGgufFilePicker extends GgufFilePicker {
     }
     return pickedFile;
   }
+
+  @override
+  Future<PickedGgufFile?> pickSingleMmproj() async {
+    if (error != null) {
+      throw error!;
+    }
+    return pickedMmprojFile;
+  }
 }
 
 ModelDescriptor _descriptor({
   required String id,
   required String modelName,
   String? originalFileName,
+  String? mmprojFilePath,
   int sizeBytes = 1073741824,
 }) {
   final fileName = originalFileName ?? '$modelName.gguf';
@@ -225,5 +384,6 @@ ModelDescriptor _descriptor({
     storedDirectoryPath: 'C:\\models\\$modelName',
     storedFilePath: 'C:\\models\\$modelName\\$fileName',
     importedAt: DateTime(2026, 1, 1),
+    mmprojFilePath: mmprojFilePath,
   );
 }

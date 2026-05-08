@@ -389,6 +389,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modelManagementDeleteTooltip => 'Delete';
 
   @override
+  String get modelMmprojBadgeLabel => 'Multimodal';
+
+  @override
+  String get modelManagementSettingsTooltip => 'Settings';
+
+  @override
+  String get modelSettingsNameLabel => 'Model name';
+
+  @override
+  String get modelSettingsMmprojLabel => 'Multimodal projector';
+
+  @override
+  String get modelSettingsImportMmproj => 'Import mmproj file';
+
+  @override
+  String get modelSettingsRemoveMmproj => 'Remove mmproj';
+
+  @override
+  String modelSettingsRemoveMmprojConfirm(String modelName) {
+    return 'Remove mmproj file for $modelName?';
+  }
+
+  @override
   String get serverLogsTitle => 'Logs';
 
   @override

@@ -76,8 +76,10 @@ class ChatRoleAdapter extends TypeAdapter<ChatRole> {
     switch (obj) {
       case ChatRole.user:
         writer.writeByte(0);
+        break;
       case ChatRole.assistant:
         writer.writeByte(1);
+        break;
     }
   }
 

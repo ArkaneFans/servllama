@@ -178,6 +178,137 @@ void main() {
         isTrue,
       );
     });
+
+    test('imports mmproj into existing model directory', () async {
+      final modelFile = await _createSourceFile(sourceDirectory, 'vision.gguf');
+      final mmprojFile = await _createSourceFile(
+        sourceDirectory,
+        'mmproj-projector-f16.gguf',
+        content: 'mmproj-data',
+      );
+      final descriptor = await repository.importModel(
+        PickedGgufFile(path: modelFile.path, fileName: 'vision.gguf'),
+      );
+
+      final updated = await repository.importMmproj(
+        descriptor.id,
+        PickedGgufFile(
+          path: mmprojFile.path,
+          fileName: 'mmproj-projector-f16.gguf',
+        ),
+      );
+
+      expect(updated.mmprojFilePath, isNotNull);
+      expect(await File(updated.mmprojFilePath!).exists(), isTrue);
+      expect(
+        updated.mmprojFilePath,
+        endsWith(
+          '${LocalModelRepository.modelsFolderName}${Platform.pathSeparator}vision${Platform.pathSeparator}mmproj-projector-f16.gguf',
+        ),
+      );
+    });
+
+    test('rejects mmproj import when file name does not start with mmproj', () async {
+      final modelFile = await _createSourceFile(sourceDirectory, 'vision.gguf');
+      final invalidMmproj = await _createSourceFile(
+        sourceDirectory,
+        'projector.gguf',
+        content: 'invalid-mmproj',
+      );
+      final descriptor = await repository.importModel(
+        PickedGgufFile(path: modelFile.path, fileName: 'vision.gguf'),
+      );
+
+      expect(
+        () => repository.importMmproj(
+          descriptor.id,
+          PickedGgufFile(
+            path: invalidMmproj.path,
+            fileName: 'projector.gguf',
+          ),
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            '仅支持导入文件名以 mmproj 开头的 .gguf 文件。',
+          ),
+        ),
+      );
+    });
+
+    test('removeMmproj deletes file and clears metadata', () async {
+      final modelFile = await _createSourceFile(sourceDirectory, 'vision.gguf');
+      final mmprojFile = await _createSourceFile(
+        sourceDirectory,
+        'mmproj-f16.gguf',
+        content: 'mmproj-data',
+      );
+      final descriptor = await repository.importModel(
+        PickedGgufFile(path: modelFile.path, fileName: 'vision.gguf'),
+      );
+      final withMmproj = await repository.importMmproj(
+        descriptor.id,
+        PickedGgufFile(path: mmprojFile.path, fileName: 'mmproj-f16.gguf'),
+      );
+
+      final updated = await repository.removeMmproj(descriptor.id);
+
+      expect(updated.mmprojFilePath, isNull);
+      expect(await File(withMmproj.mmprojFilePath!).exists(), isFalse);
+    });
+
+    test('renameModel updates model directory and mmproj path', () async {
+      final modelFile = await _createSourceFile(sourceDirectory, 'vision.gguf');
+      final mmprojFile = await _createSourceFile(
+        sourceDirectory,
+        'mmproj-f16.gguf',
+        content: 'mmproj-data',
+      );
+      final descriptor = await repository.importModel(
+        PickedGgufFile(path: modelFile.path, fileName: 'vision.gguf'),
+      );
+      await repository.importMmproj(
+        descriptor.id,
+        PickedGgufFile(path: mmprojFile.path, fileName: 'mmproj-f16.gguf'),
+      );
+
+      final renamed = await repository.renameModel(descriptor.id, 'vision-v2');
+
+      expect(renamed.modelName, 'vision-v2');
+      expect(await Directory(renamed.storedDirectoryPath).exists(), isTrue);
+      expect(await File(renamed.storedFilePath).exists(), isTrue);
+      expect(await File(renamed.mmprojFilePath!).exists(), isTrue);
+      expect(
+        renamed.storedFilePath,
+        contains('${Platform.pathSeparator}vision-v2${Platform.pathSeparator}'),
+      );
+      expect(
+        renamed.mmprojFilePath,
+        contains('${Platform.pathSeparator}vision-v2${Platform.pathSeparator}'),
+      );
+    });
+
+    test('listModels clears missing mmproj metadata', () async {
+      final modelFile = await _createSourceFile(sourceDirectory, 'vision.gguf');
+      final mmprojFile = await _createSourceFile(
+        sourceDirectory,
+        'mmproj-f16.gguf',
+        content: 'mmproj-data',
+      );
+      final descriptor = await repository.importModel(
+        PickedGgufFile(path: modelFile.path, fileName: 'vision.gguf'),
+      );
+      final withMmproj = await repository.importMmproj(
+        descriptor.id,
+        PickedGgufFile(path: mmprojFile.path, fileName: 'mmproj-f16.gguf'),
+      );
+
+      await File(withMmproj.mmprojFilePath!).delete();
+      final models = await repository.listModels();
+
+      expect(models.single.mmprojFilePath, isNull);
+    });
   });
 }
 
