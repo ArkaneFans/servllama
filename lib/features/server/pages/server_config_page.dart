@@ -164,6 +164,19 @@ class _ServerConfigViewState extends State<_ServerConfigView> {
                                   onChanged: (value) => provider
                                       .updateBatchSize(_roundToStep(value, 32)),
                                 ),
+                                SliderNumberSetting(
+                                  label: l10n.serverConfigImageMaxTokens,
+                                  description:
+                                      l10n.serverConfigImageMaxTokensDescription,
+                                  value: provider.imageMaxTokens,
+                                  min: 128,
+                                  max: 4096,
+                                  divisions: 31,
+                                  onChanged: (value) => provider
+                                      .updateImageMaxTokens(
+                                        _roundToStep(value, 128),
+                                      ),
+                                ),
                               ],
                             ),
                           ),

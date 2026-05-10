@@ -308,6 +308,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Affects throughput and memory usage';
 
   @override
+  String get serverConfigImageMaxTokens => 'Image max tokens';
+
+  @override
+  String get serverConfigImageMaxTokensDescription =>
+      'Maximum number of tokens each image can use, only applies to vision models';
+
+  @override
   String get serverConfigSectionPerformance => 'Performance';
 
   @override

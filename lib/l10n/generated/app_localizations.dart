@@ -668,6 +668,18 @@ abstract class AppLocalizations {
   /// **'Affects throughput and memory usage'**
   String get serverConfigBatchSizeDescription;
 
+  /// No description provided for @serverConfigImageMaxTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'Image max tokens'**
+  String get serverConfigImageMaxTokens;
+
+  /// No description provided for @serverConfigImageMaxTokensDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum number of tokens each image can use, only applies to vision models'**
+  String get serverConfigImageMaxTokensDescription;
+
   /// No description provided for @serverConfigSectionPerformance.
   ///
   /// In en, this message translates to:

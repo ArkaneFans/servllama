@@ -116,6 +116,8 @@
   "serverConfigContextSizeDescription": "模型能关注的最大上下文toekn数量",
   "serverConfigBatchSize": "批处理大小",
   "serverConfigBatchSizeDescription": "影响吞吐和内存占用",
+  "serverConfigImageMaxTokens": "图片最大Token数",
+  "serverConfigImageMaxTokensDescription": "每张图片可占用的最大token数量，仅对视觉模型生效",
   "serverConfigSectionPerformance": "性能",
   "serverConfigCpuThreads": "CPU 线程数",
   "serverConfigCpuThreadsDescription": "为模型推理分配的CPU线程数量",

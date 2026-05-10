@@ -300,6 +300,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get serverConfigBatchSizeDescription => '影响吞吐和内存占用';
 
   @override
+  String get serverConfigImageMaxTokens => '图片最大Token数';
+
+  @override
+  String get serverConfigImageMaxTokensDescription =>
+      '每张图片可占用的最大token数量，仅对视觉模型生效';
+
+  @override
   String get serverConfigSectionPerformance => '性能';
 
   @override

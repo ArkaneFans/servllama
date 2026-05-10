@@ -116,6 +116,8 @@
   "serverConfigContextSizeDescription": "The maximum number of context tokens the model can attend to",
   "serverConfigBatchSize": "Batch size",
   "serverConfigBatchSizeDescription": "Affects throughput and memory usage",
+  "serverConfigImageMaxTokens": "Image max tokens",
+  "serverConfigImageMaxTokensDescription": "Maximum number of tokens each image can use, only applies to vision models",
   "serverConfigSectionPerformance": "Performance",
   "serverConfigCpuThreads": "CPU threads",
   "serverConfigCpuThreadsDescription": "The number of CPU threads allocated to model inference",

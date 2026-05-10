@@ -30,6 +30,7 @@ class ServerConfigProvider extends ChangeNotifier {
   int _cpuThreads = ServerLaunchSettings.defaultCpuThreads;
   int _batchSize = ServerLaunchSettings.defaultBatchSize;
   int _parallelSlots = ServerLaunchSettings.defaultParallelSlots;
+  int _imageMaxTokens = ServerLaunchSettings.defaultImageMaxTokens;
   FlashAttentionMode _flashAttentionMode =
       ServerLaunchSettings.defaultFlashAttentionMode;
   bool _useMmap = true;
@@ -46,6 +47,7 @@ class ServerConfigProvider extends ChangeNotifier {
   int get cpuThreads => _cpuThreads;
   int get batchSize => _batchSize;
   int get parallelSlots => _parallelSlots;
+  int get imageMaxTokens => _imageMaxTokens;
   FlashAttentionMode get flashAttentionMode => _flashAttentionMode;
   bool get useMmap => _useMmap;
 
@@ -168,6 +170,19 @@ class ServerConfigProvider extends ChangeNotifier {
     await _saveInt(ServerPrefsKeys.parallelSlots, _parallelSlots);
   }
 
+  Future<void> updateImageMaxTokens(int value) async {
+    final nextValue = _clamp(
+      value,
+      ServerLaunchSettings.minImageMaxTokens,
+      ServerLaunchSettings.maxImageMaxTokens,
+    );
+    if (_imageMaxTokens == nextValue) {
+      return;
+    }
+    _imageMaxTokens = nextValue;
+    await _saveInt(ServerPrefsKeys.imageMaxTokens, _imageMaxTokens);
+  }
+
   Future<void> updateFlashAttentionMode(FlashAttentionMode value) async {
     if (_flashAttentionMode == value) {
       return;
@@ -195,6 +210,7 @@ class ServerConfigProvider extends ChangeNotifier {
     _cpuThreads = settings.cpuThreads;
     _batchSize = settings.batchSize;
     _parallelSlots = settings.parallelSlots;
+    _imageMaxTokens = settings.imageMaxTokens;
     _flashAttentionMode = settings.flashAttentionMode;
     _useMmap = settings.useMmap;
   }
@@ -220,6 +236,7 @@ class ServerConfigProvider extends ChangeNotifier {
       await _kvStorage.setInt(ServerPrefsKeys.cpuThreads, _cpuThreads);
       await _kvStorage.setInt(ServerPrefsKeys.batchSize, _batchSize);
       await _kvStorage.setInt(ServerPrefsKeys.parallelSlots, _parallelSlots);
+      await _kvStorage.setInt(ServerPrefsKeys.imageMaxTokens, _imageMaxTokens);
       await _kvStorage.setString(
         ServerPrefsKeys.flashAttentionMode,
         _flashAttentionMode.name,

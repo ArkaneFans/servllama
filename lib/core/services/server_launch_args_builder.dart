@@ -22,6 +22,8 @@ class ServerLaunchArgsBuilder {
       '${settings.cpuThreads}',
       '--parallel',
       '${settings.parallelSlots}',
+      '--image-max-tokens',
+      '${settings.imageMaxTokens}',
       '--flash-attn',
       settings.flashAttentionMode.cliValue,
     ];
