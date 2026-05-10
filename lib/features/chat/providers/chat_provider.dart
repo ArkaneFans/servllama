@@ -37,6 +37,7 @@ class ChatProvider extends ChangeNotifier {
   ChatMessageRecord? _draftAssistantMessage;
   String? _streamingSessionId;
   CancelToken? _activeCancelToken;
+  List<String> _pendingImageAttachments = [];
 
   List<ChatSessionRecord> get sessions =>
       List<ChatSessionRecord>.unmodifiable(_sessions);
@@ -51,6 +52,8 @@ class ChatProvider extends ChangeNotifier {
   String? get loadingModelId => _loadingModelId;
   String? get currentModelId => _currentModelId;
   String? get draftMessageId => _draftAssistantMessage?.id;
+  List<String> get pendingImageAttachments =>
+      List<String>.unmodifiable(_pendingImageAttachments);
 
   bool get canManageSessions => !_isSending && _loadingModelId == null;
   bool get canSelectModels =>
@@ -382,14 +385,14 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> sendMessage(String text) async {
+  Future<void> sendMessage(String text, {List<String>? imageAttachments}) async {
     if (!canSend) {
       return;
     }
 
     final model = currentModel;
     final normalizedText = text.trim();
-    if (model == null || normalizedText.isEmpty) {
+    if (model == null || (normalizedText.isEmpty && (imageAttachments == null || imageAttachments.isEmpty))) {
       return;
     }
 
@@ -408,6 +411,7 @@ class ChatProvider extends ChangeNotifier {
       content: normalizedText,
       createdAt: now,
       modelName: model.displayName,
+      imageFilePaths: imageAttachments ?? const [],
     );
 
     final sessionTitle = session.title == defaultSessionTitle
@@ -478,12 +482,39 @@ class ChatProvider extends ChangeNotifier {
       _streamingSessionId = null;
       _activeCancelToken = null;
       _isSending = false;
+      _pendingImageAttachments = [];
       notifyListeners();
     }
   }
 
   void cancelStreaming() {
     _activeCancelToken?.cancel('user canceled');
+  }
+
+  void addImageAttachment(String filePath) {
+    if (_pendingImageAttachments.length >= 5) {
+      return;
+    }
+    _pendingImageAttachments = List<String>.from(_pendingImageAttachments)
+      ..add(filePath);
+    notifyListeners();
+  }
+
+  void removeImageAttachment(int index) {
+    if (index < 0 || index >= _pendingImageAttachments.length) {
+      return;
+    }
+    _pendingImageAttachments = List<String>.from(_pendingImageAttachments)
+      ..removeAt(index);
+    notifyListeners();
+  }
+
+  void clearImageAttachments() {
+    if (_pendingImageAttachments.isEmpty) {
+      return;
+    }
+    _pendingImageAttachments = [];
+    notifyListeners();
   }
 
   Future<void> _saveSessionLocally(

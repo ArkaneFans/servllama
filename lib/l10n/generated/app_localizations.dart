@@ -386,6 +386,30 @@ abstract class AppLocalizations {
   /// **'Reasoning'**
   String get chatReasoningProcess;
 
+  /// No description provided for @chatAttachImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Attach image'**
+  String get chatAttachImage;
+
+  /// No description provided for @chatRemoveImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove image'**
+  String get chatRemoveImage;
+
+  /// No description provided for @chatImageLimitExceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum 5 images per message'**
+  String get chatImageLimitExceeded;
+
+  /// No description provided for @chatImageSizeExceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Image size cannot exceed 10MB'**
+  String get chatImageSizeExceeded;
+
   /// No description provided for @settingsTitle.
   ///
   /// In en, this message translates to:

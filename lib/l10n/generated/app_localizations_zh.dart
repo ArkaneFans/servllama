@@ -157,6 +157,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatReasoningProcess => '深度思考';
 
   @override
+  String get chatAttachImage => '添加图片';
+
+  @override
+  String get chatRemoveImage => '移除图片';
+
+  @override
+  String get chatImageLimitExceeded => '每条消息最多添加5张图片';
+
+  @override
+  String get chatImageSizeExceeded => '图片大小不能超过10MB';
+
+  @override
   String get settingsTitle => '设置';
 
   @override

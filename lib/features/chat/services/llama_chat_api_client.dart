@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/models/chat_model_option.dart';
 import 'package:servllama/features/chat/models/chat_stream_delta.dart';
+import 'package:servllama/features/chat/services/image_attachment_service.dart';
 
 class LlamaChatApiException implements Exception {
   const LlamaChatApiException(this.message);
@@ -190,14 +192,7 @@ class LlamaChatApiClient {
         data: <String, dynamic>{
           'model': modelId,
           'stream': true,
-          'messages': messages
-              .map(
-                (message) => <String, dynamic>{
-                  'role': message.role.name,
-                  'content': message.content,
-                },
-              )
-              .toList(growable: false),
+          'messages': await _serializeMessages(messages),
         },
         cancelToken: cancelToken,
         options: Options(
@@ -361,6 +356,46 @@ class LlamaChatApiClient {
       headers['Authorization'] = 'Bearer ${settings.apiKey}';
     }
     return headers;
+  }
+
+  Future<List<Map<String, dynamic>>> _serializeMessages(
+    List<ChatMessageRecord> messages,
+  ) async {
+    final serialized = <Map<String, dynamic>>[];
+    for (final message in messages) {
+      final content = await _buildMessageContent(message);
+      serialized.add({
+        'role': message.role.name,
+        'content': content,
+      });
+    }
+    return serialized;
+  }
+
+  Future<dynamic> _buildMessageContent(ChatMessageRecord message) async {
+    if (message.imageFilePaths.isEmpty) {
+      return message.content;
+    }
+
+    final parts = <Map<String, dynamic>>[
+      {'type': 'text', 'text': message.content},
+    ];
+
+    for (final filePath in message.imageFilePaths) {
+      final file = File(filePath);
+      if (!await file.exists()) {
+        continue;
+      }
+      final bytes = await file.readAsBytes();
+      final base64Data = base64Encode(bytes);
+      final mimeType = ImageAttachmentService.mimeTypeForPath(filePath);
+      parts.add({
+        'type': 'image_url',
+        'image_url': {'url': 'data:$mimeType;base64,$base64Data'},
+      });
+    }
+
+    return parts;
   }
 
   LlamaChatApiException _exceptionFromDio(DioException error) {

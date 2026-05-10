@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -8,6 +9,7 @@ import 'package:servllama/core/providers/server_provider.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/models/chat_model_option.dart';
 import 'package:servllama/features/chat/providers/chat_provider.dart';
+import 'package:servllama/features/chat/services/image_attachment_service.dart';
 import 'package:servllama/l10n/l10n.dart';
 
 class ChatPage extends StatelessWidget {
@@ -41,6 +43,8 @@ class _ChatView extends StatefulWidget {
 class _ChatViewState extends State<_ChatView> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _inputController = TextEditingController();
+  final ImageAttachmentService _imageAttachmentService =
+      ImageAttachmentService();
 
   ChatProvider? _provider;
   int _lastMessageCount = 0;
@@ -113,11 +117,47 @@ class _ChatViewState extends State<_ChatView> {
 
   Future<void> _send(BuildContext context) async {
     final text = _inputController.text;
-    if (text.trim().isEmpty) {
+    if (text.trim().isEmpty && context.read<ChatProvider>().pendingImageAttachments.isEmpty) {
       return;
     }
     _inputController.clear();
-    await context.read<ChatProvider>().sendMessage(text);
+    final provider = context.read<ChatProvider>();
+    final attachments = List<String>.from(provider.pendingImageAttachments);
+    await provider.sendMessage(text, imageAttachments: attachments);
+  }
+
+  Future<void> _pickFromGallery(BuildContext context) async {
+    final provider = context.read<ChatProvider>();
+    try {
+      final paths = await _imageAttachmentService.pickFromGallery(
+        currentCount: provider.pendingImageAttachments.length,
+      );
+      for (final path in paths) {
+        provider.addImageAttachment(path);
+      }
+    } on ImageAttachmentException catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    }
+  }
+
+  Future<void> _pickFromCamera(BuildContext context) async {
+    final provider = context.read<ChatProvider>();
+    try {
+      final path = await _imageAttachmentService.pickFromCamera(
+        currentCount: provider.pendingImageAttachments.length,
+      );
+      if (path != null) {
+        provider.addImageAttachment(path);
+      }
+    } on ImageAttachmentException catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    }
   }
 
   Future<void> _showModels(BuildContext context) async {
@@ -279,6 +319,12 @@ class _ChatViewState extends State<_ChatView> {
                             isSending: provider.isSending,
                             onSend: () => _send(context),
                             onStop: provider.cancelStreaming,
+                            onPickFromGallery: () => _pickFromGallery(context),
+                            onPickFromCamera: () => _pickFromCamera(context),
+                            pendingImageAttachments:
+                                provider.pendingImageAttachments,
+                            onRemoveImageAttachment:
+                                provider.removeImageAttachment,
                           ),
                         ],
                       ),
@@ -519,6 +565,10 @@ class _InputBar extends StatelessWidget {
     required this.onOpenModels,
     required this.onSend,
     required this.onStop,
+    required this.onPickFromGallery,
+    required this.onPickFromCamera,
+    required this.pendingImageAttachments,
+    required this.onRemoveImageAttachment,
   });
 
   final TextEditingController controller;
@@ -535,6 +585,10 @@ class _InputBar extends StatelessWidget {
   final VoidCallback onOpenModels;
   final VoidCallback onSend;
   final VoidCallback onStop;
+  final VoidCallback onPickFromGallery;
+  final VoidCallback onPickFromCamera;
+  final List<String> pendingImageAttachments;
+  final ValueChanged<int> onRemoveImageAttachment;
 
   @override
   Widget build(BuildContext context) {
@@ -603,6 +657,11 @@ class _InputBar extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (pendingImageAttachments.isNotEmpty)
+                  _PendingImageStrip(
+                    paths: pendingImageAttachments,
+                    onRemove: onRemoveImageAttachment,
+                  ),
                 ConstrainedBox(
                   constraints: const BoxConstraints(minHeight: 40),
                   child: Stack(
@@ -752,6 +811,64 @@ class _InputBar extends StatelessWidget {
                                       ? actionButtonIconColor
                                       : disabledModelButtonIconColor,
                                 ),
+                        ),
+                      ),
+                    ),
+                    Tooltip(
+                      message: l10n.chatAttachImage,
+                      child: Semantics(
+                        button: true,
+                        label: l10n.chatAttachImage,
+                        child: IconButton(
+                          key: const Key('chat_gallery_button'),
+                          onPressed: canSend ? onPickFromGallery : null,
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            disabledBackgroundColor: Colors.transparent,
+                            foregroundColor: actionButtonIconColor,
+                            disabledForegroundColor:
+                                disabledModelButtonIconColor,
+                            minimumSize: const Size(42, 42),
+                            padding: EdgeInsets.zero,
+                            shape: actionButtonShape,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          icon: Icon(
+                            Icons.add_photo_alternate_outlined,
+                            size: 22,
+                            color: canSend
+                                ? actionButtonIconColor
+                                : disabledModelButtonIconColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Tooltip(
+                      message: l10n.chatAttachImage,
+                      child: Semantics(
+                        button: true,
+                        label: l10n.chatAttachImage,
+                        child: IconButton(
+                          key: const Key('chat_camera_button'),
+                          onPressed: canSend ? onPickFromCamera : null,
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            disabledBackgroundColor: Colors.transparent,
+                            foregroundColor: actionButtonIconColor,
+                            disabledForegroundColor:
+                                disabledModelButtonIconColor,
+                            minimumSize: const Size(42, 42),
+                            padding: EdgeInsets.zero,
+                            shape: actionButtonShape,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          icon: Icon(
+                            Icons.camera_alt_outlined,
+                            size: 22,
+                            color: canSend
+                                ? actionButtonIconColor
+                                : disabledModelButtonIconColor,
+                          ),
                         ),
                       ),
                     ),
@@ -1060,6 +1177,10 @@ class _MessageBubbleState extends State<_MessageBubble> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (isUser && message.imageFilePaths.isNotEmpty)
+                    _MessageImageStrip(
+                      imageFilePaths: message.imageFilePaths,
+                    ),
                   if (hasReasoningContent) ...[
                     Container(
                       decoration: BoxDecoration(
@@ -1211,4 +1332,132 @@ Color _chatActionButtonForegroundColor(Brightness brightness) {
 Color _chatDisabledActionButtonIconColor(Brightness brightness) {
   final color = _chatActionButtonBackgroundColor(brightness);
   return color.withAlpha(brightness == Brightness.light ? 170 : 190);
+}
+
+class _PendingImageStrip extends StatelessWidget {
+  const _PendingImageStrip({
+    required this.paths,
+    required this.onRemove,
+  });
+
+  final List<String> paths;
+  final ValueChanged<int> onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 72,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.only(bottom: 8),
+        itemCount: paths.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          return _ImageThumbnail(
+            path: paths[index],
+            onRemove: () => onRemove(index),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ImageThumbnail extends StatelessWidget {
+  const _ImageThumbnail({
+    required this.path,
+    this.onRemove,
+    this.size = 64,
+    this.borderRadius = 12,
+  });
+
+  final String path;
+  final VoidCallback? onRemove;
+  final double size;
+  final double borderRadius;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(borderRadius),
+          child: SizedBox(
+            width: size,
+            height: size,
+            child: Image.file(
+              File(path),
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                color: colorScheme.surfaceContainerHighest,
+                child: Icon(
+                  Icons.broken_image_outlined,
+                  size: size * 0.4,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (onRemove != null)
+          Positioned(
+            right: -4,
+            top: -4,
+            child: GestureDetector(
+              onTap: onRemove,
+              child: Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: colorScheme.error,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: colorScheme.surface,
+                    width: 1.5,
+                  ),
+                ),
+                child: Icon(
+                  Icons.close,
+                  size: 12,
+                  color: colorScheme.onError,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _MessageImageStrip extends StatelessWidget {
+  const _MessageImageStrip({required this.imageFilePaths});
+
+  final List<String> imageFilePaths;
+
+  @override
+  Widget build(BuildContext context) {
+    if (imageFilePaths.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: SizedBox(
+        height: 80,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: imageFilePaths.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (context, index) {
+            return _ImageThumbnail(
+              path: imageFilePaths[index],
+              size: 80,
+              borderRadius: 14,
+            );
+          },
+        ),
+      ),
+    );
+  }
 }

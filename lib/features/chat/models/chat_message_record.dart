@@ -20,6 +20,7 @@ class ChatMessageRecord {
     required this.createdAt,
     this.modelName,
     this.reasoningContent,
+    this.imageFilePaths = const [],
   });
 
   @HiveField(0)
@@ -40,6 +41,9 @@ class ChatMessageRecord {
   @HiveField(5)
   final String? reasoningContent;
 
+  @HiveField(6)
+  final List<String> imageFilePaths;
+
   ChatMessageRecord copyWith({
     String? id,
     ChatRole? role,
@@ -49,6 +53,8 @@ class ChatMessageRecord {
     String? reasoningContent,
     bool clearModelName = false,
     bool clearReasoningContent = false,
+    List<String>? imageFilePaths,
+    bool clearImageFilePaths = false,
   }) {
     return ChatMessageRecord(
       id: id ?? this.id,
@@ -59,6 +65,9 @@ class ChatMessageRecord {
       reasoningContent: clearReasoningContent
           ? null
           : reasoningContent ?? this.reasoningContent,
+      imageFilePaths: clearImageFilePaths
+          ? const []
+          : imageFilePaths ?? this.imageFilePaths,
     );
   }
 }

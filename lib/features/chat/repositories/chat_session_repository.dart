@@ -34,7 +34,24 @@ class ChatSessionRepository {
 
   Future<void> deleteSession(String sessionId) async {
     final box = await _box();
+    final session = box.get(sessionId);
+    if (session != null) {
+      await _deleteAttachmentFiles(session);
+    }
     await box.delete(sessionId);
+  }
+
+  Future<void> _deleteAttachmentFiles(ChatSessionRecord session) async {
+    for (final message in session.messages) {
+      for (final filePath in message.imageFilePaths) {
+        try {
+          final file = File(filePath);
+          if (await file.exists()) {
+            await file.delete();
+          }
+        } catch (_) {}
+      }
+    }
   }
 
   Future<Box<ChatSessionRecord>> _box() async {

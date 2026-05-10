@@ -160,6 +160,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatReasoningProcess => 'Reasoning';
 
   @override
+  String get chatAttachImage => 'Attach image';
+
+  @override
+  String get chatRemoveImage => 'Remove image';
+
+  @override
+  String get chatImageLimitExceeded => 'Maximum 5 images per message';
+
+  @override
+  String get chatImageSizeExceeded => 'Image size cannot exceed 10MB';
+
+  @override
   String get settingsTitle => 'Settings';
 
   @override

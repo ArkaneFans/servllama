@@ -39,6 +39,7 @@ dependencies:
   dio: any
   path_provider: ^2.1.2
   file_picker: ^8.1.7
+  image_picker: ^1.0.0
   hive: any
   hive_flutter: any
   provider: any
