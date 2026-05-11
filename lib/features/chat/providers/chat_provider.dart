@@ -403,6 +403,8 @@ class ChatProvider extends ChangeNotifier {
     }
 
     _isSending = true;
+    // 清空附件图片预览
+    clearImageAttachments();
 
     final now = DateTime.now();
     final userMessage = ChatMessageRecord(
