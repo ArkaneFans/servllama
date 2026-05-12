@@ -124,6 +124,14 @@ class _ChatViewState extends State<_ChatView> {
     final provider = context.read<ChatProvider>();
     final attachments = List<String>.from(provider.pendingImageAttachments);
     await provider.sendMessage(text, imageAttachments: attachments);
+    if (!context.mounted) return;
+    final errorMessage = provider.lastErrorMessage;
+    if (errorMessage != null) {
+      provider.clearLastError();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMessage)),
+      );
+    }
   }
 
   Future<void> _pickFromGallery(BuildContext context) async {
