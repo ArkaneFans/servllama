@@ -1170,9 +1170,9 @@ class _MessageBubbleState extends State<_MessageBubble> {
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        constraints: isUser
-            ? BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82)
-            : const BoxConstraints(),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.82,
+        ),
         margin: const EdgeInsets.only(bottom: 14),
         child: Column(
           crossAxisAlignment: isUser
@@ -1451,20 +1451,16 @@ class _MessageImageStrip extends StatelessWidget {
     }
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: SizedBox(
-        height: 80,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          itemCount: imageFilePaths.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 8),
-          itemBuilder: (context, index) {
-            return _ImageThumbnail(
-              path: imageFilePaths[index],
-              size: 80,
-              borderRadius: 14,
-            );
-          },
-        ),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: imageFilePaths.map((path) {
+          return _ImageThumbnail(
+            path: path,
+            size: 80,
+            borderRadius: 14,
+          );
+        }).toList(),
       ),
     );
   }
