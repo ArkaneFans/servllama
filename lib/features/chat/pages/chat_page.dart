@@ -1364,6 +1364,7 @@ class _PendingImageStrip extends StatelessWidget {
           return _ImageThumbnail(
             path: paths[index],
             onRemove: () => onRemove(index),
+            onTap: () => _showImagePreview(context, paths[index]),
           );
         },
       ),
@@ -1375,19 +1376,21 @@ class _ImageThumbnail extends StatelessWidget {
   const _ImageThumbnail({
     required this.path,
     this.onRemove,
+    this.onTap,
     this.size = 64,
     this.borderRadius = 12,
   });
 
   final String path;
   final VoidCallback? onRemove;
+  final VoidCallback? onTap;
   final double size;
   final double borderRadius;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Stack(
+    final thumbnail = Stack(
       clipBehavior: Clip.none,
       children: [
         ClipRRect(
@@ -1436,6 +1439,14 @@ class _ImageThumbnail extends StatelessWidget {
           ),
       ],
     );
+
+    if (onTap != null) {
+      return GestureDetector(
+        onTap: onTap,
+        child: thumbnail,
+      );
+    }
+    return thumbnail;
   }
 }
 
@@ -1459,8 +1470,74 @@ class _MessageImageStrip extends StatelessWidget {
             path: path,
             size: 80,
             borderRadius: 14,
+            onTap: () => _showImagePreview(context, path),
           );
         }).toList(),
+      ),
+    );
+  }
+}
+
+void _showImagePreview(BuildContext context, String path) {
+  showGeneralDialog(
+    context: context,
+    barrierDismissible: true,
+    barrierLabel: '',
+    barrierColor: Colors.black87,
+    transitionDuration: const Duration(milliseconds: 200),
+    pageBuilder: (_, __, ___) {
+      return _ImagePreviewOverlay(path: path);
+    },
+  );
+}
+
+class _ImagePreviewOverlay extends StatelessWidget {
+  const _ImagePreviewOverlay({required this.path});
+
+  final String path;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).pop(),
+              child: Container(color: Colors.black87),
+            ),
+          ),
+          Center(
+            child: InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: GestureDetector(
+                onTap: () {},
+                child: Image.file(
+                  File(path),
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Icon(
+                    Icons.broken_image_outlined,
+                    color: Colors.white54,
+                    size: 64,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            right: 8,
+            child: IconButton(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.close, color: Colors.white),
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.black45,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
