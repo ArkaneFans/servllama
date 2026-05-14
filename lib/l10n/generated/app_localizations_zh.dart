@@ -397,6 +397,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modelMmprojBadgeLabel => '多模态';
 
   @override
+  String get modelTextBadgeLabel => '文本';
+
+  @override
   String get modelManagementSettingsTooltip => '设置';
 
   @override

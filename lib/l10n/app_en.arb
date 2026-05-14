@@ -154,6 +154,7 @@
   },
   "modelManagementDeleteTooltip": "Delete",
   "modelMmprojBadgeLabel": "Multimodal",
+  "modelTextBadgeLabel": "Text",
   "modelManagementSettingsTooltip": "Settings",
   "modelSettingsNameLabel": "Model name",
   "modelSettingsMmprojLabel": "Multimodal projector",

@@ -188,6 +188,8 @@ class ModelManagementProvider extends ChangeNotifier {
         stackTrace: stackTrace,
       );
       return 'mmproj 移除失败: ${_describeError(error)}';
+    } finally {
+      notifyListeners();
     }
   }
 

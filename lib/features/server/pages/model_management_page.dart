@@ -156,6 +156,13 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
                 ? colorScheme.onPrimaryContainer
                 : colorScheme.onPrimary,
             elevation: 0,
+            extendedPadding: const EdgeInsets.symmetric(
+              horizontal: 18,
+              vertical: 2,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
           ),
           body: provider.isLoading
               ? const Center(child: CircularProgressIndicator())
@@ -164,7 +171,7 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
                   child: provider.isEmpty
                       ? const _EmptyState()
                       : ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 112),
                           itemCount: provider.models.length,
                           itemBuilder: (context, index) {
                             final model = provider.models[index];
@@ -209,27 +216,40 @@ class _EmptyState extends StatelessWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: isLight ? Colors.white : colorScheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(30),
             border: Border.all(
               color: colorScheme.outlineVariant.withAlpha(110),
             ),
+            boxShadow: isLight
+                ? const [
+                    BoxShadow(
+                      color: Color(0x08000000),
+                      blurRadius: 18,
+                      offset: Offset(0, 8),
+                    ),
+                  ]
+                : null,
           ),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
+            padding: const EdgeInsets.fromLTRB(24, 30, 24, 30),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 68,
-                  height: 68,
+                  width: 72,
+                  height: 72,
                   decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer.withAlpha(150),
-                    borderRadius: BorderRadius.circular(20),
+                    color: isLight
+                        ? const Color(0xFFEAF0FF)
+                        : colorScheme.primaryContainer.withAlpha(110),
+                    borderRadius: BorderRadius.circular(22),
                   ),
                   child: Icon(
                     Icons.memory_rounded,
                     size: 32,
-                    color: colorScheme.primary,
+                    color: isLight
+                        ? colorScheme.primary
+                        : colorScheme.onPrimaryContainer,
                   ),
                 ),
                 const SizedBox(height: 18),
@@ -278,76 +298,99 @@ class _ModelCard extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final isLight = theme.brightness == Brightness.light;
     final l10n = context.l10n;
+    final typeLabel = descriptor.mmprojFilePath != null
+        ? l10n.modelMmprojBadgeLabel
+        : l10n.modelTextBadgeLabel;
 
     return DecoratedBox(
       decoration: BoxDecoration(
         color: isLight ? Colors.white : colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: colorScheme.outlineVariant.withAlpha(110)),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: colorScheme.outlineVariant.withAlpha(96)),
+        boxShadow: isLight
+            ? const [
+                BoxShadow(
+                  color: Color(0x05000000),
+                  blurRadius: 14,
+                  offset: Offset(0, 6),
+                ),
+              ]
+            : null,
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 10, 14),
+        padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const _ModelLeadingIcon(),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  Text(
+                    descriptor.modelName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Flexible(
-                        child: Text(
-                          descriptor.modelName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                      Expanded(
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            _ModelTypeBadge(
+                              label: typeLabel,
+                              isMultimodal: descriptor.mmprojFilePath != null,
+                            ),
+                            Text(
+                              subtitle,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w500,
+                                height: 1.2,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      if (descriptor.mmprojFilePath != null) ...[
-                        const SizedBox(width: 8),
-                        _MmprojBadge(label: l10n.modelMmprojBadgeLabel),
-                      ],
+                      const SizedBox(width: 8),
+                      _ModelActionButton(
+                        key: Key('model_card_settings_${descriptor.id}'),
+                        tooltip: l10n.modelManagementSettingsTooltip,
+                        onPressed: isDeleting ? null : onSettings,
+                        icon: Icons.settings_outlined,
+                      ),
+                      const SizedBox(width: 2),
+                      _ModelActionButton(
+                        tooltip: l10n.modelManagementDeleteTooltip,
+                        onPressed: onDelete,
+                        icon: Icons.delete_outline_rounded,
+                        foregroundColor: colorScheme.onSurfaceVariant,
+                        child: isDeleting
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : null,
+                      ),
                     ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w500,
-                    ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(width: 8),
-            IconButton(
-              key: Key('model_card_settings_${descriptor.id}'),
-              onPressed: isDeleting ? null : onSettings,
-              tooltip: l10n.modelManagementSettingsTooltip,
-              icon: Icon(
-                Icons.settings_outlined,
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-            IconButton(
-              onPressed: onDelete,
-              tooltip: l10n.modelManagementDeleteTooltip,
-              icon: isDeleting
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Icon(
-                      Icons.delete_outline_rounded,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
             ),
           ],
         ),
@@ -356,31 +399,115 @@ class _ModelCard extends StatelessWidget {
   }
 }
 
-class _MmprojBadge extends StatelessWidget {
-  const _MmprojBadge({required this.label});
-
-  final String label;
+class _ModelLeadingIcon extends StatelessWidget {
+  const _ModelLeadingIcon();
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isLight = theme.brightness == Brightness.light;
+
+    return SizedBox(
+      width: 48,
+      height: 48,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: isLight
+              ? const Color(0xFFF0F4FF)
+              : colorScheme.primaryContainer.withAlpha(120),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Center(
+          child: Icon(
+            Icons.memory_rounded,
+            size: 22,
+            color: isLight ? const Color(0xFF4A5DCA) : colorScheme.primary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ModelTypeBadge extends StatelessWidget {
+  const _ModelTypeBadge({
+    required this.label,
+    required this.isMultimodal,
+  });
+
+  final String label;
+  final bool isMultimodal;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final backgroundColor = isMultimodal
+        ? (theme.brightness == Brightness.light
+              ? const Color(0xFFFCE7F3)
+              : colorScheme.tertiaryContainer)
+        : (theme.brightness == Brightness.light
+              ? const Color(0xFFE7EDFF)
+              : colorScheme.primaryContainer);
+    final foregroundColor = isMultimodal
+        ? (theme.brightness == Brightness.light
+              ? const Color(0xFF9D174D)
+              : colorScheme.onTertiaryContainer)
+        : (theme.brightness == Brightness.light
+              ? const Color(0xFF3730A3)
+              : colorScheme.onPrimaryContainer);
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: colorScheme.tertiaryContainer,
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
         child: Text(
           label,
           style: theme.textTheme.labelMedium?.copyWith(
-            color: colorScheme.onTertiaryContainer,
+            color: foregroundColor,
             fontWeight: FontWeight.w700,
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ModelActionButton extends StatelessWidget {
+  const _ModelActionButton({
+    super.key,
+    required this.tooltip,
+    required this.onPressed,
+    required this.icon,
+    this.foregroundColor,
+    this.child,
+  });
+
+  final String tooltip;
+  final VoidCallback? onPressed;
+  final IconData icon;
+  final Color? foregroundColor;
+  final Widget? child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return IconButton(
+      key: key,
+      tooltip: tooltip,
+      onPressed: onPressed,
+      style: IconButton.styleFrom(
+        foregroundColor: foregroundColor ?? colorScheme.onSurfaceVariant,
+        minimumSize: const Size(36, 36),
+        padding: const EdgeInsets.all(8),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      icon: child ?? Icon(icon, size: 20),
     );
   }
 }
@@ -521,6 +648,7 @@ class _ModelSettingsSheetState extends State<_ModelSettingsSheet> {
         final isRenamingThisModel = provider.renamingModelId == descriptor.id;
         final isImportingMmproj =
             provider.importingMmprojModelId == descriptor.id;
+        final isLight = theme.brightness == Brightness.light;
         final canSaveName =
             draftName.isNotEmpty &&
             draftName != descriptor.modelName &&
@@ -533,13 +661,14 @@ class _ModelSettingsSheetState extends State<_ModelSettingsSheet> {
               20,
               8,
               20,
-              24 + MediaQuery.of(context).viewInsets.bottom,
+              28 + MediaQuery.of(context).viewInsets.bottom,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: Text(
@@ -549,209 +678,209 @@ class _ModelSettingsSheetState extends State<_ModelSettingsSheet> {
                         ),
                       ),
                     ),
-                    if (descriptor.mmprojFilePath != null)
-                      _MmprojBadge(label: l10n.modelMmprojBadgeLabel),
+                    const SizedBox(width: 12),
+                    _ModelTypeBadge(
+                      label: descriptor.mmprojFilePath != null
+                          ? l10n.modelMmprojBadgeLabel
+                          : l10n.modelTextBadgeLabel,
+                      isMultimodal: descriptor.mmprojFilePath != null,
+                    ),
                   ],
                 ),
-                const SizedBox(height: 18),
-                _SettingsBlock(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l10n.modelSettingsNameLabel,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        key: const Key('model_settings_name_field'),
-                        controller: _nameController,
-                        textInputAction: TextInputAction.done,
-                        onChanged: (_) => setState(() {}),
-                        onSubmitted: (_) {
-                          if (canSaveName) {
-                            _renameModel(context, descriptor);
-                          }
-                        },
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: colorScheme.surfaceContainerHighest.withAlpha(
-                            90,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide(
-                              color: colorScheme.outlineVariant,
-                            ),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide(
-                              color: colorScheme.outlineVariant,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide(color: colorScheme.primary),
-                          ),
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 12,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: FilledButton.icon(
-                          key: const Key('model_settings_save_name_button'),
-                          onPressed: canSaveName
-                              ? () => _renameModel(context, descriptor)
-                              : null,
-                          icon: isRenamingThisModel
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.save_outlined),
-                          label: Text(l10n.commonSave),
-                        ),
-                      ),
-                    ],
+                const SizedBox(height: 22),
+                Text(
+                  l10n.modelSettingsNameLabel,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: colorScheme.onSurface.withAlpha(220),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  key: const Key('model_settings_name_field'),
+                  controller: _nameController,
+                  textInputAction: TextInputAction.done,
+                  onChanged: (_) => setState(() {}),
+                  onSubmitted: (_) {
+                    if (canSaveName) {
+                      _renameModel(context, descriptor);
+                    }
+                  },
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: isLight
+                        ? const Color(0xFFF5F6F8)
+                        : colorScheme.surfaceContainerHighest.withAlpha(90),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: colorScheme.primary),
+                    ),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 14),
-                _SettingsBlock(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l10n.modelSettingsMmprojLabel,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.icon(
+                    key: const Key('model_settings_save_name_button'),
+                    onPressed: canSaveName
+                        ? () => _renameModel(context, descriptor)
+                        : null,
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
                       ),
-                      const SizedBox(height: 12),
-                      if (descriptor.mmprojFilePath case final mmprojPath?) ...[
-                        Row(
-                          children: [
-                            Container(
-                              width: 42,
-                              height: 42,
-                              decoration: BoxDecoration(
-                                color: colorScheme.tertiaryContainer.withAlpha(
-                                  150,
-                                ),
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: Icon(
-                                Icons.perm_media_outlined,
-                                color: colorScheme.onTertiaryContainer,
+                      minimumSize: const Size(0, 0),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      backgroundColor: canSaveName
+                          ? colorScheme.primary
+                          : (isLight
+                                ? const Color(0xFFF0F0F0)
+                                : colorScheme.surfaceContainerHighest),
+                      foregroundColor: canSaveName
+                          ? colorScheme.onPrimary
+                          : (isLight
+                                ? const Color(0xFFA0A0A0)
+                                : colorScheme.onSurfaceVariant),
+                    ),
+                    icon: isRenamingThisModel
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Icon(Icons.save_outlined, size: 16),
+                    label: Text(l10n.commonSave),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  l10n.modelSettingsMmprojLabel,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: colorScheme.onSurface.withAlpha(220),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                if (descriptor.mmprojFilePath case final mmprojPath?)
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: isLight
+                          ? const Color(0xFFF5F6F8)
+                          : colorScheme.surfaceContainerHighest.withAlpha(86),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: isLight
+                                  ? const Color(0xFFFCE7F3)
+                                  : colorScheme.tertiaryContainer.withAlpha(150),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              Icons.perm_media_outlined,
+                              size: 18,
+                              color: isLight
+                                  ? const Color(0xFF9D174D)
+                                  : colorScheme.onTertiaryContainer,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              _fileNameFromPath(mmprojPath),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                _fileNameFromPath(mmprojPath),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.bodyLarge?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                          ),
+                          const SizedBox(width: 10),
+                          IconButton(
+                            key: const Key(
+                              'model_settings_remove_mmproj_button',
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: OutlinedButton.icon(
-                            key: const Key('model_settings_remove_mmproj_button'),
                             onPressed: isImportingMmproj
                                 ? null
                                 : () => _removeMmproj(context, descriptor),
-                            icon: const Icon(Icons.delete_outline_rounded),
-                            label: Text(l10n.modelSettingsRemoveMmproj),
+                            style: IconButton.styleFrom(
+                              foregroundColor: isLight
+                                  ? const Color(0xFFDC2626)
+                                  : colorScheme.error,
+                              backgroundColor: isLight
+                                  ? const Color(0xFFFEE2E2)
+                                  : colorScheme.errorContainer,
+                              minimumSize: const Size(38, 38),
+                              padding: const EdgeInsets.all(10),
+                            ),
+                            icon: const Icon(
+                              Icons.delete_outline_rounded,
+                              size: 18,
+                            ),
                           ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: FilledButton.tonalIcon(
+                      key: const Key('model_settings_import_mmproj_button'),
+                      onPressed: isImportingMmproj
+                          ? null
+                          : () => _importMmproj(context, descriptor),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
                         ),
-                      ] else
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: FilledButton.tonalIcon(
-                            key: const Key('model_settings_import_mmproj_button'),
-                            onPressed: isImportingMmproj
-                                ? null
-                                : () => _importMmproj(context, descriptor),
-                            icon: isImportingMmproj
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Icon(Icons.upload_file_outlined),
-                            label: Text(l10n.modelSettingsImportMmproj),
-                          ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
                         ),
-                    ],
+                      ),
+                      icon: isImportingMmproj
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Icon(Icons.upload_file_outlined),
+                      label: Text(l10n.modelSettingsImportMmproj),
+                    ),
                   ),
-                ),
               ],
             ),
           ),
         );
       },
-    );
-  }
-}
-
-class _SettingsBlock extends StatelessWidget {
-  const _SettingsBlock({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isLight = theme.brightness == Brightness.light;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: isLight ? Colors.white : colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: colorScheme.outlineVariant.withAlpha(110)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-        child: child,
-      ),
-    );
-  }
-}
-
-class _ModelLeadingIcon extends StatelessWidget {
-  const _ModelLeadingIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        color: colorScheme.primaryContainer.withAlpha(120),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Icon(Icons.memory_rounded, size: 22, color: colorScheme.primary),
     );
   }
 }

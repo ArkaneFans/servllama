@@ -154,6 +154,7 @@
   },
   "modelManagementDeleteTooltip": "删除",
   "modelMmprojBadgeLabel": "多模态",
+  "modelTextBadgeLabel": "文本",
   "modelManagementSettingsTooltip": "设置",
   "modelSettingsNameLabel": "模型名称",
   "modelSettingsMmprojLabel": "多模态投影器",

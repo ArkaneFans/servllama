@@ -411,6 +411,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modelMmprojBadgeLabel => 'Multimodal';
 
   @override
+  String get modelTextBadgeLabel => 'Text';
+
+  @override
   String get modelManagementSettingsTooltip => 'Settings';
 
   @override

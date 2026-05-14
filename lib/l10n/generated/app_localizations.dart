@@ -854,6 +854,12 @@ abstract class AppLocalizations {
   /// **'Multimodal'**
   String get modelMmprojBadgeLabel;
 
+  /// No description provided for @modelTextBadgeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Text'**
+  String get modelTextBadgeLabel;
+
   /// No description provided for @modelManagementSettingsTooltip.
   ///
   /// In en, this message translates to:

@@ -47,8 +47,29 @@ void main() {
 
       expect(find.text('model'), findsOneWidget);
       expect(find.text('2.00 GB · GGUF'), findsOneWidget);
+      expect(find.text('文本'), findsOneWidget);
       expect(find.byTooltip('设置'), findsOneWidget);
       expect(find.byTooltip('删除'), findsOneWidget);
+    });
+
+    testWidgets('shows text badge when mmproj does not exist', (tester) async {
+      final provider = ModelManagementProvider(
+        repository: FakeLocalModelRepository(
+          initialModels: <ModelDescriptor>[
+            _descriptor(id: 'm1', modelName: 'text-only'),
+          ],
+        ),
+        filePicker: FakeGgufFilePicker(),
+        logger: AppLogger(),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(home: ModelManagementPage(provider: provider)),
+      );
+      await tester.pump();
+
+      expect(find.text('文本'), findsOneWidget);
+      expect(find.text('多模态'), findsNothing);
     });
 
     testWidgets('shows multimodal badge when mmproj exists', (tester) async {
