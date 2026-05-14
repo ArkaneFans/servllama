@@ -23,13 +23,14 @@ class ModelDescriptorAdapter extends TypeAdapter<ModelDescriptor> {
       storedDirectoryPath: fields[3] as String,
       storedFilePath: fields[4] as String,
       importedAt: fields[5] as DateTime,
+      mmprojFilePath: fields[6] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, ModelDescriptor obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -41,7 +42,9 @@ class ModelDescriptorAdapter extends TypeAdapter<ModelDescriptor> {
       ..writeByte(4)
       ..write(obj.storedFilePath)
       ..writeByte(5)
-      ..write(obj.importedAt);
+      ..write(obj.importedAt)
+      ..writeByte(6)
+      ..write(obj.mmprojFilePath);
   }
 
   @override

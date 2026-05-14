@@ -7,6 +7,7 @@ class ModelStoragePaths {
     : _appSupportDirectory = appSupportDirectory;
 
   static const String modelsFolderName = 'models';
+  static const String chatAttachmentsFolderName = 'chat_attachments';
 
   final Directory? _appSupportDirectory;
 
@@ -41,6 +42,17 @@ class ModelStoragePaths {
 
     final modelsDirectory = await getModelsDirectory();
     return Directory(_joinPath(modelsDirectory.path, trimmedModelName));
+  }
+
+  Future<Directory> getChatAttachmentsDirectory() async {
+    final appSupportDirectory = await getAppSupportDirectory();
+    final attachmentsDirectory = Directory(
+      _joinPath(appSupportDirectory.path, chatAttachmentsFolderName),
+    );
+    if (!await attachmentsDirectory.exists()) {
+      await attachmentsDirectory.create(recursive: true);
+    }
+    return attachmentsDirectory;
   }
 
   String _joinPath(String left, String right) {

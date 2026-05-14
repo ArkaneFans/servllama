@@ -47,6 +47,17 @@ class LocalModelRepository {
         );
         continue;
       }
+
+      if (descriptor.mmprojFilePath != null) {
+        final mmprojFile = File(descriptor.mmprojFilePath!);
+        if (!await mmprojFile.exists()) {
+          final patched = descriptor.copyWith(mmprojFilePath: null);
+          await box.put(patched.id, patched);
+          validModels.add(patched);
+          continue;
+        }
+      }
+
       validModels.add(descriptor);
     }
 
@@ -112,6 +123,121 @@ class LocalModelRepository {
     }
   }
 
+  Future<ModelDescriptor> importMmproj(
+    String modelId,
+    PickedGgufFile pickedFile,
+  ) async {
+    final box = await _box();
+    final descriptor = box.get(modelId);
+    if (descriptor == null) {
+      throw StateError('模型不存在。');
+    }
+
+    final sourceFile = File(pickedFile.path);
+    if (!await sourceFile.exists()) {
+      throw StateError('所选 mmproj 文件不存在。');
+    }
+    if (!_isMmprojFileName(pickedFile.fileName)) {
+      throw StateError('仅支持导入文件名以 mmproj 开头的 .gguf 文件。');
+    }
+
+    final mmprojDestPath = _joinPath(
+      descriptor.storedDirectoryPath,
+      pickedFile.fileName,
+    );
+    if (_sameFilePath(mmprojDestPath, descriptor.storedFilePath)) {
+      throw StateError('mmproj 文件不能与主模型文件同名。');
+    }
+
+    final existingMmprojPath = descriptor.mmprojFilePath;
+    if (existingMmprojPath != null && !_sameFilePath(existingMmprojPath, mmprojDestPath)) {
+      final existingMmprojFile = File(existingMmprojPath);
+      if (await existingMmprojFile.exists()) {
+        await existingMmprojFile.delete();
+      }
+    }
+
+    final destinationFile = File(mmprojDestPath);
+    if (await destinationFile.exists()) {
+      await destinationFile.delete();
+    }
+
+    final copiedFile = await sourceFile.copy(mmprojDestPath);
+    final updated = descriptor.copyWith(mmprojFilePath: copiedFile.path);
+    await box.put(descriptor.id, updated);
+    return updated;
+  }
+
+  Future<ModelDescriptor> removeMmproj(String modelId) async {
+    final box = await _box();
+    final descriptor = box.get(modelId);
+    if (descriptor == null) {
+      throw StateError('模型不存在。');
+    }
+
+    final currentPath = descriptor.mmprojFilePath;
+    if (currentPath != null) {
+      final file = File(currentPath);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    }
+
+    final updated = descriptor.copyWith(mmprojFilePath: null);
+    await box.put(descriptor.id, updated);
+    return updated;
+  }
+
+  Future<ModelDescriptor> renameModel(String modelId, String newName) async {
+    final box = await _box();
+    final descriptor = box.get(modelId);
+    if (descriptor == null) {
+      throw StateError('模型不存在。');
+    }
+
+    final trimmed = newName.trim();
+    if (trimmed.isEmpty) {
+      throw StateError('模型名称不能为空。');
+    }
+
+    final allModels = await listModels();
+    final hasDuplicate = allModels.any(
+      (m) =>
+          m.id != modelId &&
+          _normalizeModelKey(m.modelName) == _normalizeModelKey(trimmed),
+    );
+    if (hasDuplicate) {
+      throw StateError('模型名称已存在。');
+    }
+
+    final oldDir = Directory(descriptor.storedDirectoryPath);
+    final newDir = await _storagePaths.getModelDirectory(trimmed);
+    if (await newDir.exists()) {
+      throw StateError('模型目录已存在。');
+    }
+    if (await oldDir.exists()) {
+      await oldDir.rename(newDir.path);
+    }
+
+    final oldFileName = descriptor.storedFilePath.split(Platform.pathSeparator).last;
+    final newStoredFilePath = _joinPath(newDir.path, oldFileName);
+    String? newMmprojPath;
+    if (descriptor.mmprojFilePath != null) {
+      final mmprojFileName =
+          descriptor.mmprojFilePath!.split(Platform.pathSeparator).last;
+      newMmprojPath = _joinPath(newDir.path, mmprojFileName);
+    }
+
+    final updated = descriptor.copyWith(
+      modelName: trimmed,
+      storedDirectoryPath: newDir.path,
+      storedFilePath: newStoredFilePath,
+      mmprojFilePath: newMmprojPath,
+    );
+    await box.put(descriptor.id, updated);
+    return updated;
+  }
+
   Future<void> deleteModel(String modelId) async {
     final box = await _box();
     final descriptor = box.get(modelId);
@@ -175,6 +301,25 @@ class LocalModelRepository {
 
   bool _isGgufFileName(String fileName) =>
       fileName.toLowerCase().endsWith('.gguf');
+
+  bool _isMmprojFileName(String fileName) {
+    final normalized = fileName.toLowerCase();
+    return normalized.startsWith('mmproj') && normalized.endsWith('.gguf');
+  }
+
+  bool _sameFilePath(String left, String right) {
+    final normalizedLeft = _normalizeFilePath(left);
+    final normalizedRight = _normalizeFilePath(right);
+    return normalizedLeft == normalizedRight;
+  }
+
+  String _normalizeFilePath(String path) {
+    final normalized = path.replaceAll('/', Platform.pathSeparator).replaceAll(
+      '\\',
+      Platform.pathSeparator,
+    );
+    return Platform.isWindows ? normalized.toLowerCase() : normalized;
+  }
 
   String _joinPath(String left, String right) {
     final needsSeparator =

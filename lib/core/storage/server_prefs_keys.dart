@@ -8,6 +8,7 @@ class ServerPrefsKeys {
   static const String cpuThreads = 'server.cpu_threads';
   static const String batchSize = 'server.batch_size';
   static const String parallelSlots = 'server.parallel_slots';
+  static const String imageMaxTokens = 'server.image_max_tokens';
   static const String flashAttentionMode = 'server.flash_attention_mode';
   static const String useMmap = 'server.use_mmap';
   static const String llamaServerInstalledVersion =

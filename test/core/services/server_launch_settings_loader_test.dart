@@ -28,6 +28,10 @@ void main() {
       expect(settings.batchSize, ServerLaunchSettings.defaultBatchSize);
       expect(settings.parallelSlots, ServerLaunchSettings.defaultParallelSlots);
       expect(
+        settings.imageMaxTokens,
+        ServerLaunchSettings.defaultImageMaxTokens,
+      );
+      expect(
         settings.flashAttentionMode,
         ServerLaunchSettings.defaultFlashAttentionMode,
       );
@@ -43,6 +47,7 @@ void main() {
         ServerPrefsKeys.cpuThreads: 128,
         ServerPrefsKeys.batchSize: 5000,
         ServerPrefsKeys.parallelSlots: 99,
+        ServerPrefsKeys.imageMaxTokens: 5000,
         ServerPrefsKeys.flashAttentionMode: FlashAttentionMode.enabled.name,
         ServerPrefsKeys.useMmap: false,
       });
@@ -59,6 +64,10 @@ void main() {
       expect(settings.cpuThreads, ServerLaunchSettings.maxCpuThreads);
       expect(settings.batchSize, ServerLaunchSettings.maxBatchSize);
       expect(settings.parallelSlots, ServerLaunchSettings.maxParallelSlots);
+      expect(
+        settings.imageMaxTokens,
+        ServerLaunchSettings.maxImageMaxTokens,
+      );
       expect(settings.flashAttentionMode, FlashAttentionMode.enabled);
       expect(settings.useMmap, isFalse);
     });

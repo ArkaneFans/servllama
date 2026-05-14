@@ -62,6 +62,10 @@
   "chatModelStatusAvailable": "可加载",
   "chatModelStatusFailed": "加载失败",
   "chatReasoningProcess": "深度思考",
+  "chatAttachImage": "添加图片",
+  "chatRemoveImage": "移除图片",
+  "chatImageLimitExceeded": "每条消息最多添加5张图片",
+  "chatImageSizeExceeded": "图片大小不能超过10MB",
   "settingsTitle": "设置",
   "settingsSectionGeneral": "通用",
   "settingsSectionAbout": "关于",
@@ -116,6 +120,8 @@
   "serverConfigContextSizeDescription": "模型能关注的最大上下文toekn数量",
   "serverConfigBatchSize": "批处理大小",
   "serverConfigBatchSizeDescription": "影响吞吐和内存占用",
+  "serverConfigImageMaxTokens": "图片最大Token数",
+  "serverConfigImageMaxTokensDescription": "每张图片可占用的最大token数量，仅对视觉模型生效",
   "serverConfigSectionPerformance": "性能",
   "serverConfigCpuThreads": "CPU 线程数",
   "serverConfigCpuThreadsDescription": "为模型推理分配的CPU线程数量",
@@ -147,6 +153,21 @@
     }
   },
   "modelManagementDeleteTooltip": "删除",
+  "modelMmprojBadgeLabel": "多模态",
+  "modelTextBadgeLabel": "文本",
+  "modelManagementSettingsTooltip": "设置",
+  "modelSettingsNameLabel": "模型名称",
+  "modelSettingsMmprojLabel": "多模态投影器",
+  "modelSettingsImportMmproj": "导入 mmproj 文件",
+  "modelSettingsRemoveMmproj": "移除 mmproj",
+  "modelSettingsRemoveMmprojConfirm": "确定移除 {modelName} 的 mmproj 文件吗？",
+  "@modelSettingsRemoveMmprojConfirm": {
+    "placeholders": {
+      "modelName": {
+        "type": "String"
+      }
+    }
+  },
   "serverLogsTitle": "日志",
   "serverLogsCopyAll": "复制全部",
   "serverLogsClear": "清空",

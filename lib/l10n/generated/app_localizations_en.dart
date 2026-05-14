@@ -160,6 +160,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatReasoningProcess => 'Reasoning';
 
   @override
+  String get chatAttachImage => 'Attach image';
+
+  @override
+  String get chatRemoveImage => 'Remove image';
+
+  @override
+  String get chatImageLimitExceeded => 'Maximum 5 images per message';
+
+  @override
+  String get chatImageSizeExceeded => 'Image size cannot exceed 10MB';
+
+  @override
   String get settingsTitle => 'Settings';
 
   @override
@@ -308,6 +320,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Affects throughput and memory usage';
 
   @override
+  String get serverConfigImageMaxTokens => 'Image max tokens';
+
+  @override
+  String get serverConfigImageMaxTokensDescription =>
+      'Maximum number of tokens each image can use, only applies to vision models';
+
+  @override
   String get serverConfigSectionPerformance => 'Performance';
 
   @override
@@ -387,6 +406,32 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get modelManagementDeleteTooltip => 'Delete';
+
+  @override
+  String get modelMmprojBadgeLabel => 'Multimodal';
+
+  @override
+  String get modelTextBadgeLabel => 'Text';
+
+  @override
+  String get modelManagementSettingsTooltip => 'Settings';
+
+  @override
+  String get modelSettingsNameLabel => 'Model name';
+
+  @override
+  String get modelSettingsMmprojLabel => 'Multimodal projector';
+
+  @override
+  String get modelSettingsImportMmproj => 'Import mmproj file';
+
+  @override
+  String get modelSettingsRemoveMmproj => 'Remove mmproj';
+
+  @override
+  String modelSettingsRemoveMmprojConfirm(String modelName) {
+    return 'Remove mmproj file for $modelName?';
+  }
 
   @override
   String get serverLogsTitle => 'Logs';

@@ -157,6 +157,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatReasoningProcess => '深度思考';
 
   @override
+  String get chatAttachImage => '添加图片';
+
+  @override
+  String get chatRemoveImage => '移除图片';
+
+  @override
+  String get chatImageLimitExceeded => '每条消息最多添加5张图片';
+
+  @override
+  String get chatImageSizeExceeded => '图片大小不能超过10MB';
+
+  @override
   String get settingsTitle => '设置';
 
   @override
@@ -300,6 +312,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get serverConfigBatchSizeDescription => '影响吞吐和内存占用';
 
   @override
+  String get serverConfigImageMaxTokens => '图片最大Token数';
+
+  @override
+  String get serverConfigImageMaxTokensDescription =>
+      '每张图片可占用的最大token数量，仅对视觉模型生效';
+
+  @override
   String get serverConfigSectionPerformance => '性能';
 
   @override
@@ -373,6 +392,32 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get modelManagementDeleteTooltip => '删除';
+
+  @override
+  String get modelMmprojBadgeLabel => '多模态';
+
+  @override
+  String get modelTextBadgeLabel => '文本';
+
+  @override
+  String get modelManagementSettingsTooltip => '设置';
+
+  @override
+  String get modelSettingsNameLabel => '模型名称';
+
+  @override
+  String get modelSettingsMmprojLabel => '多模态投影器';
+
+  @override
+  String get modelSettingsImportMmproj => '导入 mmproj 文件';
+
+  @override
+  String get modelSettingsRemoveMmproj => '移除 mmproj';
+
+  @override
+  String modelSettingsRemoveMmprojConfirm(String modelName) {
+    return '确定移除 $modelName 的 mmproj 文件吗？';
+  }
 
   @override
   String get serverLogsTitle => '日志';

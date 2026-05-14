@@ -11,6 +11,7 @@ class ModelDescriptor {
     required this.storedDirectoryPath,
     required this.storedFilePath,
     required this.importedAt,
+    this.mmprojFilePath,
   });
 
   @HiveField(0)
@@ -30,4 +31,32 @@ class ModelDescriptor {
 
   @HiveField(5)
   final DateTime importedAt;
+
+  @HiveField(6)
+  final String? mmprojFilePath;
+
+  static const _unset = Object();
+
+  ModelDescriptor copyWith({
+    String? id,
+    String? modelName,
+    int? sizeBytes,
+    String? storedDirectoryPath,
+    String? storedFilePath,
+    DateTime? importedAt,
+    Object? mmprojFilePath = _unset,
+  }) {
+    final nextMmproj = identical(mmprojFilePath, _unset)
+        ? this.mmprojFilePath
+        : mmprojFilePath as String?;
+    return ModelDescriptor(
+      id: id ?? this.id,
+      modelName: modelName ?? this.modelName,
+      sizeBytes: sizeBytes ?? this.sizeBytes,
+      storedDirectoryPath: storedDirectoryPath ?? this.storedDirectoryPath,
+      storedFilePath: storedFilePath ?? this.storedFilePath,
+      importedAt: importedAt ?? this.importedAt,
+      mmprojFilePath: nextMmproj,
+    );
+  }
 }

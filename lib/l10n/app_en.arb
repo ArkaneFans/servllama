@@ -62,6 +62,10 @@
   "chatModelStatusAvailable": "Available",
   "chatModelStatusFailed": "Load failed",
   "chatReasoningProcess": "Reasoning",
+  "chatAttachImage": "Attach image",
+  "chatRemoveImage": "Remove image",
+  "chatImageLimitExceeded": "Maximum 5 images per message",
+  "chatImageSizeExceeded": "Image size cannot exceed 10MB",
   "settingsTitle": "Settings",
   "settingsSectionGeneral": "General",
   "settingsSectionAbout": "About",
@@ -116,6 +120,8 @@
   "serverConfigContextSizeDescription": "The maximum number of context tokens the model can attend to",
   "serverConfigBatchSize": "Batch size",
   "serverConfigBatchSizeDescription": "Affects throughput and memory usage",
+  "serverConfigImageMaxTokens": "Image max tokens",
+  "serverConfigImageMaxTokensDescription": "Maximum number of tokens each image can use, only applies to vision models",
   "serverConfigSectionPerformance": "Performance",
   "serverConfigCpuThreads": "CPU threads",
   "serverConfigCpuThreadsDescription": "The number of CPU threads allocated to model inference",
@@ -147,6 +153,21 @@
     }
   },
   "modelManagementDeleteTooltip": "Delete",
+  "modelMmprojBadgeLabel": "Multimodal",
+  "modelTextBadgeLabel": "Text",
+  "modelManagementSettingsTooltip": "Settings",
+  "modelSettingsNameLabel": "Model name",
+  "modelSettingsMmprojLabel": "Multimodal projector",
+  "modelSettingsImportMmproj": "Import mmproj file",
+  "modelSettingsRemoveMmproj": "Remove mmproj",
+  "modelSettingsRemoveMmprojConfirm": "Remove mmproj file for {modelName}?",
+  "@modelSettingsRemoveMmprojConfirm": {
+    "placeholders": {
+      "modelName": {
+        "type": "String"
+      }
+    }
+  },
   "serverLogsTitle": "Logs",
   "serverLogsCopyAll": "Copy all",
   "serverLogsClear": "Clear",

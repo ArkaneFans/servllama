@@ -386,6 +386,30 @@ abstract class AppLocalizations {
   /// **'Reasoning'**
   String get chatReasoningProcess;
 
+  /// No description provided for @chatAttachImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Attach image'**
+  String get chatAttachImage;
+
+  /// No description provided for @chatRemoveImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove image'**
+  String get chatRemoveImage;
+
+  /// No description provided for @chatImageLimitExceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum 5 images per message'**
+  String get chatImageLimitExceeded;
+
+  /// No description provided for @chatImageSizeExceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Image size cannot exceed 10MB'**
+  String get chatImageSizeExceeded;
+
   /// No description provided for @settingsTitle.
   ///
   /// In en, this message translates to:
@@ -668,6 +692,18 @@ abstract class AppLocalizations {
   /// **'Affects throughput and memory usage'**
   String get serverConfigBatchSizeDescription;
 
+  /// No description provided for @serverConfigImageMaxTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'Image max tokens'**
+  String get serverConfigImageMaxTokens;
+
+  /// No description provided for @serverConfigImageMaxTokensDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum number of tokens each image can use, only applies to vision models'**
+  String get serverConfigImageMaxTokensDescription;
+
   /// No description provided for @serverConfigSectionPerformance.
   ///
   /// In en, this message translates to:
@@ -811,6 +847,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Delete'**
   String get modelManagementDeleteTooltip;
+
+  /// No description provided for @modelMmprojBadgeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Multimodal'**
+  String get modelMmprojBadgeLabel;
+
+  /// No description provided for @modelTextBadgeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Text'**
+  String get modelTextBadgeLabel;
+
+  /// No description provided for @modelManagementSettingsTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get modelManagementSettingsTooltip;
+
+  /// No description provided for @modelSettingsNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model name'**
+  String get modelSettingsNameLabel;
+
+  /// No description provided for @modelSettingsMmprojLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Multimodal projector'**
+  String get modelSettingsMmprojLabel;
+
+  /// No description provided for @modelSettingsImportMmproj.
+  ///
+  /// In en, this message translates to:
+  /// **'Import mmproj file'**
+  String get modelSettingsImportMmproj;
+
+  /// No description provided for @modelSettingsRemoveMmproj.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove mmproj'**
+  String get modelSettingsRemoveMmproj;
+
+  /// No description provided for @modelSettingsRemoveMmprojConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove mmproj file for {modelName}?'**
+  String modelSettingsRemoveMmprojConfirm(String modelName);
 
   /// No description provided for @serverLogsTitle.
   ///

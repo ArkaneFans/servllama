@@ -46,6 +46,12 @@ class ServerLaunchSettingsLoader {
         ServerLaunchSettings.minParallelSlots,
         ServerLaunchSettings.maxParallelSlots,
       ),
+      imageMaxTokens: _clamp(
+        await _kvStorage.getInt(ServerPrefsKeys.imageMaxTokens) ??
+            ServerLaunchSettings.defaultImageMaxTokens,
+        ServerLaunchSettings.minImageMaxTokens,
+        ServerLaunchSettings.maxImageMaxTokens,
+      ),
       flashAttentionMode: _readFlashAttentionMode(
         await _kvStorage.getString(ServerPrefsKeys.flashAttentionMode),
       ),

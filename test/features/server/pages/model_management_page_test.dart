@@ -47,7 +47,53 @@ void main() {
 
       expect(find.text('model'), findsOneWidget);
       expect(find.text('2.00 GB · GGUF'), findsOneWidget);
+      expect(find.text('文本'), findsOneWidget);
+      expect(find.byTooltip('设置'), findsOneWidget);
       expect(find.byTooltip('删除'), findsOneWidget);
+    });
+
+    testWidgets('shows text badge when mmproj does not exist', (tester) async {
+      final provider = ModelManagementProvider(
+        repository: FakeLocalModelRepository(
+          initialModels: <ModelDescriptor>[
+            _descriptor(id: 'm1', modelName: 'text-only'),
+          ],
+        ),
+        filePicker: FakeGgufFilePicker(),
+        logger: AppLogger(),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(home: ModelManagementPage(provider: provider)),
+      );
+      await tester.pump();
+
+      expect(find.text('文本'), findsOneWidget);
+      expect(find.text('多模态'), findsNothing);
+    });
+
+    testWidgets('shows multimodal badge when mmproj exists', (tester) async {
+      final provider = ModelManagementProvider(
+        repository: FakeLocalModelRepository(
+          initialModels: <ModelDescriptor>[
+            _descriptor(
+              id: 'm1',
+              modelName: 'vision',
+              mmprojFilePath:
+                  'C:\\models\\vision\\mmproj-projector-f16.gguf',
+            ),
+          ],
+        ),
+        filePicker: FakeGgufFilePicker(),
+        logger: AppLogger(),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(home: ModelManagementPage(provider: provider)),
+      );
+      await tester.pump();
+
+      expect(find.text('多模态'), findsOneWidget);
     });
 
     testWidgets('shows confirmation dialog before deleting a model', (
@@ -136,6 +182,115 @@ void main() {
       expect(find.text('picked'), findsOneWidget);
       expect(find.text('1.00 GB · GGUF'), findsOneWidget);
     });
+
+    testWidgets('renames model from settings sheet', (tester) async {
+      final provider = ModelManagementProvider(
+        repository: FakeLocalModelRepository(
+          initialModels: <ModelDescriptor>[
+            _descriptor(id: 'm1', modelName: 'before'),
+          ],
+        ),
+        filePicker: FakeGgufFilePicker(),
+        logger: AppLogger(),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(home: ModelManagementPage(provider: provider)),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byTooltip('设置'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('model_settings_name_field')),
+        'after',
+      );
+      await tester.tap(find.byKey(const Key('model_settings_save_name_button')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      expect(find.text('模型已重命名为: after'), findsOneWidget);
+      expect(find.text('after'), findsWidgets);
+    });
+
+    testWidgets('imports mmproj from settings sheet', (tester) async {
+      final provider = ModelManagementProvider(
+        repository: FakeLocalModelRepository(
+          initialModels: <ModelDescriptor>[
+            _descriptor(id: 'm1', modelName: 'vision'),
+          ],
+        ),
+        filePicker: FakeGgufFilePicker(
+          pickedMmprojFile: const PickedGgufFile(
+            path: 'C:\\mock\\mmproj-f16.gguf',
+            fileName: 'mmproj-f16.gguf',
+          ),
+        ),
+        logger: AppLogger(),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(home: ModelManagementPage(provider: provider)),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byTooltip('设置'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const Key('model_settings_import_mmproj_button')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      expect(find.text('mmproj 导入成功: vision'), findsOneWidget);
+      expect(find.text('多模态'), findsWidgets);
+      expect(
+        find.byKey(const Key('model_settings_remove_mmproj_button')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('removes mmproj from settings sheet after confirmation', (
+      tester,
+    ) async {
+      final provider = ModelManagementProvider(
+        repository: FakeLocalModelRepository(
+          initialModels: <ModelDescriptor>[
+            _descriptor(
+              id: 'm1',
+              modelName: 'vision',
+              mmprojFilePath: 'C:\\models\\vision\\mmproj-f16.gguf',
+            ),
+          ],
+        ),
+        filePicker: FakeGgufFilePicker(),
+        logger: AppLogger(),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(home: ModelManagementPage(provider: provider)),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byTooltip('设置'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const Key('model_settings_remove_mmproj_button')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('确定移除 vision 的 mmproj 文件吗？'), findsOneWidget);
+
+      await tester.tap(find.text('删除'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      expect(find.text('mmproj 已移除: vision'), findsOneWidget);
+      expect(
+        find.byKey(const Key('model_settings_import_mmproj_button')),
+        findsOneWidget,
+      );
+    });
   });
 }
 
@@ -168,6 +323,41 @@ class FakeLocalModelRepository extends LocalModelRepository {
     _models.removeWhere((model) => model.id == modelId);
   }
 
+  @override
+  Future<ModelDescriptor> importMmproj(
+    String modelId,
+    PickedGgufFile pickedFile,
+  ) async {
+    final index = _models.indexWhere((model) => model.id == modelId);
+    final updated = _models[index].copyWith(mmprojFilePath: pickedFile.path);
+    _models[index] = updated;
+    return updated;
+  }
+
+  @override
+  Future<ModelDescriptor> removeMmproj(String modelId) async {
+    final index = _models.indexWhere((model) => model.id == modelId);
+    final updated = _models[index].copyWith(mmprojFilePath: null);
+    _models[index] = updated;
+    return updated;
+  }
+
+  @override
+  Future<ModelDescriptor> renameModel(String modelId, String newName) async {
+    final index = _models.indexWhere((model) => model.id == modelId);
+    final current = _models[index];
+    final updated = current.copyWith(
+      modelName: newName,
+      storedDirectoryPath: 'C:\\models\\$newName',
+      storedFilePath: 'C:\\models\\$newName\\${current.storedFilePath.split('\\').last}',
+      mmprojFilePath: current.mmprojFilePath == null
+          ? null
+          : 'C:\\models\\$newName\\${current.mmprojFilePath!.split('\\').last}',
+    );
+    _models[index] = updated;
+    return updated;
+  }
+
   String _deriveModelName(String fileName) {
     const suffix = '.gguf';
     if (fileName.toLowerCase().endsWith(suffix)) {
@@ -178,18 +368,23 @@ class FakeLocalModelRepository extends LocalModelRepository {
 }
 
 class FakeGgufFilePicker extends GgufFilePicker {
-  FakeGgufFilePicker({this.pickedFile});
+  FakeGgufFilePicker({this.pickedFile, this.pickedMmprojFile});
 
   final PickedGgufFile? pickedFile;
+  final PickedGgufFile? pickedMmprojFile;
 
   @override
   Future<PickedGgufFile?> pickSingle() async => pickedFile;
+
+  @override
+  Future<PickedGgufFile?> pickSingleMmproj() async => pickedMmprojFile;
 }
 
 ModelDescriptor _descriptor({
   required String id,
   required String modelName,
   String? originalFileName,
+  String? mmprojFilePath,
   int sizeBytes = 1073741824,
 }) {
   final fileName = originalFileName ?? '$modelName.gguf';
@@ -202,5 +397,6 @@ ModelDescriptor _descriptor({
     storedFilePath:
         'C:${Platform.pathSeparator}models${Platform.pathSeparator}$modelName${Platform.pathSeparator}$fileName',
     importedAt: DateTime(2026, 1, 1),
+    mmprojFilePath: mmprojFilePath,
   );
 }

@@ -11,6 +11,7 @@ class ServerLaunchSettings {
     this.cpuThreads = defaultCpuThreads,
     this.batchSize = defaultBatchSize,
     this.parallelSlots = defaultParallelSlots,
+    this.imageMaxTokens = defaultImageMaxTokens,
     this.flashAttentionMode = defaultFlashAttentionMode,
     this.useMmap = true,
   });
@@ -35,6 +36,10 @@ class ServerLaunchSettings {
   static const int minParallelSlots = 1;
   static const int maxParallelSlots = 8;
 
+  static const int defaultImageMaxTokens = 512;
+  static const int minImageMaxTokens = 128;
+  static const int maxImageMaxTokens = 4096;
+
   static const FlashAttentionMode defaultFlashAttentionMode =
       FlashAttentionMode.disabled;
 
@@ -45,6 +50,7 @@ class ServerLaunchSettings {
   final int cpuThreads;
   final int batchSize;
   final int parallelSlots;
+  final int imageMaxTokens;
   final FlashAttentionMode flashAttentionMode;
   final bool useMmap;
 
