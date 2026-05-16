@@ -70,8 +70,6 @@ class _ServerConfigViewState extends State<_ServerConfigView> {
               ? const Center(child: CircularProgressIndicator())
               : Column(
                   children: [
-                    if (provider.isSaving)
-                      const LinearProgressIndicator(minHeight: 2),
                     Expanded(
                       child: ListView(
                         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
@@ -252,7 +250,7 @@ class _ServerConfigViewState extends State<_ServerConfigView> {
                               title: Text(l10n.serverConfigResetTitle),
                               subtitle: Text(l10n.serverConfigResetSubtitle),
                               trailing: const Icon(Icons.chevron_right),
-                              onTap: provider.isLoading || provider.isSaving
+                              onTap: provider.isLoading
                                   ? null
                                   : () => _confirmResetToDefaults(context),
                             ),
