@@ -20,7 +20,6 @@ class ServerConfigProvider extends ChangeNotifier {
 
   bool _hasCompletedInitialLoad = false;
   bool _isLoading = false;
-  bool _isSaving = false;
   String? _statusMessage;
 
   ServerListenMode _listenMode = ServerListenMode.localhost;
@@ -37,7 +36,6 @@ class ServerConfigProvider extends ChangeNotifier {
 
   bool get hasCompletedInitialLoad => _hasCompletedInitialLoad;
   bool get isLoading => _isLoading;
-  bool get isSaving => _isSaving;
   String? get statusMessage => _statusMessage;
 
   ServerListenMode get listenMode => _listenMode;
@@ -246,7 +244,6 @@ class ServerConfigProvider extends ChangeNotifier {
   }
 
   Future<void> _runSave(Future<void> Function() operation) async {
-    _isSaving = true;
     _statusMessage = '正在保存配置...';
     notifyListeners();
 
@@ -256,7 +253,6 @@ class ServerConfigProvider extends ChangeNotifier {
     } catch (error) {
       _statusMessage = '保存失败: $error';
     } finally {
-      _isSaving = false;
       notifyListeners();
     }
   }
