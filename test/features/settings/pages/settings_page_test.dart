@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:servllama/app/providers/chat_timeout_provider.dart';
 import 'package:servllama/app/providers/app_locale_provider.dart';
 import 'package:servllama/app/providers/app_theme_mode_provider.dart';
 import 'package:servllama/features/settings/pages/settings_page.dart';
@@ -12,11 +13,13 @@ void main() {
     testWidgets('shows sections and language setting', (tester) async {
       final themeProvider = AppThemeModeProvider();
       final localeProvider = AppLocaleProvider();
+      final chatTimeoutProvider = ChatTimeoutProvider();
 
       await tester.pumpWidget(
         _TestHost(
           themeProvider: themeProvider,
           localeProvider: localeProvider,
+          chatTimeoutProvider: chatTimeoutProvider,
         ),
       );
       await tester.pump();
@@ -26,17 +29,21 @@ void main() {
       expect(find.text('主题模式'), findsOneWidget);
       expect(find.text('跟随系统'), findsNWidgets(2));
       expect(find.text('应用语言'), findsOneWidget);
+      expect(find.text('聊天超时时间'), findsOneWidget);
+      expect(find.text('120 秒'), findsOneWidget);
       expect(find.text('关于'), findsWidgets);
     });
 
     testWidgets('updates MaterialApp themeMode from bottom sheet', (tester) async {
       final themeProvider = AppThemeModeProvider();
       final localeProvider = AppLocaleProvider();
+      final chatTimeoutProvider = ChatTimeoutProvider();
 
       await tester.pumpWidget(
         _TestHost(
           themeProvider: themeProvider,
           localeProvider: localeProvider,
+          chatTimeoutProvider: chatTimeoutProvider,
         ),
       );
       await tester.pump();
@@ -62,11 +69,13 @@ void main() {
     testWidgets('updates MaterialApp locale from bottom sheet', (tester) async {
       final themeProvider = AppThemeModeProvider();
       final localeProvider = AppLocaleProvider();
+      final chatTimeoutProvider = ChatTimeoutProvider();
 
       await tester.pumpWidget(
         _TestHost(
           themeProvider: themeProvider,
           localeProvider: localeProvider,
+          chatTimeoutProvider: chatTimeoutProvider,
         ),
       );
       await tester.pump();
@@ -87,14 +96,44 @@ void main() {
       expect(find.text('English'), findsWidgets);
     });
 
-    testWidgets('opens about page from about menu', (tester) async {
+    testWidgets('updates chat timeout from bottom sheet', (tester) async {
       final themeProvider = AppThemeModeProvider();
       final localeProvider = AppLocaleProvider();
+      final chatTimeoutProvider = ChatTimeoutProvider();
 
       await tester.pumpWidget(
         _TestHost(
           themeProvider: themeProvider,
           localeProvider: localeProvider,
+          chatTimeoutProvider: chatTimeoutProvider,
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byKey(const Key('settings_chat_timeout_tile')));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const Key('settings_chat_timeout_input')),
+        '300',
+      );
+      await tester.tap(find.byKey(const Key('settings_chat_timeout_save_button')));
+      await tester.pumpAndSettle();
+
+      expect(chatTimeoutProvider.timeoutSeconds, 300);
+      expect(find.text('300 秒'), findsOneWidget);
+    });
+
+    testWidgets('opens about page from about menu', (tester) async {
+      final themeProvider = AppThemeModeProvider();
+      final localeProvider = AppLocaleProvider();
+      final chatTimeoutProvider = ChatTimeoutProvider();
+
+      await tester.pumpWidget(
+        _TestHost(
+          themeProvider: themeProvider,
+          localeProvider: localeProvider,
+          chatTimeoutProvider: chatTimeoutProvider,
         ),
       );
       await tester.pump();
@@ -115,10 +154,12 @@ class _TestHost extends StatelessWidget {
   const _TestHost({
     required this.themeProvider,
     required this.localeProvider,
+    required this.chatTimeoutProvider,
   });
 
   final AppThemeModeProvider themeProvider;
   final AppLocaleProvider localeProvider;
+  final ChatTimeoutProvider chatTimeoutProvider;
 
   @override
   Widget build(BuildContext context) {
@@ -126,9 +167,16 @@ class _TestHost extends StatelessWidget {
       providers: [
         ChangeNotifierProvider<AppThemeModeProvider>.value(value: themeProvider),
         ChangeNotifierProvider<AppLocaleProvider>.value(value: localeProvider),
+        ChangeNotifierProvider<ChatTimeoutProvider>.value(
+          value: chatTimeoutProvider,
+        ),
       ],
-      child: Consumer2<AppThemeModeProvider, AppLocaleProvider>(
-        builder: (context, themeProvider, localeProvider, _) => MaterialApp(
+      child: Consumer3<
+        AppThemeModeProvider,
+        AppLocaleProvider,
+        ChatTimeoutProvider
+      >(
+        builder: (context, themeProvider, localeProvider, _, __) => MaterialApp(
           localizationsDelegates: const [
             AppLocalizations.delegate,
             GlobalMaterialLocalizations.delegate,

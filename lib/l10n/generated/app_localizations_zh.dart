@@ -175,6 +175,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsSectionGeneral => '通用';
 
   @override
+  String get settingsSectionChat => '聊天';
+
+  @override
   String get settingsSectionAbout => '关于';
 
   @override
@@ -182,6 +185,31 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsLanguage => '应用语言';
+
+  @override
+  String get settingsChatTimeout => '聊天超时时间';
+
+  @override
+  String settingsChatTimeoutValue(int seconds) {
+    return '$seconds 秒';
+  }
+
+  @override
+  String get settingsChatTimeoutSheetTitle => '聊天超时时间';
+
+  @override
+  String get settingsChatTimeoutDescription => '用于控制聊天响应等待时长，多模态图片识别场景建议适当调大。';
+
+  @override
+  String get settingsChatTimeoutFieldLabel => '超时时间';
+
+  @override
+  String get settingsChatTimeoutUnit => '秒';
+
+  @override
+  String settingsChatTimeoutRange(int minSeconds, int maxSeconds) {
+    return '允许范围：$minSeconds-$maxSeconds 秒';
+  }
 
   @override
   String get settingsUnavailable => '暂未开放';

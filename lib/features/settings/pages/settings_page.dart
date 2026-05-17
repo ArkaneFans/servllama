@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:servllama/app/providers/chat_timeout_provider.dart';
 import 'package:servllama/app/providers/app_locale_provider.dart';
 import 'package:servllama/app/providers/app_theme_mode_provider.dart';
 import 'package:servllama/features/about/pages/about_page.dart';
@@ -14,8 +15,12 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    return Consumer2<AppThemeModeProvider, AppLocaleProvider>(
-      builder: (context, themeProvider, localeProvider, _) => Scaffold(
+    return Consumer3<
+      AppThemeModeProvider,
+      AppLocaleProvider,
+      ChatTimeoutProvider
+    >(
+      builder: (context, themeProvider, localeProvider, chatTimeoutProvider, _) => Scaffold(
         appBar: AppBar(title: Text(l10n.settingsTitle)),
         body: SafeArea(
           top: false,
@@ -42,6 +47,26 @@ class SettingsPage extends StatelessWidget {
                         localeProvider.localeMode,
                       ),
                       onTap: () => _showLanguageSheet(context, localeProvider),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              SettingsSection(
+                title: l10n.settingsSectionChat,
+                child: _SectionItems(
+                  children: [
+                    _MenuTile(
+                      key: const Key('settings_chat_timeout_tile'),
+                      icon: Icons.timer_outlined,
+                      title: l10n.settingsChatTimeout,
+                      value: l10n.settingsChatTimeoutValue(
+                        chatTimeoutProvider.timeoutSeconds,
+                      ),
+                      onTap: () => _showChatTimeoutSheet(
+                        context,
+                        chatTimeoutProvider,
+                      ),
                     ),
                   ],
                 ),
@@ -152,6 +177,116 @@ class SettingsPage extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static Future<void> _showChatTimeoutSheet(
+    BuildContext context,
+    ChatTimeoutProvider provider,
+  ) async {
+    final l10n = context.l10n;
+    final controller = TextEditingController(
+      text: provider.timeoutSeconds.toString(),
+    );
+    var draftValue = provider.timeoutSeconds;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setModalState) => SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              8,
+              20,
+              28 + MediaQuery.of(sheetContext).viewInsets.bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.settingsChatTimeoutSheetTitle,
+                  style: Theme.of(
+                    sheetContext,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  l10n.settingsChatTimeoutDescription,
+                  style: Theme.of(sheetContext).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(sheetContext).colorScheme.onSurfaceVariant,
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  key: const Key('settings_chat_timeout_input'),
+                  controller: controller,
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.done,
+                  onChanged: (value) {
+                    final parsed = int.tryParse(value.trim());
+                    if (parsed == null) {
+                      return;
+                    }
+                    final nextValue = parsed.clamp(
+                      ChatTimeoutProvider.minTimeoutSeconds,
+                      ChatTimeoutProvider.maxTimeoutSeconds,
+                    );
+                    setModalState(() {
+                      draftValue = nextValue;
+                    });
+                  },
+                  decoration: InputDecoration(
+                    labelText: l10n.settingsChatTimeoutFieldLabel,
+                    suffixText: l10n.settingsChatTimeoutUnit,
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  l10n.settingsChatTimeoutRange(
+                    ChatTimeoutProvider.minTimeoutSeconds,
+                    ChatTimeoutProvider.maxTimeoutSeconds,
+                  ),
+                  style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(sheetContext).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(sheetContext).pop(),
+                      child: Text(l10n.commonCancel),
+                    ),
+                    const Spacer(),
+                    FilledButton(
+                      key: const Key('settings_chat_timeout_save_button'),
+                      onPressed: () async {
+                        final parsed = int.tryParse(controller.text.trim());
+                        final nextValue = (parsed ?? draftValue).clamp(
+                          ChatTimeoutProvider.minTimeoutSeconds,
+                          ChatTimeoutProvider.maxTimeoutSeconds,
+                        );
+                        await provider.updateTimeoutSeconds(nextValue);
+                        if (!sheetContext.mounted) {
+                          return;
+                        }
+                        Navigator.of(sheetContext).pop();
+                      },
+                      child: Text(l10n.commonSave),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

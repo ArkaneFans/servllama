@@ -49,6 +49,31 @@ void main() {
       expect(server.lastAuthorization, 'Bearer secret');
     });
 
+    test('uses 120 seconds receive timeout by default', () {
+      final client = LlamaChatApiClient(
+        settingsLoader: _FixedServerLaunchSettingsLoader(
+          const ServerLaunchSettings(),
+        ),
+      );
+
+      expect(
+        client.dio.options.receiveTimeout,
+        LlamaChatApiClient.defaultChatReceiveTimeout,
+      );
+    });
+
+    test('updates receive timeout at runtime', () {
+      final client = LlamaChatApiClient(
+        settingsLoader: _FixedServerLaunchSettingsLoader(
+          const ServerLaunchSettings(),
+        ),
+      );
+
+      client.updateReceiveTimeout(const Duration(seconds: 300));
+
+      expect(client.dio.options.receiveTimeout, const Duration(seconds: 300));
+    });
+
     test('loadModel polls until model becomes loaded', () async {
       server.models = <Map<String, Object?>>[
         _modelJson('alpha', 'loaded'),

@@ -114,6 +114,15 @@ void main() {
       },
     );
 
+    test('updateChatTimeout forwards receive timeout to api client', () {
+      provider.updateChatTimeout(const Duration(seconds: 300));
+
+      expect(
+        provider.apiClient.dio.options.receiveTimeout,
+        const Duration(seconds: 300),
+      );
+    });
+
     test(
       'loadAndSelectModel exposes loading state and selects loaded model',
       () async {
@@ -495,11 +504,18 @@ class _FakeLlamaChatApiClient extends LlamaChatApiClient {
   Completer<void>? unloadCompleter;
   List<ChatStreamDelta> streamDeltas = const <ChatStreamDelta>[];
   String? lastBaseUrl;
+  Duration? lastReceiveTimeout;
   int fetchModelsCallCount = 0;
 
   @override
   void updateBaseUrl(String baseUrl) {
     lastBaseUrl = baseUrl;
+  }
+
+  @override
+  void updateReceiveTimeout(Duration timeout) {
+    lastReceiveTimeout = timeout;
+    super.updateReceiveTimeout(timeout);
   }
 
   @override

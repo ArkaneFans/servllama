@@ -422,6 +422,12 @@ abstract class AppLocalizations {
   /// **'General'**
   String get settingsSectionGeneral;
 
+  /// No description provided for @settingsSectionChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat'**
+  String get settingsSectionChat;
+
   /// No description provided for @settingsSectionAbout.
   ///
   /// In en, this message translates to:
@@ -439,6 +445,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'App language'**
   String get settingsLanguage;
+
+  /// No description provided for @settingsChatTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat timeout'**
+  String get settingsChatTimeout;
+
+  /// No description provided for @settingsChatTimeoutValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{seconds} s'**
+  String settingsChatTimeoutValue(int seconds);
+
+  /// No description provided for @settingsChatTimeoutSheetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat timeout'**
+  String get settingsChatTimeoutSheetTitle;
+
+  /// No description provided for @settingsChatTimeoutDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Controls how long chat responses can take. Increase it for multimodal image understanding when needed.'**
+  String get settingsChatTimeoutDescription;
+
+  /// No description provided for @settingsChatTimeoutFieldLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Timeout'**
+  String get settingsChatTimeoutFieldLabel;
+
+  /// No description provided for @settingsChatTimeoutUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'s'**
+  String get settingsChatTimeoutUnit;
+
+  /// No description provided for @settingsChatTimeoutRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Allowed range: {minSeconds}-{maxSeconds} s'**
+  String settingsChatTimeoutRange(int minSeconds, int maxSeconds);
 
   /// No description provided for @settingsUnavailable.
   ///
