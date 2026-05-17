@@ -1,4 +1,5 @@
 import 'package:file_picker/file_picker.dart';
+import 'package:servllama/core/errors/model_operation_exception.dart';
 
 class PickedGgufFile {
   const PickedGgufFile({required this.path, required this.fileName});
@@ -35,12 +36,16 @@ class GgufFilePicker {
 
     final file = result.files.single;
     if (!_isGgufFileName(file.name)) {
-      throw StateError('仅支持导入 .gguf 文件。');
+      throw const ModelOperationException(
+        ModelOperationErrorCode.unsupportedGgufFile,
+      );
     }
 
     final filePath = file.path;
     if (filePath == null || filePath.isEmpty) {
-      throw StateError('无法获取所选文件的路径。');
+      throw const ModelOperationException(
+        ModelOperationErrorCode.selectedFilePathUnavailable,
+      );
     }
 
     return PickedGgufFile(path: filePath, fileName: file.name);

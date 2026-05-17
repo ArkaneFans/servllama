@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
+import 'package:servllama/core/services/app_l10n_service.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
 import 'package:servllama/core/storage/server_prefs_keys.dart';
@@ -56,7 +57,7 @@ class ServerConfigProvider extends ChangeNotifier {
     if (_statusMessage != null && _statusMessage!.isNotEmpty) {
       return _statusMessage!;
     }
-    return '配置已保存';
+    return AppL10nService.instance.current.serverConfigStatusSaved;
   }
 
   Future<void> load() async {
@@ -65,14 +66,16 @@ class ServerConfigProvider extends ChangeNotifier {
     }
 
     _isLoading = true;
-    _statusMessage = '正在加载配置...';
+    _statusMessage = AppL10nService.instance.current.serverConfigStatusLoading;
     notifyListeners();
 
     try {
       _applySettings(await _settingsLoader.load());
-      _statusMessage = '配置已加载';
+      _statusMessage = AppL10nService.instance.current.serverConfigStatusLoaded;
     } catch (error) {
-      _statusMessage = '加载失败: $error';
+      _statusMessage = AppL10nService.instance.current.serverConfigStatusLoadFailed(
+        error.toString(),
+      );
     } finally {
       _hasCompletedInitialLoad = true;
       _isLoading = false;
@@ -244,14 +247,16 @@ class ServerConfigProvider extends ChangeNotifier {
   }
 
   Future<void> _runSave(Future<void> Function() operation) async {
-    _statusMessage = '正在保存配置...';
+    _statusMessage = AppL10nService.instance.current.serverConfigStatusSaving;
     notifyListeners();
 
     try {
       await operation();
-      _statusMessage = '配置已保存';
+      _statusMessage = AppL10nService.instance.current.serverConfigStatusSaved;
     } catch (error) {
-      _statusMessage = '保存失败: $error';
+      _statusMessage = AppL10nService.instance.current.serverConfigStatusSaveFailed(
+        error.toString(),
+      );
     } finally {
       notifyListeners();
     }

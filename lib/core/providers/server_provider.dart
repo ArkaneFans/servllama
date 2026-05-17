@@ -6,6 +6,7 @@ import 'package:servllama/core/services/llama_server_service.dart';
 import 'package:servllama/core/services/model_storage_paths.dart';
 import 'package:servllama/core/services/server_launch_args_builder.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
+import 'package:servllama/core/services/app_l10n_service.dart';
 import 'package:servllama/core/utils/network_utils.dart';
 
 class ServerProvider extends ChangeNotifier {
@@ -53,6 +54,8 @@ class ServerProvider extends ChangeNotifier {
   }
 
   String get baseUrl => 'http://$displayAddress';
+
+  AppL10nService get _l10nService => AppL10nService.instance;
 
   void _refreshDisplayHost() {
     NetworkUtils.getLocalIpAddress().then((ip) {
@@ -134,10 +137,10 @@ class ServerProvider extends ChangeNotifier {
       );
       _isRunning = _serverService.isRunning;
       if (!started && !_isRunning) {
-        _lastError = '启动失败，请查看日志。';
+        _lastError = _l10nService.current.serverStartFailedCheckLogs;
       }
     } catch (error) {
-      _lastError = '启动失败: $error';
+      _lastError = _l10nService.current.serverStartFailed(error.toString());
       _isRunning = _serverService.isRunning;
     } finally {
       _isBusy = false;
@@ -158,7 +161,7 @@ class ServerProvider extends ChangeNotifier {
       await _serverService.stopServer();
       _isRunning = _serverService.isRunning;
     } catch (error) {
-      _lastError = '停止失败: $error';
+      _lastError = _l10nService.current.serverStopFailed(error.toString());
       _isRunning = _serverService.isRunning;
     } finally {
       _isBusy = false;

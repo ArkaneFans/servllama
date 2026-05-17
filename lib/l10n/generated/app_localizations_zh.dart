@@ -267,7 +267,42 @@ class AppLocalizationsZh extends AppLocalizations {
   String get serverCopyBaseUrl => '复制 API Base URL';
 
   @override
+  String get serverStartFailedCheckLogs => '启动失败，请查看日志。';
+
+  @override
+  String serverStartFailed(String error) {
+    return '启动失败: $error';
+  }
+
+  @override
+  String serverStopFailed(String error) {
+    return '停止失败: $error';
+  }
+
+  @override
   String get serverConfigTitle => '服务器配置';
+
+  @override
+  String get serverConfigStatusSaved => '配置已保存';
+
+  @override
+  String get serverConfigStatusLoading => '正在加载配置...';
+
+  @override
+  String get serverConfigStatusLoaded => '配置已加载';
+
+  @override
+  String serverConfigStatusLoadFailed(String error) {
+    return '加载失败: $error';
+  }
+
+  @override
+  String get serverConfigStatusSaving => '正在保存配置...';
+
+  @override
+  String serverConfigStatusSaveFailed(String error) {
+    return '保存失败: $error';
+  }
 
   @override
   String get serverConfigSectionNetwork => '网络与访问';
@@ -376,11 +411,34 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modelManagementImporting => '导入中...';
 
   @override
+  String modelManagementImportSuccess(String modelName) {
+    return '模型导入成功: $modelName';
+  }
+
+  @override
+  String modelManagementImportFailed(String error) {
+    return '导入模型失败: $error';
+  }
+
+  @override
   String get modelManagementEmptyTitle => '还没有导入模型';
 
   @override
   String get modelManagementEmptyDescription =>
       '点击右下角“导入模型”后，这里会显示本地 GGUF 模型列表。';
+
+  @override
+  String get modelManagementDeleteBusy => '正在删除模型，请稍后。';
+
+  @override
+  String modelManagementDeleteSuccess(String modelName) {
+    return '模型已删除: $modelName';
+  }
+
+  @override
+  String modelManagementDeleteFailed(String error) {
+    return '删除模型失败: $error';
+  }
 
   @override
   String get modelManagementDeleteDialogTitle => '删除模型';
@@ -415,9 +473,79 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modelSettingsRemoveMmproj => '移除 mmproj';
 
   @override
+  String modelManagementMmprojImportSuccess(String modelName) {
+    return 'mmproj 导入成功: $modelName';
+  }
+
+  @override
+  String modelManagementMmprojImportFailed(String error) {
+    return 'mmproj 导入失败: $error';
+  }
+
+  @override
+  String modelManagementMmprojRemoveSuccess(String modelName) {
+    return 'mmproj 已移除: $modelName';
+  }
+
+  @override
+  String modelManagementMmprojRemoveFailed(String error) {
+    return 'mmproj 移除失败: $error';
+  }
+
+  @override
+  String modelManagementRenameSuccess(String modelName) {
+    return '模型已重命名为: $modelName';
+  }
+
+  @override
+  String modelManagementRenameFailed(String error) {
+    return '重命名失败: $error';
+  }
+
+  @override
   String modelSettingsRemoveMmprojConfirm(String modelName) {
     return '确定移除 $modelName 的 mmproj 文件吗？';
   }
+
+  @override
+  String get modelErrorUnsupportedGgufFile => '仅支持导入 .gguf 文件。';
+
+  @override
+  String get modelErrorSelectedModelFileMissing => '所选模型文件不存在。';
+
+  @override
+  String get modelErrorInvalidModelName => '模型名称无效。';
+
+  @override
+  String get modelErrorDuplicateModelName => '模型已存在，请勿重复导入同名模型。';
+
+  @override
+  String get modelErrorModelNotFound => '模型不存在。';
+
+  @override
+  String get modelErrorSelectedMmprojFileMissing => '所选 mmproj 文件不存在。';
+
+  @override
+  String get modelErrorUnsupportedMmprojFile =>
+      '仅支持导入文件名以 mmproj 开头的 .gguf 文件。';
+
+  @override
+  String get modelErrorMmprojSameAsModelFile => 'mmproj 文件不能与主模型文件同名。';
+
+  @override
+  String get modelErrorEmptyModelName => '模型名称不能为空。';
+
+  @override
+  String get modelErrorModelNameExists => '模型名称已存在。';
+
+  @override
+  String get modelErrorModelDirectoryExists => '模型目录已存在。';
+
+  @override
+  String get modelErrorModelNotFoundOrDeleted => '模型不存在或已被删除。';
+
+  @override
+  String get modelErrorSelectedFilePathUnavailable => '无法获取所选文件的路径。';
 
   @override
   String get serverLogsTitle => '日志';

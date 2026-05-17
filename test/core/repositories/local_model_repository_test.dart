@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
+import 'package:servllama/core/errors/model_operation_exception.dart';
 import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/core/models/model_descriptor.dart';
 import 'package:servllama/core/repositories/local_model_repository.dart';
@@ -109,10 +110,10 @@ void main() {
           PickedGgufFile(path: sourceFile.path, fileName: '.gguf'),
         ),
         throwsA(
-          isA<StateError>().having(
-            (error) => error.message,
-            'message',
-            '模型名称无效。',
+          isA<ModelOperationException>().having(
+            (error) => error.code,
+            'code',
+            ModelOperationErrorCode.invalidModelName,
           ),
         ),
       );
@@ -228,10 +229,10 @@ void main() {
           ),
         ),
         throwsA(
-          isA<StateError>().having(
-            (error) => error.message,
-            'message',
-            '仅支持导入文件名以 mmproj 开头的 .gguf 文件。',
+          isA<ModelOperationException>().having(
+            (error) => error.code,
+            'code',
+            ModelOperationErrorCode.unsupportedMmprojFile,
           ),
         ),
       );

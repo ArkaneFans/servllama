@@ -1,5 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:servllama/core/errors/model_operation_exception.dart';
 import 'package:servllama/core/services/gguf_file_picker.dart';
 
 void main() {
@@ -44,10 +45,10 @@ void main() {
       expect(
         picker.pickSingle,
         throwsA(
-          isA<StateError>().having(
-            (error) => error.message,
-            'message',
-            '仅支持导入 .gguf 模型文件。',
+          isA<ModelOperationException>().having(
+            (error) => error.code,
+            'code',
+            ModelOperationErrorCode.unsupportedGgufFile,
           ),
         ),
       );
