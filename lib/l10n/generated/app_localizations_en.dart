@@ -271,6 +271,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get serverCopyBaseUrl => 'Copy API Base URL';
 
   @override
+  String get serverForegroundNotificationTitle => 'ServLlama is running';
+
+  @override
+  String get serverForegroundNotificationText =>
+      'ServLlama server is running in the background';
+
+  @override
   String get serverStartFailedCheckLogs =>
       'Server failed to start. Check logs.';
 

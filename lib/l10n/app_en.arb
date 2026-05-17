@@ -105,6 +105,8 @@
   "serverBaseUrlLabel": "API Base URL",
   "serverBaseUrlCopied": "API Base URL copied",
   "serverCopyBaseUrl": "Copy API Base URL",
+  "serverForegroundNotificationTitle": "ServLlama is running",
+  "serverForegroundNotificationText": "ServLlama server is running in the background",
   "serverStartFailedCheckLogs": "Server failed to start. Check logs.",
   "serverStartFailed": "Failed to start: {error}",
   "@serverStartFailed": {

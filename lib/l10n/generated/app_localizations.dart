@@ -602,6 +602,18 @@ abstract class AppLocalizations {
   /// **'Copy API Base URL'**
   String get serverCopyBaseUrl;
 
+  /// No description provided for @serverForegroundNotificationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'ServLlama is running'**
+  String get serverForegroundNotificationTitle;
+
+  /// No description provided for @serverForegroundNotificationText.
+  ///
+  /// In en, this message translates to:
+  /// **'ServLlama server is running in the background'**
+  String get serverForegroundNotificationText;
+
   /// No description provided for @serverStartFailedCheckLogs.
   ///
   /// In en, this message translates to:

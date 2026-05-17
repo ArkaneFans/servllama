@@ -267,6 +267,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get serverCopyBaseUrl => '复制 API Base URL';
 
   @override
+  String get serverForegroundNotificationTitle => 'ServLlama 正在运行';
+
+  @override
+  String get serverForegroundNotificationText => 'ServLlama 服务器正在后台运行';
+
+  @override
   String get serverStartFailedCheckLogs => '启动失败，请查看日志。';
 
   @override
