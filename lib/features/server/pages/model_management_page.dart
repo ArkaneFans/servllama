@@ -350,7 +350,7 @@ class _ModelCard extends StatelessWidget {
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             _ModelTypeBadge(
-                              label: typeLabel,
+                              tooltip: typeLabel,
                               isMultimodal: descriptor.mmprojFilePath != null,
                             ),
                             Text(
@@ -432,11 +432,11 @@ class _ModelLeadingIcon extends StatelessWidget {
 
 class _ModelTypeBadge extends StatelessWidget {
   const _ModelTypeBadge({
-    required this.label,
+    required this.tooltip,
     required this.isMultimodal,
   });
 
-  final String label;
+  final String tooltip;
   final bool isMultimodal;
 
   @override
@@ -457,19 +457,23 @@ class _ModelTypeBadge extends StatelessWidget {
         : (theme.brightness == Brightness.light
               ? const Color(0xFF3730A3)
               : colorScheme.onPrimaryContainer);
+    final icon = isMultimodal
+        ? Icons.image_search_outlined
+        : Icons.text_fields_rounded;
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-        child: Text(
-          label,
-          style: theme.textTheme.labelMedium?.copyWith(
+    return Tooltip(
+      message: tooltip,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(7),
+          child: Icon(
+            icon,
+            size: 16,
             color: foregroundColor,
-            fontWeight: FontWeight.w700,
           ),
         ),
       ),
@@ -680,7 +684,7 @@ class _ModelSettingsSheetState extends State<_ModelSettingsSheet> {
                     ),
                     const SizedBox(width: 12),
                     _ModelTypeBadge(
-                      label: descriptor.mmprojFilePath != null
+                      tooltip: descriptor.mmprojFilePath != null
                           ? l10n.modelMmprojBadgeLabel
                           : l10n.modelTextBadgeLabel,
                       isMultimodal: descriptor.mmprojFilePath != null,

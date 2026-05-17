@@ -47,7 +47,7 @@ void main() {
 
       expect(find.text('model'), findsOneWidget);
       expect(find.text('2.00 GB · GGUF'), findsOneWidget);
-      expect(find.text('文本'), findsOneWidget);
+      expect(find.byTooltip('文本'), findsOneWidget);
       expect(find.byTooltip('设置'), findsOneWidget);
       expect(find.byTooltip('删除'), findsOneWidget);
     });
@@ -68,8 +68,8 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('文本'), findsOneWidget);
-      expect(find.text('多模态'), findsNothing);
+      expect(find.byTooltip('文本'), findsOneWidget);
+      expect(find.byTooltip('多模态'), findsNothing);
     });
 
     testWidgets('shows multimodal badge when mmproj exists', (tester) async {
@@ -93,7 +93,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('多模态'), findsOneWidget);
+      expect(find.byTooltip('多模态'), findsOneWidget);
     });
 
     testWidgets('shows confirmation dialog before deleting a model', (
@@ -243,7 +243,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 250));
 
       expect(find.text('mmproj 导入成功: vision'), findsOneWidget);
-      expect(find.text('多模态'), findsWidgets);
+      expect(find.byTooltip('多模态'), findsWidgets);
       expect(
         find.byKey(const Key('model_settings_remove_mmproj_button')),
         findsOneWidget,
