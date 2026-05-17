@@ -318,12 +318,10 @@ class _ModelCard extends StatelessWidget {
             : null,
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+        padding: const EdgeInsets.fromLTRB(18, 12, 8, 12),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const _ModelLeadingIcon(),
-            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -336,10 +334,10 @@ class _ModelCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
-                      height: 1.2,
+                      height: 1.1,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
@@ -376,7 +374,7 @@ class _ModelCard extends StatelessWidget {
                         tooltip: l10n.modelManagementDeleteTooltip,
                         onPressed: onDelete,
                         icon: Icons.delete_outline_rounded,
-                        foregroundColor: colorScheme.onSurfaceVariant,
+                        foregroundColor: colorScheme.error,
                         child: isDeleting
                             ? const SizedBox(
                                 width: 18,
@@ -393,37 +391,6 @@ class _ModelCard extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ModelLeadingIcon extends StatelessWidget {
-  const _ModelLeadingIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isLight = theme.brightness == Brightness.light;
-
-    return SizedBox(
-      width: 48,
-      height: 48,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: isLight
-              ? const Color(0xFFF0F4FF)
-              : colorScheme.primaryContainer.withAlpha(120),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Center(
-          child: Icon(
-            Icons.memory_rounded,
-            size: 22,
-            color: isLight ? const Color(0xFF4A5DCA) : colorScheme.primary,
-          ),
         ),
       ),
     );
