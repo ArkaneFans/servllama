@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/providers/server_provider.dart';
+import 'package:servllama/core/services/app_l10n_service.dart';
 import 'package:servllama/core/services/llama_server_service.dart';
 import 'package:servllama/core/services/model_storage_paths.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
@@ -15,6 +16,10 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('ServerPage', () {
+    setUp(() {
+      AppL10nService.instance.setLocale(const Locale('zh'));
+    });
+
     testWidgets('shows grouped layout, API Base URL and copies it', (
       tester,
     ) async {

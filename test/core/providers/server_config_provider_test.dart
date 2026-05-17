@@ -1,6 +1,8 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/providers/server_config_provider.dart';
+import 'package:servllama/core/services/app_l10n_service.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
 import 'package:servllama/core/storage/server_prefs_keys.dart';
@@ -10,6 +12,7 @@ void main() {
   group('ServerConfigProvider', () {
     setUp(() {
       SharedPreferences.setMockInitialValues(<String, Object>{});
+      AppL10nService.instance.setLocale(const Locale('en'));
     });
 
     test('load marks initial load as completed', () async {
@@ -26,7 +29,7 @@ void main() {
       expect(provider.hasCompletedInitialLoad, isTrue);
       expect(provider.contextSize, 8192);
       expect(provider.batchSize, 1024);
-      expect(provider.statusText, '配置已加载');
+      expect(provider.statusText, 'Configuration loaded');
     });
 
     test('updatePort saves only the changed key', () async {
@@ -47,7 +50,7 @@ void main() {
         isNull,
       );
       expect(await kvStorage.getBool(ServerPrefsKeys.useMmap), isNull);
-      expect(provider.statusText, '配置已保存');
+      expect(provider.statusText, 'Configuration saved');
     });
 
     test('multiple updates save only the changed keys', () async {
@@ -72,7 +75,7 @@ void main() {
         isNull,
       );
       expect(await kvStorage.getBool(ServerPrefsKeys.useMmap), isNull);
-      expect(provider.statusText, '配置已保存');
+      expect(provider.statusText, 'Configuration saved');
     });
 
     test('resetToDefaults writes default values immediately', () async {
@@ -133,7 +136,7 @@ void main() {
         ServerLaunchSettings.defaultFlashAttentionMode.name,
       );
       expect(await kvStorage.getBool(ServerPrefsKeys.useMmap), isTrue);
-      expect(provider.statusText, '配置已保存');
+      expect(provider.statusText, 'Configuration saved');
     });
 
     test('thread and parallel updates clamp to 1-8', () async {

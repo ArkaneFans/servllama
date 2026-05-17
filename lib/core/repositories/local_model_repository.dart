@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:hive/hive.dart';
+import 'package:servllama/core/errors/model_operation_exception.dart';
 import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/core/models/model_descriptor.dart';
 import 'package:servllama/core/services/gguf_file_picker.dart';
@@ -73,17 +74,23 @@ class LocalModelRepository {
 
   Future<ModelDescriptor> importModel(PickedGgufFile pickedFile) async {
     if (!_isGgufFileName(pickedFile.fileName)) {
-      throw StateError('仅支持导入 .gguf 模型文件。');
+      throw const ModelOperationException(
+        ModelOperationErrorCode.unsupportedGgufFile,
+      );
     }
 
     final sourceFile = File(pickedFile.path);
     if (!await sourceFile.exists()) {
-      throw StateError('所选模型文件不存在。');
+      throw const ModelOperationException(
+        ModelOperationErrorCode.selectedModelFileMissing,
+      );
     }
 
     final modelName = _deriveModelName(pickedFile.fileName);
     if (modelName.isEmpty) {
-      throw StateError('模型名称无效。');
+      throw const ModelOperationException(
+        ModelOperationErrorCode.invalidModelName,
+      );
     }
 
     final models = await listModels();
@@ -92,12 +99,16 @@ class LocalModelRepository {
       (model) => _normalizeModelKey(model.modelName) == normalizedModelName,
     );
     if (hasDuplicate) {
-      throw StateError('模型已存在，请勿重复导入同名模型。');
+      throw const ModelOperationException(
+        ModelOperationErrorCode.duplicateModelName,
+      );
     }
 
     final modelDirectory = await _storagePaths.getModelDirectory(modelName);
     if (await modelDirectory.exists()) {
-      throw StateError('模型已存在，请勿重复导入同名模型。');
+      throw const ModelOperationException(
+        ModelOperationErrorCode.duplicateModelName,
+      );
     }
     await modelDirectory.create(recursive: true);
 
@@ -130,15 +141,19 @@ class LocalModelRepository {
     final box = await _box();
     final descriptor = box.get(modelId);
     if (descriptor == null) {
-      throw StateError('模型不存在。');
+      throw const ModelOperationException(ModelOperationErrorCode.modelNotFound);
     }
 
     final sourceFile = File(pickedFile.path);
     if (!await sourceFile.exists()) {
-      throw StateError('所选 mmproj 文件不存在。');
+      throw const ModelOperationException(
+        ModelOperationErrorCode.selectedMmprojFileMissing,
+      );
     }
     if (!_isMmprojFileName(pickedFile.fileName)) {
-      throw StateError('仅支持导入文件名以 mmproj 开头的 .gguf 文件。');
+      throw const ModelOperationException(
+        ModelOperationErrorCode.unsupportedMmprojFile,
+      );
     }
 
     final mmprojDestPath = _joinPath(
@@ -146,7 +161,9 @@ class LocalModelRepository {
       pickedFile.fileName,
     );
     if (_sameFilePath(mmprojDestPath, descriptor.storedFilePath)) {
-      throw StateError('mmproj 文件不能与主模型文件同名。');
+      throw const ModelOperationException(
+        ModelOperationErrorCode.mmprojSameAsModelFile,
+      );
     }
 
     final existingMmprojPath = descriptor.mmprojFilePath;
@@ -172,7 +189,7 @@ class LocalModelRepository {
     final box = await _box();
     final descriptor = box.get(modelId);
     if (descriptor == null) {
-      throw StateError('模型不存在。');
+      throw const ModelOperationException(ModelOperationErrorCode.modelNotFound);
     }
 
     final currentPath = descriptor.mmprojFilePath;
@@ -192,12 +209,14 @@ class LocalModelRepository {
     final box = await _box();
     final descriptor = box.get(modelId);
     if (descriptor == null) {
-      throw StateError('模型不存在。');
+      throw const ModelOperationException(ModelOperationErrorCode.modelNotFound);
     }
 
     final trimmed = newName.trim();
     if (trimmed.isEmpty) {
-      throw StateError('模型名称不能为空。');
+      throw const ModelOperationException(
+        ModelOperationErrorCode.emptyModelName,
+      );
     }
 
     final allModels = await listModels();
@@ -207,13 +226,17 @@ class LocalModelRepository {
           _normalizeModelKey(m.modelName) == _normalizeModelKey(trimmed),
     );
     if (hasDuplicate) {
-      throw StateError('模型名称已存在。');
+      throw const ModelOperationException(
+        ModelOperationErrorCode.modelNameExists,
+      );
     }
 
     final oldDir = Directory(descriptor.storedDirectoryPath);
     final newDir = await _storagePaths.getModelDirectory(trimmed);
     if (await newDir.exists()) {
-      throw StateError('模型目录已存在。');
+      throw const ModelOperationException(
+        ModelOperationErrorCode.modelDirectoryExists,
+      );
     }
     if (await oldDir.exists()) {
       await oldDir.rename(newDir.path);
@@ -242,7 +265,9 @@ class LocalModelRepository {
     final box = await _box();
     final descriptor = box.get(modelId);
     if (descriptor == null) {
-      throw StateError('模型不存在或已被删除。');
+      throw const ModelOperationException(
+        ModelOperationErrorCode.modelNotFoundOrDeleted,
+      );
     }
 
     await _cleanupDirectory(descriptor.storedDirectoryPath);

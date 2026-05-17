@@ -105,7 +105,46 @@
   "serverBaseUrlLabel": "API Base URL",
   "serverBaseUrlCopied": "API Base URL copied",
   "serverCopyBaseUrl": "Copy API Base URL",
+  "serverForegroundNotificationTitle": "ServLlama is running",
+  "serverForegroundNotificationText": "ServLlama server is running in the background",
+  "serverStartFailedCheckLogs": "Server failed to start. Check logs.",
+  "serverStartFailed": "Failed to start: {error}",
+  "@serverStartFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "serverStopFailed": "Failed to stop: {error}",
+  "@serverStopFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "serverConfigTitle": "Server config",
+  "serverConfigStatusSaved": "Configuration saved",
+  "serverConfigStatusLoading": "Loading configuration...",
+  "serverConfigStatusLoaded": "Configuration loaded",
+  "serverConfigStatusLoadFailed": "Failed to load: {error}",
+  "@serverConfigStatusLoadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "serverConfigStatusSaving": "Saving configuration...",
+  "serverConfigStatusSaveFailed": "Failed to save: {error}",
+  "@serverConfigStatusSaveFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "serverConfigSectionNetwork": "Network & access",
   "serverConfigListenMode": "Listen scope",
   "serverConfigListenModeDescription": "Local loopback is for local-only use, while listen on all allows external access.",
@@ -141,8 +180,41 @@
   "modelManagementTitle": "Model management",
   "modelManagementImport": "Import model",
   "modelManagementImporting": "Importing...",
+  "modelManagementImportSuccess": "Model imported: {modelName}",
+  "@modelManagementImportSuccess": {
+    "placeholders": {
+      "modelName": {
+        "type": "String"
+      }
+    }
+  },
+  "modelManagementImportFailed": "Failed to import model: {error}",
+  "@modelManagementImportFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "modelManagementEmptyTitle": "No models imported yet",
   "modelManagementEmptyDescription": "After tapping \"Import model\", your local GGUF model list will appear here.",
+  "modelManagementDeleteBusy": "Deleting model. Please wait.",
+  "modelManagementDeleteSuccess": "Model deleted: {modelName}",
+  "@modelManagementDeleteSuccess": {
+    "placeholders": {
+      "modelName": {
+        "type": "String"
+      }
+    }
+  },
+  "modelManagementDeleteFailed": "Failed to delete model: {error}",
+  "@modelManagementDeleteFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "modelManagementDeleteDialogTitle": "Delete model",
   "modelManagementDeleteDialogContent": "Delete {modelName}? This removes the model file and cannot be undone.",
   "@modelManagementDeleteDialogContent": {
@@ -160,6 +232,54 @@
   "modelSettingsMmprojLabel": "Multimodal projector",
   "modelSettingsImportMmproj": "Import mmproj file",
   "modelSettingsRemoveMmproj": "Remove mmproj",
+  "modelManagementMmprojImportSuccess": "mmproj imported: {modelName}",
+  "@modelManagementMmprojImportSuccess": {
+    "placeholders": {
+      "modelName": {
+        "type": "String"
+      }
+    }
+  },
+  "modelManagementMmprojImportFailed": "Failed to import mmproj: {error}",
+  "@modelManagementMmprojImportFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "modelManagementMmprojRemoveSuccess": "mmproj removed: {modelName}",
+  "@modelManagementMmprojRemoveSuccess": {
+    "placeholders": {
+      "modelName": {
+        "type": "String"
+      }
+    }
+  },
+  "modelManagementMmprojRemoveFailed": "Failed to remove mmproj: {error}",
+  "@modelManagementMmprojRemoveFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "modelManagementRenameSuccess": "Model renamed to: {modelName}",
+  "@modelManagementRenameSuccess": {
+    "placeholders": {
+      "modelName": {
+        "type": "String"
+      }
+    }
+  },
+  "modelManagementRenameFailed": "Failed to rename model: {error}",
+  "@modelManagementRenameFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "modelSettingsRemoveMmprojConfirm": "Remove mmproj file for {modelName}?",
   "@modelSettingsRemoveMmprojConfirm": {
     "placeholders": {
@@ -168,6 +288,19 @@
       }
     }
   },
+  "modelErrorUnsupportedGgufFile": "Only .gguf files are supported.",
+  "modelErrorSelectedModelFileMissing": "The selected model file does not exist.",
+  "modelErrorInvalidModelName": "The model name is invalid.",
+  "modelErrorDuplicateModelName": "A model with the same name already exists.",
+  "modelErrorModelNotFound": "Model not found.",
+  "modelErrorSelectedMmprojFileMissing": "The selected mmproj file does not exist.",
+  "modelErrorUnsupportedMmprojFile": "Only .gguf files starting with mmproj are supported.",
+  "modelErrorMmprojSameAsModelFile": "The mmproj file cannot have the same name as the main model file.",
+  "modelErrorEmptyModelName": "The model name cannot be empty.",
+  "modelErrorModelNameExists": "The model name already exists.",
+  "modelErrorModelDirectoryExists": "The model directory already exists.",
+  "modelErrorModelNotFoundOrDeleted": "The model does not exist or has already been deleted.",
+  "modelErrorSelectedFilePathUnavailable": "Unable to get the selected file path.",
   "serverLogsTitle": "Logs",
   "serverLogsCopyAll": "Copy all",
   "serverLogsClear": "Clear",

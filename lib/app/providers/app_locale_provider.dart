@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:servllama/core/services/app_l10n_service.dart';
 import 'package:servllama/core/storage/app_prefs_keys.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
 
@@ -6,7 +7,9 @@ enum AppLocaleMode { system, zh, en }
 
 class AppLocaleProvider extends ChangeNotifier {
   AppLocaleProvider({KvStorage? kvStorage})
-    : _kvStorage = kvStorage ?? KvStorage.instance;
+    : _kvStorage = kvStorage ?? KvStorage.instance {
+    _syncGlobalL10n();
+  }
 
   final KvStorage _kvStorage;
 
@@ -34,6 +37,7 @@ class AppLocaleProvider extends ChangeNotifier {
 
     final storedValue = await _kvStorage.getString(AppPrefsKeys.localeMode);
     _localeMode = _localeModeFromStorage(storedValue);
+    _syncGlobalL10n();
     _hasLoaded = true;
     notifyListeners();
   }
@@ -48,7 +52,12 @@ class AppLocaleProvider extends ChangeNotifier {
       AppPrefsKeys.localeMode,
       _localeModeToStorage(value),
     );
+    _syncGlobalL10n();
     notifyListeners();
+  }
+
+  void _syncGlobalL10n() {
+    AppL10nService.instance.setLocale(locale);
   }
 
   static String _localeModeToStorage(AppLocaleMode value) {

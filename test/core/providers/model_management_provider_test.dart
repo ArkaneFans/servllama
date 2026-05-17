@@ -1,16 +1,23 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:servllama/core/errors/model_operation_exception.dart';
 import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/core/models/model_descriptor.dart';
 import 'package:servllama/core/providers/model_management_provider.dart';
 import 'package:servllama/core/repositories/local_model_repository.dart';
+import 'package:servllama/core/services/app_l10n_service.dart';
 import 'package:servllama/core/services/gguf_file_picker.dart';
 
 void main() {
   group('ModelManagementProvider', () {
+    setUp(() {
+      AppL10nService.instance.setLocale(const Locale('en'));
+    });
+
     test('load reads initial model list', () async {
       final repository = FakeLocalModelRepository(
         initialModels: <ModelDescriptor>[
@@ -67,7 +74,7 @@ void main() {
       completer.complete(_descriptor(id: 'm1', modelName: 'model'));
       final message = await future;
 
-      expect(message, '模型导入成功: model');
+      expect(message, 'Model imported: model');
       expect(provider.isImporting, isFalse);
       expect(provider.models, hasLength(1));
       expect(provider.models.single.modelName, 'model');
@@ -92,7 +99,7 @@ void main() {
 
       final message = await future;
 
-      expect(message, '模型已删除: model');
+      expect(message, 'Model deleted: model');
       expect(provider.deletingModelId, isNull);
       expect(provider.models, isEmpty);
     });
@@ -122,7 +129,7 @@ void main() {
 
       final message = await future;
 
-      expect(message, 'mmproj 导入成功: vision');
+      expect(message, 'mmproj imported: vision');
       expect(provider.isImportingMmproj, isFalse);
       expect(provider.importingMmprojModelId, isNull);
       expect(provider.models.single.mmprojFilePath, 'C:\\mock\\mmproj-f16.gguf');
@@ -148,7 +155,7 @@ void main() {
 
       final message = await future;
 
-      expect(message, '模型已重命名为: after');
+      expect(message, 'Model renamed to: after');
       expect(provider.isRenaming, isFalse);
       expect(provider.renamingModelId, isNull);
       expect(provider.models.single.modelName, 'after');
@@ -173,7 +180,7 @@ void main() {
       await provider.load();
       final message = await provider.removeMmproj('m1');
 
-      expect(message, 'mmproj 已移除: vision');
+      expect(message, 'mmproj removed: vision');
       expect(provider.models.single.mmprojFilePath, isNull);
     });
 
@@ -190,7 +197,7 @@ void main() {
 
         final message = await provider.importMmproj('m1');
 
-        expect(message, 'mmproj 导入失败: 文件不可用');
+        expect(message, 'Failed to import mmproj: 文件不可用');
         expect(provider.isImportingMmproj, isFalse);
         expect(provider.importingMmprojModelId, isNull);
       },
@@ -200,7 +207,9 @@ void main() {
       'returns error message and resets state when repository throws',
       () async {
         final repository = FakeLocalModelRepository()
-          ..importError = StateError('模型名称无效。');
+          ..importError = const ModelOperationException(
+            ModelOperationErrorCode.invalidModelName,
+          );
         final provider = ModelManagementProvider(
           repository: repository,
           filePicker: FakeGgufFilePicker(
@@ -214,7 +223,7 @@ void main() {
 
         final message = await provider.importModel();
 
-        expect(message, '导入模型失败: 模型名称无效。');
+        expect(message, 'Failed to import model: The model name is invalid.');
         expect(provider.isImporting, isFalse);
         expect(provider.models, isEmpty);
       },
@@ -233,7 +242,7 @@ void main() {
 
         final message = await provider.importModel();
 
-        expect(message, '导入模型失败: 不支持该文件过滤器');
+        expect(message, 'Failed to import model: 不支持该文件过滤器');
         expect(provider.isImporting, isFalse);
         expect(provider.models, isEmpty);
       },

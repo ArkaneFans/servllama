@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/app/providers/app_locale_provider.dart';
+import 'package:servllama/core/services/app_l10n_service.dart';
 import 'package:servllama/core/storage/app_prefs_keys.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,6 +10,7 @@ void main() {
   group('AppLocaleProvider', () {
     setUp(() {
       SharedPreferences.setMockInitialValues(<String, Object>{});
+      AppL10nService.instance.setLocale(null);
     });
 
     test('defaults to system locale mode', () async {
@@ -19,6 +21,7 @@ void main() {
       expect(provider.localeMode, AppLocaleMode.system);
       expect(provider.locale, isNull);
       expect(provider.hasLoaded, isTrue);
+      expect(AppL10nService.instance.appLocale, isNull);
     });
 
     test('loads stored locale mode from local storage', () async {
@@ -31,6 +34,7 @@ void main() {
 
       expect(provider.localeMode, AppLocaleMode.en);
       expect(provider.locale, const Locale('en'));
+      expect(AppL10nService.instance.appLocale, const Locale('en'));
     });
 
     test('persists updated locale mode', () async {
@@ -41,6 +45,7 @@ void main() {
 
       expect(provider.localeMode, AppLocaleMode.zh);
       expect(await storage.getString(AppPrefsKeys.localeMode), 'zh');
+      expect(AppL10nService.instance.appLocale, const Locale('zh'));
     });
   });
 }

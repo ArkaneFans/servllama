@@ -602,11 +602,77 @@ abstract class AppLocalizations {
   /// **'Copy API Base URL'**
   String get serverCopyBaseUrl;
 
+  /// No description provided for @serverForegroundNotificationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'ServLlama is running'**
+  String get serverForegroundNotificationTitle;
+
+  /// No description provided for @serverForegroundNotificationText.
+  ///
+  /// In en, this message translates to:
+  /// **'ServLlama server is running in the background'**
+  String get serverForegroundNotificationText;
+
+  /// No description provided for @serverStartFailedCheckLogs.
+  ///
+  /// In en, this message translates to:
+  /// **'Server failed to start. Check logs.'**
+  String get serverStartFailedCheckLogs;
+
+  /// No description provided for @serverStartFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to start: {error}'**
+  String serverStartFailed(String error);
+
+  /// No description provided for @serverStopFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to stop: {error}'**
+  String serverStopFailed(String error);
+
   /// No description provided for @serverConfigTitle.
   ///
   /// In en, this message translates to:
   /// **'Server config'**
   String get serverConfigTitle;
+
+  /// No description provided for @serverConfigStatusSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Configuration saved'**
+  String get serverConfigStatusSaved;
+
+  /// No description provided for @serverConfigStatusLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading configuration...'**
+  String get serverConfigStatusLoading;
+
+  /// No description provided for @serverConfigStatusLoaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Configuration loaded'**
+  String get serverConfigStatusLoaded;
+
+  /// No description provided for @serverConfigStatusLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load: {error}'**
+  String serverConfigStatusLoadFailed(String error);
+
+  /// No description provided for @serverConfigStatusSaving.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving configuration...'**
+  String get serverConfigStatusSaving;
+
+  /// No description provided for @serverConfigStatusSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save: {error}'**
+  String serverConfigStatusSaveFailed(String error);
 
   /// No description provided for @serverConfigSectionNetwork.
   ///
@@ -818,6 +884,18 @@ abstract class AppLocalizations {
   /// **'Importing...'**
   String get modelManagementImporting;
 
+  /// No description provided for @modelManagementImportSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Model imported: {modelName}'**
+  String modelManagementImportSuccess(String modelName);
+
+  /// No description provided for @modelManagementImportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to import model: {error}'**
+  String modelManagementImportFailed(String error);
+
   /// No description provided for @modelManagementEmptyTitle.
   ///
   /// In en, this message translates to:
@@ -829,6 +907,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'After tapping \"Import model\", your local GGUF model list will appear here.'**
   String get modelManagementEmptyDescription;
+
+  /// No description provided for @modelManagementDeleteBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting model. Please wait.'**
+  String get modelManagementDeleteBusy;
+
+  /// No description provided for @modelManagementDeleteSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Model deleted: {modelName}'**
+  String modelManagementDeleteSuccess(String modelName);
+
+  /// No description provided for @modelManagementDeleteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to delete model: {error}'**
+  String modelManagementDeleteFailed(String error);
 
   /// No description provided for @modelManagementDeleteDialogTitle.
   ///
@@ -890,11 +986,125 @@ abstract class AppLocalizations {
   /// **'Remove mmproj'**
   String get modelSettingsRemoveMmproj;
 
+  /// No description provided for @modelManagementMmprojImportSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'mmproj imported: {modelName}'**
+  String modelManagementMmprojImportSuccess(String modelName);
+
+  /// No description provided for @modelManagementMmprojImportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to import mmproj: {error}'**
+  String modelManagementMmprojImportFailed(String error);
+
+  /// No description provided for @modelManagementMmprojRemoveSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'mmproj removed: {modelName}'**
+  String modelManagementMmprojRemoveSuccess(String modelName);
+
+  /// No description provided for @modelManagementMmprojRemoveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to remove mmproj: {error}'**
+  String modelManagementMmprojRemoveFailed(String error);
+
+  /// No description provided for @modelManagementRenameSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Model renamed to: {modelName}'**
+  String modelManagementRenameSuccess(String modelName);
+
+  /// No description provided for @modelManagementRenameFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to rename model: {error}'**
+  String modelManagementRenameFailed(String error);
+
   /// No description provided for @modelSettingsRemoveMmprojConfirm.
   ///
   /// In en, this message translates to:
   /// **'Remove mmproj file for {modelName}?'**
   String modelSettingsRemoveMmprojConfirm(String modelName);
+
+  /// No description provided for @modelErrorUnsupportedGgufFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Only .gguf files are supported.'**
+  String get modelErrorUnsupportedGgufFile;
+
+  /// No description provided for @modelErrorSelectedModelFileMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'The selected model file does not exist.'**
+  String get modelErrorSelectedModelFileMissing;
+
+  /// No description provided for @modelErrorInvalidModelName.
+  ///
+  /// In en, this message translates to:
+  /// **'The model name is invalid.'**
+  String get modelErrorInvalidModelName;
+
+  /// No description provided for @modelErrorDuplicateModelName.
+  ///
+  /// In en, this message translates to:
+  /// **'A model with the same name already exists.'**
+  String get modelErrorDuplicateModelName;
+
+  /// No description provided for @modelErrorModelNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Model not found.'**
+  String get modelErrorModelNotFound;
+
+  /// No description provided for @modelErrorSelectedMmprojFileMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'The selected mmproj file does not exist.'**
+  String get modelErrorSelectedMmprojFileMissing;
+
+  /// No description provided for @modelErrorUnsupportedMmprojFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Only .gguf files starting with mmproj are supported.'**
+  String get modelErrorUnsupportedMmprojFile;
+
+  /// No description provided for @modelErrorMmprojSameAsModelFile.
+  ///
+  /// In en, this message translates to:
+  /// **'The mmproj file cannot have the same name as the main model file.'**
+  String get modelErrorMmprojSameAsModelFile;
+
+  /// No description provided for @modelErrorEmptyModelName.
+  ///
+  /// In en, this message translates to:
+  /// **'The model name cannot be empty.'**
+  String get modelErrorEmptyModelName;
+
+  /// No description provided for @modelErrorModelNameExists.
+  ///
+  /// In en, this message translates to:
+  /// **'The model name already exists.'**
+  String get modelErrorModelNameExists;
+
+  /// No description provided for @modelErrorModelDirectoryExists.
+  ///
+  /// In en, this message translates to:
+  /// **'The model directory already exists.'**
+  String get modelErrorModelDirectoryExists;
+
+  /// No description provided for @modelErrorModelNotFoundOrDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'The model does not exist or has already been deleted.'**
+  String get modelErrorModelNotFoundOrDeleted;
+
+  /// No description provided for @modelErrorSelectedFilePathUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to get the selected file path.'**
+  String get modelErrorSelectedFilePathUnavailable;
 
   /// No description provided for @serverLogsTitle.
   ///

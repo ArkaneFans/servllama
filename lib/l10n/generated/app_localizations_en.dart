@@ -271,7 +271,50 @@ class AppLocalizationsEn extends AppLocalizations {
   String get serverCopyBaseUrl => 'Copy API Base URL';
 
   @override
+  String get serverForegroundNotificationTitle => 'ServLlama is running';
+
+  @override
+  String get serverForegroundNotificationText =>
+      'ServLlama server is running in the background';
+
+  @override
+  String get serverStartFailedCheckLogs =>
+      'Server failed to start. Check logs.';
+
+  @override
+  String serverStartFailed(String error) {
+    return 'Failed to start: $error';
+  }
+
+  @override
+  String serverStopFailed(String error) {
+    return 'Failed to stop: $error';
+  }
+
+  @override
   String get serverConfigTitle => 'Server config';
+
+  @override
+  String get serverConfigStatusSaved => 'Configuration saved';
+
+  @override
+  String get serverConfigStatusLoading => 'Loading configuration...';
+
+  @override
+  String get serverConfigStatusLoaded => 'Configuration loaded';
+
+  @override
+  String serverConfigStatusLoadFailed(String error) {
+    return 'Failed to load: $error';
+  }
+
+  @override
+  String get serverConfigStatusSaving => 'Saving configuration...';
+
+  @override
+  String serverConfigStatusSaveFailed(String error) {
+    return 'Failed to save: $error';
+  }
 
   @override
   String get serverConfigSectionNetwork => 'Network & access';
@@ -390,11 +433,34 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modelManagementImporting => 'Importing...';
 
   @override
+  String modelManagementImportSuccess(String modelName) {
+    return 'Model imported: $modelName';
+  }
+
+  @override
+  String modelManagementImportFailed(String error) {
+    return 'Failed to import model: $error';
+  }
+
+  @override
   String get modelManagementEmptyTitle => 'No models imported yet';
 
   @override
   String get modelManagementEmptyDescription =>
       'After tapping \"Import model\", your local GGUF model list will appear here.';
+
+  @override
+  String get modelManagementDeleteBusy => 'Deleting model. Please wait.';
+
+  @override
+  String modelManagementDeleteSuccess(String modelName) {
+    return 'Model deleted: $modelName';
+  }
+
+  @override
+  String modelManagementDeleteFailed(String error) {
+    return 'Failed to delete model: $error';
+  }
 
   @override
   String get modelManagementDeleteDialogTitle => 'Delete model';
@@ -429,9 +495,86 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modelSettingsRemoveMmproj => 'Remove mmproj';
 
   @override
+  String modelManagementMmprojImportSuccess(String modelName) {
+    return 'mmproj imported: $modelName';
+  }
+
+  @override
+  String modelManagementMmprojImportFailed(String error) {
+    return 'Failed to import mmproj: $error';
+  }
+
+  @override
+  String modelManagementMmprojRemoveSuccess(String modelName) {
+    return 'mmproj removed: $modelName';
+  }
+
+  @override
+  String modelManagementMmprojRemoveFailed(String error) {
+    return 'Failed to remove mmproj: $error';
+  }
+
+  @override
+  String modelManagementRenameSuccess(String modelName) {
+    return 'Model renamed to: $modelName';
+  }
+
+  @override
+  String modelManagementRenameFailed(String error) {
+    return 'Failed to rename model: $error';
+  }
+
+  @override
   String modelSettingsRemoveMmprojConfirm(String modelName) {
     return 'Remove mmproj file for $modelName?';
   }
+
+  @override
+  String get modelErrorUnsupportedGgufFile => 'Only .gguf files are supported.';
+
+  @override
+  String get modelErrorSelectedModelFileMissing =>
+      'The selected model file does not exist.';
+
+  @override
+  String get modelErrorInvalidModelName => 'The model name is invalid.';
+
+  @override
+  String get modelErrorDuplicateModelName =>
+      'A model with the same name already exists.';
+
+  @override
+  String get modelErrorModelNotFound => 'Model not found.';
+
+  @override
+  String get modelErrorSelectedMmprojFileMissing =>
+      'The selected mmproj file does not exist.';
+
+  @override
+  String get modelErrorUnsupportedMmprojFile =>
+      'Only .gguf files starting with mmproj are supported.';
+
+  @override
+  String get modelErrorMmprojSameAsModelFile =>
+      'The mmproj file cannot have the same name as the main model file.';
+
+  @override
+  String get modelErrorEmptyModelName => 'The model name cannot be empty.';
+
+  @override
+  String get modelErrorModelNameExists => 'The model name already exists.';
+
+  @override
+  String get modelErrorModelDirectoryExists =>
+      'The model directory already exists.';
+
+  @override
+  String get modelErrorModelNotFoundOrDeleted =>
+      'The model does not exist or has already been deleted.';
+
+  @override
+  String get modelErrorSelectedFilePathUnavailable =>
+      'Unable to get the selected file path.';
 
   @override
   String get serverLogsTitle => 'Logs';

@@ -105,7 +105,46 @@
   "serverBaseUrlLabel": "API Base URL",
   "serverBaseUrlCopied": "API Base URL 已复制",
   "serverCopyBaseUrl": "复制 API Base URL",
+  "serverForegroundNotificationTitle": "ServLlama 正在运行",
+  "serverForegroundNotificationText": "ServLlama 服务器正在后台运行",
+  "serverStartFailedCheckLogs": "启动失败，请查看日志。",
+  "serverStartFailed": "启动失败: {error}",
+  "@serverStartFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "serverStopFailed": "停止失败: {error}",
+  "@serverStopFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "serverConfigTitle": "服务器配置",
+  "serverConfigStatusSaved": "配置已保存",
+  "serverConfigStatusLoading": "正在加载配置...",
+  "serverConfigStatusLoaded": "配置已加载",
+  "serverConfigStatusLoadFailed": "加载失败: {error}",
+  "@serverConfigStatusLoadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "serverConfigStatusSaving": "正在保存配置...",
+  "serverConfigStatusSaveFailed": "保存失败: {error}",
+  "@serverConfigStatusSaveFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "serverConfigSectionNetwork": "网络与访问",
   "serverConfigListenMode": "监听范围",
   "serverConfigListenModeDescription": "本地回环仅本机使用，监听所有允许外部访问",
@@ -141,8 +180,41 @@
   "modelManagementTitle": "模型管理",
   "modelManagementImport": "导入模型",
   "modelManagementImporting": "导入中...",
+  "modelManagementImportSuccess": "模型导入成功: {modelName}",
+  "@modelManagementImportSuccess": {
+    "placeholders": {
+      "modelName": {
+        "type": "String"
+      }
+    }
+  },
+  "modelManagementImportFailed": "导入模型失败: {error}",
+  "@modelManagementImportFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "modelManagementEmptyTitle": "还没有导入模型",
   "modelManagementEmptyDescription": "点击右下角“导入模型”后，这里会显示本地 GGUF 模型列表。",
+  "modelManagementDeleteBusy": "正在删除模型，请稍后。",
+  "modelManagementDeleteSuccess": "模型已删除: {modelName}",
+  "@modelManagementDeleteSuccess": {
+    "placeholders": {
+      "modelName": {
+        "type": "String"
+      }
+    }
+  },
+  "modelManagementDeleteFailed": "删除模型失败: {error}",
+  "@modelManagementDeleteFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "modelManagementDeleteDialogTitle": "删除模型",
   "modelManagementDeleteDialogContent": "确定删除 {modelName} 吗？这会移除模型文件，且无法恢复。",
   "@modelManagementDeleteDialogContent": {
@@ -160,6 +232,54 @@
   "modelSettingsMmprojLabel": "多模态投影器",
   "modelSettingsImportMmproj": "导入 mmproj 文件",
   "modelSettingsRemoveMmproj": "移除 mmproj",
+  "modelManagementMmprojImportSuccess": "mmproj 导入成功: {modelName}",
+  "@modelManagementMmprojImportSuccess": {
+    "placeholders": {
+      "modelName": {
+        "type": "String"
+      }
+    }
+  },
+  "modelManagementMmprojImportFailed": "mmproj 导入失败: {error}",
+  "@modelManagementMmprojImportFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "modelManagementMmprojRemoveSuccess": "mmproj 已移除: {modelName}",
+  "@modelManagementMmprojRemoveSuccess": {
+    "placeholders": {
+      "modelName": {
+        "type": "String"
+      }
+    }
+  },
+  "modelManagementMmprojRemoveFailed": "mmproj 移除失败: {error}",
+  "@modelManagementMmprojRemoveFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "modelManagementRenameSuccess": "模型已重命名为: {modelName}",
+  "@modelManagementRenameSuccess": {
+    "placeholders": {
+      "modelName": {
+        "type": "String"
+      }
+    }
+  },
+  "modelManagementRenameFailed": "重命名失败: {error}",
+  "@modelManagementRenameFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "modelSettingsRemoveMmprojConfirm": "确定移除 {modelName} 的 mmproj 文件吗？",
   "@modelSettingsRemoveMmprojConfirm": {
     "placeholders": {
@@ -168,6 +288,19 @@
       }
     }
   },
+  "modelErrorUnsupportedGgufFile": "仅支持导入 .gguf 文件。",
+  "modelErrorSelectedModelFileMissing": "所选模型文件不存在。",
+  "modelErrorInvalidModelName": "模型名称无效。",
+  "modelErrorDuplicateModelName": "模型已存在，请勿重复导入同名模型。",
+  "modelErrorModelNotFound": "模型不存在。",
+  "modelErrorSelectedMmprojFileMissing": "所选 mmproj 文件不存在。",
+  "modelErrorUnsupportedMmprojFile": "仅支持导入文件名以 mmproj 开头的 .gguf 文件。",
+  "modelErrorMmprojSameAsModelFile": "mmproj 文件不能与主模型文件同名。",
+  "modelErrorEmptyModelName": "模型名称不能为空。",
+  "modelErrorModelNameExists": "模型名称已存在。",
+  "modelErrorModelDirectoryExists": "模型目录已存在。",
+  "modelErrorModelNotFoundOrDeleted": "模型不存在或已被删除。",
+  "modelErrorSelectedFilePathUnavailable": "无法获取所选文件的路径。",
   "serverLogsTitle": "日志",
   "serverLogsCopyAll": "复制全部",
   "serverLogsClear": "清空",

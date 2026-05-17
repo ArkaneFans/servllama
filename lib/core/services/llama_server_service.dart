@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:servllama/core/logging/app_logger.dart';
+import 'package:servllama/core/services/app_l10n_service.dart';
 import 'package:servllama/core/services/foreground_task_service.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
 import 'package:servllama/core/storage/server_prefs_keys.dart';
@@ -27,7 +28,7 @@ class LlamaServerService {
   final AppLogger _logger = AppLogger.instance;
   final StreamController<bool> _runningStateController =
       StreamController<bool>.broadcast();
-
+  final AppL10nService _l10nService = AppL10nService.instance;
   final ForegroundTaskService _foregroundTaskService = ForegroundTaskService();
   bool _foregroundTaskInitialized = false;
 
@@ -104,8 +105,8 @@ class LlamaServerService {
 
       // final address = _extractHostFromArgs(arguments);
       await _foregroundTaskService.start(
-        notificationTitle: 'ServLlama is running',
-        notificationText: 'ServLlama server is running in the background',
+        notificationTitle: _l10nService.current.serverForegroundNotificationTitle,
+        notificationText: _l10nService.current.serverForegroundNotificationText,
       );
 
       process.stdout.transform(utf8.decoder).listen(_handleStdout);

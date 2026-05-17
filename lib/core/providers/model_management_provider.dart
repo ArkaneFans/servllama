@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:servllama/core/errors/model_operation_exception.dart';
 import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/core/models/model_descriptor.dart';
 import 'package:servllama/core/repositories/local_model_repository.dart';
+import 'package:servllama/core/services/app_l10n_service.dart';
 import 'package:servllama/core/services/gguf_file_picker.dart';
 
 class ModelManagementProvider extends ChangeNotifier {
@@ -37,6 +39,8 @@ class ModelManagementProvider extends ChangeNotifier {
   String? get importingMmprojModelId => _importingMmprojModelId;
   String? get renamingModelId => _renamingModelId;
   bool get isEmpty => _models.isEmpty;
+
+  AppL10nService get _l10nService => AppL10nService.instance;
 
   Future<void> load() async {
     if (_isLoading) {
@@ -83,7 +87,9 @@ class ModelManagementProvider extends ChangeNotifier {
         '模型导入成功: ${descriptor.modelName}',
         channel: LogChannel.model,
       );
-      return '模型导入成功: ${descriptor.modelName}';
+      return _l10nService.current.modelManagementImportSuccess(
+        descriptor.modelName,
+      );
     } catch (error, stackTrace) {
       _logger.error(
         '导入模型失败',
@@ -91,7 +97,9 @@ class ModelManagementProvider extends ChangeNotifier {
         error: error,
         stackTrace: stackTrace,
       );
-      return '导入模型失败: ${_describeError(error)}';
+      return _l10nService.current.modelManagementImportFailed(
+        _describeError(error),
+      );
     } finally {
       _isImporting = false;
       notifyListeners();
@@ -100,7 +108,7 @@ class ModelManagementProvider extends ChangeNotifier {
 
   Future<String> deleteModel(String modelId) async {
     if (_deletingModelId != null) {
-      return '正在删除模型，请稍后。';
+      return _l10nService.current.modelManagementDeleteBusy;
     }
 
     _deletingModelId = modelId;
@@ -113,7 +121,7 @@ class ModelManagementProvider extends ChangeNotifier {
       await _repository.deleteModel(modelId);
       _models = await _repository.listModels();
       _logger.info('模型删除成功: ${model.modelName}', channel: LogChannel.model);
-      return '模型已删除: ${model.modelName}';
+      return _l10nService.current.modelManagementDeleteSuccess(model.modelName);
     } catch (error, stackTrace) {
       _logger.error(
         '删除模型失败',
@@ -121,7 +129,9 @@ class ModelManagementProvider extends ChangeNotifier {
         error: error,
         stackTrace: stackTrace,
       );
-      return '删除模型失败: ${_describeError(error)}';
+      return _l10nService.current.modelManagementDeleteFailed(
+        _describeError(error),
+      );
     } finally {
       _deletingModelId = null;
       notifyListeners();
@@ -153,7 +163,9 @@ class ModelManagementProvider extends ChangeNotifier {
         'mmproj 导入成功: ${updated.modelName}',
         channel: LogChannel.model,
       );
-      return 'mmproj 导入成功: ${updated.modelName}';
+      return _l10nService.current.modelManagementMmprojImportSuccess(
+        updated.modelName,
+      );
     } catch (error, stackTrace) {
       _logger.error(
         '导入 mmproj 失败',
@@ -161,7 +173,9 @@ class ModelManagementProvider extends ChangeNotifier {
         error: error,
         stackTrace: stackTrace,
       );
-      return 'mmproj 导入失败: ${_describeError(error)}';
+      return _l10nService.current.modelManagementMmprojImportFailed(
+        _describeError(error),
+      );
     } finally {
       if (didStartImport) {
         _isImportingMmproj = false;
@@ -179,7 +193,9 @@ class ModelManagementProvider extends ChangeNotifier {
         'mmproj 已移除: ${updated.modelName}',
         channel: LogChannel.model,
       );
-      return 'mmproj 已移除: ${updated.modelName}';
+      return _l10nService.current.modelManagementMmprojRemoveSuccess(
+        updated.modelName,
+      );
     } catch (error, stackTrace) {
       _logger.error(
         '移除 mmproj 失败',
@@ -187,7 +203,9 @@ class ModelManagementProvider extends ChangeNotifier {
         error: error,
         stackTrace: stackTrace,
       );
-      return 'mmproj 移除失败: ${_describeError(error)}';
+      return _l10nService.current.modelManagementMmprojRemoveFailed(
+        _describeError(error),
+      );
     } finally {
       notifyListeners();
     }
@@ -209,7 +227,9 @@ class ModelManagementProvider extends ChangeNotifier {
         '模型重命名成功: ${updated.modelName}',
         channel: LogChannel.model,
       );
-      return '模型已重命名为: ${updated.modelName}';
+      return _l10nService.current.modelManagementRenameSuccess(
+        updated.modelName,
+      );
     } catch (error, stackTrace) {
       _logger.error(
         '重命名模型失败',
@@ -217,7 +237,9 @@ class ModelManagementProvider extends ChangeNotifier {
         error: error,
         stackTrace: stackTrace,
       );
-      return '重命名失败: ${_describeError(error)}';
+      return _l10nService.current.modelManagementRenameFailed(
+        _describeError(error),
+      );
     } finally {
       _isRenaming = false;
       _renamingModelId = null;
@@ -226,6 +248,39 @@ class ModelManagementProvider extends ChangeNotifier {
   }
 
   String _describeError(Object error) {
+    final l10n = _l10nService.current;
+
+    if (error is ModelOperationException) {
+      switch (error.code) {
+        case ModelOperationErrorCode.unsupportedGgufFile:
+          return l10n.modelErrorUnsupportedGgufFile;
+        case ModelOperationErrorCode.selectedModelFileMissing:
+          return l10n.modelErrorSelectedModelFileMissing;
+        case ModelOperationErrorCode.invalidModelName:
+          return l10n.modelErrorInvalidModelName;
+        case ModelOperationErrorCode.duplicateModelName:
+          return l10n.modelErrorDuplicateModelName;
+        case ModelOperationErrorCode.modelNotFound:
+          return l10n.modelErrorModelNotFound;
+        case ModelOperationErrorCode.selectedMmprojFileMissing:
+          return l10n.modelErrorSelectedMmprojFileMissing;
+        case ModelOperationErrorCode.unsupportedMmprojFile:
+          return l10n.modelErrorUnsupportedMmprojFile;
+        case ModelOperationErrorCode.mmprojSameAsModelFile:
+          return l10n.modelErrorMmprojSameAsModelFile;
+        case ModelOperationErrorCode.emptyModelName:
+          return l10n.modelErrorEmptyModelName;
+        case ModelOperationErrorCode.modelNameExists:
+          return l10n.modelErrorModelNameExists;
+        case ModelOperationErrorCode.modelDirectoryExists:
+          return l10n.modelErrorModelDirectoryExists;
+        case ModelOperationErrorCode.modelNotFoundOrDeleted:
+          return l10n.modelErrorModelNotFoundOrDeleted;
+        case ModelOperationErrorCode.selectedFilePathUnavailable:
+          return l10n.modelErrorSelectedFilePathUnavailable;
+      }
+    }
+
     if (error is StateError) {
       return error.message.toString();
     }
