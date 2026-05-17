@@ -151,23 +151,6 @@ class _ChatViewState extends State<_ChatView> {
     }
   }
 
-  Future<void> _pickFromCamera(BuildContext context) async {
-    final provider = context.read<ChatProvider>();
-    try {
-      final path = await _imageAttachmentService.pickFromCamera(
-        currentCount: provider.pendingImageAttachments.length,
-      );
-      if (path != null) {
-        provider.addImageAttachment(path);
-      }
-    } on ImageAttachmentException catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
-    }
-  }
-
   Future<void> _showModels(BuildContext context) async {
     final provider = context.read<ChatProvider>();
     final l10n = context.l10n;
@@ -328,7 +311,6 @@ class _ChatViewState extends State<_ChatView> {
                             onSend: () => _send(context),
                             onStop: provider.cancelStreaming,
                             onPickFromGallery: () => _pickFromGallery(context),
-                            onPickFromCamera: () => _pickFromCamera(context),
                             pendingImageAttachments:
                                 provider.pendingImageAttachments,
                             onRemoveImageAttachment:
@@ -574,7 +556,6 @@ class _InputBar extends StatelessWidget {
     required this.onSend,
     required this.onStop,
     required this.onPickFromGallery,
-    required this.onPickFromCamera,
     required this.pendingImageAttachments,
     required this.onRemoveImageAttachment,
   });
@@ -594,7 +575,6 @@ class _InputBar extends StatelessWidget {
   final VoidCallback onSend;
   final VoidCallback onStop;
   final VoidCallback onPickFromGallery;
-  final VoidCallback onPickFromCamera;
   final List<String> pendingImageAttachments;
   final ValueChanged<int> onRemoveImageAttachment;
 
@@ -822,6 +802,7 @@ class _InputBar extends StatelessWidget {
                         ),
                       ),
                     ),
+                    const Spacer(),
                     Tooltip(
                       message: l10n.chatAttachImage,
                       child: Semantics(
@@ -842,7 +823,7 @@ class _InputBar extends StatelessWidget {
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
                           icon: Icon(
-                            Icons.add_photo_alternate_outlined,
+                            Icons.add,
                             size: 22,
                             color: canSend
                                 ? actionButtonIconColor
@@ -851,36 +832,6 @@ class _InputBar extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Tooltip(
-                      message: l10n.chatAttachImage,
-                      child: Semantics(
-                        button: true,
-                        label: l10n.chatAttachImage,
-                        child: IconButton(
-                          key: const Key('chat_camera_button'),
-                          onPressed: canSend ? onPickFromCamera : null,
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            disabledBackgroundColor: Colors.transparent,
-                            foregroundColor: actionButtonIconColor,
-                            disabledForegroundColor:
-                                disabledModelButtonIconColor,
-                            minimumSize: const Size(42, 42),
-                            padding: EdgeInsets.zero,
-                            shape: actionButtonShape,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          icon: Icon(
-                            Icons.camera_alt_outlined,
-                            size: 22,
-                            color: canSend
-                                ? actionButtonIconColor
-                                : disabledModelButtonIconColor,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
                     IconButton(
                       key: const Key('chat_send_button'),
                       tooltip: isSending ? l10n.chatStop : l10n.chatSend,
