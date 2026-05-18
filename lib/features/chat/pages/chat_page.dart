@@ -164,7 +164,7 @@ class _ChatViewState extends State<_ChatView> {
         builder: (context, provider, _) => SafeArea(
           child: SingleChildScrollView(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 28),
               child: _ModelSheetContent(
                 provider: provider,
                 onRefresh: () => provider.refreshModels(),
@@ -352,16 +352,19 @@ class _ModelSheetContent extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(l10n.chatSelectModel, style: titleStyle),
-            const Spacer(),
-            IconButton(
-              onPressed: provider.isRefreshingModels ? null : onRefresh,
-              tooltip: l10n.chatRefreshModels,
-              icon: const Icon(Icons.refresh),
-            ),
-          ],
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            children: [
+              Text(l10n.chatSelectModel, style: titleStyle),
+              const Spacer(),
+              IconButton(
+                onPressed: provider.isRefreshingModels ? null : onRefresh,
+                tooltip: l10n.chatRefreshModels,
+                icon: const Icon(Icons.refresh),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 16),
         if (showInitialLoading)
@@ -927,7 +930,7 @@ class _ModelSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Text(
             title,
             style: theme.textTheme.titleMedium?.copyWith(
@@ -950,7 +953,7 @@ class _ModelSection extends StatelessWidget {
                 onTap: onTap == null || isBusy ? null : () => onTap!(model),
                 child: Padding(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   child: Row(
                     children: [
                       Expanded(
