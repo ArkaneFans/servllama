@@ -184,27 +184,28 @@ class _ChatViewState extends State<_ChatView> {
                         ? (model) => provider.unloadModel(model.id)
                         : null,
                   ),
-                  const SizedBox(height: 16),
-                  _ModelSection(
-                    title: l10n.chatAvailableModels,
-                    models: provider.availableModels,
-                    currentModelId: provider.currentModelId,
-                    loadingModelId: provider.loadingModelId,
-                    onTap: provider.canSelectModels
-                        ? (model) async {
-                            await provider.loadAndSelectModel(model.id);
-                            if (!context.mounted) {
-                              return;
+                  if (provider.availableModels.isNotEmpty) ...[
+                    _ModelSection(
+                      title: l10n.chatAvailableModels,
+                      models: provider.availableModels,
+                      currentModelId: provider.currentModelId,
+                      loadingModelId: provider.loadingModelId,
+                      onTap: provider.canSelectModels
+                          ? (model) async {
+                              await provider.loadAndSelectModel(model.id);
+                              if (!context.mounted) {
+                                return;
+                              }
+                              final currentModel = provider.currentModel;
+                              if (currentModel != null &&
+                                  currentModel.id == model.id &&
+                                  currentModel.isLoaded) {
+                                Navigator.of(sheetContext).pop();
+                              }
                             }
-                            final currentModel = provider.currentModel;
-                            if (currentModel != null &&
-                                currentModel.id == model.id &&
-                                currentModel.isLoaded) {
-                              Navigator.of(sheetContext).pop();
-                            }
-                          }
-                        : null,
-                  ),
+                          : null,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -918,28 +919,25 @@ class _ModelSection extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
+    if (models.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w700,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: colorScheme.onSurfaceVariant.withAlpha(170),
+            ),
           ),
         ),
         const SizedBox(height: 10),
-        if (models.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Text(
-              l10n.chatNoModels(title),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-          )
-        else
-          ...models.map((model) {
+        ...models.map((model) {
             final isBusy = loadingModelId == model.id;
             final isSelected = currentModelId == model.id;
             return Material(
