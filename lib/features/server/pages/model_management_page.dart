@@ -318,7 +318,7 @@ class _ModelCard extends StatelessWidget {
             : null,
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 12, 8, 12),
+        padding: const EdgeInsets.fromLTRB(18, 16, 8, 8),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
