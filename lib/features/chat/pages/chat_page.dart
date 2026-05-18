@@ -942,99 +942,83 @@ class _ModelSection extends StatelessWidget {
           ...models.map((model) {
             final isBusy = loadingModelId == model.id;
             final isSelected = currentModelId == model.id;
-            return Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: isSelected
-                      ? colorScheme.primary.withAlpha(60)
-                      : colorScheme.outlineVariant,
-                ),
-              ),
-              child: ListTile(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                title: Text(
-                  model.displayName,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
+            return Material(
+              color: isSelected
+                  ? colorScheme.primaryContainer.withAlpha(40)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: onTap == null || isBusy ? null : () => onTap!(model),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          model.displayName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            fontWeight:
+                                isSelected ? FontWeight.w600 : FontWeight.w500,
+                            color: isSelected
+                                ? colorScheme.primary
+                                : colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                      if (onSecondaryAction != null && model.isLoaded)
+                        IconButton(
+                          key: Key('chat_model_unload_button_${model.id}'),
+                          tooltip: l10n.chatUnloadModel,
+                          onPressed:
+                              isBusy ? null : () => onSecondaryAction!(model),
+                          icon: const Icon(Icons.eject_outlined, size: 18),
+                          visualDensity: VisualDensity.compact,
+                          constraints:
+                              const BoxConstraints.tightFor(width: 32, height: 32),
+                        ),
+                      const SizedBox(width: 4),
+                      _StatusDot(isBusy: isBusy, isLoaded: model.isLoaded),
+                    ],
                   ),
                 ),
-                subtitle: Text(_modelStatusLabel(context, model.status)),
-                leading: isBusy
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          color: model.isLoaded
-                              ? colorScheme.primaryContainer
-                              : colorScheme.surface,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          model.isLoaded
-                              ? Icons.check_circle_outline_rounded
-                              : Icons.memory_outlined,
-                          color: model.isLoaded
-                              ? colorScheme.primary
-                              : colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isSelected
-                          ? Icons.radio_button_checked_rounded
-                          : Icons.radio_button_off_outlined,
-                      color: isSelected ? colorScheme.primary : null,
-                    ),
-                    if (onSecondaryAction != null) ...[
-                      const SizedBox(width: 4),
-                      IconButton(
-                        key: Key('chat_model_unload_button_${model.id}'),
-                        tooltip: l10n.chatUnloadModel,
-                        onPressed: isBusy
-                            ? null
-                            : () => onSecondaryAction!(model),
-                        icon: const Icon(Icons.eject_outlined),
-                        visualDensity: VisualDensity.compact,
-                        constraints: const BoxConstraints.tightFor(
-                          width: 36,
-                          height: 36,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                onTap: onTap == null || isBusy ? null : () => onTap!(model),
               ),
             );
           }),
       ],
     );
   }
+}
 
-  String _modelStatusLabel(BuildContext context, ChatModelStatus status) {
-    final l10n = context.l10n;
-    switch (status) {
-      case ChatModelStatus.loaded:
-        return l10n.chatModelStatusLoaded;
-      case ChatModelStatus.loading:
-        return l10n.chatModelStatusLoading;
-      case ChatModelStatus.unloaded:
-        return l10n.chatModelStatusAvailable;
-      case ChatModelStatus.failed:
-        return l10n.chatModelStatusFailed;
+class _StatusDot extends StatelessWidget {
+  const _StatusDot({required this.isBusy, required this.isLoaded});
+
+  final bool isBusy;
+  final bool isLoaded;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    if (isBusy) {
+      return const SizedBox(
+        width: 16,
+        height: 16,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
     }
+    return Container(
+      width: 10,
+      height: 10,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: isLoaded
+            ? const Color(0xFF10B981)
+            : colorScheme.outlineVariant,
+      ),
+    );
   }
 }
 
