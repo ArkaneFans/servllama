@@ -6,7 +6,7 @@ class ChatTimeoutProvider extends ChangeNotifier {
   ChatTimeoutProvider({KvStorage? kvStorage})
     : _kvStorage = kvStorage ?? KvStorage.instance;
 
-  static const int defaultTimeoutSeconds = 120;
+  static const int defaultTimeoutSeconds = 180;
   static const int minTimeoutSeconds = 30;
   static const int maxTimeoutSeconds = 600;
 
