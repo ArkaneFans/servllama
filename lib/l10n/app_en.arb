@@ -68,9 +68,34 @@
   "chatImageSizeExceeded": "Image size cannot exceed 10MB",
   "settingsTitle": "Settings",
   "settingsSectionGeneral": "General",
+  "settingsSectionChat": "Chat",
   "settingsSectionAbout": "About",
   "settingsThemeMode": "Theme mode",
   "settingsLanguage": "App language",
+  "settingsChatTimeout": "Chat timeout",
+  "settingsChatTimeoutValue": "{seconds} s",
+  "@settingsChatTimeoutValue": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsChatTimeoutSheetTitle": "Chat timeout",
+  "settingsChatTimeoutDescription": "Controls how long chat responses can take. Increase it for multimodal image understanding when needed.",
+  "settingsChatTimeoutFieldLabel": "Timeout",
+  "settingsChatTimeoutUnit": "s",
+  "settingsChatTimeoutRange": "Allowed range: {minSeconds}-{maxSeconds} s",
+  "@settingsChatTimeoutRange": {
+    "placeholders": {
+      "minSeconds": {
+        "type": "int"
+      },
+      "maxSeconds": {
+        "type": "int"
+      }
+    }
+  },
   "settingsUnavailable": "Coming soon",
   "settingsAbout": "About",
   "settingsThemeModeSheetTitle": "Theme mode",

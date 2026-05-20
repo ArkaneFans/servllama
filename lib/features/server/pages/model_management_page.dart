@@ -318,12 +318,10 @@ class _ModelCard extends StatelessWidget {
             : null,
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+        padding: const EdgeInsets.fromLTRB(18, 16, 8, 8),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const _ModelLeadingIcon(),
-            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -336,10 +334,10 @@ class _ModelCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
-                      height: 1.2,
+                      height: 1.1,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
@@ -350,7 +348,7 @@ class _ModelCard extends StatelessWidget {
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             _ModelTypeBadge(
-                              label: typeLabel,
+                              tooltip: typeLabel,
                               isMultimodal: descriptor.mmprojFilePath != null,
                             ),
                             Text(
@@ -376,7 +374,7 @@ class _ModelCard extends StatelessWidget {
                         tooltip: l10n.modelManagementDeleteTooltip,
                         onPressed: onDelete,
                         icon: Icons.delete_outline_rounded,
-                        foregroundColor: colorScheme.onSurfaceVariant,
+                        foregroundColor: colorScheme.error,
                         child: isDeleting
                             ? const SizedBox(
                                 width: 18,
@@ -399,44 +397,13 @@ class _ModelCard extends StatelessWidget {
   }
 }
 
-class _ModelLeadingIcon extends StatelessWidget {
-  const _ModelLeadingIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isLight = theme.brightness == Brightness.light;
-
-    return SizedBox(
-      width: 48,
-      height: 48,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: isLight
-              ? const Color(0xFFF0F4FF)
-              : colorScheme.primaryContainer.withAlpha(120),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Center(
-          child: Icon(
-            Icons.memory_rounded,
-            size: 22,
-            color: isLight ? const Color(0xFF4A5DCA) : colorScheme.primary,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _ModelTypeBadge extends StatelessWidget {
   const _ModelTypeBadge({
-    required this.label,
+    required this.tooltip,
     required this.isMultimodal,
   });
 
-  final String label;
+  final String tooltip;
   final bool isMultimodal;
 
   @override
@@ -457,19 +424,23 @@ class _ModelTypeBadge extends StatelessWidget {
         : (theme.brightness == Brightness.light
               ? const Color(0xFF3730A3)
               : colorScheme.onPrimaryContainer);
+    final icon = isMultimodal
+        ? Icons.image_search_outlined
+        : Icons.text_fields_rounded;
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-        child: Text(
-          label,
-          style: theme.textTheme.labelMedium?.copyWith(
+    return Tooltip(
+      message: tooltip,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(7),
+          child: Icon(
+            icon,
+            size: 16,
             color: foregroundColor,
-            fontWeight: FontWeight.w700,
           ),
         ),
       ),
@@ -680,7 +651,7 @@ class _ModelSettingsSheetState extends State<_ModelSettingsSheet> {
                     ),
                     const SizedBox(width: 12),
                     _ModelTypeBadge(
-                      label: descriptor.mmprojFilePath != null
+                      tooltip: descriptor.mmprojFilePath != null
                           ? l10n.modelMmprojBadgeLabel
                           : l10n.modelTextBadgeLabel,
                       isMultimodal: descriptor.mmprojFilePath != null,

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/models/chat_model_option.dart';
@@ -19,9 +20,12 @@ class LlamaChatApiException implements Exception {
 }
 
 class LlamaChatApiClient {
+  static const Duration defaultChatReceiveTimeout = Duration(minutes: 2);
+
   LlamaChatApiClient({
     Dio? dio,
     ServerLaunchSettingsLoader? settingsLoader,
+    Duration? chatReceiveTimeout,
     Duration? modelLoadPollInterval,
     Duration? modelLoadTimeout,
   }) : _dio =
@@ -29,7 +33,8 @@ class LlamaChatApiClient {
            Dio(
              BaseOptions(
                connectTimeout: const Duration(seconds: 10),
-               receiveTimeout: const Duration(minutes: 2),
+               receiveTimeout:
+                   chatReceiveTimeout ?? defaultChatReceiveTimeout,
                sendTimeout: const Duration(seconds: 30),
                validateStatus: (_) => true,
              ),
@@ -46,8 +51,15 @@ class LlamaChatApiClient {
 
   String _baseUrl = 'http://127.0.0.1:8080';
 
+  @visibleForTesting
+  Dio get dio => _dio;
+
   void updateBaseUrl(String baseUrl) {
     _baseUrl = baseUrl;
+  }
+
+  void updateReceiveTimeout(Duration timeout) {
+    _dio.options.receiveTimeout = timeout;
   }
 
   Future<List<ChatModelOption>> fetchModels() async {

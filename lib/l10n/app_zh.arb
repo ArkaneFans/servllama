@@ -68,9 +68,34 @@
   "chatImageSizeExceeded": "图片大小不能超过10MB",
   "settingsTitle": "设置",
   "settingsSectionGeneral": "通用",
+  "settingsSectionChat": "聊天",
   "settingsSectionAbout": "关于",
   "settingsThemeMode": "主题模式",
   "settingsLanguage": "应用语言",
+  "settingsChatTimeout": "聊天超时时间",
+  "settingsChatTimeoutValue": "{seconds} 秒",
+  "@settingsChatTimeoutValue": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsChatTimeoutSheetTitle": "聊天超时时间",
+  "settingsChatTimeoutDescription": "用于控制聊天响应等待时长，多模态图片识别场景建议适当调大。",
+  "settingsChatTimeoutFieldLabel": "超时时间",
+  "settingsChatTimeoutUnit": "秒",
+  "settingsChatTimeoutRange": "允许范围：{minSeconds}-{maxSeconds} 秒",
+  "@settingsChatTimeoutRange": {
+    "placeholders": {
+      "minSeconds": {
+        "type": "int"
+      },
+      "maxSeconds": {
+        "type": "int"
+      }
+    }
+  },
   "settingsUnavailable": "暂未开放",
   "settingsAbout": "关于",
   "settingsThemeModeSheetTitle": "主题模式",

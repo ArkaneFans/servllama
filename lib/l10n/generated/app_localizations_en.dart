@@ -178,6 +178,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsSectionGeneral => 'General';
 
   @override
+  String get settingsSectionChat => 'Chat';
+
+  @override
   String get settingsSectionAbout => 'About';
 
   @override
@@ -185,6 +188,32 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsLanguage => 'App language';
+
+  @override
+  String get settingsChatTimeout => 'Chat timeout';
+
+  @override
+  String settingsChatTimeoutValue(int seconds) {
+    return '$seconds s';
+  }
+
+  @override
+  String get settingsChatTimeoutSheetTitle => 'Chat timeout';
+
+  @override
+  String get settingsChatTimeoutDescription =>
+      'Controls how long chat responses can take. Increase it for multimodal image understanding when needed.';
+
+  @override
+  String get settingsChatTimeoutFieldLabel => 'Timeout';
+
+  @override
+  String get settingsChatTimeoutUnit => 's';
+
+  @override
+  String settingsChatTimeoutRange(int minSeconds, int maxSeconds) {
+    return 'Allowed range: $minSeconds-$maxSeconds s';
+  }
 
   @override
   String get settingsUnavailable => 'Coming soon';

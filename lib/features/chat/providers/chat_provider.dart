@@ -40,6 +40,9 @@ class ChatProvider extends ChangeNotifier {
   String? _lastErrorMessage;
   List<String> _pendingImageAttachments = [];
 
+  @visibleForTesting
+  LlamaChatApiClient get apiClient => _apiClient;
+
   List<ChatSessionRecord> get sessions =>
       List<ChatSessionRecord>.unmodifiable(_sessions);
   List<ChatModelOption> get models =>
@@ -206,6 +209,10 @@ class ChatProvider extends ChangeNotifier {
     if (changed) {
       notifyListeners();
     }
+  }
+
+  void updateChatTimeout(Duration timeout) {
+    _apiClient.updateReceiveTimeout(timeout);
   }
 
   Future<void> refreshModels() async {

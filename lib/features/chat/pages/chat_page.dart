@@ -151,23 +151,6 @@ class _ChatViewState extends State<_ChatView> {
     }
   }
 
-  Future<void> _pickFromCamera(BuildContext context) async {
-    final provider = context.read<ChatProvider>();
-    try {
-      final path = await _imageAttachmentService.pickFromCamera(
-        currentCount: provider.pendingImageAttachments.length,
-      );
-      if (path != null) {
-        provider.addImageAttachment(path);
-      }
-    } on ImageAttachmentException catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
-    }
-  }
-
   Future<void> _showModels(BuildContext context) async {
     final provider = context.read<ChatProvider>();
     final l10n = context.l10n;
@@ -181,7 +164,7 @@ class _ChatViewState extends State<_ChatView> {
         builder: (context, provider, _) => SafeArea(
           child: SingleChildScrollView(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 28),
               child: _ModelSheetContent(
                 provider: provider,
                 onRefresh: () => provider.refreshModels(),
@@ -201,27 +184,28 @@ class _ChatViewState extends State<_ChatView> {
                         ? (model) => provider.unloadModel(model.id)
                         : null,
                   ),
-                  const SizedBox(height: 16),
-                  _ModelSection(
-                    title: l10n.chatAvailableModels,
-                    models: provider.availableModels,
-                    currentModelId: provider.currentModelId,
-                    loadingModelId: provider.loadingModelId,
-                    onTap: provider.canSelectModels
-                        ? (model) async {
-                            await provider.loadAndSelectModel(model.id);
-                            if (!context.mounted) {
-                              return;
+                  if (provider.availableModels.isNotEmpty) ...[
+                    _ModelSection(
+                      title: l10n.chatAvailableModels,
+                      models: provider.availableModels,
+                      currentModelId: provider.currentModelId,
+                      loadingModelId: provider.loadingModelId,
+                      onTap: provider.canSelectModels
+                          ? (model) async {
+                              await provider.loadAndSelectModel(model.id);
+                              if (!context.mounted) {
+                                return;
+                              }
+                              final currentModel = provider.currentModel;
+                              if (currentModel != null &&
+                                  currentModel.id == model.id &&
+                                  currentModel.isLoaded) {
+                                Navigator.of(sheetContext).pop();
+                              }
                             }
-                            final currentModel = provider.currentModel;
-                            if (currentModel != null &&
-                                currentModel.id == model.id &&
-                                currentModel.isLoaded) {
-                              Navigator.of(sheetContext).pop();
-                            }
-                          }
-                        : null,
-                  ),
+                          : null,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -328,7 +312,6 @@ class _ChatViewState extends State<_ChatView> {
                             onSend: () => _send(context),
                             onStop: provider.cancelStreaming,
                             onPickFromGallery: () => _pickFromGallery(context),
-                            onPickFromCamera: () => _pickFromCamera(context),
                             pendingImageAttachments:
                                 provider.pendingImageAttachments,
                             onRemoveImageAttachment:
@@ -369,16 +352,19 @@ class _ModelSheetContent extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(l10n.chatSelectModel, style: titleStyle),
-            const Spacer(),
-            IconButton(
-              onPressed: provider.isRefreshingModels ? null : onRefresh,
-              tooltip: l10n.chatRefreshModels,
-              icon: const Icon(Icons.refresh),
-            ),
-          ],
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            children: [
+              Text(l10n.chatSelectModel, style: titleStyle),
+              const Spacer(),
+              IconButton(
+                onPressed: provider.isRefreshingModels ? null : onRefresh,
+                tooltip: l10n.chatRefreshModels,
+                icon: const Icon(Icons.refresh),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 16),
         if (showInitialLoading)
@@ -574,7 +560,6 @@ class _InputBar extends StatelessWidget {
     required this.onSend,
     required this.onStop,
     required this.onPickFromGallery,
-    required this.onPickFromCamera,
     required this.pendingImageAttachments,
     required this.onRemoveImageAttachment,
   });
@@ -594,7 +579,6 @@ class _InputBar extends StatelessWidget {
   final VoidCallback onSend;
   final VoidCallback onStop;
   final VoidCallback onPickFromGallery;
-  final VoidCallback onPickFromCamera;
   final List<String> pendingImageAttachments;
   final ValueChanged<int> onRemoveImageAttachment;
 
@@ -822,6 +806,7 @@ class _InputBar extends StatelessWidget {
                         ),
                       ),
                     ),
+                    const Spacer(),
                     Tooltip(
                       message: l10n.chatAttachImage,
                       child: Semantics(
@@ -842,7 +827,7 @@ class _InputBar extends StatelessWidget {
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
                           icon: Icon(
-                            Icons.add_photo_alternate_outlined,
+                            Icons.add,
                             size: 22,
                             color: canSend
                                 ? actionButtonIconColor
@@ -851,36 +836,6 @@ class _InputBar extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Tooltip(
-                      message: l10n.chatAttachImage,
-                      child: Semantics(
-                        button: true,
-                        label: l10n.chatAttachImage,
-                        child: IconButton(
-                          key: const Key('chat_camera_button'),
-                          onPressed: canSend ? onPickFromCamera : null,
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            disabledBackgroundColor: Colors.transparent,
-                            foregroundColor: actionButtonIconColor,
-                            disabledForegroundColor:
-                                disabledModelButtonIconColor,
-                            minimumSize: const Size(42, 42),
-                            padding: EdgeInsets.zero,
-                            shape: actionButtonShape,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          icon: Icon(
-                            Icons.camera_alt_outlined,
-                            size: 22,
-                            color: canSend
-                                ? actionButtonIconColor
-                                : disabledModelButtonIconColor,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
                     IconButton(
                       key: const Key('chat_send_button'),
                       tooltip: isSending ? l10n.chatStop : l10n.chatSend,
@@ -967,123 +922,104 @@ class _ModelSection extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
+    if (models.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w700,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: colorScheme.onSurfaceVariant.withAlpha(170),
+            ),
           ),
         ),
         const SizedBox(height: 10),
-        if (models.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Text(
-              l10n.chatNoModels(title),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-          )
-        else
-          ...models.map((model) {
+        ...models.map((model) {
             final isBusy = loadingModelId == model.id;
             final isSelected = currentModelId == model.id;
-            return Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: isSelected
-                      ? colorScheme.primary.withAlpha(60)
-                      : colorScheme.outlineVariant,
-                ),
-              ),
-              child: ListTile(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                title: Text(
-                  model.displayName,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
+            return Material(
+              color: isSelected
+                  ? colorScheme.primaryContainer.withAlpha(40)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: onTap == null || isBusy ? null : () => onTap!(model),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          model.displayName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            fontWeight:
+                                isSelected ? FontWeight.w600 : FontWeight.w500,
+                            color: isSelected
+                                ? colorScheme.primary
+                                : colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                      if (onSecondaryAction != null && model.isLoaded)
+                        IconButton(
+                          key: Key('chat_model_unload_button_${model.id}'),
+                          tooltip: l10n.chatUnloadModel,
+                          onPressed:
+                              isBusy ? null : () => onSecondaryAction!(model),
+                          icon: const Icon(Icons.eject_outlined, size: 18),
+                          visualDensity: VisualDensity.compact,
+                          constraints:
+                              const BoxConstraints.tightFor(width: 32, height: 32),
+                        ),
+                      const SizedBox(width: 4),
+                      _StatusDot(isBusy: isBusy, isLoaded: model.isLoaded),
+                    ],
                   ),
                 ),
-                subtitle: Text(_modelStatusLabel(context, model.status)),
-                leading: isBusy
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          color: model.isLoaded
-                              ? colorScheme.primaryContainer
-                              : colorScheme.surface,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          model.isLoaded
-                              ? Icons.check_circle_outline_rounded
-                              : Icons.memory_outlined,
-                          color: model.isLoaded
-                              ? colorScheme.primary
-                              : colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isSelected
-                          ? Icons.radio_button_checked_rounded
-                          : Icons.radio_button_off_outlined,
-                      color: isSelected ? colorScheme.primary : null,
-                    ),
-                    if (onSecondaryAction != null) ...[
-                      const SizedBox(width: 4),
-                      IconButton(
-                        key: Key('chat_model_unload_button_${model.id}'),
-                        tooltip: l10n.chatUnloadModel,
-                        onPressed: isBusy
-                            ? null
-                            : () => onSecondaryAction!(model),
-                        icon: const Icon(Icons.eject_outlined),
-                        visualDensity: VisualDensity.compact,
-                        constraints: const BoxConstraints.tightFor(
-                          width: 36,
-                          height: 36,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                onTap: onTap == null || isBusy ? null : () => onTap!(model),
               ),
             );
           }),
       ],
     );
   }
+}
 
-  String _modelStatusLabel(BuildContext context, ChatModelStatus status) {
-    final l10n = context.l10n;
-    switch (status) {
-      case ChatModelStatus.loaded:
-        return l10n.chatModelStatusLoaded;
-      case ChatModelStatus.loading:
-        return l10n.chatModelStatusLoading;
-      case ChatModelStatus.unloaded:
-        return l10n.chatModelStatusAvailable;
-      case ChatModelStatus.failed:
-        return l10n.chatModelStatusFailed;
+class _StatusDot extends StatelessWidget {
+  const _StatusDot({required this.isBusy, required this.isLoaded});
+
+  final bool isBusy;
+  final bool isLoaded;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    if (isBusy) {
+      return const SizedBox(
+        width: 16,
+        height: 16,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
     }
+    return Container(
+      width: 10,
+      height: 10,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: isLoaded
+            ? const Color(0xFF10B981)
+            : colorScheme.outlineVariant,
+      ),
+    );
   }
 }
 
