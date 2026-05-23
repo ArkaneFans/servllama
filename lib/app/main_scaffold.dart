@@ -35,23 +35,11 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   Future<void> _pushFromSidebar(Widget page) async {
     final navigator = Navigator.of(context);
-    if (_sidebarController.isDrawerMode) {
-      await _closeSidebar();
-    }
-    if (!mounted) {
-      return;
-    }
     await navigator.push(MaterialPageRoute<void>(builder: (_) => page));
   }
 
   Future<void> _pushHistoryPage() async {
     final navigator = Navigator.of(context);
-    if (_sidebarController.isDrawerMode) {
-      await _closeSidebar();
-    }
-    if (!mounted) {
-      return;
-    }
     await navigator.push(
       MaterialPageRoute<void>(
         builder: (_) => ChatHistoryPage(
@@ -89,6 +77,7 @@ class _MainScaffoldState extends State<MainScaffold> {
         controller: _sidebarController,
         semanticLabel: l10n.appTitle,
         drawerWidth: 300,
+        maxScrimOpacity: 0.15,
         embeddedSidebarWidth: _embeddedSidebarWidth,
         onSidebarWidthChanged: _handleSidebarWidthChanged,
         onSidebarWidthChangeEnd: _handleSidebarWidthChanged,
