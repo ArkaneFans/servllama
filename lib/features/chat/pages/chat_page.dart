@@ -13,10 +13,16 @@ import 'package:servllama/features/chat/services/image_attachment_service.dart';
 import 'package:servllama/l10n/l10n.dart';
 
 class ChatPage extends StatelessWidget {
-  const ChatPage({super.key, this.provider, this.onNavigateToServer});
+  const ChatPage({
+    super.key,
+    this.provider,
+    this.onNavigateToServer,
+    this.onOpenSidebar,
+  });
 
   final ChatProvider? provider;
   final VoidCallback? onNavigateToServer;
+  final VoidCallback? onOpenSidebar;
 
   @override
   Widget build(BuildContext context) {
@@ -24,17 +30,24 @@ class ChatPage extends StatelessWidget {
     if (existingProvider != null) {
       return ChangeNotifierProvider<ChatProvider>.value(
         value: existingProvider,
-        child: _ChatView(onNavigateToServer: onNavigateToServer),
+        child: _ChatView(
+          onNavigateToServer: onNavigateToServer,
+          onOpenSidebar: onOpenSidebar,
+        ),
       );
     }
-    return _ChatView(onNavigateToServer: onNavigateToServer);
+    return _ChatView(
+      onNavigateToServer: onNavigateToServer,
+      onOpenSidebar: onOpenSidebar,
+    );
   }
 }
 
 class _ChatView extends StatefulWidget {
-  const _ChatView({this.onNavigateToServer});
+  const _ChatView({this.onNavigateToServer, this.onOpenSidebar});
 
   final VoidCallback? onNavigateToServer;
+  final VoidCallback? onOpenSidebar;
 
   @override
   State<_ChatView> createState() => _ChatViewState();
@@ -117,7 +130,8 @@ class _ChatViewState extends State<_ChatView> {
 
   Future<void> _send(BuildContext context) async {
     final text = _inputController.text;
-    if (text.trim().isEmpty && context.read<ChatProvider>().pendingImageAttachments.isEmpty) {
+    if (text.trim().isEmpty &&
+        context.read<ChatProvider>().pendingImageAttachments.isEmpty) {
       return;
     }
     _inputController.clear();
@@ -128,9 +142,9 @@ class _ChatViewState extends State<_ChatView> {
     final errorMessage = provider.lastErrorMessage;
     if (errorMessage != null) {
       provider.clearLastError();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMessage)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(errorMessage)));
     }
   }
 
@@ -145,9 +159,9 @@ class _ChatViewState extends State<_ChatView> {
       }
     } on ImageAttachmentException catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -232,7 +246,7 @@ class _ChatViewState extends State<_ChatView> {
               titleSpacing: 4,
               leading: IconButton(
                 icon: const Icon(Icons.menu),
-                onPressed: () => Scaffold.maybeOf(context)?.openDrawer(),
+                onPressed: widget.onOpenSidebar,
               ),
               title: Text(
                 _sessionTitle(context, provider),
@@ -941,54 +955,60 @@ class _ModelSection extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         ...models.map((model) {
-            final isBusy = loadingModelId == model.id;
-            final isSelected = currentModelId == model.id;
-            return Material(
-              color: isSelected
-                  ? colorScheme.primaryContainer.withAlpha(40)
-                  : Colors.transparent,
+          final isBusy = loadingModelId == model.id;
+          final isSelected = currentModelId == model.id;
+          return Material(
+            color: isSelected
+                ? colorScheme.primaryContainer.withAlpha(40)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
               borderRadius: BorderRadius.circular(12),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: onTap == null || isBusy ? null : () => onTap!(model),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          model.displayName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            fontWeight:
-                                isSelected ? FontWeight.w600 : FontWeight.w500,
-                            color: isSelected
-                                ? colorScheme.primary
-                                : colorScheme.onSurface,
-                          ),
+              onTap: onTap == null || isBusy ? null : () => onTap!(model),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        model.displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                          color: isSelected
+                              ? colorScheme.primary
+                              : colorScheme.onSurface,
                         ),
                       ),
-                      if (onSecondaryAction != null && model.isLoaded)
-                        IconButton(
-                          key: Key('chat_model_unload_button_${model.id}'),
-                          tooltip: l10n.chatUnloadModel,
-                          onPressed:
-                              isBusy ? null : () => onSecondaryAction!(model),
-                          icon: const Icon(Icons.eject_outlined, size: 18),
-                          visualDensity: VisualDensity.compact,
-                          constraints:
-                              const BoxConstraints.tightFor(width: 32, height: 32),
+                    ),
+                    if (onSecondaryAction != null && model.isLoaded)
+                      IconButton(
+                        key: Key('chat_model_unload_button_${model.id}'),
+                        tooltip: l10n.chatUnloadModel,
+                        onPressed: isBusy
+                            ? null
+                            : () => onSecondaryAction!(model),
+                        icon: const Icon(Icons.eject_outlined, size: 18),
+                        visualDensity: VisualDensity.compact,
+                        constraints: const BoxConstraints.tightFor(
+                          width: 32,
+                          height: 32,
                         ),
-                      const SizedBox(width: 4),
-                      _StatusDot(isBusy: isBusy, isLoaded: model.isLoaded),
-                    ],
-                  ),
+                      ),
+                    const SizedBox(width: 4),
+                    _StatusDot(isBusy: isBusy, isLoaded: model.isLoaded),
+                  ],
                 ),
               ),
-            );
-          }),
+            ),
+          );
+        }),
       ],
     );
   }
@@ -1015,9 +1035,7 @@ class _StatusDot extends StatelessWidget {
       height: 10,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: isLoaded
-            ? const Color(0xFF10B981)
-            : colorScheme.outlineVariant,
+        color: isLoaded ? const Color(0xFF10B981) : colorScheme.outlineVariant,
       ),
     );
   }
@@ -1122,9 +1140,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (isUser && message.imageFilePaths.isNotEmpty)
-                    _MessageImageStrip(
-                      imageFilePaths: message.imageFilePaths,
-                    ),
+                    _MessageImageStrip(imageFilePaths: message.imageFilePaths),
                   if (hasReasoningContent) ...[
                     Container(
                       decoration: BoxDecoration(
@@ -1279,10 +1295,7 @@ Color _chatDisabledActionButtonIconColor(Brightness brightness) {
 }
 
 class _PendingImageStrip extends StatelessWidget {
-  const _PendingImageStrip({
-    required this.paths,
-    required this.onRemove,
-  });
+  const _PendingImageStrip({required this.paths, required this.onRemove});
 
   final List<String> paths;
   final ValueChanged<int> onRemove;
@@ -1360,16 +1373,9 @@ class _ImageThumbnail extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: colorScheme.error,
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: colorScheme.surface,
-                    width: 1.5,
-                  ),
+                  border: Border.all(color: colorScheme.surface, width: 1.5),
                 ),
-                child: Icon(
-                  Icons.close,
-                  size: 12,
-                  color: colorScheme.onError,
-                ),
+                child: Icon(Icons.close, size: 12, color: colorScheme.onError),
               ),
             ),
           ),
@@ -1377,10 +1383,7 @@ class _ImageThumbnail extends StatelessWidget {
     );
 
     if (onTap != null) {
-      return GestureDetector(
-        onTap: onTap,
-        child: thumbnail,
-      );
+      return GestureDetector(onTap: onTap, child: thumbnail);
     }
     return thumbnail;
   }
@@ -1468,9 +1471,7 @@ class _ImagePreviewOverlay extends StatelessWidget {
             child: IconButton(
               onPressed: () => Navigator.of(context).pop(),
               icon: const Icon(Icons.close, color: Colors.white),
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.black45,
-              ),
+              style: IconButton.styleFrom(backgroundColor: Colors.black45),
             ),
           ),
         ],

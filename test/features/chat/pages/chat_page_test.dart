@@ -24,6 +24,50 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('ChatPage', () {
+    testWidgets('calls onOpenSidebar when menu button is tapped', (
+      tester,
+    ) async {
+      final repository = _FakeChatSessionRepository(
+        sessions: <ChatSessionRecord>[],
+      );
+      final chatProvider = ChatProvider(
+        repository: repository,
+        apiClient: _FakeLlamaChatApiClient(models: const <ChatModelOption>[]),
+      );
+      await chatProvider.load();
+
+      final serverService = _FakeLlamaServerService();
+      final serverProvider = ServerProvider(
+        serverService: serverService,
+        settingsLoader: _FixedServerLaunchSettingsLoader(),
+        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+      );
+      addTearDown(() {
+        serverProvider.dispose();
+        serverService.dispose();
+      });
+
+      var openSidebarCount = 0;
+
+      await tester.pumpWidget(
+        _TestChatApp(
+          chatProvider: chatProvider,
+          serverProvider: serverProvider,
+          home: ChatPage(
+            onOpenSidebar: () {
+              openSidebarCount += 1;
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byIcon(Icons.menu));
+      await tester.pump();
+
+      expect(openSidebarCount, 1);
+    });
+
     testWidgets('shows empty-state copy and starts server from action button', (
       tester,
     ) async {
@@ -994,6 +1038,7 @@ class _TestChatApp extends StatelessWidget {
   const _TestChatApp({
     required this.chatProvider,
     required this.serverProvider,
+    this.home,
     this.theme,
     this.darkTheme,
     this.themeMode = ThemeMode.system,
@@ -1001,6 +1046,7 @@ class _TestChatApp extends StatelessWidget {
 
   final ChatProvider chatProvider;
   final ServerProvider serverProvider;
+  final Widget? home;
   final ThemeData? theme;
   final ThemeData? darkTheme;
   final ThemeMode themeMode;
@@ -1026,7 +1072,7 @@ class _TestChatApp extends StatelessWidget {
         theme: theme,
         darkTheme: darkTheme,
         themeMode: themeMode,
-        home: const ChatPage(),
+        home: home ?? const ChatPage(),
       ),
     );
   }
