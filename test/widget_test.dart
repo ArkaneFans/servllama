@@ -349,9 +349,20 @@ class _TestApp extends StatelessWidget {
         ChangeNotifierProvider<ServerProvider>.value(value: serverProvider),
         ChangeNotifierProvider<ChatProvider>.value(value: chatProvider),
       ],
-      child: const MaterialApp(home: MainScaffold()),
+      child: MaterialApp(home: _withPhoneViewport(const MainScaffold())),
     );
   }
+}
+
+Widget _withPhoneViewport(
+  Widget child, {
+  double width = 700,
+  double height = 900,
+}) {
+  return MediaQuery(
+    data: MediaQueryData(size: Size(width, height)),
+    child: SizedBox(width: width, height: height, child: child),
+  );
 }
 
 class _FakeChatSessionRepository extends ChatSessionRepository {

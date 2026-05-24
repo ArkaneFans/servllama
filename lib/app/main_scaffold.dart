@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/core/providers/server_provider.dart';
-import 'package:servllama/features/settings/pages/settings_page.dart';
-import 'package:servllama/features/chat/pages/chat_page.dart';
 import 'package:servllama/features/chat/pages/chat_history_page.dart';
-import 'package:servllama/features/chat/widgets/chat_session_search_field.dart';
+import 'package:servllama/features/chat/pages/chat_page.dart';
 import 'package:servllama/features/chat/widgets/chat_session_drawer_section.dart';
+import 'package:servllama/features/chat/widgets/chat_session_search_field.dart';
 import 'package:servllama/features/server/pages/server_page.dart';
+import 'package:servllama/features/settings/pages/settings_page.dart';
 import 'package:servllama/l10n/l10n.dart';
+import 'package:servllama/shared/widgets/push_sidebar.dart';
 
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
@@ -17,11 +18,22 @@ class MainScaffold extends StatefulWidget {
 }
 
 class _MainScaffoldState extends State<MainScaffold> {
-  void _closeDrawer() {
-    Navigator.of(context).pop();
+  final PushSidebarController _sidebarController = PushSidebarController();
+  double _embeddedSidebarWidth = 300;
+
+  Future<void> _openSidebar() {
+    return _sidebarController.open();
   }
 
-  Future<void> _pushFromDrawer(Widget page) async {
+  Future<void> _closeSidebar() {
+    return _sidebarController.close();
+  }
+
+  Future<void> _toggleSidebar() {
+    return _sidebarController.toggle();
+  }
+
+  Future<void> _pushFromSidebar(Widget page) async {
     final navigator = Navigator.of(context);
     await navigator.push(MaterialPageRoute<void>(builder: (_) => page));
   }
@@ -30,9 +42,27 @@ class _MainScaffoldState extends State<MainScaffold> {
     final navigator = Navigator.of(context);
     await navigator.push(
       MaterialPageRoute<void>(
-        builder: (_) => ChatHistoryPage(onSessionOpened: _closeDrawer),
+        builder: (_) => ChatHistoryPage(
+          onSessionOpened: () {
+            if (_sidebarController.isDrawerMode) {
+              _closeSidebar();
+            }
+          },
+        ),
       ),
     );
+  }
+
+  void _handleSessionOpened() {
+    if (_sidebarController.isDrawerMode) {
+      _closeSidebar();
+    }
+  }
+
+  void _handleSidebarWidthChanged(double width) {
+    setState(() {
+      _embeddedSidebarWidth = width;
+    });
   }
 
   @override
@@ -43,71 +73,79 @@ class _MainScaffoldState extends State<MainScaffold> {
     final serverProvider = context.watch<ServerProvider?>();
 
     return Scaffold(
-      body: ChatPage(
-        onNavigateToServer: () {
-          Navigator.of(
-            context,
-          ).push(MaterialPageRoute<void>(builder: (_) => const ServerPage()));
-        },
-      ),
-      drawer: Drawer(
-        width: 300,
-        backgroundColor: colorScheme.surfaceContainerLowest,
-        surfaceTintColor: Colors.transparent,
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 5),
-                child: Row(
-                  children: [
-                    const Expanded(child: _DrawerSearchBox()),
-                    const SizedBox(width: 12),
-                    _DrawerCircleButton(
-                      key: const Key('drawer_history_button'),
-                      icon: Icons.history_rounded,
-                      tooltip: l10n.drawerAllHistoryTooltip,
-                      onPressed: _pushHistoryPage,
-                    ),
-                  ],
+      body: PushSidebar(
+        controller: _sidebarController,
+        semanticLabel: l10n.appTitle,
+        drawerWidth: 300,
+        maxScrimOpacity: 0.15,
+        embeddedSidebarWidth: _embeddedSidebarWidth,
+        onSidebarWidthChanged: _handleSidebarWidthChanged,
+        onSidebarWidthChangeEnd: _handleSidebarWidthChanged,
+        drawer: DecoratedBox(
+          decoration: BoxDecoration(color: colorScheme.surfaceContainerLowest),
+          child: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 5),
+                  child: Row(
+                    children: [
+                      const Expanded(child: _DrawerSearchBox()),
+                      const SizedBox(width: 12),
+                      _DrawerCircleButton(
+                        key: const Key('drawer_history_button'),
+                        icon: Icons.history_rounded,
+                        tooltip: l10n.drawerAllHistoryTooltip,
+                        onPressed: _pushHistoryPage,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              Expanded(
-                child: ChatSessionDrawerSection(
-                  presentationContext: context,
-                  isChatSelected: true,
-                  onOpenChat: _closeDrawer,
+                Expanded(
+                  child: ChatSessionDrawerSection(
+                    presentationContext: context,
+                    isChatSelected: true,
+                    onOpenChat: _handleSessionOpened,
+                  ),
                 ),
-              ),
-              Divider(
-                height: 1,
-                color: colorScheme.outlineVariant.withAlpha(120),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 16, 12, 24),
-                child: Column(
-                  children: [
-                    _DrawerActionBlock(
-                      key: const Key('drawer_server_action'),
-                      icon: Icons.dns_outlined,
-                      title: l10n.drawerServer,
-                      showStatusBadge: true,
-                      isOnline: serverProvider?.isRunning == true,
-                      onTap: () => _pushFromDrawer(const ServerPage()),
-                    ),
-                    const SizedBox(height: 8),
-                    _DrawerActionBlock(
-                      key: const Key('drawer_settings_action'),
-                      icon: Icons.settings_outlined,
-                      title: l10n.drawerSettings,
-                      onTap: () => _pushFromDrawer(const SettingsPage()),
-                    ),
-                  ],
+                Divider(
+                  height: 1,
+                  color: colorScheme.outlineVariant.withAlpha(120),
                 ),
-              ),
-            ],
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 16, 12, 24),
+                  child: Column(
+                    children: [
+                      _DrawerActionBlock(
+                        key: const Key('drawer_server_action'),
+                        icon: Icons.dns_outlined,
+                        title: l10n.drawerServer,
+                        showStatusBadge: true,
+                        isOnline: serverProvider?.isRunning == true,
+                        onTap: () => _pushFromSidebar(const ServerPage()),
+                      ),
+                      const SizedBox(height: 8),
+                      _DrawerActionBlock(
+                        key: const Key('drawer_settings_action'),
+                        icon: Icons.settings_outlined,
+                        title: l10n.drawerSettings,
+                        onTap: () => _pushFromSidebar(const SettingsPage()),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
+        ),
+        child: ChatPage(
+          onOpenSidebar: _toggleSidebar,
+          onNavigateToServer: () {
+            Navigator.of(
+              context,
+            ).push(MaterialPageRoute<void>(builder: (_) => const ServerPage()));
+          },
         ),
       ),
     );
@@ -214,8 +252,7 @@ class _DrawerActionBlockState extends State<_DrawerActionBlock> {
               border: Border.all(color: borderColor),
             ),
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Row(
                 children: [
                   Stack(
