@@ -157,6 +157,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatReasoningProcess => '深度思考';
 
   @override
+  String get chatCopyMessage => '复制';
+
+  @override
+  String get chatEditMessage => '编辑';
+
+  @override
+  String get chatRegenerateMessage => '重新生成';
+
+  @override
+  String get chatMessageCopied => '消息已复制';
+
+  @override
+  String get chatMessageUpdated => '消息已更新';
+
+  @override
+  String get chatEditMessageTitle => '编辑消息';
+
+  @override
+  String get chatEditMessageHint => '修改这条消息';
+
+  @override
   String get chatAttachImage => '添加图片';
 
   @override

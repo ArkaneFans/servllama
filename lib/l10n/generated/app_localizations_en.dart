@@ -160,6 +160,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatReasoningProcess => 'Reasoning';
 
   @override
+  String get chatCopyMessage => 'Copy';
+
+  @override
+  String get chatEditMessage => 'Edit';
+
+  @override
+  String get chatRegenerateMessage => 'Regenerate';
+
+  @override
+  String get chatMessageCopied => 'Message copied';
+
+  @override
+  String get chatMessageUpdated => 'Message updated';
+
+  @override
+  String get chatEditMessageTitle => 'Edit message';
+
+  @override
+  String get chatEditMessageHint => 'Update this message';
+
+  @override
   String get chatAttachImage => 'Attach image';
 
   @override

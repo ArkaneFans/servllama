@@ -68,6 +68,7 @@ class ChatProvider extends ChangeNotifier {
       _loadingModelId == null &&
       _isServerRunning &&
       currentModel?.isLoaded == true;
+  bool get canManageMessages => !_isSending && _loadingModelId == null;
 
   ChatSessionRecord? get selectedSession => _findSession(_selectedSessionId);
   bool get isShowingDraftSession => _selectedSessionId == null;
@@ -293,6 +294,116 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool canRegenerateMessage(String messageId) {
+    if (!canSend) {
+      return false;
+    }
+    final session = selectedSession;
+    if (session == null) {
+      return false;
+    }
+    final targetIndex = _messageIndex(session.messages, messageId);
+    if (targetIndex < 0) {
+      return false;
+    }
+    return _nearestUserMessageIndex(session.messages, targetIndex) >= 0;
+  }
+
+  Future<void> editMessage({
+    required String messageId,
+    required String newContent,
+  }) async {
+    if (!canManageMessages) {
+      return;
+    }
+
+    final session = selectedSession;
+    if (session == null) {
+      return;
+    }
+
+    final normalizedContent = newContent.trim();
+    if (normalizedContent.isEmpty) {
+      return;
+    }
+
+    final messageIndex = _messageIndex(session.messages, messageId);
+    if (messageIndex < 0) {
+      return;
+    }
+
+    final currentMessage = session.messages[messageIndex];
+    if (currentMessage.content == normalizedContent) {
+      return;
+    }
+
+    final updatedMessages = List<ChatMessageRecord>.from(session.messages);
+    updatedMessages[messageIndex] = currentMessage.copyWith(
+      content: normalizedContent,
+    );
+
+    await _saveSessionLocally(
+      session.copyWith(messages: updatedMessages, updatedAt: DateTime.now()),
+    );
+  }
+
+  Future<void> deleteMessage(String messageId) async {
+    if (!canManageMessages) {
+      return;
+    }
+
+    final session = selectedSession;
+    if (session == null) {
+      return;
+    }
+
+    final messageIndex = _messageIndex(session.messages, messageId);
+    if (messageIndex < 0) {
+      return;
+    }
+
+    final targetMessage = session.messages[messageIndex];
+    final updatedMessages = List<ChatMessageRecord>.from(session.messages)
+      ..removeAt(messageIndex);
+    await _repository.deleteAttachmentFiles(targetMessage.imageFilePaths);
+    await _saveSessionLocally(
+      session.copyWith(messages: updatedMessages, updatedAt: DateTime.now()),
+    );
+  }
+
+  Future<void> regenerateFromMessage(String messageId) async {
+    if (!canRegenerateMessage(messageId)) {
+      return;
+    }
+
+    final session = selectedSession;
+    final model = currentModel;
+    if (session == null || model == null) {
+      return;
+    }
+
+    final targetIndex = _messageIndex(session.messages, messageId);
+    final userIndex = _nearestUserMessageIndex(session.messages, targetIndex);
+    if (userIndex < 0) {
+      return;
+    }
+
+    final retainedMessages = List<ChatMessageRecord>.from(
+      session.messages.take(userIndex + 1),
+    );
+    final removedMessages = session.messages.skip(userIndex + 1);
+    await _repository.deleteAttachmentFiles(
+      removedMessages.expand((message) => message.imageFilePaths),
+    );
+
+    final updatedSession = session.copyWith(
+      messages: retainedMessages,
+      updatedAt: DateTime.now(),
+    );
+    await _saveSessionLocally(updatedSession, notify: false);
+    await _generateAssistantResponse(updatedSession, model);
+  }
+
   void selectSession(String sessionId) {
     if (!canManageSessions) {
       return;
@@ -434,87 +545,7 @@ class ChatProvider extends ChangeNotifier {
       updatedAt: now,
     );
     await _saveSessionLocally(updatedSession, notify: false);
-
-    final draftMessage = ChatMessageRecord(
-      id: _generateId('draft'),
-      role: ChatRole.assistant,
-      content: '',
-      createdAt: now,
-      modelName: model.displayName,
-      reasoningContent: '',
-    );
-    _draftAssistantMessage = draftMessage;
-    _streamingSessionId = updatedSession.id;
-    _activeCancelToken = CancelToken();
-    notifyListeners();
-
-    var sessionAfterUserMessage = updatedSession;
-    try {
-      await for (final delta in _apiClient.streamChatCompletion(
-        modelId: model.id,
-        messages: updatedSession.messages,
-        cancelToken: _activeCancelToken!,
-      )) {
-        final currentDraft = _draftAssistantMessage;
-        if (currentDraft == null) {
-          continue;
-        }
-        final nextContent = delta.content.isEmpty
-            ? currentDraft.content
-            : '${currentDraft.content}${delta.content}';
-        final currentReasoningContent = currentDraft.reasoningContent ?? '';
-        final nextReasoningContent = delta.reasoningContent.isEmpty
-            ? currentDraft.reasoningContent
-            : '$currentReasoningContent${delta.reasoningContent}';
-        _draftAssistantMessage = currentDraft.copyWith(
-          content: nextContent,
-          reasoningContent: nextReasoningContent,
-        );
-        notifyListeners();
-      }
-    } catch (error) {
-      if (error is DioException && CancelToken.isCancel(error)) {
-        // 用户主动取消，不生成错误消息
-      } else {
-        final draft = _draftAssistantMessage;
-        final errorMessage = _chatErrorMessage(error);
-        if (draft != null && draft.content.trim().isNotEmpty) {
-          // 有部分内容：正常保存，错误用 SnackBar 提示
-          _lastErrorMessage = errorMessage;
-        } else {
-          // 无内容：错误作为助手消息内容
-          _draftAssistantMessage = ChatMessageRecord(
-            id: _generateId('error'),
-            role: ChatRole.assistant,
-            content: errorMessage,
-            createdAt: DateTime.now(),
-            modelName: currentModel?.displayName,
-          );
-        }
-      }
-    } finally {
-      final draft = _draftAssistantMessage;
-      final hasDraftContent = draft != null && draft.content.trim().isNotEmpty;
-      final hasDraftReasoning =
-          draft != null && (draft.reasoningContent?.trim().isNotEmpty ?? false);
-      if (draft != null && (hasDraftContent || hasDraftReasoning)) {
-        final finalizedSession = sessionAfterUserMessage.copyWith(
-          messages: <ChatMessageRecord>[
-            ...sessionAfterUserMessage.messages,
-            draft,
-          ],
-          updatedAt: DateTime.now(),
-        );
-        await _saveSessionLocally(finalizedSession, notify: false);
-      }
-
-      _draftAssistantMessage = null;
-      _streamingSessionId = null;
-      _activeCancelToken = null;
-      _isSending = false;
-      _pendingImageAttachments = [];
-      notifyListeners();
-    }
+    await _generateAssistantResponse(updatedSession, model);
   }
 
   void clearLastError() {
@@ -572,6 +603,88 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> _generateAssistantResponse(
+    ChatSessionRecord session,
+    ChatModelOption model,
+  ) async {
+    _isSending = true;
+
+    final draftMessage = ChatMessageRecord(
+      id: _generateId('draft'),
+      role: ChatRole.assistant,
+      content: '',
+      createdAt: DateTime.now(),
+      modelName: model.displayName,
+      reasoningContent: '',
+    );
+    _draftAssistantMessage = draftMessage;
+    _streamingSessionId = session.id;
+    _activeCancelToken = CancelToken();
+    notifyListeners();
+
+    try {
+      await for (final delta in _apiClient.streamChatCompletion(
+        modelId: model.id,
+        messages: session.messages,
+        cancelToken: _activeCancelToken!,
+      )) {
+        final currentDraft = _draftAssistantMessage;
+        if (currentDraft == null) {
+          continue;
+        }
+        final nextContent = delta.content.isEmpty
+            ? currentDraft.content
+            : '${currentDraft.content}${delta.content}';
+        final currentReasoningContent = currentDraft.reasoningContent ?? '';
+        final nextReasoningContent = delta.reasoningContent.isEmpty
+            ? currentDraft.reasoningContent
+            : '$currentReasoningContent${delta.reasoningContent}';
+        _draftAssistantMessage = currentDraft.copyWith(
+          content: nextContent,
+          reasoningContent: nextReasoningContent,
+        );
+        notifyListeners();
+      }
+    } catch (error) {
+      if (error is DioException && CancelToken.isCancel(error)) {
+        // 用户主动取消，不生成错误消息
+      } else {
+        final draft = _draftAssistantMessage;
+        final errorMessage = _chatErrorMessage(error);
+        if (draft != null && draft.content.trim().isNotEmpty) {
+          _lastErrorMessage = errorMessage;
+        } else {
+          _draftAssistantMessage = ChatMessageRecord(
+            id: _generateId('error'),
+            role: ChatRole.assistant,
+            content: errorMessage,
+            createdAt: DateTime.now(),
+            modelName: currentModel?.displayName,
+          );
+        }
+      }
+    } finally {
+      final draft = _draftAssistantMessage;
+      final hasDraftContent = draft != null && draft.content.trim().isNotEmpty;
+      final hasDraftReasoning =
+          draft != null && (draft.reasoningContent?.trim().isNotEmpty ?? false);
+      if (draft != null && (hasDraftContent || hasDraftReasoning)) {
+        final finalizedSession = session.copyWith(
+          messages: <ChatMessageRecord>[...session.messages, draft],
+          updatedAt: DateTime.now(),
+        );
+        await _saveSessionLocally(finalizedSession, notify: false);
+      }
+
+      _draftAssistantMessage = null;
+      _streamingSessionId = null;
+      _activeCancelToken = null;
+      _isSending = false;
+      _pendingImageAttachments = [];
+      notifyListeners();
+    }
+  }
+
   ChatSessionRecord _createSessionRecord() {
     final now = DateTime.now();
     return ChatSessionRecord(
@@ -605,6 +718,22 @@ class ChatProvider extends ChangeNotifier {
       }
     }
     return null;
+  }
+
+  int _messageIndex(List<ChatMessageRecord> messages, String messageId) {
+    return messages.indexWhere((message) => message.id == messageId);
+  }
+
+  int _nearestUserMessageIndex(
+    List<ChatMessageRecord> messages,
+    int startIndex,
+  ) {
+    for (var index = startIndex; index >= 0; index -= 1) {
+      if (messages[index].role == ChatRole.user) {
+        return index;
+      }
+    }
+    return -1;
   }
 
   String _deriveSessionTitle(String text) {

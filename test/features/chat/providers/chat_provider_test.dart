@@ -322,6 +322,210 @@ void main() {
       },
     );
 
+    test('editMessage updates only the target message content', () async {
+      repository.sessions = <ChatSessionRecord>[
+        _session(
+          id: 's1',
+          title: '会话',
+          messages: <ChatMessageRecord>[
+            ChatMessageRecord(
+              id: 'u1',
+              role: ChatRole.user,
+              content: '原始用户消息',
+              createdAt: DateTime(2026, 3, 25, 11, 0),
+            ),
+            ChatMessageRecord(
+              id: 'a1',
+              role: ChatRole.assistant,
+              content: '原始助手消息',
+              createdAt: DateTime(2026, 3, 25, 11, 1),
+              modelName: 'alpha',
+              reasoningContent: '保留推理',
+            ),
+          ],
+        ),
+      ];
+
+      await provider.load();
+      provider.selectSession('s1');
+
+      await provider.editMessage(messageId: 'u1', newContent: '修改后的用户消息');
+
+      final messages = provider.selectedSession!.messages;
+      expect(messages, hasLength(2));
+      expect(messages.first.content, '修改后的用户消息');
+      expect(messages.last.content, '原始助手消息');
+      expect(messages.last.reasoningContent, '保留推理');
+      expect(repository.sessions.single.messages.first.content, '修改后的用户消息');
+    });
+
+    test('deleteMessage removes only the target message', () async {
+      repository.sessions = <ChatSessionRecord>[
+        _session(
+          id: 's1',
+          title: '会话',
+          messages: <ChatMessageRecord>[
+            ChatMessageRecord(
+              id: 'u1',
+              role: ChatRole.user,
+              content: '第一条',
+              createdAt: DateTime(2026, 3, 25, 11, 0),
+            ),
+            ChatMessageRecord(
+              id: 'a1',
+              role: ChatRole.assistant,
+              content: '第二条',
+              createdAt: DateTime(2026, 3, 25, 11, 1),
+            ),
+            ChatMessageRecord(
+              id: 'u2',
+              role: ChatRole.user,
+              content: '第三条',
+              createdAt: DateTime(2026, 3, 25, 11, 2),
+            ),
+          ],
+        ),
+      ];
+
+      await provider.load();
+      provider.selectSession('s1');
+
+      await provider.deleteMessage('a1');
+
+      expect(
+        provider.selectedSession!.messages.map((message) => message.id),
+        <String>['u1', 'u2'],
+      );
+      expect(
+        repository.sessions.single.messages.map((message) => message.id),
+        <String>['u1', 'u2'],
+      );
+    });
+
+    test('deleteMessage removes image attachments for deleted user message', () async {
+      final attachment = File(
+        '${Directory.systemTemp.path}\\servllama_chat_provider_attachment.txt',
+      );
+      await attachment.writeAsString('temp');
+      addTearDown(() async {
+        if (await attachment.exists()) {
+          await attachment.delete();
+        }
+      });
+
+      repository.sessions = <ChatSessionRecord>[
+        _session(
+          id: 's1',
+          title: '会话',
+          messages: <ChatMessageRecord>[
+            ChatMessageRecord(
+              id: 'u1',
+              role: ChatRole.user,
+              content: '图片消息',
+              createdAt: DateTime(2026, 3, 25, 11, 0),
+              imageFilePaths: <String>[attachment.path],
+            ),
+          ],
+        ),
+      ];
+
+      await provider.load();
+      provider.selectSession('s1');
+
+      await provider.deleteMessage('u1');
+
+      expect(provider.selectedSession!.messages, isEmpty);
+      expect(await attachment.exists(), isFalse);
+    });
+
+    test('regenerateFromMessage truncates from nearest user message and streams a new reply', () async {
+      apiClient.models = <ChatModelOption>[
+        const ChatModelOption(
+          id: 'alpha',
+          displayName: 'alpha',
+          status: ChatModelStatus.loaded,
+        ),
+      ];
+      repository.sessions = <ChatSessionRecord>[
+        _session(
+          id: 's1',
+          title: '会话',
+          messages: <ChatMessageRecord>[
+            ChatMessageRecord(
+              id: 'u1',
+              role: ChatRole.user,
+              content: '你好',
+              createdAt: DateTime(2026, 3, 25, 11, 0),
+            ),
+            ChatMessageRecord(
+              id: 'a1',
+              role: ChatRole.assistant,
+              content: '旧回答',
+              createdAt: DateTime(2026, 3, 25, 11, 1),
+              modelName: 'alpha',
+            ),
+            ChatMessageRecord(
+              id: 'u2',
+              role: ChatRole.user,
+              content: '继续',
+              createdAt: DateTime(2026, 3, 25, 11, 2),
+            ),
+            ChatMessageRecord(
+              id: 'a2',
+              role: ChatRole.assistant,
+              content: '待替换回答',
+              createdAt: DateTime(2026, 3, 25, 11, 3),
+              modelName: 'alpha',
+            ),
+          ],
+        ),
+      ];
+      apiClient.streamDeltas = const <ChatStreamDelta>[
+        ChatStreamDelta(content: '新'),
+        ChatStreamDelta(content: '回答'),
+      ];
+
+      await provider.load();
+      await provider.refreshModels();
+      provider.selectLoadedModel('alpha');
+      provider.selectSession('s1');
+
+      await provider.regenerateFromMessage('a2');
+
+      final messages = provider.selectedSession!.messages;
+      expect(messages.map((message) => message.id).toList(), hasLength(4));
+      expect(messages[0].content, '你好');
+      expect(messages[1].content, '旧回答');
+      expect(messages[2].content, '继续');
+      expect(messages[3].content, '新回答');
+      expect(
+        apiClient.lastStreamMessages.map((message) => message.content),
+        <String>['你好', '旧回答', '继续'],
+      );
+    });
+
+    test('canRegenerateMessage requires loaded model and nearest user message', () async {
+      repository.sessions = <ChatSessionRecord>[
+        _session(
+          id: 's1',
+          title: '会话',
+          messages: <ChatMessageRecord>[
+            ChatMessageRecord(
+              id: 'a1',
+              role: ChatRole.assistant,
+              content: '孤立助手消息',
+              createdAt: DateTime(2026, 3, 25, 11, 0),
+            ),
+          ],
+        ),
+      ];
+
+      await provider.load();
+      provider.selectSession('s1');
+
+      expect(provider.canRegenerateMessage('a1'), isFalse);
+    });
+
     test(
       'deleteSession works when repository returns a fixed-length list',
       () async {
@@ -503,6 +707,7 @@ class _FakeLlamaChatApiClient extends LlamaChatApiClient {
   Completer<void>? loadCompleter;
   Completer<void>? unloadCompleter;
   List<ChatStreamDelta> streamDeltas = const <ChatStreamDelta>[];
+  List<ChatMessageRecord> lastStreamMessages = const <ChatMessageRecord>[];
   String? lastBaseUrl;
   Duration? lastReceiveTimeout;
   int fetchModelsCallCount = 0;
@@ -566,6 +771,7 @@ class _FakeLlamaChatApiClient extends LlamaChatApiClient {
     required List<ChatMessageRecord> messages,
     required CancelToken cancelToken,
   }) {
+    lastStreamMessages = List<ChatMessageRecord>.from(messages);
     return Stream<ChatStreamDelta>.fromIterable(streamDeltas);
   }
 }
