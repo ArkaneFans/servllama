@@ -1434,8 +1434,8 @@ class _MessageBubbleState extends State<_MessageBubble> {
                 canRegenerate: widget.canRegenerate,
                 onCopy: widget.onCopy,
                 onEdit: widget.onEdit,
-                onDelete: widget.onDelete,
                 onRegenerate: widget.onRegenerate,
+                onShowActions: widget.onShowActions,
               ),
             ],
           ],
@@ -1461,8 +1461,8 @@ class _MessageQuickActions extends StatelessWidget {
     required this.canRegenerate,
     required this.onCopy,
     required this.onEdit,
-    required this.onDelete,
     required this.onRegenerate,
+    required this.onShowActions,
   });
 
   final String messageId;
@@ -1471,8 +1471,8 @@ class _MessageQuickActions extends StatelessWidget {
   final bool canRegenerate;
   final Future<void> Function() onCopy;
   final Future<void> Function() onEdit;
-  final Future<void> Function() onDelete;
   final Future<void> Function() onRegenerate;
+  final Future<void> Function() onShowActions;
 
   @override
   Widget build(BuildContext context) {
@@ -1501,10 +1501,10 @@ class _MessageQuickActions extends StatelessWidget {
           onPressed: canRegenerate ? onRegenerate : null,
         ),
         _MessageActionIconButton(
-          buttonKey: Key('chat_message_delete_button_$messageId'),
-          tooltip: context.l10n.commonDelete,
-          icon: Icons.delete_outline_rounded,
-          onPressed: canUseActions ? onDelete : null,
+          buttonKey: Key('chat_message_more_button_$messageId'),
+          tooltip: context.l10n.chatMoreActions,
+          icon: Icons.more_horiz_rounded,
+          onPressed: canUseActions ? onShowActions : null,
         ),
       ],
     );
