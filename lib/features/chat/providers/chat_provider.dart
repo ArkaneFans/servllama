@@ -36,6 +36,7 @@ class ChatProvider extends ChangeNotifier {
   String _sessionQuery = '';
   bool _isSending = false;
   ChatMessageRecord? _draftAssistantMessage;
+  String? _inlineDraftMessageId;
   String? _streamingSessionId;
   CancelToken? _activeCancelToken;
   String? _lastErrorMessage;
@@ -56,7 +57,8 @@ class ChatProvider extends ChangeNotifier {
   String get sessionQuery => _sessionQuery;
   String? get loadingModelId => _loadingModelId;
   String? get currentModelId => _currentModelId;
-  String? get draftMessageId => _draftAssistantMessage?.id;
+  String? get draftMessageId =>
+      _inlineDraftMessageId ?? _draftAssistantMessage?.id;
   String? get lastErrorMessage => _lastErrorMessage;
   List<String> get pendingImageAttachments =>
       List<String>.unmodifiable(_pendingImageAttachments);
@@ -121,7 +123,18 @@ class ChatProvider extends ChangeNotifier {
       return List<ChatMessageRecord>.from(session.messages, growable: false);
     }
 
-    return <ChatMessageRecord>[...session.messages, _draftAssistantMessage!];
+    final inlineDraftMessageId = _inlineDraftMessageId;
+    if (inlineDraftMessageId == null) {
+      return <ChatMessageRecord>[...session.messages, _draftAssistantMessage!];
+    }
+
+    final messages = List<ChatMessageRecord>.from(session.messages);
+    final draftIndex = _messageIndex(messages, inlineDraftMessageId);
+    if (draftIndex < 0) {
+      return messages;
+    }
+    messages[draftIndex] = _draftAssistantMessage!;
+    return messages;
   }
 
   List<ChatSessionRecord> get filteredSessions {
@@ -517,6 +530,14 @@ class ChatProvider extends ChangeNotifier {
       updatedSession,
       model,
       promptMessages: promptMessages,
+      draftSeed: retainedTargetMessage.copyWith(
+        content: '',
+        createdAt: DateTime.now(),
+        modelName: model.displayName,
+        reasoningContent: '',
+        clearImageFilePaths: true,
+        currentVersionIndex: versionIds.length,
+      ),
       finalizeDraft: (currentSession, draft) async {
         final latestTargetIndex = _messageIndex(
           currentSession.messages,
@@ -762,6 +783,7 @@ class ChatProvider extends ChangeNotifier {
     ChatSessionRecord session,
     ChatModelOption model, {
     List<ChatMessageRecord>? promptMessages,
+    ChatMessageRecord? draftSeed,
     Future<ChatSessionRecord?> Function(
       ChatSessionRecord session,
       ChatMessageRecord draft,
@@ -770,15 +792,18 @@ class ChatProvider extends ChangeNotifier {
   }) async {
     _isSending = true;
 
-    final draftMessage = ChatMessageRecord(
-      id: _generateId('draft'),
-      role: ChatRole.assistant,
-      content: '',
-      createdAt: DateTime.now(),
-      modelName: model.displayName,
-      reasoningContent: '',
-    );
+    final draftMessage =
+        draftSeed ??
+        ChatMessageRecord(
+          id: _generateId('draft'),
+          role: ChatRole.assistant,
+          content: '',
+          createdAt: DateTime.now(),
+          modelName: model.displayName,
+          reasoningContent: '',
+        );
     _draftAssistantMessage = draftMessage;
+    _inlineDraftMessageId = draftSeed?.id;
     _streamingSessionId = session.id;
     _activeCancelToken = CancelToken();
     notifyListeners();
@@ -816,7 +841,7 @@ class ChatProvider extends ChangeNotifier {
           _lastErrorMessage = errorMessage;
         } else {
           _draftAssistantMessage = ChatMessageRecord(
-            id: _generateId('error'),
+            id: _inlineDraftMessageId ?? _generateId('error'),
             role: ChatRole.assistant,
             content: errorMessage,
             createdAt: DateTime.now(),
@@ -840,6 +865,7 @@ class ChatProvider extends ChangeNotifier {
       }
 
       _draftAssistantMessage = null;
+      _inlineDraftMessageId = null;
       _streamingSessionId = null;
       _activeCancelToken = null;
       _isSending = false;
