@@ -169,6 +169,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatRegenerateMessage => 'Regenerate';
 
   @override
+  String get chatPreviousMessageVersion => 'Previous version';
+
+  @override
+  String get chatNextMessageVersion => 'Next version';
+
+  @override
   String get chatMessageCopied => 'Message copied';
 
   @override

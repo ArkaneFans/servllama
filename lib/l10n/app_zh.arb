@@ -65,6 +65,8 @@
   "chatCopyMessage": "复制",
   "chatEditMessage": "编辑",
   "chatRegenerateMessage": "重新生成",
+  "chatPreviousMessageVersion": "上一版本",
+  "chatNextMessageVersion": "下一版本",
   "chatMessageCopied": "消息已复制",
   "chatMessageUpdated": "消息已更新",
   "chatEditMessageTitle": "编辑消息",

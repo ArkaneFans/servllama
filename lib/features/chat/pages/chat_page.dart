@@ -291,6 +291,17 @@ class _ChatViewState extends State<_ChatView> {
     }
   }
 
+  Future<void> _handleSelectMessageVersion(
+    BuildContext context,
+    ChatMessageRecord message,
+    int versionIndex,
+  ) async {
+    await context.read<ChatProvider>().selectMessageVersion(
+      messageId: message.id,
+      versionIndex: versionIndex,
+    );
+  }
+
   Future<void> _handleMessageAction(
     BuildContext context,
     _ChatMessageAction action,
@@ -412,7 +423,10 @@ class _ChatViewState extends State<_ChatView> {
                                       onEditMessage: (message) =>
                                           _handleEditMessage(context, message),
                                       onDeleteMessage: (message) =>
-                                          _handleDeleteMessage(context, message),
+                                          _handleDeleteMessage(
+                                            context,
+                                            message,
+                                          ),
                                       onRegenerateMessage: (message) =>
                                           _handleRegenerateMessage(
                                             context,
@@ -420,6 +434,13 @@ class _ChatViewState extends State<_ChatView> {
                                           ),
                                       onShowMessageActions: (message) =>
                                           _showMessageActions(context, message),
+                                      onSelectMessageVersion:
+                                          (message, versionIndex) =>
+                                              _handleSelectMessageVersion(
+                                                context,
+                                                message,
+                                                versionIndex,
+                                              ),
                                     ),
                             ),
                           ),
@@ -1011,6 +1032,7 @@ class _MessageList extends StatelessWidget {
     required this.onDeleteMessage,
     required this.onRegenerateMessage,
     required this.onShowMessageActions,
+    required this.onSelectMessageVersion,
   });
 
   final ScrollController controller;
@@ -1023,6 +1045,8 @@ class _MessageList extends StatelessWidget {
   final Future<void> Function(ChatMessageRecord message) onDeleteMessage;
   final Future<void> Function(ChatMessageRecord message) onRegenerateMessage;
   final Future<void> Function(ChatMessageRecord message) onShowMessageActions;
+  final Future<void> Function(ChatMessageRecord message, int versionIndex)
+  onSelectMessageVersion;
 
   @override
   Widget build(BuildContext context) {
@@ -1044,6 +1068,8 @@ class _MessageList extends StatelessWidget {
           onDelete: () => onDeleteMessage(message),
           onRegenerate: () => onRegenerateMessage(message),
           onShowActions: () => onShowMessageActions(message),
+          onSelectVersion: (versionIndex) =>
+              onSelectMessageVersion(message, versionIndex),
         );
       },
     );
@@ -1190,6 +1216,7 @@ class _MessageBubble extends StatefulWidget {
     required this.onDelete,
     required this.onRegenerate,
     required this.onShowActions,
+    required this.onSelectVersion,
   });
 
   final ChatMessageRecord message;
@@ -1201,6 +1228,7 @@ class _MessageBubble extends StatefulWidget {
   final Future<void> Function() onDelete;
   final Future<void> Function() onRegenerate;
   final Future<void> Function() onShowActions;
+  final Future<void> Function(int versionIndex) onSelectVersion;
 
   @override
   State<_MessageBubble> createState() => _MessageBubbleState();
@@ -1432,10 +1460,13 @@ class _MessageBubbleState extends State<_MessageBubble> {
                 isUser: isUser,
                 canUseActions: widget.canManageMessages,
                 canRegenerate: widget.canRegenerate,
+                currentVersionIndex: message.currentVersionIndex,
+                versionCount: message.versionCount,
                 onCopy: widget.onCopy,
                 onEdit: widget.onEdit,
                 onRegenerate: widget.onRegenerate,
                 onShowActions: widget.onShowActions,
+                onSelectVersion: widget.onSelectVersion,
               ),
             ],
           ],
@@ -1459,28 +1490,34 @@ class _MessageQuickActions extends StatelessWidget {
     required this.isUser,
     required this.canUseActions,
     required this.canRegenerate,
+    required this.currentVersionIndex,
+    required this.versionCount,
     required this.onCopy,
     required this.onEdit,
     required this.onRegenerate,
     required this.onShowActions,
+    required this.onSelectVersion,
   });
 
   final String messageId;
   final bool isUser;
   final bool canUseActions;
   final bool canRegenerate;
+  final int currentVersionIndex;
+  final int versionCount;
   final Future<void> Function() onCopy;
   final Future<void> Function() onEdit;
   final Future<void> Function() onRegenerate;
   final Future<void> Function() onShowActions;
+  final Future<void> Function(int versionIndex) onSelectVersion;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: isUser
-          ? MainAxisAlignment.end
-          : MainAxisAlignment.start,
+    return Wrap(
+      spacing: 0,
+      runSpacing: 0,
+      alignment: isUser ? WrapAlignment.end : WrapAlignment.start,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         _MessageActionIconButton(
           buttonKey: Key('chat_message_copy_button_$messageId'),
@@ -1506,7 +1543,111 @@ class _MessageQuickActions extends StatelessWidget {
           icon: Icons.more_horiz_rounded,
           onPressed: canUseActions ? onShowActions : null,
         ),
+        if (!isUser && versionCount > 1)
+          _MessageVersionSwitcher(
+            messageId: messageId,
+            currentVersionIndex: currentVersionIndex,
+            versionCount: versionCount,
+            canUseActions: canUseActions,
+            onSelectVersion: onSelectVersion,
+          ),
       ],
+    );
+  }
+}
+
+class _MessageVersionSwitcher extends StatelessWidget {
+  const _MessageVersionSwitcher({
+    required this.messageId,
+    required this.currentVersionIndex,
+    required this.versionCount,
+    required this.canUseActions,
+    required this.onSelectVersion,
+  });
+
+  final String messageId;
+  final int currentVersionIndex;
+  final int versionCount;
+  final bool canUseActions;
+  final Future<void> Function(int versionIndex) onSelectVersion;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final canGoPrevious = canUseActions && currentVersionIndex > 0;
+    final canGoNext = canUseActions && currentVersionIndex < versionCount - 1;
+
+    return SizedBox(
+      height: 36,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _MessageVersionButton(
+            buttonKey: Key('chat_message_version_previous_button_$messageId'),
+            tooltip: context.l10n.chatPreviousMessageVersion,
+            icon: Icons.chevron_left_rounded,
+            onPressed: canGoPrevious
+                ? () => onSelectVersion(currentVersionIndex - 1)
+                : null,
+          ),
+          SizedBox(
+            key: Key('chat_message_version_label_$messageId'),
+            width: 38,
+            child: Text(
+              '${currentVersionIndex + 1}/$versionCount',
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          _MessageVersionButton(
+            buttonKey: Key('chat_message_version_next_button_$messageId'),
+            tooltip: context.l10n.chatNextMessageVersion,
+            icon: Icons.chevron_right_rounded,
+            onPressed: canGoNext
+                ? () => onSelectVersion(currentVersionIndex + 1)
+                : null,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MessageVersionButton extends StatelessWidget {
+  const _MessageVersionButton({
+    required this.buttonKey,
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final Key buttonKey;
+  final String tooltip;
+  final IconData icon;
+  final Future<void> Function()? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return IconButton(
+      key: buttonKey,
+      tooltip: tooltip,
+      onPressed: onPressed == null
+          ? null
+          : () {
+              unawaited(onPressed!.call());
+            },
+      visualDensity: VisualDensity.compact,
+      iconSize: 18,
+      color: colorScheme.onSurfaceVariant,
+      disabledColor: colorScheme.onSurfaceVariant.withAlpha(90),
+      splashRadius: 16,
+      constraints: const BoxConstraints.tightFor(width: 28, height: 36),
+      icon: Icon(icon),
     );
   }
 }
@@ -1519,9 +1660,6 @@ class _MessageActionIconButton extends StatelessWidget {
     required this.onPressed,
   });
 
-  @override
-  Key? get key => buttonKey;
-
   final Key buttonKey;
   final String tooltip;
   final IconData icon;
@@ -1531,7 +1669,7 @@ class _MessageActionIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return IconButton(
-      key: key,
+      key: buttonKey,
       tooltip: tooltip,
       onPressed: onPressed == null
           ? null
@@ -1585,9 +1723,8 @@ class _MessageActionSheet extends StatelessWidget {
               title: Text(l10n.chatRegenerateMessage),
               enabled: canRegenerate,
               onTap: canRegenerate
-                  ? () => Navigator.of(
-                        context,
-                      ).pop(_ChatMessageAction.regenerate)
+                  ? () =>
+                        Navigator.of(context).pop(_ChatMessageAction.regenerate)
                   : null,
             ),
             ListTile(
@@ -1682,9 +1819,8 @@ class _EditMessageSheetState extends State<_EditMessageSheet> {
                   FilledButton(
                     key: const Key('chat_message_edit_save_button'),
                     onPressed: canSave
-                        ? () => Navigator.of(
-                              context,
-                            ).pop(_controller.text.trim())
+                        ? () =>
+                              Navigator.of(context).pop(_controller.text.trim())
                         : null,
                     child: Text(l10n.commonSave),
                   ),

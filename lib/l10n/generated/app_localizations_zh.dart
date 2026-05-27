@@ -166,6 +166,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatRegenerateMessage => '重新生成';
 
   @override
+  String get chatPreviousMessageVersion => '上一版本';
+
+  @override
+  String get chatNextMessageVersion => '下一版本';
+
+  @override
   String get chatMessageCopied => '消息已复制';
 
   @override

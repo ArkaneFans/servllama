@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
+import 'package:servllama/features/chat/models/chat_message_version_record.dart';
 import 'package:servllama/features/chat/models/chat_session_record.dart';
 import 'package:servllama/features/chat/repositories/chat_session_repository.dart';
 
@@ -65,6 +66,42 @@ void main() {
       expect(sessions.first.messages.single.reasoningContent, '先思考一下');
     });
 
+    test('persists message versions in a separate box', () async {
+      final version = _version(
+        id: 'v1',
+        messageId: 'm1',
+        content: '版本回答',
+        modelName: 'model-a',
+        reasoningContent: '版本推理',
+      );
+      await repository.saveMessageVersion(version);
+      await repository.saveSession(
+        _session(
+          id: 's1',
+          title: '会话',
+          messages: <ChatMessageRecord>[
+            _message(
+              id: 'm1',
+              role: ChatRole.assistant,
+              content: '版本回答',
+              modelName: 'model-a',
+              reasoningContent: '版本推理',
+              versionIds: const <String>['v1'],
+              currentVersionIndex: 0,
+            ),
+          ],
+        ),
+      );
+
+      final sessions = await repository.loadSessions();
+      final loadedVersion = await repository.loadMessageVersion('v1');
+
+      expect(sessions.single.messages.single.versionIds, <String>['v1']);
+      expect(sessions.single.messages.single.currentVersionIndex, 0);
+      expect(loadedVersion?.content, '版本回答');
+      expect(loadedVersion?.reasoningContent, '版本推理');
+    });
+
     test('deleteSession removes stored session', () async {
       await repository.saveSession(_session(id: 'one', title: '会话一'));
       await repository.saveSession(_session(id: 'two', title: '会话二'));
@@ -74,6 +111,43 @@ void main() {
       final sessions = await repository.loadSessions();
       expect(sessions.map((session) => session.id), <String>['two']);
     });
+
+    test(
+      'deleteSession removes message versions and version attachments',
+      () async {
+        final attachment = File(
+          '${appSupportDirectory.path}\\version_image.txt',
+        );
+        await attachment.writeAsString('temp');
+        await repository.saveMessageVersion(
+          _version(
+            id: 'v1',
+            messageId: 'm1',
+            content: '版本回答',
+            imageFilePaths: <String>[attachment.path],
+          ),
+        );
+        await repository.saveSession(
+          _session(
+            id: 's1',
+            title: '会话',
+            messages: <ChatMessageRecord>[
+              _message(
+                id: 'm1',
+                role: ChatRole.assistant,
+                content: '版本回答',
+                versionIds: const <String>['v1'],
+              ),
+            ],
+          ),
+        );
+
+        await repository.deleteSession('s1');
+
+        expect(await repository.loadMessageVersion('v1'), isNull);
+        expect(await attachment.exists(), isFalse);
+      },
+    );
   });
 }
 
@@ -99,6 +173,8 @@ ChatMessageRecord _message({
   required String content,
   String? modelName,
   String? reasoningContent,
+  List<String> versionIds = const <String>[],
+  int currentVersionIndex = 0,
 }) {
   return ChatMessageRecord(
     id: id,
@@ -107,5 +183,26 @@ ChatMessageRecord _message({
     createdAt: DateTime(2026, 3, 25, 9, 30),
     modelName: modelName,
     reasoningContent: reasoningContent,
+    versionIds: versionIds,
+    currentVersionIndex: currentVersionIndex,
+  );
+}
+
+ChatMessageVersionRecord _version({
+  required String id,
+  required String messageId,
+  required String content,
+  String? modelName,
+  String? reasoningContent,
+  List<String> imageFilePaths = const <String>[],
+}) {
+  return ChatMessageVersionRecord(
+    id: id,
+    messageId: messageId,
+    content: content,
+    createdAt: DateTime(2026, 3, 25, 9, 35),
+    modelName: modelName,
+    reasoningContent: reasoningContent,
+    imageFilePaths: imageFilePaths,
   );
 }

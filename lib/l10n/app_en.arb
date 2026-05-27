@@ -65,6 +65,8 @@
   "chatCopyMessage": "Copy",
   "chatEditMessage": "Edit",
   "chatRegenerateMessage": "Regenerate",
+  "chatPreviousMessageVersion": "Previous version",
+  "chatNextMessageVersion": "Next version",
   "chatMessageCopied": "Message copied",
   "chatMessageUpdated": "Message updated",
   "chatEditMessageTitle": "Edit message",

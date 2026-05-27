@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
+import 'package:servllama/features/chat/models/chat_message_version_record.dart';
 import 'package:servllama/features/chat/models/chat_model_option.dart';
 import 'package:servllama/features/chat/models/chat_session_record.dart';
 import 'package:servllama/features/chat/repositories/chat_session_repository.dart';
@@ -338,9 +339,29 @@ class ChatProvider extends ChangeNotifier {
     }
 
     final updatedMessages = List<ChatMessageRecord>.from(session.messages);
-    updatedMessages[messageIndex] = currentMessage.copyWith(
-      content: normalizedContent,
-    );
+    final updatedMessage = currentMessage.copyWith(content: normalizedContent);
+    updatedMessages[messageIndex] = updatedMessage;
+
+    if (currentMessage.versionIds.isNotEmpty &&
+        currentMessage.role == ChatRole.assistant) {
+      final versionId = _selectedVersionId(currentMessage);
+      if (versionId != null) {
+        final version = await _repository.loadMessageVersion(versionId);
+        if (version != null) {
+          await _repository.saveMessageVersion(
+            ChatMessageVersionRecord(
+              id: version.id,
+              messageId: version.messageId,
+              content: normalizedContent,
+              createdAt: version.createdAt,
+              modelName: version.modelName,
+              reasoningContent: version.reasoningContent,
+              imageFilePaths: version.imageFilePaths,
+            ),
+          );
+        }
+      }
+    }
 
     await _saveSessionLocally(
       session.copyWith(messages: updatedMessages, updatedAt: DateTime.now()),
@@ -365,7 +386,54 @@ class ChatProvider extends ChangeNotifier {
     final targetMessage = session.messages[messageIndex];
     final updatedMessages = List<ChatMessageRecord>.from(session.messages)
       ..removeAt(messageIndex);
-    await _repository.deleteAttachmentFiles(targetMessage.imageFilePaths);
+    await _repository.deleteMessageResources(<ChatMessageRecord>[
+      targetMessage,
+    ]);
+    await _saveSessionLocally(
+      session.copyWith(messages: updatedMessages, updatedAt: DateTime.now()),
+    );
+  }
+
+  Future<void> selectMessageVersion({
+    required String messageId,
+    required int versionIndex,
+  }) async {
+    if (!canManageMessages) {
+      return;
+    }
+
+    final session = selectedSession;
+    if (session == null) {
+      return;
+    }
+
+    final messageIndex = _messageIndex(session.messages, messageId);
+    if (messageIndex < 0) {
+      return;
+    }
+
+    final message = session.messages[messageIndex];
+    if (message.role != ChatRole.assistant ||
+        versionIndex < 0 ||
+        versionIndex >= message.versionIds.length ||
+        versionIndex == message.currentVersionIndex) {
+      return;
+    }
+
+    final version = await _repository.loadMessageVersion(
+      message.versionIds[versionIndex],
+    );
+    if (version == null) {
+      return;
+    }
+
+    final updatedMessages = List<ChatMessageRecord>.from(session.messages);
+    updatedMessages[messageIndex] = _messageWithVersion(
+      message,
+      version,
+      versionIndex,
+    );
+
     await _saveSessionLocally(
       session.copyWith(messages: updatedMessages, updatedAt: DateTime.now()),
     );
@@ -388,13 +456,21 @@ class ChatProvider extends ChangeNotifier {
       return;
     }
 
+    final targetMessage = session.messages[targetIndex];
+    if (targetMessage.role == ChatRole.assistant) {
+      await _regenerateAssistantMessageVersion(
+        session: session,
+        targetIndex: targetIndex,
+        model: model,
+      );
+      return;
+    }
+
     final retainedMessages = List<ChatMessageRecord>.from(
       session.messages.take(userIndex + 1),
     );
     final removedMessages = session.messages.skip(userIndex + 1);
-    await _repository.deleteAttachmentFiles(
-      removedMessages.expand((message) => message.imageFilePaths),
-    );
+    await _repository.deleteMessageResources(removedMessages);
 
     final updatedSession = session.copyWith(
       messages: retainedMessages,
@@ -402,6 +478,80 @@ class ChatProvider extends ChangeNotifier {
     );
     await _saveSessionLocally(updatedSession, notify: false);
     await _generateAssistantResponse(updatedSession, model);
+  }
+
+  Future<void> _regenerateAssistantMessageVersion({
+    required ChatSessionRecord session,
+    required int targetIndex,
+    required ChatModelOption model,
+  }) async {
+    final targetMessage = session.messages[targetIndex];
+    final promptMessages = List<ChatMessageRecord>.from(
+      session.messages.take(targetIndex),
+    );
+    final retainedMessages = List<ChatMessageRecord>.from(
+      session.messages.take(targetIndex + 1),
+    );
+    final removedMessages = session.messages.skip(targetIndex + 1);
+    await _repository.deleteMessageResources(removedMessages);
+
+    var retainedTargetMessage = targetMessage;
+    var versionIds = List<String>.from(targetMessage.versionIds);
+    if (versionIds.isEmpty) {
+      final originalVersion = _versionFromMessage(targetMessage);
+      await _repository.saveMessageVersion(originalVersion);
+      versionIds = <String>[originalVersion.id];
+      retainedTargetMessage = targetMessage.copyWith(
+        versionIds: versionIds,
+        currentVersionIndex: 0,
+      );
+      retainedMessages[targetIndex] = retainedTargetMessage;
+    }
+
+    final updatedSession = session.copyWith(
+      messages: retainedMessages,
+      updatedAt: DateTime.now(),
+    );
+    await _saveSessionLocally(updatedSession, notify: false);
+    await _generateAssistantResponse(
+      updatedSession,
+      model,
+      promptMessages: promptMessages,
+      finalizeDraft: (currentSession, draft) async {
+        final latestTargetIndex = _messageIndex(
+          currentSession.messages,
+          retainedTargetMessage.id,
+        );
+        if (latestTargetIndex < 0) {
+          return null;
+        }
+
+        final newVersion = _versionFromMessage(
+          draft,
+          messageId: targetMessage.id,
+        );
+        await _repository.saveMessageVersion(newVersion);
+
+        final currentTarget = currentSession.messages[latestTargetIndex];
+        final nextVersionIds = <String>[
+          ...currentTarget.versionIds,
+          newVersion.id,
+        ];
+        final nextIndex = nextVersionIds.length - 1;
+        final updatedMessages = List<ChatMessageRecord>.from(
+          currentSession.messages,
+        );
+        updatedMessages[latestTargetIndex] = _messageWithVersion(
+          currentTarget.copyWith(versionIds: nextVersionIds),
+          newVersion,
+          nextIndex,
+        );
+        return currentSession.copyWith(
+          messages: updatedMessages,
+          updatedAt: DateTime.now(),
+        );
+      },
+    );
   }
 
   void selectSession(String sessionId) {
@@ -505,14 +655,19 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> sendMessage(String text, {List<String>? imageAttachments}) async {
+  Future<void> sendMessage(
+    String text, {
+    List<String>? imageAttachments,
+  }) async {
     if (!canSend) {
       return;
     }
 
     final model = currentModel;
     final normalizedText = text.trim();
-    if (model == null || (normalizedText.isEmpty && (imageAttachments == null || imageAttachments.isEmpty))) {
+    if (model == null ||
+        (normalizedText.isEmpty &&
+            (imageAttachments == null || imageAttachments.isEmpty))) {
       return;
     }
 
@@ -605,8 +760,14 @@ class ChatProvider extends ChangeNotifier {
 
   Future<void> _generateAssistantResponse(
     ChatSessionRecord session,
-    ChatModelOption model,
-  ) async {
+    ChatModelOption model, {
+    List<ChatMessageRecord>? promptMessages,
+    Future<ChatSessionRecord?> Function(
+      ChatSessionRecord session,
+      ChatMessageRecord draft,
+    )?
+    finalizeDraft,
+  }) async {
     _isSending = true;
 
     final draftMessage = ChatMessageRecord(
@@ -625,7 +786,7 @@ class ChatProvider extends ChangeNotifier {
     try {
       await for (final delta in _apiClient.streamChatCompletion(
         modelId: model.id,
-        messages: session.messages,
+        messages: promptMessages ?? session.messages,
         cancelToken: _activeCancelToken!,
       )) {
         final currentDraft = _draftAssistantMessage;
@@ -669,10 +830,12 @@ class ChatProvider extends ChangeNotifier {
       final hasDraftReasoning =
           draft != null && (draft.reasoningContent?.trim().isNotEmpty ?? false);
       if (draft != null && (hasDraftContent || hasDraftReasoning)) {
-        final finalizedSession = session.copyWith(
-          messages: <ChatMessageRecord>[...session.messages, draft],
-          updatedAt: DateTime.now(),
-        );
+        final finalizedSession =
+            await finalizeDraft?.call(session, draft) ??
+            session.copyWith(
+              messages: <ChatMessageRecord>[...session.messages, draft],
+              updatedAt: DateTime.now(),
+            );
         await _saveSessionLocally(finalizedSession, notify: false);
       }
 
@@ -749,6 +912,48 @@ class ChatProvider extends ChangeNotifier {
 
   String _generateId(String prefix) {
     return '${prefix}_${DateTime.now().microsecondsSinceEpoch}_${_random.nextInt(1 << 32)}';
+  }
+
+  String? _selectedVersionId(ChatMessageRecord message) {
+    if (message.versionIds.isEmpty ||
+        message.currentVersionIndex < 0 ||
+        message.currentVersionIndex >= message.versionIds.length) {
+      return null;
+    }
+    return message.versionIds[message.currentVersionIndex];
+  }
+
+  ChatMessageVersionRecord _versionFromMessage(
+    ChatMessageRecord message, {
+    String? messageId,
+  }) {
+    final targetMessageId = messageId ?? message.id;
+    return ChatMessageVersionRecord(
+      id: _generateId('version'),
+      messageId: targetMessageId,
+      content: message.content,
+      createdAt: message.createdAt,
+      modelName: message.modelName,
+      reasoningContent: message.reasoningContent,
+      imageFilePaths: message.imageFilePaths,
+    );
+  }
+
+  ChatMessageRecord _messageWithVersion(
+    ChatMessageRecord message,
+    ChatMessageVersionRecord version,
+    int versionIndex,
+  ) {
+    return message.copyWith(
+      content: version.content,
+      createdAt: version.createdAt,
+      modelName: version.modelName,
+      clearModelName: version.modelName == null,
+      reasoningContent: version.reasoningContent,
+      clearReasoningContent: version.reasoningContent == null,
+      imageFilePaths: version.imageFilePaths,
+      currentVersionIndex: versionIndex,
+    );
   }
 
   String get _normalizedSessionQuery => _sessionQuery.trim().toLowerCase();

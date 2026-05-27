@@ -404,6 +404,18 @@ abstract class AppLocalizations {
   /// **'Regenerate'**
   String get chatRegenerateMessage;
 
+  /// No description provided for @chatPreviousMessageVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous version'**
+  String get chatPreviousMessageVersion;
+
+  /// No description provided for @chatNextMessageVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Next version'**
+  String get chatNextMessageVersion;
+
   /// No description provided for @chatMessageCopied.
   ///
   /// In en, this message translates to:

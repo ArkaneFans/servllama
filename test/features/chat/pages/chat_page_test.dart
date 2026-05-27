@@ -13,6 +13,7 @@ import 'package:servllama/core/services/llama_server_service.dart';
 import 'package:servllama/core/services/model_storage_paths.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
+import 'package:servllama/features/chat/models/chat_message_version_record.dart';
 import 'package:servllama/features/chat/models/chat_model_option.dart';
 import 'package:servllama/features/chat/models/chat_session_record.dart';
 import 'package:servllama/features/chat/models/chat_stream_delta.dart';
@@ -1068,7 +1069,10 @@ void main() {
           ),
         ],
       );
-      final provider = ChatProvider(repository: repository, apiClient: apiClient);
+      final provider = ChatProvider(
+        repository: repository,
+        apiClient: apiClient,
+      );
       provider.updateServerState(
         baseUrl: 'http://127.0.0.1:8080',
         isServerRunning: true,
@@ -1086,20 +1090,38 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.byKey(const Key('chat_message_copy_button_u1')), findsOneWidget);
-      expect(find.byKey(const Key('chat_message_edit_button_u1')), findsOneWidget);
+      expect(
+        find.byKey(const Key('chat_message_copy_button_u1')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('chat_message_edit_button_u1')),
+        findsOneWidget,
+      );
       expect(
         find.byKey(const Key('chat_message_regenerate_button_u1')),
         findsOneWidget,
       );
-      expect(find.byKey(const Key('chat_message_delete_button_u1')), findsOneWidget);
-      expect(find.byKey(const Key('chat_message_copy_button_a1')), findsOneWidget);
-      expect(find.byKey(const Key('chat_message_edit_button_a1')), findsOneWidget);
+      expect(
+        find.byKey(const Key('chat_message_delete_button_u1')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('chat_message_copy_button_a1')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('chat_message_edit_button_a1')),
+        findsOneWidget,
+      );
       expect(
         find.byKey(const Key('chat_message_regenerate_button_a1')),
         findsOneWidget,
       );
-      expect(find.byKey(const Key('chat_message_delete_button_a1')), findsOneWidget);
+      expect(
+        find.byKey(const Key('chat_message_delete_button_a1')),
+        findsOneWidget,
+      );
     });
 
     testWidgets('long press opens message action sheet for normal message', (
@@ -1131,7 +1153,10 @@ void main() {
           ),
         ],
       );
-      final provider = ChatProvider(repository: repository, apiClient: apiClient);
+      final provider = ChatProvider(
+        repository: repository,
+        apiClient: apiClient,
+      );
       provider.updateServerState(
         baseUrl: 'http://127.0.0.1:8080',
         isServerRunning: true,
@@ -1149,16 +1174,27 @@ void main() {
       );
       await tester.pump();
 
-      await tester.longPress(find.byKey(const Key('chat_message_target_a1_content')));
+      await tester.longPress(
+        find.byKey(const Key('chat_message_target_a1_content')),
+      );
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('chat_message_action_copy_a1')), findsOneWidget);
-      expect(find.byKey(const Key('chat_message_action_edit_a1')), findsOneWidget);
+      expect(
+        find.byKey(const Key('chat_message_action_copy_a1')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('chat_message_action_edit_a1')),
+        findsOneWidget,
+      );
       expect(
         find.byKey(const Key('chat_message_action_regenerate_a1')),
         findsOneWidget,
       );
-      expect(find.byKey(const Key('chat_message_action_delete_a1')), findsOneWidget);
+      expect(
+        find.byKey(const Key('chat_message_action_delete_a1')),
+        findsOneWidget,
+      );
     });
 
     testWidgets('editing a message updates only that message', (tester) async {
@@ -1194,7 +1230,10 @@ void main() {
           ),
         ],
       );
-      final provider = ChatProvider(repository: repository, apiClient: apiClient);
+      final provider = ChatProvider(
+        repository: repository,
+        apiClient: apiClient,
+      );
       provider.updateServerState(
         baseUrl: 'http://127.0.0.1:8080',
         isServerRunning: true,
@@ -1229,7 +1268,9 @@ void main() {
       expect(provider.selectedSession!.messages.last.content, '保留文本');
     });
 
-    testWidgets('copy action copies message text and shows feedback', (tester) async {
+    testWidgets('copy action copies message text and shows feedback', (
+      tester,
+    ) async {
       final repository = _FakeChatSessionRepository(
         sessions: <ChatSessionRecord>[
           _session(
@@ -1255,7 +1296,10 @@ void main() {
           ),
         ],
       );
-      final provider = ChatProvider(repository: repository, apiClient: apiClient);
+      final provider = ChatProvider(
+        repository: repository,
+        apiClient: apiClient,
+      );
       provider.updateServerState(
         baseUrl: 'http://127.0.0.1:8080',
         isServerRunning: true,
@@ -1298,7 +1342,7 @@ void main() {
       expect(find.text('消息已复制'), findsOneWidget);
     });
 
-    testWidgets('regenerate replaces trailing assistant reply with new stream result', (
+    testWidgets('regenerate adds assistant reply versions and switches them', (
       tester,
     ) async {
       final repository = _FakeChatSessionRepository(
@@ -1337,7 +1381,10 @@ void main() {
         ChatStreamDelta(content: '新'),
         ChatStreamDelta(content: '回答'),
       ];
-      final provider = ChatProvider(repository: repository, apiClient: apiClient);
+      final provider = ChatProvider(
+        repository: repository,
+        apiClient: apiClient,
+      );
       provider.updateServerState(
         baseUrl: 'http://127.0.0.1:8080',
         isServerRunning: true,
@@ -1356,13 +1403,34 @@ void main() {
       await tester.pump();
 
       expect(find.text('旧回答'), findsOneWidget);
-      await tester.tap(find.byKey(const Key('chat_message_regenerate_button_a1')));
+      await tester.tap(
+        find.byKey(const Key('chat_message_regenerate_button_a1')),
+      );
       await tester.pump();
       await tester.pumpAndSettle();
 
       expect(find.text('旧回答'), findsNothing);
       expect(find.text('新回答'), findsOneWidget);
       expect(provider.selectedSession!.messages.last.content, '新回答');
+      expect(find.text('2/2'), findsOneWidget);
+      expect(
+        find.byKey(const Key('chat_message_version_previous_button_a1')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('chat_message_version_next_button_a1')),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.byKey(const Key('chat_message_version_previous_button_a1')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('旧回答'), findsOneWidget);
+      expect(find.text('新回答'), findsNothing);
+      expect(find.text('1/2'), findsOneWidget);
+      expect(provider.selectedSession!.messages.last.currentVersionIndex, 0);
     });
   });
 }
@@ -1416,6 +1484,8 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
     : super(appSupportDirectory: Directory.systemTemp);
 
   List<ChatSessionRecord> sessions;
+  final Map<String, ChatMessageVersionRecord> versions =
+      <String, ChatMessageVersionRecord>{};
 
   @override
   Future<List<ChatSessionRecord>> loadSessions() async =>
@@ -1434,6 +1504,46 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
   @override
   Future<void> deleteSession(String sessionId) async {
     sessions.removeWhere((session) => session.id == sessionId);
+  }
+
+  @override
+  Future<void> saveMessageVersion(ChatMessageVersionRecord version) async {
+    versions[version.id] = version;
+  }
+
+  @override
+  Future<ChatMessageVersionRecord?> loadMessageVersion(String versionId) async {
+    return versions[versionId];
+  }
+
+  @override
+  Future<List<ChatMessageVersionRecord>> loadMessageVersions(
+    Iterable<String> versionIds,
+  ) async {
+    return versionIds
+        .map((versionId) => versions[versionId])
+        .whereType<ChatMessageVersionRecord>()
+        .toList(growable: false);
+  }
+
+  @override
+  Future<void> deleteMessageVersions(Iterable<String> versionIds) async {
+    for (final versionId in versionIds) {
+      versions.remove(versionId);
+    }
+  }
+
+  @override
+  Future<void> deleteMessageResources(
+    Iterable<ChatMessageRecord> messages,
+  ) async {
+    final messageList = messages.toList(growable: false);
+    await deleteAttachmentFiles(
+      messageList.expand((message) => message.imageFilePaths),
+    );
+    await deleteMessageVersions(
+      messageList.expand((message) => message.versionIds),
+    );
   }
 }
 
