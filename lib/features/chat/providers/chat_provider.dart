@@ -17,16 +17,20 @@ class ChatProvider extends ChangeNotifier {
        _apiClient = apiClient ?? LlamaChatApiClient();
 
   static const String defaultSessionTitle = '新会话';
+  static const int messageWindowSize = 30;
 
   final ChatSessionRepository _repository;
   final LlamaChatApiClient _apiClient;
   final Random _random = Random();
 
   List<ChatSessionRecord> _sessions = <ChatSessionRecord>[];
+  List<ChatMessageRecord> _visibleMessages = <ChatMessageRecord>[];
   List<ChatModelOption> _models = <ChatModelOption>[];
 
   bool _isInitialized = false;
   bool _isLoading = false;
+  bool _isLoadingMessages = false;
+  bool _isLoadingOlderMessages = false;
   bool _isRefreshingModels = false;
   bool _isServerRunning = false;
   String _baseUrl = 'http://127.0.0.1:8080';
@@ -39,6 +43,7 @@ class ChatProvider extends ChangeNotifier {
   CancelToken? _activeCancelToken;
   String? _lastErrorMessage;
   List<String> _pendingImageAttachments = [];
+  int _sessionLoadGeneration = 0;
 
   @visibleForTesting
   LlamaChatApiClient get apiClient => _apiClient;
@@ -49,6 +54,8 @@ class ChatProvider extends ChangeNotifier {
       List<ChatModelOption>.unmodifiable(_models);
 
   bool get isLoading => _isLoading;
+  bool get isLoadingMessages => _isLoadingMessages;
+  bool get isLoadingOlderMessages => _isLoadingOlderMessages;
   bool get isRefreshingModels => _isRefreshingModels;
   bool get isServerRunning => _isServerRunning;
   bool get isSending => _isSending;
@@ -74,6 +81,16 @@ class ChatProvider extends ChangeNotifier {
   bool get isShowingDraftSession => _selectedSessionId == null;
   String get currentSessionTitle =>
       selectedSession?.title ?? defaultSessionTitle;
+
+  bool get hasOlderMessages {
+    final session = selectedSession;
+    if (session == null || _visibleMessages.isEmpty) {
+      return false;
+    }
+    final firstVisibleId = _visibleMessages.first.id;
+    final firstVisibleIndex = session.messageIds.indexOf(firstVisibleId);
+    return firstVisibleIndex > 0;
+  }
 
   ChatModelOption? get currentModel => _findModel(_currentModelId);
 
@@ -111,12 +128,7 @@ class ChatProvider extends ChangeNotifier {
       _models.where((model) => !model.isLoaded).toList(growable: false);
 
   List<ChatMessageRecord> get visibleMessages {
-    final session = selectedSession;
-    if (session == null) {
-      return const <ChatMessageRecord>[];
-    }
-
-    return List<ChatMessageRecord>.from(session.messages, growable: false);
+    return List<ChatMessageRecord>.from(_visibleMessages, growable: false);
   }
 
   List<ChatSessionRecord> get filteredSessions {
@@ -161,6 +173,7 @@ class ChatProvider extends ChangeNotifier {
       );
       if (_findSession(_selectedSessionId) == null) {
         _selectedSessionId = null;
+        _visibleMessages = <ChatMessageRecord>[];
       }
       _isInitialized = true;
     } catch (_) {
@@ -244,6 +257,10 @@ class ChatProvider extends ChangeNotifier {
     }
 
     _selectedSessionId = null;
+    _visibleMessages = <ChatMessageRecord>[];
+    _isLoadingMessages = false;
+    _isLoadingOlderMessages = false;
+    _sessionLoadGeneration += 1;
     notifyListeners();
   }
 
@@ -286,6 +303,10 @@ class ChatProvider extends ChangeNotifier {
 
     if (_selectedSessionId == sessionId) {
       _selectedSessionId = null;
+      _visibleMessages = <ChatMessageRecord>[];
+      _isLoadingMessages = false;
+      _isLoadingOlderMessages = false;
+      _sessionLoadGeneration += 1;
     }
     notifyListeners();
   }
@@ -294,15 +315,20 @@ class ChatProvider extends ChangeNotifier {
     if (!canSend) {
       return false;
     }
-    final session = selectedSession;
-    if (session == null) {
-      return false;
-    }
-    final targetIndex = _messageIndex(session.messages, messageId);
+    final targetIndex = _messageIndex(_visibleMessages, messageId);
     if (targetIndex < 0) {
       return false;
     }
-    return _nearestUserMessageIndex(session.messages, targetIndex) >= 0;
+    final targetMessage = _visibleMessages[targetIndex];
+    if (targetMessage.role == ChatRole.user) {
+      return true;
+    }
+    final sessionMessageIds = selectedSession?.messageIds ?? const <String>[];
+    final firstSessionMessageId = sessionMessageIds.isEmpty
+        ? null
+        : sessionMessageIds.first;
+    return _nearestUserMessageIndex(_visibleMessages, targetIndex) >= 0 ||
+        firstSessionMessageId != targetMessage.id;
   }
 
   Future<void> editMessage({
@@ -323,17 +349,18 @@ class ChatProvider extends ChangeNotifier {
       return;
     }
 
-    final messageIndex = _messageIndex(session.messages, messageId);
+    final messages = await _repository.loadAllMessages(session);
+    final messageIndex = _messageIndex(messages, messageId);
     if (messageIndex < 0) {
       return;
     }
 
-    final currentMessage = session.messages[messageIndex];
+    final currentMessage = messages[messageIndex];
     if (currentMessage.content == normalizedContent) {
       return;
     }
 
-    final updatedMessages = List<ChatMessageRecord>.from(session.messages);
+    final updatedMessages = List<ChatMessageRecord>.from(messages);
     final updatedMessage = currentMessage.copyWith(content: normalizedContent);
     updatedMessages[messageIndex] = updatedMessage;
 
@@ -358,8 +385,9 @@ class ChatProvider extends ChangeNotifier {
       }
     }
 
-    await _saveSessionLocally(
+    await _saveSessionWithMessagesLocally(
       session.copyWith(messages: updatedMessages, updatedAt: DateTime.now()),
+      updatedMessages,
     );
   }
 
@@ -373,19 +401,19 @@ class ChatProvider extends ChangeNotifier {
       return;
     }
 
-    final messageIndex = _messageIndex(session.messages, messageId);
+    final messages = await _repository.loadAllMessages(session);
+    final messageIndex = _messageIndex(messages, messageId);
     if (messageIndex < 0) {
       return;
     }
 
-    final targetMessage = session.messages[messageIndex];
-    final updatedMessages = List<ChatMessageRecord>.from(session.messages)
+    final targetMessage = messages[messageIndex];
+    final updatedMessages = List<ChatMessageRecord>.from(messages)
       ..removeAt(messageIndex);
-    await _repository.deleteMessageResources(<ChatMessageRecord>[
-      targetMessage,
-    ]);
-    await _saveSessionLocally(
+    await _repository.deleteMessages(<ChatMessageRecord>[targetMessage]);
+    await _saveSessionWithMessagesLocally(
       session.copyWith(messages: updatedMessages, updatedAt: DateTime.now()),
+      updatedMessages,
     );
   }
 
@@ -402,12 +430,13 @@ class ChatProvider extends ChangeNotifier {
       return;
     }
 
-    final messageIndex = _messageIndex(session.messages, messageId);
+    final messages = await _repository.loadAllMessages(session);
+    final messageIndex = _messageIndex(messages, messageId);
     if (messageIndex < 0) {
       return;
     }
 
-    final message = session.messages[messageIndex];
+    final message = messages[messageIndex];
     if (message.role != ChatRole.assistant ||
         versionIndex < 0 ||
         versionIndex >= message.versionIds.length ||
@@ -422,15 +451,16 @@ class ChatProvider extends ChangeNotifier {
       return;
     }
 
-    final updatedMessages = List<ChatMessageRecord>.from(session.messages);
+    final updatedMessages = List<ChatMessageRecord>.from(messages);
     updatedMessages[messageIndex] = _messageWithVersion(
       message,
       version,
       versionIndex,
     );
 
-    await _saveSessionLocally(
+    await _saveSessionWithMessagesLocally(
       session.copyWith(messages: updatedMessages, updatedAt: DateTime.now()),
+      updatedMessages,
     );
   }
 
@@ -445,16 +475,21 @@ class ChatProvider extends ChangeNotifier {
       return;
     }
 
-    final targetIndex = _messageIndex(session.messages, messageId);
-    final userIndex = _nearestUserMessageIndex(session.messages, targetIndex);
+    final messages = await _repository.loadAllMessages(session);
+    final targetIndex = _messageIndex(messages, messageId);
+    if (targetIndex < 0) {
+      return;
+    }
+    final userIndex = _nearestUserMessageIndex(messages, targetIndex);
     if (userIndex < 0) {
       return;
     }
 
-    final targetMessage = session.messages[targetIndex];
+    final targetMessage = messages[targetIndex];
     if (targetMessage.role == ChatRole.assistant) {
       await _regenerateAssistantMessageVersion(
         session: session,
+        messages: messages,
         targetIndex: targetIndex,
         model: model,
       );
@@ -462,33 +497,42 @@ class ChatProvider extends ChangeNotifier {
     }
 
     final retainedMessages = List<ChatMessageRecord>.from(
-      session.messages.take(userIndex + 1),
+      messages.take(userIndex + 1),
     );
-    final removedMessages = session.messages.skip(userIndex + 1);
-    await _repository.deleteMessageResources(removedMessages);
+    final removedMessages = messages.skip(userIndex + 1);
+    await _repository.deleteMessages(removedMessages);
 
     final updatedSession = session.copyWith(
       messages: retainedMessages,
       updatedAt: DateTime.now(),
     );
-    await _saveSessionLocally(updatedSession, notify: false);
-    await _generateAssistantResponse(updatedSession, model);
+    final savedSession = await _saveSessionWithMessagesLocally(
+      updatedSession,
+      retainedMessages,
+      notify: false,
+    );
+    await _generateAssistantResponse(
+      savedSession,
+      model,
+      sessionMessages: retainedMessages,
+    );
   }
 
   Future<void> _regenerateAssistantMessageVersion({
     required ChatSessionRecord session,
+    required List<ChatMessageRecord> messages,
     required int targetIndex,
     required ChatModelOption model,
   }) async {
-    final targetMessage = session.messages[targetIndex];
+    final targetMessage = messages[targetIndex];
     final promptMessages = List<ChatMessageRecord>.from(
-      session.messages.take(targetIndex),
+      messages.take(targetIndex),
     );
     final retainedMessages = List<ChatMessageRecord>.from(
-      session.messages.take(targetIndex + 1),
+      messages.take(targetIndex + 1),
     );
-    final removedMessages = session.messages.skip(targetIndex + 1);
-    await _repository.deleteMessageResources(removedMessages);
+    final removedMessages = messages.skip(targetIndex + 1);
+    await _repository.deleteMessages(removedMessages);
 
     var retainedTargetMessage = targetMessage;
     var versionIds = List<String>.from(targetMessage.versionIds);
@@ -507,7 +551,11 @@ class ChatProvider extends ChangeNotifier {
       messages: retainedMessages,
       updatedAt: DateTime.now(),
     );
-    await _saveSessionLocally(fallbackSession, notify: false);
+    final savedFallbackSession = await _saveSessionWithMessagesLocally(
+      fallbackSession,
+      retainedMessages,
+      notify: false,
+    );
 
     final now = DateTime.now();
     final nextVersion = ChatMessageVersionRecord(
@@ -531,7 +579,7 @@ class ChatProvider extends ChangeNotifier {
     );
     final streamingMessages = List<ChatMessageRecord>.from(retainedMessages);
     streamingMessages[targetIndex] = retainedTargetMessage;
-    final streamingSession = fallbackSession.copyWith(
+    final streamingSession = savedFallbackSession.copyWith(
       messages: streamingMessages,
       updatedAt: now,
     );
@@ -539,25 +587,84 @@ class ChatProvider extends ChangeNotifier {
     await _generateAssistantResponse(
       streamingSession,
       model,
+      sessionMessages: streamingMessages,
       promptMessages: promptMessages,
       draftSeed: retainedTargetMessage,
       versionId: nextVersion.id,
-      emptyDraftFallbackSession: fallbackSession,
+      emptyDraftFallbackSession: savedFallbackSession,
+      emptyDraftFallbackMessages: retainedMessages,
     );
   }
 
-  void selectSession(String sessionId) {
+  Future<void> selectSession(String sessionId) async {
     if (!canManageSessions) {
       return;
     }
-    if (_selectedSessionId == sessionId) {
+    if (_selectedSessionId == sessionId && !_isLoadingMessages) {
       return;
     }
-    if (_findSession(sessionId) == null) {
+    final session = _findSession(sessionId);
+    if (session == null) {
       return;
     }
+    final generation = ++_sessionLoadGeneration;
     _selectedSessionId = sessionId;
+    _visibleMessages = <ChatMessageRecord>[];
+    _isLoadingMessages = true;
     notifyListeners();
+
+    try {
+      final messages = await _repository.loadRecentMessages(
+        session,
+        limit: messageWindowSize,
+      );
+      if (generation != _sessionLoadGeneration) {
+        return;
+      }
+      _visibleMessages = messages;
+    } catch (_) {
+      if (generation != _sessionLoadGeneration) {
+        return;
+      }
+      _visibleMessages = <ChatMessageRecord>[];
+    } finally {
+      if (generation == _sessionLoadGeneration) {
+        _isLoadingMessages = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> loadOlderMessages() async {
+    final session = selectedSession;
+    if (session == null ||
+        _visibleMessages.isEmpty ||
+        _isLoadingMessages ||
+        _isLoadingOlderMessages ||
+        !hasOlderMessages) {
+      return;
+    }
+
+    _isLoadingOlderMessages = true;
+    notifyListeners();
+
+    try {
+      final olderMessages = await _repository.loadMessagesBefore(
+        session,
+        beforeMessageId: _visibleMessages.first.id,
+        limit: messageWindowSize,
+      );
+      if (olderMessages.isNotEmpty && _selectedSessionId == session.id) {
+        _visibleMessages = <ChatMessageRecord>[
+          ...olderMessages,
+          ..._visibleMessages,
+        ];
+      }
+    } catch (_) {
+    } finally {
+      _isLoadingOlderMessages = false;
+      notifyListeners();
+    }
   }
 
   void selectLoadedModel(String modelId) {
@@ -667,6 +774,7 @@ class ChatProvider extends ChangeNotifier {
     if (session == null) {
       session = _createSessionRecord();
       _selectedSessionId = session.id;
+      _visibleMessages = <ChatMessageRecord>[];
     }
 
     _isSending = true;
@@ -679,20 +787,31 @@ class ChatProvider extends ChangeNotifier {
       role: ChatRole.user,
       content: normalizedText,
       createdAt: now,
+      sessionId: session.id,
       modelName: model.displayName,
       imageFilePaths: imageAttachments ?? const [],
     );
 
+    final messages = await _repository.loadAllMessages(session);
     final sessionTitle = session.title == defaultSessionTitle
         ? _deriveSessionTitle(normalizedText)
         : session.title;
+    final updatedMessages = <ChatMessageRecord>[...messages, userMessage];
     final updatedSession = session.copyWith(
       title: sessionTitle,
-      messages: <ChatMessageRecord>[...session.messages, userMessage],
+      messages: updatedMessages,
       updatedAt: now,
     );
-    await _saveSessionLocally(updatedSession, notify: false);
-    await _generateAssistantResponse(updatedSession, model);
+    final savedSession = await _saveSessionWithMessagesLocally(
+      updatedSession,
+      updatedMessages,
+      notify: false,
+    );
+    await _generateAssistantResponse(
+      savedSession,
+      model,
+      sessionMessages: updatedMessages,
+    );
   }
 
   void clearLastError() {
@@ -734,6 +853,32 @@ class ChatProvider extends ChangeNotifier {
     bool notify = true,
   }) async {
     await _repository.saveSession(session);
+    _upsertSession(session);
+    if (notify) {
+      notifyListeners();
+    }
+  }
+
+  Future<ChatSessionRecord> _saveSessionWithMessagesLocally(
+    ChatSessionRecord session,
+    List<ChatMessageRecord> messages, {
+    bool notify = true,
+  }) async {
+    final savedSession = await _repository.saveSessionWithMessages(
+      session,
+      messages,
+    );
+    _upsertSession(savedSession);
+    if (_selectedSessionId == savedSession.id) {
+      _syncVisibleMessagesFromFullMessages(messages);
+    }
+    if (notify) {
+      notifyListeners();
+    }
+    return savedSession;
+  }
+
+  void _upsertSession(ChatSessionRecord session) {
     final nextSessions = List<ChatSessionRecord>.from(_sessions);
     final index = nextSessions.indexWhere((item) => item.id == session.id);
     if (index >= 0) {
@@ -745,18 +890,45 @@ class ChatProvider extends ChangeNotifier {
       (left, right) => right.updatedAt.compareTo(left.updatedAt),
     );
     _sessions = nextSessions;
-    if (notify) {
-      notifyListeners();
+  }
+
+  void _syncVisibleMessagesFromFullMessages(
+    List<ChatMessageRecord> fullMessages,
+  ) {
+    if (fullMessages.isEmpty) {
+      _visibleMessages = <ChatMessageRecord>[];
+      return;
     }
+    if (_visibleMessages.isNotEmpty) {
+      final firstVisibleId = _visibleMessages.first.id;
+      final firstVisibleIndex = fullMessages.indexWhere(
+        (message) => message.id == firstVisibleId,
+      );
+      if (firstVisibleIndex >= 0) {
+        _visibleMessages = fullMessages
+            .skip(firstVisibleIndex)
+            .toList(growable: false);
+        return;
+      }
+    }
+    final targetCount = min(
+      fullMessages.length,
+      max(messageWindowSize, _visibleMessages.length),
+    );
+    _visibleMessages = fullMessages
+        .skip(fullMessages.length - targetCount)
+        .toList(growable: false);
   }
 
   Future<void> _generateAssistantResponse(
     ChatSessionRecord session,
     ChatModelOption model, {
+    required List<ChatMessageRecord> sessionMessages,
     List<ChatMessageRecord>? promptMessages,
     ChatMessageRecord? draftSeed,
     String? versionId,
     ChatSessionRecord? emptyDraftFallbackSession,
+    List<ChatMessageRecord>? emptyDraftFallbackMessages,
   }) async {
     _isSending = true;
 
@@ -767,19 +939,25 @@ class ChatProvider extends ChangeNotifier {
           role: ChatRole.assistant,
           content: '',
           createdAt: DateTime.now(),
+          sessionId: session.id,
           modelName: model.displayName,
           reasoningContent: '',
         );
     _draftAssistantMessage = draftMessage;
     _activeCancelToken = CancelToken();
 
-    var currentSession = _sessionWithStreamingDraft(
-      session,
+    var currentMessages = _messagesWithStreamingDraft(
+      sessionMessages,
       draftMessage,
       appendIfMissing: draftSeed == null,
     );
+    var currentSession = session.copyWith(
+      messages: currentMessages,
+      updatedAt: DateTime.now(),
+    );
     await _persistStreamingDraft(
       session: currentSession,
+      messages: currentMessages,
       draft: draftMessage,
       versionId: versionId,
       notify: true,
@@ -788,7 +966,7 @@ class ChatProvider extends ChangeNotifier {
     try {
       await for (final delta in _apiClient.streamChatCompletion(
         modelId: model.id,
-        messages: promptMessages ?? session.messages,
+        messages: promptMessages ?? sessionMessages,
         cancelToken: _activeCancelToken!,
       )) {
         final currentDraft = _draftAssistantMessage;
@@ -806,13 +984,18 @@ class ChatProvider extends ChangeNotifier {
           content: nextContent,
           reasoningContent: nextReasoningContent,
         );
-        currentSession = _sessionWithStreamingDraft(
-          currentSession,
+        currentMessages = _messagesWithStreamingDraft(
+          currentMessages,
           _draftAssistantMessage!,
           appendIfMissing: draftSeed == null,
         );
+        currentSession = currentSession.copyWith(
+          messages: currentMessages,
+          updatedAt: DateTime.now(),
+        );
         await _persistStreamingDraft(
           session: currentSession,
+          messages: currentMessages,
           draft: _draftAssistantMessage!,
           versionId: versionId,
           notify: true,
@@ -832,17 +1015,23 @@ class ChatProvider extends ChangeNotifier {
             role: ChatRole.assistant,
             content: errorMessage,
             createdAt: DateTime.now(),
+            sessionId: session.id,
             modelName: currentModel?.displayName,
             versionIds: draft?.versionIds ?? const [],
             currentVersionIndex: draft?.currentVersionIndex ?? 0,
           );
-          currentSession = _sessionWithStreamingDraft(
-            currentSession,
+          currentMessages = _messagesWithStreamingDraft(
+            currentMessages,
             _draftAssistantMessage!,
             appendIfMissing: draftSeed == null,
           );
+          currentSession = currentSession.copyWith(
+            messages: currentMessages,
+            updatedAt: DateTime.now(),
+          );
           await _persistStreamingDraft(
             session: currentSession,
+            messages: currentMessages,
             draft: _draftAssistantMessage!,
             versionId: versionId,
             notify: true,
@@ -858,15 +1047,29 @@ class ChatProvider extends ChangeNotifier {
         if (versionId != null) {
           await _repository.deleteMessageVersions(<String>[versionId]);
           final fallbackSession = emptyDraftFallbackSession;
-          if (fallbackSession != null) {
-            await _saveSessionLocally(fallbackSession, notify: false);
+          final fallbackMessages = emptyDraftFallbackMessages;
+          if (fallbackSession != null && fallbackMessages != null) {
+            await _saveSessionWithMessagesLocally(
+              fallbackSession,
+              fallbackMessages,
+              notify: false,
+            );
           }
         } else {
-          final cleanedSession = _sessionWithoutMessage(
-            currentSession,
+          final cleanedMessages = _messagesWithoutMessage(
+            currentMessages,
             draft.id,
           );
-          await _saveSessionLocally(cleanedSession, notify: false);
+          await _repository.deleteMessages(<ChatMessageRecord>[draft]);
+          final cleanedSession = currentSession.copyWith(
+            messages: cleanedMessages,
+            updatedAt: DateTime.now(),
+          );
+          await _saveSessionWithMessagesLocally(
+            cleanedSession,
+            cleanedMessages,
+            notify: false,
+          );
         }
       }
 
@@ -880,6 +1083,7 @@ class ChatProvider extends ChangeNotifier {
 
   Future<void> _persistStreamingDraft({
     required ChatSessionRecord session,
+    required List<ChatMessageRecord> messages,
     required ChatMessageRecord draft,
     required String? versionId,
     required bool notify,
@@ -897,33 +1101,32 @@ class ChatProvider extends ChangeNotifier {
         ),
       );
     }
-    await _saveSessionLocally(session, notify: notify);
+    await _saveSessionWithMessagesLocally(session, messages, notify: notify);
   }
 
-  ChatSessionRecord _sessionWithStreamingDraft(
-    ChatSessionRecord session,
+  List<ChatMessageRecord> _messagesWithStreamingDraft(
+    List<ChatMessageRecord> messages,
     ChatMessageRecord draft, {
     required bool appendIfMissing,
   }) {
-    final messages = List<ChatMessageRecord>.from(session.messages);
-    final index = _messageIndex(messages, draft.id);
+    final nextMessages = List<ChatMessageRecord>.from(messages);
+    final index = _messageIndex(nextMessages, draft.id);
     if (index >= 0) {
-      messages[index] = draft;
+      nextMessages[index] = draft;
     } else if (appendIfMissing) {
-      messages.add(draft);
+      nextMessages.add(draft);
     } else {
-      return session;
+      return messages;
     }
-    return session.copyWith(messages: messages, updatedAt: DateTime.now());
+    return nextMessages;
   }
 
-  ChatSessionRecord _sessionWithoutMessage(
-    ChatSessionRecord session,
+  List<ChatMessageRecord> _messagesWithoutMessage(
+    List<ChatMessageRecord> messages,
     String messageId,
   ) {
-    final messages = List<ChatMessageRecord>.from(session.messages)
+    return List<ChatMessageRecord>.from(messages)
       ..removeWhere((message) => message.id == messageId);
-    return session.copyWith(messages: messages, updatedAt: DateTime.now());
   }
 
   ChatSessionRecord _createSessionRecord() {
@@ -931,7 +1134,7 @@ class ChatProvider extends ChangeNotifier {
     return ChatSessionRecord(
       id: _generateId('session'),
       title: defaultSessionTitle,
-      messages: const <ChatMessageRecord>[],
+      messageIds: const <String>[],
       createdAt: now,
       updatedAt: now,
     );

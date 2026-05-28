@@ -76,12 +76,71 @@ void main() {
         ];
 
         await provider.load();
-        provider.selectSession('s2');
+        await provider.selectSession('s2');
 
         expect(provider.selectedSession?.id, 's2');
         expect(provider.currentModelId, isNull);
         expect(provider.modelSelectorLabel, '选择模型');
         expect(apiClient.fetchModelsCallCount, 0);
+      },
+    );
+
+    test(
+      'selectSession loads recent window and older messages on demand',
+      () async {
+        repository.sessions = <ChatSessionRecord>[
+          _session(id: 's1', title: '长会话', messages: _messages(count: 65)),
+        ];
+
+        await provider.load();
+        await provider.selectSession('s1');
+
+        expect(provider.visibleMessages, hasLength(30));
+        expect(provider.visibleMessages.first.id, 'm35');
+        expect(provider.visibleMessages.last.id, 'm64');
+        expect(provider.hasOlderMessages, isTrue);
+
+        await provider.loadOlderMessages();
+
+        expect(provider.visibleMessages, hasLength(60));
+        expect(provider.visibleMessages.first.id, 'm5');
+        expect(provider.visibleMessages.last.id, 'm64');
+        expect(provider.hasOlderMessages, isTrue);
+
+        await provider.loadOlderMessages();
+
+        expect(provider.visibleMessages, hasLength(65));
+        expect(provider.visibleMessages.first.id, 'm0');
+        expect(provider.hasOlderMessages, isFalse);
+      },
+    );
+
+    test(
+      'sendMessage uses full history even when only recent window is visible',
+      () async {
+        repository.sessions = <ChatSessionRecord>[
+          _session(id: 's1', title: '长会话', messages: _messages(count: 35)),
+        ];
+        apiClient.models = <ChatModelOption>[
+          const ChatModelOption(
+            id: 'alpha',
+            displayName: 'alpha',
+            status: ChatModelStatus.loaded,
+          ),
+        ];
+
+        await provider.load();
+        await provider.refreshModels();
+        provider.selectLoadedModel('alpha');
+        await provider.selectSession('s1');
+        await provider.sendMessage('next');
+
+        expect(provider.visibleMessages, hasLength(31));
+        expect(provider.visibleMessages.first.id, 'm5');
+        expect(provider.visibleMessages.last.content, 'next');
+        expect(apiClient.lastStreamMessages, hasLength(36));
+        expect(apiClient.lastStreamMessages.first.id, 'm0');
+        expect(apiClient.lastStreamMessages.last.content, 'next');
       },
     );
 
@@ -293,15 +352,15 @@ void main() {
         expect(provider.sessions, hasLength(1));
         expect(repository.sessions, hasLength(1));
         expect(provider.selectedSession, isNotNull);
-        final messages = provider.selectedSession!.messages;
+        final messages = provider.visibleMessages;
         expect(messages, hasLength(2));
         expect(messages.first.modelName, 'alpha');
         expect(messages.last.modelName, 'alpha');
         expect(messages.last.content, '你好');
         expect(messages.last.reasoningContent, '先思考再补充');
-        final assistantSnapshots = repository.savedSessions
-            .where((session) => session.messages.length == 2)
-            .map((session) => session.messages.last)
+        final assistantSnapshots = repository.savedMessageSnapshots
+            .where((messages) => messages.length == 2)
+            .map((messages) => messages.last)
             .toList(growable: false);
         expect(assistantSnapshots.map((message) => message.content), <String>[
           '',
@@ -336,7 +395,7 @@ void main() {
         await provider.sendMessage('hello');
 
         expect(provider.sessions, hasLength(1));
-        final messages = provider.selectedSession!.messages;
+        final messages = provider.visibleMessages;
         expect(messages, hasLength(2));
         expect(messages.last.content, isEmpty);
         expect(messages.last.reasoningContent, '仅推理内容');
@@ -360,13 +419,13 @@ void main() {
         provider.selectLoadedModel('alpha');
         await provider.sendMessage('hello');
 
-        final messages = provider.selectedSession!.messages;
+        final messages = provider.visibleMessages;
         expect(messages, hasLength(1));
         expect(messages.single.role, ChatRole.user);
         expect(
-          repository.savedSessions
-              .where((session) => session.messages.length == 2)
-              .map((session) => session.messages.last.content),
+          repository.savedMessageSnapshots
+              .where((messages) => messages.length == 2)
+              .map((messages) => messages.last.content),
           <String>[''],
         );
       },
@@ -397,16 +456,16 @@ void main() {
       ];
 
       await provider.load();
-      provider.selectSession('s1');
+      await provider.selectSession('s1');
 
       await provider.editMessage(messageId: 'u1', newContent: '修改后的用户消息');
 
-      final messages = provider.selectedSession!.messages;
+      final messages = provider.visibleMessages;
       expect(messages, hasLength(2));
       expect(messages.first.content, '修改后的用户消息');
       expect(messages.last.content, '原始助手消息');
       expect(messages.last.reasoningContent, '保留推理');
-      expect(repository.sessions.single.messages.first.content, '修改后的用户消息');
+      expect(repository.messagesForSession('s1').first.content, '修改后的用户消息');
     });
 
     test('deleteMessage removes only the target message', () async {
@@ -438,16 +497,16 @@ void main() {
       ];
 
       await provider.load();
-      provider.selectSession('s1');
+      await provider.selectSession('s1');
 
       await provider.deleteMessage('a1');
 
+      expect(provider.visibleMessages.map((message) => message.id), <String>[
+        'u1',
+        'u2',
+      ]);
       expect(
-        provider.selectedSession!.messages.map((message) => message.id),
-        <String>['u1', 'u2'],
-      );
-      expect(
-        repository.sessions.single.messages.map((message) => message.id),
+        repository.messagesForSession('s1').map((message) => message.id),
         <String>['u1', 'u2'],
       );
     });
@@ -482,11 +541,11 @@ void main() {
         ];
 
         await provider.load();
-        provider.selectSession('s1');
+        await provider.selectSession('s1');
 
         await provider.deleteMessage('u1');
 
-        expect(provider.selectedSession!.messages, isEmpty);
+        expect(provider.visibleMessages, isEmpty);
         expect(await attachment.exists(), isFalse);
       },
     );
@@ -543,11 +602,11 @@ void main() {
         await provider.load();
         await provider.refreshModels();
         provider.selectLoadedModel('alpha');
-        provider.selectSession('s1');
+        await provider.selectSession('s1');
 
         await provider.regenerateFromMessage('a2');
 
-        final messages = provider.selectedSession!.messages;
+        final messages = provider.visibleMessages;
         expect(messages.map((message) => message.id).toList(), hasLength(4));
         expect(messages[0].content, '你好');
         expect(messages[1].content, '旧回答');
@@ -608,20 +667,20 @@ void main() {
       await provider.load();
       await provider.refreshModels();
       provider.selectLoadedModel('alpha');
-      provider.selectSession('s1');
+      await provider.selectSession('s1');
       await provider.regenerateFromMessage('a1');
 
-      expect(provider.selectedSession!.messages.last.content, '新回答');
+      expect(provider.visibleMessages.last.content, '新回答');
 
       await provider.selectMessageVersion(messageId: 'a1', versionIndex: 0);
 
-      expect(provider.selectedSession!.messages.last.content, '旧回答');
-      expect(provider.selectedSession!.messages.last.currentVersionIndex, 0);
+      expect(provider.visibleMessages.last.content, '旧回答');
+      expect(provider.visibleMessages.last.currentVersionIndex, 0);
 
       await provider.selectMessageVersion(messageId: 'a1', versionIndex: 1);
 
-      expect(provider.selectedSession!.messages.last.content, '新回答');
-      expect(provider.selectedSession!.messages.last.currentVersionIndex, 1);
+      expect(provider.visibleMessages.last.content, '新回答');
+      expect(provider.visibleMessages.last.currentVersionIndex, 1);
     });
 
     test(
@@ -643,7 +702,7 @@ void main() {
         ];
 
         await provider.load();
-        provider.selectSession('s1');
+        await provider.selectSession('s1');
 
         expect(provider.canRegenerateMessage('a1'), isFalse);
       },
@@ -692,7 +751,7 @@ void main() {
         ];
 
         await provider.load();
-        provider.selectSession('s2');
+        await provider.selectSession('s2');
         await provider.deleteSession('s2');
 
         expect(provider.sessions.map((session) => session.id), <String>['s1']);
@@ -796,35 +855,123 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
     : super(appSupportDirectory: Directory.systemTemp);
 
   List<ChatSessionRecord> sessions = <ChatSessionRecord>[];
+  final Map<String, ChatMessageRecord> messages = <String, ChatMessageRecord>{};
   final Map<String, ChatMessageVersionRecord> versions =
       <String, ChatMessageVersionRecord>{};
   final List<ChatSessionRecord> savedSessions = <ChatSessionRecord>[];
+  final List<List<ChatMessageRecord>> savedMessageSnapshots =
+      <List<ChatMessageRecord>>[];
   final List<ChatMessageVersionRecord> savedVersions =
       <ChatMessageVersionRecord>[];
   bool returnFixedLengthList = false;
 
   @override
   Future<List<ChatSessionRecord>> loadSessions() async {
-    if (returnFixedLengthList) {
-      return List<ChatSessionRecord>.from(sessions, growable: false);
-    }
-    return List<ChatSessionRecord>.from(sessions);
+    final loadedSessions = sessions
+        .map(_migrateSession)
+        .toList(growable: !returnFixedLengthList);
+    sessions = List<ChatSessionRecord>.from(loadedSessions);
+    return loadedSessions;
   }
 
   @override
   Future<void> saveSession(ChatSessionRecord session) async {
-    savedSessions.add(session);
+    final cleanSession = _migrateSession(session);
+    savedSessions.add(cleanSession);
     final index = sessions.indexWhere((item) => item.id == session.id);
     if (index >= 0) {
-      sessions[index] = session;
+      sessions[index] = cleanSession;
     } else {
-      sessions.add(session);
+      sessions.add(cleanSession);
     }
   }
 
   @override
+  Future<ChatSessionRecord> saveSessionWithMessages(
+    ChatSessionRecord session,
+    List<ChatMessageRecord> sessionMessages,
+  ) async {
+    final savedMessages = sessionMessages
+        .map((message) => message.copyWith(sessionId: session.id))
+        .toList(growable: false);
+    for (final message in savedMessages) {
+      messages[message.id] = message;
+    }
+    savedMessageSnapshots.add(savedMessages);
+    final cleanSession = session.copyWith(
+      messageIds: savedMessages
+          .map((message) => message.id)
+          .toList(growable: false),
+      legacyMessages: const <ChatMessageRecord>[],
+    );
+    savedSessions.add(cleanSession);
+    final index = sessions.indexWhere((item) => item.id == session.id);
+    if (index >= 0) {
+      sessions[index] = cleanSession;
+    } else {
+      sessions.add(cleanSession);
+    }
+    return cleanSession;
+  }
+
+  @override
   Future<void> deleteSession(String sessionId) async {
+    ChatSessionRecord? session;
+    for (final item in sessions) {
+      if (item.id == sessionId) {
+        session = item;
+        break;
+      }
+    }
+    if (session != null) {
+      for (final messageId in session.messageIds) {
+        messages.remove(messageId);
+      }
+    }
     sessions.removeWhere((session) => session.id == sessionId);
+  }
+
+  @override
+  Future<List<ChatMessageRecord>> loadRecentMessages(
+    ChatSessionRecord session, {
+    int limit = 30,
+  }) async {
+    final start = session.messageIds.length > limit
+        ? session.messageIds.length - limit
+        : 0;
+    return _messagesByIds(session.messageIds.skip(start));
+  }
+
+  @override
+  Future<List<ChatMessageRecord>> loadMessagesBefore(
+    ChatSessionRecord session, {
+    required String beforeMessageId,
+    int limit = 30,
+  }) async {
+    final beforeIndex = session.messageIds.indexOf(beforeMessageId);
+    if (beforeIndex <= 0) {
+      return const <ChatMessageRecord>[];
+    }
+    final start = beforeIndex > limit ? beforeIndex - limit : 0;
+    return _messagesByIds(session.messageIds.sublist(start, beforeIndex));
+  }
+
+  @override
+  Future<List<ChatMessageRecord>> loadAllMessages(
+    ChatSessionRecord session,
+  ) async {
+    return _messagesByIds(session.messageIds);
+  }
+
+  @override
+  Future<void> deleteMessages(
+    Iterable<ChatMessageRecord> deletedMessages,
+  ) async {
+    final messageList = deletedMessages.toList(growable: false);
+    await deleteMessageResources(messageList);
+    for (final message in messageList) {
+      messages.remove(message.id);
+    }
   }
 
   @override
@@ -866,6 +1013,36 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
     await deleteMessageVersions(
       messageList.expand((message) => message.versionIds),
     );
+  }
+
+  ChatSessionRecord _migrateSession(ChatSessionRecord session) {
+    if (session.legacyMessages.isEmpty) {
+      return session;
+    }
+    final savedMessages = session.legacyMessages
+        .map((message) => message.copyWith(sessionId: session.id))
+        .toList(growable: false);
+    for (final message in savedMessages) {
+      messages[message.id] = message;
+    }
+    return session.copyWith(
+      messageIds: savedMessages
+          .map((message) => message.id)
+          .toList(growable: false),
+      legacyMessages: const <ChatMessageRecord>[],
+    );
+  }
+
+  List<ChatMessageRecord> _messagesByIds(Iterable<String> messageIds) {
+    return messageIds
+        .map((messageId) => messages[messageId])
+        .whereType<ChatMessageRecord>()
+        .toList(growable: false);
+  }
+
+  List<ChatMessageRecord> messagesForSession(String sessionId) {
+    final session = sessions.firstWhere((session) => session.id == sessionId);
+    return _messagesByIds(session.messageIds);
   }
 }
 
@@ -963,5 +1140,17 @@ ChatSessionRecord _session({
     messages: messages,
     createdAt: timestamp,
     updatedAt: timestamp,
+  );
+}
+
+List<ChatMessageRecord> _messages({required int count}) {
+  return List<ChatMessageRecord>.generate(
+    count,
+    (index) => ChatMessageRecord(
+      id: 'm$index',
+      role: index.isEven ? ChatRole.user : ChatRole.assistant,
+      content: 'message $index',
+      createdAt: DateTime(2026, 3, 25, 10, index),
+    ),
   );
 }

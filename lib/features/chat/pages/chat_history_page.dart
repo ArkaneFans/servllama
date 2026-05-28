@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/features/chat/models/chat_session_record.dart';
@@ -16,7 +18,7 @@ class ChatHistoryPage extends StatelessWidget {
     ChatProvider provider,
     String sessionId,
   ) async {
-    provider.selectSession(sessionId);
+    unawaited(provider.selectSession(sessionId));
     Navigator.of(context).pop();
     onSessionOpened?.call();
   }

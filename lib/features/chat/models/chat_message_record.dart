@@ -18,6 +18,7 @@ class ChatMessageRecord {
     required this.role,
     required this.content,
     required this.createdAt,
+    this.sessionId,
     this.modelName,
     this.reasoningContent,
     this.imageFilePaths = const [],
@@ -36,6 +37,9 @@ class ChatMessageRecord {
 
   @HiveField(3)
   final DateTime createdAt;
+
+  @HiveField(9)
+  final String? sessionId;
 
   @HiveField(4)
   final String? modelName;
@@ -61,6 +65,8 @@ class ChatMessageRecord {
     ChatRole? role,
     String? content,
     DateTime? createdAt,
+    String? sessionId,
+    bool clearSessionId = false,
     String? modelName,
     String? reasoningContent,
     bool clearModelName = false,
@@ -76,6 +82,7 @@ class ChatMessageRecord {
       role: role ?? this.role,
       content: content ?? this.content,
       createdAt: createdAt ?? this.createdAt,
+      sessionId: clearSessionId ? null : sessionId ?? this.sessionId,
       modelName: clearModelName ? null : modelName ?? this.modelName,
       reasoningContent: clearReasoningContent
           ? null

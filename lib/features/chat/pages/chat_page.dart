@@ -62,10 +62,14 @@ class _ChatViewState extends State<_ChatView> {
 
   ChatProvider? _provider;
   int _lastMessageCount = 0;
+  String? _lastSelectedSessionId;
+  bool _pendingInitialBottomJump = false;
+  bool _isLoadingOlderFromScroll = false;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_handleScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         return;
@@ -84,12 +88,24 @@ class _ChatViewState extends State<_ChatView> {
     _provider?.removeListener(_handleProviderChanged);
     _provider = provider;
     _lastMessageCount = provider.visibleMessages.length;
+    _lastSelectedSessionId = provider.selectedSession?.id;
+    _pendingInitialBottomJump = _lastSelectedSessionId != null;
+    if (_pendingInitialBottomJump && !provider.isLoadingMessages) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_pendingInitialBottomJump) {
+          return;
+        }
+        _pendingInitialBottomJump = false;
+        _jumpToBottom();
+      });
+    }
     provider.addListener(_handleProviderChanged);
   }
 
   @override
   void dispose() {
     _provider?.removeListener(_handleProviderChanged);
+    _scrollController.removeListener(_handleScroll);
     _scrollController.dispose();
     _inputController.dispose();
     super.dispose();
@@ -101,12 +117,41 @@ class _ChatViewState extends State<_ChatView> {
       return;
     }
 
+    final selectedSessionId = provider.selectedSession?.id;
+    if (selectedSessionId != _lastSelectedSessionId) {
+      _lastSelectedSessionId = selectedSessionId;
+      _lastMessageCount = provider.visibleMessages.length;
+      _pendingInitialBottomJump = selectedSessionId != null;
+    }
+
     final shouldAutoScroll = _isNearBottom();
     final count = provider.visibleMessages.length;
     final countIncreased = count > _lastMessageCount;
     _lastMessageCount = count;
+
+    if (_pendingInitialBottomJump && !provider.isLoadingMessages) {
+      _pendingInitialBottomJump = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _jumpToBottom());
+      return;
+    }
+
     if (shouldAutoScroll && countIncreased) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    }
+  }
+
+  void _handleScroll() {
+    final provider = _provider;
+    if (provider == null ||
+        !_scrollController.hasClients ||
+        _isLoadingOlderFromScroll ||
+        provider.isLoadingMessages ||
+        provider.isLoadingOlderMessages ||
+        !provider.hasOlderMessages) {
+      return;
+    }
+    if (_scrollController.position.pixels <= 96) {
+      unawaited(_loadOlderMessagesPreservingOffset(provider));
     }
   }
 
@@ -127,6 +172,41 @@ class _ChatViewState extends State<_ChatView> {
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeOut,
     );
+  }
+
+  void _jumpToBottom() {
+    if (!_scrollController.hasClients) {
+      return;
+    }
+    _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+  }
+
+  Future<void> _loadOlderMessagesPreservingOffset(ChatProvider provider) async {
+    if (!_scrollController.hasClients || _isLoadingOlderFromScroll) {
+      return;
+    }
+    _isLoadingOlderFromScroll = true;
+    final position = _scrollController.position;
+    final previousMaxScrollExtent = position.maxScrollExtent;
+    final previousPixels = position.pixels;
+
+    await provider.loadOlderMessages();
+    if (!mounted) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _isLoadingOlderFromScroll = false;
+      if (!_scrollController.hasClients) {
+        return;
+      }
+      final position = _scrollController.position;
+      final targetPixels =
+          previousPixels + position.maxScrollExtent - previousMaxScrollExtent;
+      _scrollController.jumpTo(
+        targetPixels.clamp(0.0, position.maxScrollExtent),
+      );
+    });
   }
 
   Future<void> _send(BuildContext context) async {
@@ -346,6 +426,7 @@ class _ChatViewState extends State<_ChatView> {
         final serverProvider = context.watch<ServerProvider?>();
         final hasLoadedModel = provider.currentModel?.isLoaded == true;
         final shouldShowHeroState =
+            !provider.isLoadingMessages &&
             provider.visibleMessages.isEmpty &&
             (!provider.isServerRunning || !hasLoadedModel);
 
@@ -387,7 +468,14 @@ class _ChatViewState extends State<_ChatView> {
                               duration: const Duration(milliseconds: 220),
                               switchInCurve: Curves.easeOutCubic,
                               switchOutCurve: Curves.easeInCubic,
-                              child: shouldShowHeroState
+                              child: provider.isLoadingMessages
+                                  ? const Center(
+                                      key: ValueKey<String>(
+                                        'chat_message_loading',
+                                      ),
+                                      child: CircularProgressIndicator(),
+                                    )
+                                  : shouldShowHeroState
                                   ? _ConversationHero(
                                       key: const ValueKey<String>(
                                         'chat_conversation_hero',

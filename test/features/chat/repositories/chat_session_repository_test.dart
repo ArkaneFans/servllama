@@ -62,8 +62,10 @@ void main() {
         'newer',
         'older',
       ]);
-      expect(sessions.first.messages.single.modelName, 'model-a');
-      expect(sessions.first.messages.single.reasoningContent, '先思考一下');
+      expect(sessions.first.messageIds, <String>['m1']);
+      final messages = await repository.loadAllMessages(sessions.first);
+      expect(messages.single.modelName, 'model-a');
+      expect(messages.single.reasoningContent, '先思考一下');
     });
 
     test('persists message versions in a separate box', () async {
@@ -95,11 +97,44 @@ void main() {
 
       final sessions = await repository.loadSessions();
       final loadedVersion = await repository.loadMessageVersion('v1');
+      final messages = await repository.loadAllMessages(sessions.single);
 
-      expect(sessions.single.messages.single.versionIds, <String>['v1']);
-      expect(sessions.single.messages.single.currentVersionIndex, 0);
+      expect(sessions.single.messageIds, <String>['m1']);
+      expect(messages.single.versionIds, <String>['v1']);
+      expect(messages.single.currentVersionIndex, 0);
       expect(loadedVersion?.content, '版本回答');
       expect(loadedVersion?.reasoningContent, '版本推理');
+    });
+
+    test('loads recent and older message windows by messageIds', () async {
+      final allMessages = List<ChatMessageRecord>.generate(
+        35,
+        (index) => _message(
+          id: 'm$index',
+          role: index.isEven ? ChatRole.user : ChatRole.assistant,
+          content: 'message $index',
+        ),
+      );
+      await repository.saveSession(
+        _session(id: 's1', title: '会话', messages: allMessages),
+      );
+
+      final session = (await repository.loadSessions()).single;
+      final recentMessages = await repository.loadRecentMessages(session);
+      final olderMessages = await repository.loadMessagesBefore(
+        session,
+        beforeMessageId: recentMessages.first.id,
+      );
+
+      expect(recentMessages.first.id, 'm5');
+      expect(recentMessages.last.id, 'm34');
+      expect(olderMessages.map((message) => message.id), <String>[
+        'm0',
+        'm1',
+        'm2',
+        'm3',
+        'm4',
+      ]);
     });
 
     test('deleteSession removes stored session', () async {

@@ -111,7 +111,7 @@ void main() {
       await tester.pump();
 
       expect(find.text('开始对话'), findsOneWidget);
-      expect(find.text('请先启动服务器，然后选择一个模型开始聊天。'), findsOneWidget);
+      expect(find.text('请先启动服务器，然后加载一个模型，马上开始你的AI对话~'), findsOneWidget);
       expect(apiClient.fetchModelsCallCount, 0);
       expect(
         tester
@@ -494,7 +494,7 @@ void main() {
         expect(tester.getCenter(find.text('新会话')).dx, lessThan(200));
         expect(find.text('历史消息'), findsNothing);
 
-        provider.selectSession('s1');
+        await provider.selectSession('s1');
         await tester.pump();
 
         expect(
@@ -752,7 +752,7 @@ void main() {
         isServerRunning: true,
       );
       await provider.load();
-      provider.selectSession('s1');
+      await provider.selectSession('s1');
 
       await tester.pumpWidget(
         ChangeNotifierProvider<ChatProvider>.value(
@@ -770,6 +770,66 @@ void main() {
       );
       expect(find.byTooltip('选择模型'), findsOneWidget);
     });
+
+    testWidgets(
+      'loads long history as recent window and prepends older messages',
+      (tester) async {
+        final repository = _FakeChatSessionRepository(
+          sessions: <ChatSessionRecord>[
+            _session(id: 's1', title: '长会话', messages: _messages(count: 65)),
+          ],
+        );
+        final apiClient = _FakeLlamaChatApiClient(
+          models: <ChatModelOption>[
+            const ChatModelOption(
+              id: 'alpha',
+              displayName: 'alpha',
+              status: ChatModelStatus.loaded,
+            ),
+          ],
+        );
+        final provider = ChatProvider(
+          repository: repository,
+          apiClient: apiClient,
+        );
+        provider.updateServerState(
+          baseUrl: 'http://127.0.0.1:8080',
+          isServerRunning: true,
+        );
+        await provider.load();
+        await provider.refreshModels();
+        provider.selectLoadedModel('alpha');
+        await provider.selectSession('s1');
+
+        await tester.pumpWidget(
+          ChangeNotifierProvider<ChatProvider>.value(
+            value: provider,
+            child: const MaterialApp(home: ChatPage()),
+          ),
+        );
+        await tester.pump();
+        await tester.pump();
+
+        expect(provider.visibleMessages, hasLength(30));
+        expect(provider.visibleMessages.first.id, 'm35');
+        expect(provider.visibleMessages.last.id, 'm64');
+        expect(find.text('message 64'), findsOneWidget);
+        expect(find.text('message 35'), findsNothing);
+
+        for (var index = 0; index < 8; index += 1) {
+          await tester.drag(
+            find.byType(Scrollable).first,
+            const Offset(0, 600),
+          );
+          await tester.pump();
+        }
+        await tester.pump();
+
+        expect(provider.visibleMessages, hasLength(60));
+        expect(provider.visibleMessages.first.id, 'm5');
+        expect(provider.visibleMessages.last.id, 'm64');
+      },
+    );
 
     testWidgets('uses stronger send button contrast than model selector', (
       tester,
@@ -915,7 +975,7 @@ void main() {
         apiClient: _FakeLlamaChatApiClient(models: const <ChatModelOption>[]),
       );
       await provider.load();
-      provider.selectSession('s1');
+      await provider.selectSession('s1');
 
       await tester.pumpWidget(
         ChangeNotifierProvider<ChatProvider>.value(
@@ -963,7 +1023,7 @@ void main() {
           apiClient: _FakeLlamaChatApiClient(models: const <ChatModelOption>[]),
         );
         await provider.load();
-        provider.selectSession('s1');
+        await provider.selectSession('s1');
 
         await tester.pumpWidget(
           ChangeNotifierProvider<ChatProvider>.value(
@@ -1014,7 +1074,7 @@ void main() {
           apiClient: _FakeLlamaChatApiClient(models: const <ChatModelOption>[]),
         );
         await provider.load();
-        provider.selectSession('s1');
+        await provider.selectSession('s1');
 
         await tester.pumpWidget(
           ChangeNotifierProvider<ChatProvider>.value(
@@ -1080,7 +1140,7 @@ void main() {
       await provider.load();
       await provider.refreshModels();
       provider.selectLoadedModel('alpha');
-      provider.selectSession('s1');
+      await provider.selectSession('s1');
 
       await tester.pumpWidget(
         ChangeNotifierProvider<ChatProvider>.value(
@@ -1164,7 +1224,7 @@ void main() {
       await provider.load();
       await provider.refreshModels();
       provider.selectLoadedModel('alpha');
-      provider.selectSession('s1');
+      await provider.selectSession('s1');
 
       await tester.pumpWidget(
         ChangeNotifierProvider<ChatProvider>.value(
@@ -1241,7 +1301,7 @@ void main() {
       await provider.load();
       await provider.refreshModels();
       provider.selectLoadedModel('alpha');
-      provider.selectSession('s1');
+      await provider.selectSession('s1');
 
       await tester.pumpWidget(
         ChangeNotifierProvider<ChatProvider>.value(
@@ -1264,8 +1324,8 @@ void main() {
 
       expect(find.text('新文本'), findsOneWidget);
       expect(find.text('保留文本'), findsOneWidget);
-      expect(provider.selectedSession!.messages.first.content, '新文本');
-      expect(provider.selectedSession!.messages.last.content, '保留文本');
+      expect(provider.visibleMessages.first.content, '新文本');
+      expect(provider.visibleMessages.last.content, '保留文本');
     });
 
     testWidgets('copy action copies message text and shows feedback', (
@@ -1307,7 +1367,7 @@ void main() {
       await provider.load();
       await provider.refreshModels();
       provider.selectLoadedModel('alpha');
-      provider.selectSession('s1');
+      await provider.selectSession('s1');
 
       String? clipboardText;
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -1392,7 +1452,7 @@ void main() {
       await provider.load();
       await provider.refreshModels();
       provider.selectLoadedModel('alpha');
-      provider.selectSession('s1');
+      await provider.selectSession('s1');
 
       await tester.pumpWidget(
         ChangeNotifierProvider<ChatProvider>.value(
@@ -1411,7 +1471,7 @@ void main() {
 
       expect(find.text('旧回答'), findsNothing);
       expect(find.text('新回答'), findsOneWidget);
-      expect(provider.selectedSession!.messages.last.content, '新回答');
+      expect(provider.visibleMessages.last.content, '新回答');
       expect(find.text('2/2'), findsOneWidget);
       expect(
         find.byKey(const Key('chat_message_version_previous_button_a1')),
@@ -1430,7 +1490,7 @@ void main() {
       expect(find.text('旧回答'), findsOneWidget);
       expect(find.text('新回答'), findsNothing);
       expect(find.text('1/2'), findsOneWidget);
-      expect(provider.selectedSession!.messages.last.currentVersionIndex, 0);
+      expect(provider.visibleMessages.last.currentVersionIndex, 0);
     });
   });
 }
@@ -1484,26 +1544,108 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
     : super(appSupportDirectory: Directory.systemTemp);
 
   List<ChatSessionRecord> sessions;
+  final Map<String, ChatMessageRecord> messages = <String, ChatMessageRecord>{};
   final Map<String, ChatMessageVersionRecord> versions =
       <String, ChatMessageVersionRecord>{};
 
   @override
-  Future<List<ChatSessionRecord>> loadSessions() async =>
-      List<ChatSessionRecord>.from(sessions);
+  Future<List<ChatSessionRecord>> loadSessions() async {
+    final loadedSessions = sessions.map(_migrateSession).toList();
+    sessions = List<ChatSessionRecord>.from(loadedSessions);
+    return loadedSessions;
+  }
 
   @override
   Future<void> saveSession(ChatSessionRecord session) async {
+    final cleanSession = _migrateSession(session);
     final index = sessions.indexWhere((item) => item.id == session.id);
     if (index >= 0) {
-      sessions[index] = session;
+      sessions[index] = cleanSession;
     } else {
-      sessions.add(session);
+      sessions.add(cleanSession);
     }
   }
 
   @override
+  Future<ChatSessionRecord> saveSessionWithMessages(
+    ChatSessionRecord session,
+    List<ChatMessageRecord> sessionMessages,
+  ) async {
+    final savedMessages = sessionMessages
+        .map((message) => message.copyWith(sessionId: session.id))
+        .toList(growable: false);
+    for (final message in savedMessages) {
+      messages[message.id] = message;
+    }
+    final cleanSession = session.copyWith(
+      messageIds: savedMessages
+          .map((message) => message.id)
+          .toList(growable: false),
+      legacyMessages: const <ChatMessageRecord>[],
+    );
+    final index = sessions.indexWhere((item) => item.id == session.id);
+    if (index >= 0) {
+      sessions[index] = cleanSession;
+    } else {
+      sessions.add(cleanSession);
+    }
+    return cleanSession;
+  }
+
+  @override
   Future<void> deleteSession(String sessionId) async {
+    final matchingSessions = sessions.where(
+      (session) => session.id == sessionId,
+    );
+    if (matchingSessions.isNotEmpty) {
+      for (final messageId in matchingSessions.first.messageIds) {
+        messages.remove(messageId);
+      }
+    }
     sessions.removeWhere((session) => session.id == sessionId);
+  }
+
+  @override
+  Future<List<ChatMessageRecord>> loadRecentMessages(
+    ChatSessionRecord session, {
+    int limit = 30,
+  }) async {
+    final start = session.messageIds.length > limit
+        ? session.messageIds.length - limit
+        : 0;
+    return _messagesByIds(session.messageIds.skip(start));
+  }
+
+  @override
+  Future<List<ChatMessageRecord>> loadMessagesBefore(
+    ChatSessionRecord session, {
+    required String beforeMessageId,
+    int limit = 30,
+  }) async {
+    final beforeIndex = session.messageIds.indexOf(beforeMessageId);
+    if (beforeIndex <= 0) {
+      return const <ChatMessageRecord>[];
+    }
+    final start = beforeIndex > limit ? beforeIndex - limit : 0;
+    return _messagesByIds(session.messageIds.sublist(start, beforeIndex));
+  }
+
+  @override
+  Future<List<ChatMessageRecord>> loadAllMessages(
+    ChatSessionRecord session,
+  ) async {
+    return _messagesByIds(session.messageIds);
+  }
+
+  @override
+  Future<void> deleteMessages(
+    Iterable<ChatMessageRecord> deletedMessages,
+  ) async {
+    final messageList = deletedMessages.toList(growable: false);
+    await deleteMessageResources(messageList);
+    for (final message in messageList) {
+      messages.remove(message.id);
+    }
   }
 
   @override
@@ -1544,6 +1686,36 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
     await deleteMessageVersions(
       messageList.expand((message) => message.versionIds),
     );
+  }
+
+  ChatSessionRecord _migrateSession(ChatSessionRecord session) {
+    if (session.legacyMessages.isEmpty) {
+      return session;
+    }
+    final savedMessages = session.legacyMessages
+        .map((message) => message.copyWith(sessionId: session.id))
+        .toList(growable: false);
+    for (final message in savedMessages) {
+      messages[message.id] = message;
+    }
+    return session.copyWith(
+      messageIds: savedMessages
+          .map((message) => message.id)
+          .toList(growable: false),
+      legacyMessages: const <ChatMessageRecord>[],
+    );
+  }
+
+  List<ChatMessageRecord> _messagesByIds(Iterable<String> messageIds) {
+    return messageIds
+        .map((messageId) => messages[messageId])
+        .whereType<ChatMessageRecord>()
+        .toList(growable: false);
+  }
+
+  List<ChatMessageRecord> messagesForSession(String sessionId) {
+    final session = sessions.firstWhere((session) => session.id == sessionId);
+    return _messagesByIds(session.messageIds);
   }
 }
 
@@ -1676,5 +1848,17 @@ ChatSessionRecord _session({
     messages: messages,
     createdAt: timestamp,
     updatedAt: timestamp,
+  );
+}
+
+List<ChatMessageRecord> _messages({required int count}) {
+  return List<ChatMessageRecord>.generate(
+    count,
+    (index) => ChatMessageRecord(
+      id: 'm$index',
+      role: index.isEven ? ChatRole.user : ChatRole.assistant,
+      content: 'message $index',
+      createdAt: DateTime(2026, 3, 25, 10, index),
+    ),
   );
 }
