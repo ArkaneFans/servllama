@@ -299,6 +299,20 @@ void main() {
         expect(messages.last.modelName, 'alpha');
         expect(messages.last.content, '你好');
         expect(messages.last.reasoningContent, '先思考再补充');
+        final assistantSnapshots = repository.savedSessions
+            .where((session) => session.messages.length == 2)
+            .map((session) => session.messages.last)
+            .toList(growable: false);
+        expect(assistantSnapshots.map((message) => message.content), <String>[
+          '',
+          '',
+          '你',
+          '你好',
+        ]);
+        expect(
+          assistantSnapshots.map((message) => message.reasoningContent),
+          <String>['', '先思考', '先思考', '先思考再补充'],
+        );
       },
     );
 
@@ -326,6 +340,35 @@ void main() {
         expect(messages, hasLength(2));
         expect(messages.last.content, isEmpty);
         expect(messages.last.reasoningContent, '仅推理内容');
+      },
+    );
+
+    test(
+      'sendMessage removes empty assistant draft when stream returns nothing',
+      () async {
+        apiClient.models = <ChatModelOption>[
+          const ChatModelOption(
+            id: 'alpha',
+            displayName: 'alpha',
+            status: ChatModelStatus.loaded,
+          ),
+        ];
+        apiClient.streamDeltas = const <ChatStreamDelta>[];
+
+        await provider.load();
+        await provider.refreshModels();
+        provider.selectLoadedModel('alpha');
+        await provider.sendMessage('hello');
+
+        final messages = provider.selectedSession!.messages;
+        expect(messages, hasLength(1));
+        expect(messages.single.role, ChatRole.user);
+        expect(
+          repository.savedSessions
+              .where((session) => session.messages.length == 2)
+              .map((session) => session.messages.last.content),
+          <String>[''],
+        );
       },
     );
 
@@ -517,6 +560,11 @@ void main() {
           repository.versions.values.map((version) => version.content),
           containsAll(<String>['待替换回答', '新回答']),
         );
+        final versionSnapshots = repository.savedVersions
+            .where((version) => version.messageId == 'a2')
+            .map((version) => version.content)
+            .toList(growable: false);
+        expect(versionSnapshots, <String>['待替换回答', '', '新', '新回答']);
         expect(
           apiClient.lastStreamMessages.map((message) => message.content),
           <String>['你好', '旧回答', '继续'],
@@ -750,6 +798,9 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
   List<ChatSessionRecord> sessions = <ChatSessionRecord>[];
   final Map<String, ChatMessageVersionRecord> versions =
       <String, ChatMessageVersionRecord>{};
+  final List<ChatSessionRecord> savedSessions = <ChatSessionRecord>[];
+  final List<ChatMessageVersionRecord> savedVersions =
+      <ChatMessageVersionRecord>[];
   bool returnFixedLengthList = false;
 
   @override
@@ -762,6 +813,7 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
 
   @override
   Future<void> saveSession(ChatSessionRecord session) async {
+    savedSessions.add(session);
     final index = sessions.indexWhere((item) => item.id == session.id);
     if (index >= 0) {
       sessions[index] = session;
@@ -777,6 +829,7 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
 
   @override
   Future<void> saveMessageVersion(ChatMessageVersionRecord version) async {
+    savedVersions.add(version);
     versions[version.id] = version;
   }
 
