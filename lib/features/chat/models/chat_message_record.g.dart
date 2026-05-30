@@ -21,16 +21,19 @@ class ChatMessageRecordAdapter extends TypeAdapter<ChatMessageRecord> {
       role: fields[1] as ChatRole,
       content: fields[2] as String,
       createdAt: fields[3] as DateTime,
+      sessionId: fields[9] as String?,
       modelName: fields[4] as String?,
       reasoningContent: fields[5] as String?,
       imageFilePaths: (fields[6] as List?)?.cast<String>() ?? const [],
+      versionIds: (fields[7] as List?)?.cast<String>() ?? const [],
+      currentVersionIndex: fields[8] as int? ?? 0,
     );
   }
 
   @override
   void write(BinaryWriter writer, ChatMessageRecord obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -39,12 +42,18 @@ class ChatMessageRecordAdapter extends TypeAdapter<ChatMessageRecord> {
       ..write(obj.content)
       ..writeByte(3)
       ..write(obj.createdAt)
+      ..writeByte(9)
+      ..write(obj.sessionId)
       ..writeByte(4)
       ..write(obj.modelName)
       ..writeByte(5)
       ..write(obj.reasoningContent)
       ..writeByte(6)
-      ..write(obj.imageFilePaths);
+      ..write(obj.imageFilePaths)
+      ..writeByte(7)
+      ..write(obj.versionIds)
+      ..writeByte(8)
+      ..write(obj.currentVersionIndex);
   }
 
   @override

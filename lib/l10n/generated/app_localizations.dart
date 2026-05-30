@@ -386,6 +386,60 @@ abstract class AppLocalizations {
   /// **'Reasoning'**
   String get chatReasoningProcess;
 
+  /// No description provided for @chatCopyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get chatCopyMessage;
+
+  /// No description provided for @chatEditMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get chatEditMessage;
+
+  /// No description provided for @chatRegenerateMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Regenerate'**
+  String get chatRegenerateMessage;
+
+  /// No description provided for @chatPreviousMessageVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous version'**
+  String get chatPreviousMessageVersion;
+
+  /// No description provided for @chatNextMessageVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Next version'**
+  String get chatNextMessageVersion;
+
+  /// No description provided for @chatMessageCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Message copied'**
+  String get chatMessageCopied;
+
+  /// No description provided for @chatMessageUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Message updated'**
+  String get chatMessageUpdated;
+
+  /// No description provided for @chatEditMessageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit message'**
+  String get chatEditMessageTitle;
+
+  /// No description provided for @chatEditMessageHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Update this message'**
+  String get chatEditMessageHint;
+
   /// No description provided for @chatAttachImage.
   ///
   /// In en, this message translates to:

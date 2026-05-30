@@ -65,7 +65,7 @@ void main() {
       provider.updateSessionQuery('不存在');
       await tester.pump();
 
-      expect(find.text('未找到匹配会话'), findsOneWidget);
+      expect(find.text('未找到匹配对话'), findsOneWidget);
     });
 
     testWidgets(
@@ -235,24 +235,72 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
     : super(appSupportDirectory: Directory.systemTemp);
 
   List<ChatSessionRecord> sessions;
+  final Map<String, ChatMessageRecord> messages = <String, ChatMessageRecord>{};
 
   @override
-  Future<List<ChatSessionRecord>> loadSessions() async =>
-      List<ChatSessionRecord>.from(sessions);
+  Future<List<ChatSessionRecord>> loadSessions() async {
+    final loadedSessions = sessions.map(_migrateSession).toList();
+    sessions = List<ChatSessionRecord>.from(loadedSessions);
+    return loadedSessions;
+  }
 
   @override
   Future<void> saveSession(ChatSessionRecord session) async {
+    final cleanSession = _migrateSession(session);
     final index = sessions.indexWhere((item) => item.id == session.id);
     if (index >= 0) {
-      sessions[index] = session;
+      sessions[index] = cleanSession;
     } else {
-      sessions.add(session);
+      sessions.add(cleanSession);
     }
   }
 
   @override
   Future<void> deleteSession(String sessionId) async {
     sessions.removeWhere((session) => session.id == sessionId);
+  }
+
+  @override
+  Future<List<ChatMessageRecord>> loadRecentMessages(
+    ChatSessionRecord session, {
+    int limit = 30,
+  }) async {
+    final start = session.messageIds.length > limit
+        ? session.messageIds.length - limit
+        : 0;
+    return _messagesByIds(session.messageIds.skip(start));
+  }
+
+  @override
+  Future<List<ChatMessageRecord>> loadAllMessages(
+    ChatSessionRecord session,
+  ) async {
+    return _messagesByIds(session.messageIds);
+  }
+
+  ChatSessionRecord _migrateSession(ChatSessionRecord session) {
+    if (session.legacyMessages.isEmpty) {
+      return session;
+    }
+    final savedMessages = session.legacyMessages
+        .map((message) => message.copyWith(sessionId: session.id))
+        .toList(growable: false);
+    for (final message in savedMessages) {
+      messages[message.id] = message;
+    }
+    return session.copyWith(
+      messageIds: savedMessages
+          .map((message) => message.id)
+          .toList(growable: false),
+      legacyMessages: const <ChatMessageRecord>[],
+    );
+  }
+
+  List<ChatMessageRecord> _messagesByIds(Iterable<String> messageIds) {
+    return messageIds
+        .map((messageId) => messages[messageId])
+        .whereType<ChatMessageRecord>()
+        .toList(growable: false);
   }
 }
 
@@ -263,6 +311,7 @@ class _PendingChatSessionRepository extends ChatSessionRepository {
   final Completer<List<ChatSessionRecord>> _completer =
       Completer<List<ChatSessionRecord>>();
   final List<ChatSessionRecord> sessions = <ChatSessionRecord>[];
+  final Map<String, ChatMessageRecord> messages = <String, ChatMessageRecord>{};
 
   void complete(List<ChatSessionRecord> values) {
     sessions
@@ -272,21 +321,72 @@ class _PendingChatSessionRepository extends ChatSessionRepository {
   }
 
   @override
-  Future<List<ChatSessionRecord>> loadSessions() => _completer.future;
+  Future<List<ChatSessionRecord>> loadSessions() async {
+    final loadedSessions = await _completer.future;
+    final migratedSessions = loadedSessions.map(_migrateSession).toList();
+    sessions
+      ..clear()
+      ..addAll(migratedSessions);
+    return migratedSessions;
+  }
 
   @override
   Future<void> saveSession(ChatSessionRecord session) async {
+    final cleanSession = _migrateSession(session);
     final index = sessions.indexWhere((item) => item.id == session.id);
     if (index >= 0) {
-      sessions[index] = session;
+      sessions[index] = cleanSession;
     } else {
-      sessions.add(session);
+      sessions.add(cleanSession);
     }
   }
 
   @override
   Future<void> deleteSession(String sessionId) async {
     sessions.removeWhere((session) => session.id == sessionId);
+  }
+
+  @override
+  Future<List<ChatMessageRecord>> loadRecentMessages(
+    ChatSessionRecord session, {
+    int limit = 30,
+  }) async {
+    final start = session.messageIds.length > limit
+        ? session.messageIds.length - limit
+        : 0;
+    return _messagesByIds(session.messageIds.skip(start));
+  }
+
+  @override
+  Future<List<ChatMessageRecord>> loadAllMessages(
+    ChatSessionRecord session,
+  ) async {
+    return _messagesByIds(session.messageIds);
+  }
+
+  ChatSessionRecord _migrateSession(ChatSessionRecord session) {
+    if (session.legacyMessages.isEmpty) {
+      return session;
+    }
+    final savedMessages = session.legacyMessages
+        .map((message) => message.copyWith(sessionId: session.id))
+        .toList(growable: false);
+    for (final message in savedMessages) {
+      messages[message.id] = message;
+    }
+    return session.copyWith(
+      messageIds: savedMessages
+          .map((message) => message.id)
+          .toList(growable: false),
+      legacyMessages: const <ChatMessageRecord>[],
+    );
+  }
+
+  List<ChatMessageRecord> _messagesByIds(Iterable<String> messageIds) {
+    return messageIds
+        .map((messageId) => messages[messageId])
+        .whereType<ChatMessageRecord>()
+        .toList(growable: false);
   }
 }
 

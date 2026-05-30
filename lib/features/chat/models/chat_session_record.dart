@@ -5,13 +5,18 @@ part 'chat_session_record.g.dart';
 
 @HiveType(typeId: 2)
 class ChatSessionRecord {
-  const ChatSessionRecord({
+  ChatSessionRecord({
     required this.id,
     required this.title,
-    required this.messages,
+    List<String>? messageIds,
+    List<ChatMessageRecord> messages = const <ChatMessageRecord>[],
+    List<ChatMessageRecord>? legacyMessages,
     required this.createdAt,
     required this.updatedAt,
-  });
+  }) : messageIds =
+           messageIds ??
+           messages.map((message) => message.id).toList(growable: false),
+       legacyMessages = legacyMessages ?? messages;
 
   @HiveField(0)
   final String id;
@@ -20,7 +25,7 @@ class ChatSessionRecord {
   final String title;
 
   @HiveField(2)
-  final List<ChatMessageRecord> messages;
+  final List<String> messageIds;
 
   @HiveField(3)
   final DateTime createdAt;
@@ -28,17 +33,26 @@ class ChatSessionRecord {
   @HiveField(4)
   final DateTime updatedAt;
 
+  final List<ChatMessageRecord> legacyMessages;
+
   ChatSessionRecord copyWith({
     String? id,
     String? title,
+    List<String>? messageIds,
     List<ChatMessageRecord>? messages,
+    List<ChatMessageRecord>? legacyMessages,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
     return ChatSessionRecord(
       id: id ?? this.id,
       title: title ?? this.title,
-      messages: messages ?? this.messages,
+      messageIds:
+          messageIds ??
+          (messages == null
+              ? this.messageIds
+              : messages.map((message) => message.id).toList(growable: false)),
+      legacyMessages: legacyMessages ?? messages ?? this.legacyMessages,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

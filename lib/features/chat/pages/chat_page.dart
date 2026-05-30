@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
@@ -61,10 +62,14 @@ class _ChatViewState extends State<_ChatView> {
 
   ChatProvider? _provider;
   int _lastMessageCount = 0;
+  String? _lastSelectedSessionId;
+  bool _pendingInitialBottomJump = false;
+  bool _isLoadingOlderFromScroll = false;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_handleScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         return;
@@ -83,12 +88,24 @@ class _ChatViewState extends State<_ChatView> {
     _provider?.removeListener(_handleProviderChanged);
     _provider = provider;
     _lastMessageCount = provider.visibleMessages.length;
+    _lastSelectedSessionId = provider.selectedSession?.id;
+    _pendingInitialBottomJump = _lastSelectedSessionId != null;
+    if (_pendingInitialBottomJump && !provider.isLoadingMessages) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_pendingInitialBottomJump) {
+          return;
+        }
+        _pendingInitialBottomJump = false;
+        _jumpToBottom();
+      });
+    }
     provider.addListener(_handleProviderChanged);
   }
 
   @override
   void dispose() {
     _provider?.removeListener(_handleProviderChanged);
+    _scrollController.removeListener(_handleScroll);
     _scrollController.dispose();
     _inputController.dispose();
     super.dispose();
@@ -100,12 +117,41 @@ class _ChatViewState extends State<_ChatView> {
       return;
     }
 
+    final selectedSessionId = provider.selectedSession?.id;
+    if (selectedSessionId != _lastSelectedSessionId) {
+      _lastSelectedSessionId = selectedSessionId;
+      _lastMessageCount = provider.visibleMessages.length;
+      _pendingInitialBottomJump = selectedSessionId != null;
+    }
+
     final shouldAutoScroll = _isNearBottom();
     final count = provider.visibleMessages.length;
     final countIncreased = count > _lastMessageCount;
     _lastMessageCount = count;
+
+    if (_pendingInitialBottomJump && !provider.isLoadingMessages) {
+      _pendingInitialBottomJump = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _jumpToBottom());
+      return;
+    }
+
     if (shouldAutoScroll && countIncreased) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    }
+  }
+
+  void _handleScroll() {
+    final provider = _provider;
+    if (provider == null ||
+        !_scrollController.hasClients ||
+        _isLoadingOlderFromScroll ||
+        provider.isLoadingMessages ||
+        provider.isLoadingOlderMessages ||
+        !provider.hasOlderMessages) {
+      return;
+    }
+    if (_scrollController.position.pixels <= 96) {
+      unawaited(_loadOlderMessagesPreservingOffset(provider));
     }
   }
 
@@ -126,6 +172,41 @@ class _ChatViewState extends State<_ChatView> {
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeOut,
     );
+  }
+
+  void _jumpToBottom() {
+    if (!_scrollController.hasClients) {
+      return;
+    }
+    _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+  }
+
+  Future<void> _loadOlderMessagesPreservingOffset(ChatProvider provider) async {
+    if (!_scrollController.hasClients || _isLoadingOlderFromScroll) {
+      return;
+    }
+    _isLoadingOlderFromScroll = true;
+    final position = _scrollController.position;
+    final previousMaxScrollExtent = position.maxScrollExtent;
+    final previousPixels = position.pixels;
+
+    await provider.loadOlderMessages();
+    if (!mounted) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _isLoadingOlderFromScroll = false;
+      if (!_scrollController.hasClients) {
+        return;
+      }
+      final position = _scrollController.position;
+      final targetPixels =
+          previousPixels + position.maxScrollExtent - previousMaxScrollExtent;
+      _scrollController.jumpTo(
+        targetPixels.clamp(0.0, position.maxScrollExtent),
+      );
+    });
   }
 
   Future<void> _send(BuildContext context) async {
@@ -229,6 +310,115 @@ class _ChatViewState extends State<_ChatView> {
     );
   }
 
+  Future<void> _handleCopyMessage(
+    BuildContext context,
+    ChatMessageRecord message,
+  ) async {
+    await Clipboard.setData(ClipboardData(text: message.content));
+    if (!context.mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(context.l10n.chatMessageCopied)));
+  }
+
+  Future<void> _handleEditMessage(
+    BuildContext context,
+    ChatMessageRecord message,
+  ) async {
+    final editedContent = await _showEditMessageSheet(
+      context: context,
+      initialValue: message.content,
+    );
+    if (!context.mounted || editedContent == null) {
+      return;
+    }
+    await context.read<ChatProvider>().editMessage(
+      messageId: message.id,
+      newContent: editedContent,
+    );
+    if (!context.mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(context.l10n.chatMessageUpdated)));
+  }
+
+  Future<void> _handleDeleteMessage(
+    BuildContext context,
+    ChatMessageRecord message,
+  ) async {
+    await context.read<ChatProvider>().deleteMessage(message.id);
+  }
+
+  Future<void> _handleRegenerateMessage(
+    BuildContext context,
+    ChatMessageRecord message,
+  ) async {
+    final provider = context.read<ChatProvider>();
+    await provider.regenerateFromMessage(message.id);
+    if (!context.mounted) {
+      return;
+    }
+    final errorMessage = provider.lastErrorMessage;
+    if (errorMessage != null) {
+      provider.clearLastError();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(errorMessage)));
+    }
+  }
+
+  Future<void> _handleSelectMessageVersion(
+    BuildContext context,
+    ChatMessageRecord message,
+    int versionIndex,
+  ) async {
+    await context.read<ChatProvider>().selectMessageVersion(
+      messageId: message.id,
+      versionIndex: versionIndex,
+    );
+  }
+
+  Future<void> _handleMessageAction(
+    BuildContext context,
+    _ChatMessageAction action,
+    ChatMessageRecord message,
+  ) async {
+    switch (action) {
+      case _ChatMessageAction.copy:
+        await _handleCopyMessage(context, message);
+      case _ChatMessageAction.edit:
+        await _handleEditMessage(context, message);
+      case _ChatMessageAction.regenerate:
+        await _handleRegenerateMessage(context, message);
+      case _ChatMessageAction.delete:
+        await _handleDeleteMessage(context, message);
+    }
+  }
+
+  Future<void> _showMessageActions(
+    BuildContext context,
+    ChatMessageRecord message,
+  ) async {
+    final action = await showModalBottomSheet<_ChatMessageAction>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => _MessageActionSheet(
+        message: message,
+        canRegenerate: context.read<ChatProvider>().canRegenerateMessage(
+          message.id,
+        ),
+      ),
+    );
+    if (!context.mounted || action == null) {
+      return;
+    }
+    await _handleMessageAction(context, action, message);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<ChatProvider>(
@@ -236,6 +426,7 @@ class _ChatViewState extends State<_ChatView> {
         final serverProvider = context.watch<ServerProvider?>();
         final hasLoadedModel = provider.currentModel?.isLoaded == true;
         final shouldShowHeroState =
+            !provider.isLoadingMessages &&
             provider.visibleMessages.isEmpty &&
             (!provider.isServerRunning || !hasLoadedModel);
 
@@ -277,7 +468,14 @@ class _ChatViewState extends State<_ChatView> {
                               duration: const Duration(milliseconds: 220),
                               switchInCurve: Curves.easeOutCubic,
                               switchOutCurve: Curves.easeInCubic,
-                              child: shouldShowHeroState
+                              child: provider.isLoadingMessages
+                                  ? const Center(
+                                      key: ValueKey<String>(
+                                        'chat_message_loading',
+                                      ),
+                                      child: CircularProgressIndicator(),
+                                    )
+                                  : shouldShowHeroState
                                   ? _ConversationHero(
                                       key: const ValueKey<String>(
                                         'chat_conversation_hero',
@@ -304,6 +502,33 @@ class _ChatViewState extends State<_ChatView> {
                                       controller: _scrollController,
                                       messages: provider.visibleMessages,
                                       draftMessageId: provider.draftMessageId,
+                                      canManageMessages:
+                                          provider.canManageMessages,
+                                      canRegenerateMessage:
+                                          provider.canRegenerateMessage,
+                                      onCopyMessage: (message) =>
+                                          _handleCopyMessage(context, message),
+                                      onEditMessage: (message) =>
+                                          _handleEditMessage(context, message),
+                                      onDeleteMessage: (message) =>
+                                          _handleDeleteMessage(
+                                            context,
+                                            message,
+                                          ),
+                                      onRegenerateMessage: (message) =>
+                                          _handleRegenerateMessage(
+                                            context,
+                                            message,
+                                          ),
+                                      onShowMessageActions: (message) =>
+                                          _showMessageActions(context, message),
+                                      onSelectMessageVersion:
+                                          (message, versionIndex) =>
+                                              _handleSelectMessageVersion(
+                                                context,
+                                                message,
+                                                versionIndex,
+                                              ),
                                     ),
                             ),
                           ),
@@ -888,11 +1113,28 @@ class _MessageList extends StatelessWidget {
     required this.controller,
     required this.messages,
     required this.draftMessageId,
+    required this.canManageMessages,
+    required this.canRegenerateMessage,
+    required this.onCopyMessage,
+    required this.onEditMessage,
+    required this.onDeleteMessage,
+    required this.onRegenerateMessage,
+    required this.onShowMessageActions,
+    required this.onSelectMessageVersion,
   });
 
   final ScrollController controller;
   final List<ChatMessageRecord> messages;
   final String? draftMessageId;
+  final bool canManageMessages;
+  final bool Function(String messageId) canRegenerateMessage;
+  final Future<void> Function(ChatMessageRecord message) onCopyMessage;
+  final Future<void> Function(ChatMessageRecord message) onEditMessage;
+  final Future<void> Function(ChatMessageRecord message) onDeleteMessage;
+  final Future<void> Function(ChatMessageRecord message) onRegenerateMessage;
+  final Future<void> Function(ChatMessageRecord message) onShowMessageActions;
+  final Future<void> Function(ChatMessageRecord message, int versionIndex)
+  onSelectMessageVersion;
 
   @override
   Widget build(BuildContext context) {
@@ -907,6 +1149,15 @@ class _MessageList extends StatelessWidget {
           key: ValueKey<String>(message.id),
           message: message,
           isDraft: isDraft,
+          canManageMessages: canManageMessages,
+          canRegenerate: canRegenerateMessage(message.id),
+          onCopy: () => onCopyMessage(message),
+          onEdit: () => onEditMessage(message),
+          onDelete: () => onDeleteMessage(message),
+          onRegenerate: () => onRegenerateMessage(message),
+          onShowActions: () => onShowMessageActions(message),
+          onSelectVersion: (versionIndex) =>
+              onSelectMessageVersion(message, versionIndex),
         );
       },
     );
@@ -1046,10 +1297,26 @@ class _MessageBubble extends StatefulWidget {
     super.key,
     required this.message,
     required this.isDraft,
+    required this.canManageMessages,
+    required this.canRegenerate,
+    required this.onCopy,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onRegenerate,
+    required this.onShowActions,
+    required this.onSelectVersion,
   });
 
   final ChatMessageRecord message;
   final bool isDraft;
+  final bool canManageMessages;
+  final bool canRegenerate;
+  final Future<void> Function() onCopy;
+  final Future<void> Function() onEdit;
+  final Future<void> Function() onDelete;
+  final Future<void> Function() onRegenerate;
+  final Future<void> Function() onShowActions;
+  final Future<void> Function(int versionIndex) onSelectVersion;
 
   @override
   State<_MessageBubble> createState() => _MessageBubbleState();
@@ -1075,13 +1342,13 @@ class _MessageBubbleState extends State<_MessageBubble> {
     final reasoningBackgroundColor = colorScheme.primaryContainer.withAlpha(
       110,
     );
-    final reasoningBorderColor = colorScheme.primary.withAlpha(28);
     final userBubbleDecoration = BoxDecoration(
       color: colorScheme.secondaryContainer.withAlpha(92),
       borderRadius: BorderRadius.circular(22),
-      border: Border.all(color: colorScheme.outlineVariant.withAlpha(140)),
     );
     final footerColor = colorScheme.onSurfaceVariant;
+    final canShowMessageActions = widget.canManageMessages && !isDraft;
+    final showQuickActions = !isDraft;
 
     Widget buildFooter({required bool includeModelName}) {
       return Row(
@@ -1121,6 +1388,64 @@ class _MessageBubbleState extends State<_MessageBubble> {
       );
     }
 
+    Widget wrapMessageActionTarget({
+      required Widget child,
+      required String keySuffix,
+    }) {
+      if (!canShowMessageActions) {
+        return child;
+      }
+      return GestureDetector(
+        key: Key('chat_message_target_${message.id}_$keySuffix'),
+        behavior: HitTestBehavior.opaque,
+        onLongPress: () {
+          unawaited(widget.onShowActions());
+        },
+        child: child,
+      );
+    }
+
+    final footer = buildFooter(includeModelName: !isUser);
+    final contentWidget = hasVisibleContent
+        ? GptMarkdown(
+            message.content.isEmpty && isDraft ? '...' : message.content,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: foregroundColor,
+              height: 1.5,
+            ),
+          )
+        : null;
+
+    final userBubbleBody = wrapMessageActionTarget(
+      keySuffix: 'bubble',
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: userBubbleDecoration,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (message.imageFilePaths.isNotEmpty)
+              _MessageImageStrip(imageFilePaths: message.imageFilePaths),
+            if (contentWidget != null) contentWidget,
+          ],
+        ),
+      ),
+    );
+
+    final assistantContentBody = wrapMessageActionTarget(
+      keySuffix: 'content',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (contentWidget != null) contentWidget,
+          if (showFooter) ...[
+            if (contentWidget != null) const SizedBox(height: 10),
+            footer,
+          ],
+        ],
+      ),
+    );
+
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -1133,106 +1458,103 @@ class _MessageBubbleState extends State<_MessageBubble> {
               ? CrossAxisAlignment.end
               : CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: isUser ? const EdgeInsets.all(16) : EdgeInsets.zero,
-              decoration: isUser ? userBubbleDecoration : null,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (isUser && message.imageFilePaths.isNotEmpty)
-                    _MessageImageStrip(imageFilePaths: message.imageFilePaths),
-                  if (hasReasoningContent) ...[
-                    Container(
-                      decoration: BoxDecoration(
-                        color: reasoningBackgroundColor,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: reasoningBorderColor),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          InkWell(
-                            onTap: () {
-                              setState(() {
-                                _isReasoningExpanded = !_isReasoningExpanded;
-                              });
-                            },
-                            borderRadius: BorderRadius.circular(12),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.psychology_alt_outlined,
-                                    size: 18,
-                                    color: foregroundColor.withAlpha(210),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      l10n.chatReasoningProcess,
-                                      style: theme.textTheme.bodySmall
-                                          ?.copyWith(
-                                            color: foregroundColor.withAlpha(
-                                              210,
-                                            ),
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                    ),
-                                  ),
-                                  Icon(
-                                    _isReasoningExpanded
-                                        ? Icons.expand_less
-                                        : Icons.expand_more,
-                                    size: 18,
-                                    color: foregroundColor.withAlpha(210),
-                                  ),
-                                ],
-                              ),
-                            ),
+            if (isUser) ...[
+              userBubbleBody,
+              if (showFooter) ...[
+                const SizedBox(height: 6),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: wrapMessageActionTarget(
+                    keySuffix: 'footer',
+                    child: footer,
+                  ),
+                ),
+              ],
+            ] else ...[
+              if (hasReasoningContent) ...[
+                Container(
+                  key: Key('chat_message_reasoning_${message.id}'),
+                  decoration: BoxDecoration(
+                    color: reasoningBackgroundColor,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      InkWell(
+                        onTap: () {
+                          setState(() {
+                            _isReasoningExpanded = !_isReasoningExpanded;
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
                           ),
-                          if (_isReasoningExpanded)
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                              child: GptMarkdown(
-                                reasoningContent,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: foregroundColor.withAlpha(210),
-                                  height: 1.5,
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.psychology_alt_outlined,
+                                size: 18,
+                                color: foregroundColor.withAlpha(210),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  l10n.chatReasoningProcess,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: foregroundColor.withAlpha(210),
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                               ),
+                              Icon(
+                                _isReasoningExpanded
+                                    ? Icons.expand_less
+                                    : Icons.expand_more,
+                                size: 18,
+                                color: foregroundColor.withAlpha(210),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (_isReasoningExpanded)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                          child: GptMarkdown(
+                            reasoningContent,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: foregroundColor.withAlpha(210),
+                              height: 1.5,
                             ),
-                        ],
-                      ),
-                    ),
-                  ],
-                  if (hasVisibleContent) ...[
-                    if (hasReasoningContent) const SizedBox(height: 12),
-                    GptMarkdown(
-                      message.content.isEmpty && isDraft
-                          ? '...'
-                          : message.content,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: foregroundColor,
-                        height: 1.5,
-                      ),
-                    ),
-                  ],
-                  if (!isUser && showFooter) ...[
-                    const SizedBox(height: 10),
-                    buildFooter(includeModelName: true),
-                  ],
-                ],
-              ),
-            ),
-            if (isUser && showFooter) ...[
-              const SizedBox(height: 6),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: buildFooter(includeModelName: false),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+              if (contentWidget != null || showFooter) ...[
+                if (hasReasoningContent) const SizedBox(height: 12),
+                assistantContentBody,
+              ],
+            ],
+            if (showQuickActions) ...[
+              const SizedBox(height: 8),
+              _MessageQuickActions(
+                messageId: message.id,
+                isUser: isUser,
+                canUseActions: widget.canManageMessages,
+                canRegenerate: widget.canRegenerate,
+                currentVersionIndex: message.currentVersionIndex,
+                versionCount: message.versionCount,
+                onCopy: widget.onCopy,
+                onEdit: widget.onEdit,
+                onRegenerate: widget.onRegenerate,
+                onShowActions: widget.onShowActions,
+                onSelectVersion: widget.onSelectVersion,
               ),
             ],
           ],
@@ -1245,6 +1567,358 @@ class _MessageBubbleState extends State<_MessageBubble> {
     final hour = value.hour.toString().padLeft(2, '0');
     final minute = value.minute.toString().padLeft(2, '0');
     return '$hour:$minute';
+  }
+}
+
+enum _ChatMessageAction { copy, edit, regenerate, delete }
+
+class _MessageQuickActions extends StatelessWidget {
+  const _MessageQuickActions({
+    required this.messageId,
+    required this.isUser,
+    required this.canUseActions,
+    required this.canRegenerate,
+    required this.currentVersionIndex,
+    required this.versionCount,
+    required this.onCopy,
+    required this.onEdit,
+    required this.onRegenerate,
+    required this.onShowActions,
+    required this.onSelectVersion,
+  });
+
+  final String messageId;
+  final bool isUser;
+  final bool canUseActions;
+  final bool canRegenerate;
+  final int currentVersionIndex;
+  final int versionCount;
+  final Future<void> Function() onCopy;
+  final Future<void> Function() onEdit;
+  final Future<void> Function() onRegenerate;
+  final Future<void> Function() onShowActions;
+  final Future<void> Function(int versionIndex) onSelectVersion;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 0,
+      runSpacing: 0,
+      alignment: isUser ? WrapAlignment.end : WrapAlignment.start,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        _MessageActionIconButton(
+          buttonKey: Key('chat_message_copy_button_$messageId'),
+          tooltip: context.l10n.chatCopyMessage,
+          icon: Icons.content_copy_outlined,
+          onPressed: canUseActions ? onCopy : null,
+        ),
+        _MessageActionIconButton(
+          buttonKey: Key('chat_message_edit_button_$messageId'),
+          tooltip: context.l10n.chatEditMessage,
+          icon: Icons.edit_outlined,
+          onPressed: canUseActions ? onEdit : null,
+        ),
+        _MessageActionIconButton(
+          buttonKey: Key('chat_message_regenerate_button_$messageId'),
+          tooltip: context.l10n.chatRegenerateMessage,
+          icon: Icons.refresh_rounded,
+          onPressed: canRegenerate ? onRegenerate : null,
+        ),
+        _MessageActionIconButton(
+          buttonKey: Key('chat_message_more_button_$messageId'),
+          tooltip: context.l10n.chatMoreActions,
+          icon: Icons.more_horiz_rounded,
+          onPressed: canUseActions ? onShowActions : null,
+        ),
+        if (!isUser && versionCount > 1)
+          _MessageVersionSwitcher(
+            messageId: messageId,
+            currentVersionIndex: currentVersionIndex,
+            versionCount: versionCount,
+            canUseActions: canUseActions,
+            onSelectVersion: onSelectVersion,
+          ),
+      ],
+    );
+  }
+}
+
+class _MessageVersionSwitcher extends StatelessWidget {
+  const _MessageVersionSwitcher({
+    required this.messageId,
+    required this.currentVersionIndex,
+    required this.versionCount,
+    required this.canUseActions,
+    required this.onSelectVersion,
+  });
+
+  final String messageId;
+  final int currentVersionIndex;
+  final int versionCount;
+  final bool canUseActions;
+  final Future<void> Function(int versionIndex) onSelectVersion;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final canGoPrevious = canUseActions && currentVersionIndex > 0;
+    final canGoNext = canUseActions && currentVersionIndex < versionCount - 1;
+
+    return SizedBox(
+      height: 36,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _MessageVersionButton(
+            buttonKey: Key('chat_message_version_previous_button_$messageId'),
+            tooltip: context.l10n.chatPreviousMessageVersion,
+            icon: Icons.chevron_left_rounded,
+            onPressed: canGoPrevious
+                ? () => onSelectVersion(currentVersionIndex - 1)
+                : null,
+          ),
+          SizedBox(
+            key: Key('chat_message_version_label_$messageId'),
+            width: 38,
+            child: Text(
+              '${currentVersionIndex + 1}/$versionCount',
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          _MessageVersionButton(
+            buttonKey: Key('chat_message_version_next_button_$messageId'),
+            tooltip: context.l10n.chatNextMessageVersion,
+            icon: Icons.chevron_right_rounded,
+            onPressed: canGoNext
+                ? () => onSelectVersion(currentVersionIndex + 1)
+                : null,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MessageVersionButton extends StatelessWidget {
+  const _MessageVersionButton({
+    required this.buttonKey,
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final Key buttonKey;
+  final String tooltip;
+  final IconData icon;
+  final Future<void> Function()? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return IconButton(
+      key: buttonKey,
+      tooltip: tooltip,
+      onPressed: onPressed == null
+          ? null
+          : () {
+              unawaited(onPressed!.call());
+            },
+      visualDensity: VisualDensity.compact,
+      iconSize: 18,
+      color: colorScheme.onSurfaceVariant,
+      disabledColor: colorScheme.onSurfaceVariant.withAlpha(90),
+      splashRadius: 16,
+      constraints: const BoxConstraints.tightFor(width: 28, height: 36),
+      icon: Icon(icon),
+    );
+  }
+}
+
+class _MessageActionIconButton extends StatelessWidget {
+  const _MessageActionIconButton({
+    required this.buttonKey,
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final Key buttonKey;
+  final String tooltip;
+  final IconData icon;
+  final Future<void> Function()? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return IconButton(
+      key: buttonKey,
+      tooltip: tooltip,
+      onPressed: onPressed == null
+          ? null
+          : () {
+              unawaited(onPressed!.call());
+            },
+      visualDensity: VisualDensity.compact,
+      iconSize: 20,
+      color: colorScheme.onSurfaceVariant,
+      disabledColor: colorScheme.onSurfaceVariant.withAlpha(90),
+      splashRadius: 18,
+      constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+      icon: Icon(icon),
+    );
+  }
+}
+
+class _MessageActionSheet extends StatelessWidget {
+  const _MessageActionSheet({
+    required this.message,
+    required this.canRegenerate,
+  });
+
+  final ChatMessageRecord message;
+  final bool canRegenerate;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              key: Key('chat_message_action_copy_${message.id}'),
+              leading: const Icon(Icons.content_copy_outlined),
+              title: Text(l10n.chatCopyMessage),
+              onTap: () => Navigator.of(context).pop(_ChatMessageAction.copy),
+            ),
+            ListTile(
+              key: Key('chat_message_action_edit_${message.id}'),
+              leading: const Icon(Icons.edit_outlined),
+              title: Text(l10n.chatEditMessage),
+              onTap: () => Navigator.of(context).pop(_ChatMessageAction.edit),
+            ),
+            ListTile(
+              key: Key('chat_message_action_regenerate_${message.id}'),
+              leading: const Icon(Icons.refresh_rounded),
+              title: Text(l10n.chatRegenerateMessage),
+              enabled: canRegenerate,
+              onTap: canRegenerate
+                  ? () =>
+                        Navigator.of(context).pop(_ChatMessageAction.regenerate)
+                  : null,
+            ),
+            ListTile(
+              key: Key('chat_message_action_delete_${message.id}'),
+              leading: Icon(
+                Icons.delete_outline_rounded,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              title: Text(l10n.commonDelete),
+              onTap: () => Navigator.of(context).pop(_ChatMessageAction.delete),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+Future<String?> _showEditMessageSheet({
+  required BuildContext context,
+  required String initialValue,
+}) {
+  return showModalBottomSheet<String>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (sheetContext) => _EditMessageSheet(initialValue: initialValue),
+  );
+}
+
+class _EditMessageSheet extends StatefulWidget {
+  const _EditMessageSheet({required this.initialValue});
+
+  final String initialValue;
+
+  @override
+  State<_EditMessageSheet> createState() => _EditMessageSheetState();
+}
+
+class _EditMessageSheetState extends State<_EditMessageSheet> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initialValue,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 8, 20, bottomInset + 20),
+      child: StatefulBuilder(
+        builder: (context, setState) {
+          final canSave = _controller.text.trim().isNotEmpty;
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.chatEditMessageTitle,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                key: const Key('chat_message_edit_field'),
+                controller: _controller,
+                autofocus: true,
+                minLines: 4,
+                maxLines: 10,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  hintText: l10n.chatEditMessageHint,
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text(l10n.commonCancel),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    key: const Key('chat_message_edit_save_button'),
+                    onPressed: canSave
+                        ? () =>
+                              Navigator.of(context).pop(_controller.text.trim())
+                        : null,
+                    child: Text(l10n.commonSave),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 }
 
