@@ -17,11 +17,14 @@ class ChatSessionDrawerSection extends StatelessWidget {
 
   final BuildContext presentationContext;
   final bool isChatSelected;
-  final VoidCallback onOpenChat;
+  final FutureOr<void> Function() onOpenChat;
 
   Future<void> _openSession(ChatProvider provider, String sessionId) async {
-    unawaited(provider.selectSession(sessionId));
-    onOpenChat();
+    final shouldLoad = provider.beginSessionSelection(sessionId);
+    await Future<void>.value(onOpenChat());
+    if (shouldLoad) {
+      await provider.loadSelectedSessionMessages(sessionId);
+    }
   }
 
   Future<void> _showSessionActions(

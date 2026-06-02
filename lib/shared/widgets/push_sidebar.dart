@@ -260,12 +260,13 @@ class _PushSidebarState extends State<PushSidebar>
     });
   }
 
-  Future<bool> _handleWillPop() async {
-    if (_isDrawerMode && isOpen) {
-      await close();
-      return false;
+  void _handlePopInvoked(bool didPop) {
+    if (didPop) {
+      return;
     }
-    return true;
+    if (_isDrawerMode && isOpen) {
+      close();
+    }
   }
 
   Future<void> _animateMobileTo(double target) async {
@@ -554,8 +555,9 @@ class _PushSidebarState extends State<PushSidebar>
         }
         final drawerWidth = widget.drawerWidth ?? constraints.maxWidth * 0.75;
 
-        return WillPopScope(
-          onWillPop: _handleWillPop,
+        return PopScope(
+          canPop: !(_isDrawerMode && isOpen),
+          onPopInvokedWithResult: (didPop, _) => _handlePopInvoked(didPop),
           child: _isDrawerMode
               ? _buildMobileLayout(context, drawerWidth)
               : _buildEmbeddedLayout(context, constraints.maxWidth),
