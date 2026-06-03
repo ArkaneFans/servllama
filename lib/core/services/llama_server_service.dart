@@ -17,8 +17,8 @@ class LlamaServerService {
 
   LlamaServerService._internal();
 
-  static const String _assetPath =
-      'assets/bin/android/arm64-v8a/llama-server';
+  static const String _assetDirectoryPath =
+      'assets/bin/android/arm64-v8a';
   static const String _manifestAssetPath =
       'assets/bin/llama_server_manifest.json';
   static const String _binaryName = 'llama-server';
@@ -42,7 +42,6 @@ class LlamaServerService {
 
   bool get isRunning => _process != null;
 
-  // Should be called once at app startup or before first use
   void initForegroundTask() {
     if (_foregroundTaskInitialized) return;
     _foregroundTaskService.init();
@@ -62,9 +61,7 @@ class LlamaServerService {
   Future<bool> copyBinaryFromAssets() async {
     try {
       final bundledVersion = await _loadBundledVersion();
-      final binaryPath = await _getBinaryPath();
       await _installBundledBinary(
-        targetFile: File(binaryPath),
         bundledVersion: bundledVersion,
       );
       return true;
@@ -86,6 +83,7 @@ class LlamaServerService {
 
     try {
       final binaryPath = await _ensureBinaryReady();
+      final binaryDirectoryPath = await _getBinaryDirectoryPath(); // 获取存放库的目录
       final arguments = args ?? <String>[];
 
       _logger.pageInfo('Starting llama-server...', channel: LogChannel.server);
@@ -98,12 +96,14 @@ class LlamaServerService {
         binaryPath,
         arguments,
         runInShell: false,
+        environment: {
+          'LD_LIBRARY_PATH': binaryDirectoryPath,
+        },
       );
 
       _process = process;
       _emitRunningState(true);
 
-      // final address = _extractHostFromArgs(arguments);
       await _foregroundTaskService.start(
         notificationTitle: _l10nService.current.serverForegroundNotificationTitle,
         notificationText: _l10nService.current.serverForegroundNotificationText,
@@ -120,7 +120,7 @@ class LlamaServerService {
       });
 
       _logger.pageInfo(
-        'Server started successfully,PID: ${process.pid}',
+        'Server started successfully, PID: ${process.pid}',
         channel: LogChannel.server,
       );
       return true;
@@ -164,7 +164,6 @@ class LlamaServerService {
     }
 
     await _installBundledBinary(
-      targetFile: targetFile,
       bundledVersion: bundledVersion,
     );
     return binaryPath;
@@ -200,44 +199,63 @@ class LlamaServerService {
   }
 
   Future<void> _installBundledBinary({
-    required File targetFile,
     required String bundledVersion,
   }) async {
-    final tempFile = File('${targetFile.path}.tmp');
-    try {
-      await targetFile.parent.create(recursive: true);
+    final targetDir = Directory(await _getBinaryDirectoryPath());
+    await targetDir.create(recursive: true);
 
-      if (await tempFile.exists()) {
-        await tempFile.delete();
-      }
+    final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+    
+    final assetsToCopy = manifest
+        .listAssets()
+        .where((path) => path.startsWith('$_assetDirectoryPath/'))
+        .toList();
 
-      final byteData = await rootBundle.load(_assetPath);
-      final bytes = byteData.buffer.asUint8List(
-        byteData.offsetInBytes,
-        byteData.lengthInBytes,
-      );
+    if (assetsToCopy.isEmpty) {
+      throw Exception('No assets found in $_assetDirectoryPath');
+    }
 
-      await tempFile.writeAsBytes(bytes, flush: true);
-      await _markExecutable(tempFile.path);
+    for (final assetPath in assetsToCopy) {
+      final fileName = assetPath.split('/').last;
+      final targetFile = File('${targetDir.path}/$fileName');
+      final tempFile = File('${targetFile.path}.tmp');
 
-      if (await targetFile.exists()) {
-        await targetFile.delete();
-      }
-      await tempFile.rename(targetFile.path);
+      try {
+        if (await tempFile.exists()) {
+          await tempFile.delete();
+        }
 
-      await _kvStorage.setString(
-        ServerPrefsKeys.llamaServerInstalledVersion,
-        bundledVersion,
-      );
-      _logger.pageInfo(
-        'Installed llama-server version $bundledVersion',
-        channel: LogChannel.server,
-      );
-    } finally {
-      if (await tempFile.exists()) {
-        await tempFile.delete();
+        final byteData = await rootBundle.load(assetPath);
+        final bytes = byteData.buffer.asUint8List(
+          byteData.offsetInBytes,
+          byteData.lengthInBytes,
+        );
+
+        await tempFile.writeAsBytes(bytes, flush: true);
+        
+        await _markExecutable(tempFile.path);
+
+        if (await targetFile.exists()) {
+          await targetFile.delete();
+        }
+        await tempFile.rename(targetFile.path);
+        
+        _logger.pageInfo('Extracted: $fileName', channel: LogChannel.server);
+      } finally {
+        if (await tempFile.exists()) {
+          await tempFile.delete();
+        }
       }
     }
+
+    await _kvStorage.setString(
+      ServerPrefsKeys.llamaServerInstalledVersion,
+      bundledVersion,
+    );
+    _logger.pageInfo(
+      'Installed llama-server and dependencies version $bundledVersion',
+      channel: LogChannel.server,
+    );
   }
 
   Future<void> _markExecutable(String binaryPath) async {
