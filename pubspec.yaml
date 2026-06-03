@@ -78,7 +78,7 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
-    - assets/bin/android/arm64-v8a/llama-server
+    - assets/bin/android/arm64-v8a/
     - assets/bin/llama_server_manifest.json
     - assets/app_icon.svg
 
