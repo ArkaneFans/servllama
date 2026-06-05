@@ -64,7 +64,7 @@ class _ChatViewState extends State<_ChatView> {
   ChatProvider? _provider;
   int _lastMessageCount = 0;
   String? _lastSelectedSessionId;
-  bool _pendingInitialBottomJump = false;
+  bool _wasLoadingMessages = false;
   bool _isLoadingOlderFromScroll = false;
 
   @override
@@ -90,16 +90,7 @@ class _ChatViewState extends State<_ChatView> {
     _provider = provider;
     _lastMessageCount = provider.visibleMessages.length;
     _lastSelectedSessionId = provider.selectedSession?.id;
-    _pendingInitialBottomJump = _lastSelectedSessionId != null;
-    if (_pendingInitialBottomJump && !provider.isLoadingMessages) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!_pendingInitialBottomJump) {
-          return;
-        }
-        _pendingInitialBottomJump = false;
-        _jumpToBottom();
-      });
-    }
+    _wasLoadingMessages = provider.isLoadingMessages;
     provider.addListener(_handleProviderChanged);
   }
 
@@ -122,21 +113,17 @@ class _ChatViewState extends State<_ChatView> {
     if (selectedSessionId != _lastSelectedSessionId) {
       _lastSelectedSessionId = selectedSessionId;
       _lastMessageCount = provider.visibleMessages.length;
-      _pendingInitialBottomJump = selectedSessionId != null;
     }
 
+    final finishedLoadingMessages =
+        _wasLoadingMessages && !provider.isLoadingMessages;
+    _wasLoadingMessages = provider.isLoadingMessages;
     final shouldAutoScroll = _isNearBottom();
     final count = provider.visibleMessages.length;
     final countIncreased = count > _lastMessageCount;
     _lastMessageCount = count;
 
-    if (_pendingInitialBottomJump && !provider.isLoadingMessages) {
-      _pendingInitialBottomJump = false;
-      WidgetsBinding.instance.addPostFrameCallback((_) => _jumpToBottom());
-      return;
-    }
-
-    if (shouldAutoScroll && countIncreased) {
+    if (!finishedLoadingMessages && shouldAutoScroll && countIncreased) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
     }
   }
@@ -173,13 +160,6 @@ class _ChatViewState extends State<_ChatView> {
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeOut,
     );
-  }
-
-  void _jumpToBottom() {
-    if (!_scrollController.hasClients) {
-      return;
-    }
-    _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
   }
 
   Future<void> _loadOlderMessagesPreservingOffset(ChatProvider provider) async {

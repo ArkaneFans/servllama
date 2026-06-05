@@ -831,6 +831,39 @@ void main() {
       },
     );
 
+    testWidgets('does not jump to bottom after opening history session', (
+      tester,
+    ) async {
+      final repository = _FakeChatSessionRepository(
+        sessions: <ChatSessionRecord>[
+          _session(id: 's1', title: '长会话', messages: _messages(count: 65)),
+        ],
+      );
+      final provider = ChatProvider(
+        repository: repository,
+        apiClient: _FakeLlamaChatApiClient(models: const <ChatModelOption>[]),
+      );
+      await provider.load();
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider<ChatProvider>.value(
+          value: provider,
+          child: const MaterialApp(home: ChatPage()),
+        ),
+      );
+      await tester.pump();
+
+      await provider.selectSession('s1');
+      await tester.pump();
+      await tester.pump();
+
+      expect(provider.visibleMessages, hasLength(30));
+      expect(provider.visibleMessages.first.id, 'm35');
+      expect(provider.visibleMessages.last.id, 'm64');
+      expect(find.text('message 35'), findsOneWidget);
+      expect(find.text('message 64'), findsNothing);
+    });
+
     testWidgets('uses stronger send button contrast than model selector', (
       tester,
     ) async {
