@@ -78,6 +78,8 @@ class _ChatViewState extends State<_ChatView> {
   bool _showJumpToLatestButton = false;
   bool _isUserScrollActive = false;
   Timer? _userScrollActivityTimer;
+  Timer? _sessionSwitchScrollTimer;
+  String? _pendingSessionSwitchScrollSessionId;
 
   @override
   void initState() {
@@ -117,6 +119,7 @@ class _ChatViewState extends State<_ChatView> {
     _scrollController.dispose();
     _inputController.dispose();
     _userScrollActivityTimer?.cancel();
+    _sessionSwitchScrollTimer?.cancel();
     super.dispose();
   }
 
@@ -137,6 +140,8 @@ class _ChatViewState extends State<_ChatView> {
     if (selectedSessionId != _lastSelectedSessionId) {
       _lastSelectedSessionId = selectedSessionId;
       _lastMessageCount = provider.visibleMessages.length;
+      _isLoadingOlderFromScroll = false;
+      _pendingSessionSwitchScrollSessionId = selectedSessionId;
       _enableAutoStickToBottom();
       _setShowJumpToLatestButton(false);
     }
@@ -144,6 +149,12 @@ class _ChatViewState extends State<_ChatView> {
     final finishedLoadingMessages =
         _wasLoadingMessages && !provider.isLoadingMessages;
     _wasLoadingMessages = provider.isLoadingMessages;
+    if (finishedLoadingMessages &&
+        selectedSessionId != null &&
+        _pendingSessionSwitchScrollSessionId == selectedSessionId) {
+      _pendingSessionSwitchScrollSessionId = null;
+      _scheduleSessionSwitchScrollToBottom();
+    }
     final shouldAutoScroll = _autoStickToBottom || _isNearBottom();
     final count = provider.visibleMessages.length;
     final countIncreased = count > _lastMessageCount;
@@ -155,7 +166,7 @@ class _ChatViewState extends State<_ChatView> {
   }
 
   void _handleScroll() {
-    if (!_scrollController.hasClients) {
+    if (!_hasSingleScrollPosition) {
       return;
     }
     if (_isNearBottom(_autoFollowResumeThreshold)) {
@@ -182,11 +193,16 @@ class _ChatViewState extends State<_ChatView> {
   }
 
   bool _isNearBottom([double threshold = _bottomStickThreshold]) {
-    if (!_scrollController.hasClients) {
+    if (!_hasSingleScrollPosition) {
       return true;
     }
     final position = _scrollController.position;
     return position.maxScrollExtent - position.pixels <= threshold;
+  }
+
+  bool get _hasSingleScrollPosition {
+    return _scrollController.hasClients &&
+        _scrollController.positions.length == 1;
   }
 
   bool _isMetricsNearBottom(
@@ -293,7 +309,7 @@ class _ChatViewState extends State<_ChatView> {
         provider.visibleMessages.isNotEmpty;
   }
 
-  void _scheduleScrollToBottom() {
+  void _scheduleScrollToBottom({int remainingRetries = 0}) {
     if (_isScrollToBottomScheduled) {
       return;
     }
@@ -304,13 +320,24 @@ class _ChatViewState extends State<_ChatView> {
         return;
       }
       if (_autoStickToBottom || _isNearBottom()) {
-        _scrollToBottom();
+        _scrollToBottom(remainingRetries: remainingRetries);
       }
     });
   }
 
-  void _scrollToBottom() {
+  void _scrollToBottom({int remainingRetries = 0}) {
     if (!_scrollController.hasClients) {
+      return;
+    }
+    if (!_hasSingleScrollPosition) {
+      if (remainingRetries > 0) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) {
+            return;
+          }
+          _scrollToBottom(remainingRetries: remainingRetries - 1);
+        });
+      }
       return;
     }
     _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
@@ -332,6 +359,26 @@ class _ChatViewState extends State<_ChatView> {
     _scrollToBottom();
   }
 
+  void _scheduleSessionSwitchScrollToBottom() {
+    _sessionSwitchScrollTimer?.cancel();
+    _enableAutoStickToBottom();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _enableAutoStickToBottom();
+      _scrollToBottom(remainingRetries: 1);
+    });
+    _sessionSwitchScrollTimer = Timer(const Duration(milliseconds: 220), () {
+      _sessionSwitchScrollTimer = null;
+      if (!mounted) {
+        return;
+      }
+      _enableAutoStickToBottom();
+      _scrollToBottom(remainingRetries: 1);
+    });
+  }
+
   void _setShowJumpToLatestButton(bool value) {
     if (!mounted || _showJumpToLatestButton == value) {
       return;
@@ -347,6 +394,7 @@ class _ChatViewState extends State<_ChatView> {
     }
     _isLoadingOlderFromScroll = true;
     _autoStickToBottom = false;
+    final sessionId = provider.selectedSession?.id;
     final position = _scrollController.position;
     final previousMaxScrollExtent = position.maxScrollExtent;
     final previousPixels = position.pixels;
@@ -358,7 +406,8 @@ class _ChatViewState extends State<_ChatView> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _isLoadingOlderFromScroll = false;
-      if (!_scrollController.hasClients) {
+      if (!_hasSingleScrollPosition ||
+          _provider?.selectedSession?.id != sessionId) {
         return;
       }
       final position = _scrollController.position;
