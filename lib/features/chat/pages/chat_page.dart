@@ -319,15 +319,17 @@ class _ChatViewState extends State<_ChatView> {
     }
   }
 
-  void _enableAutoStickToBottom() {
+  void _enableAutoStickToBottom({bool hideJumpButton = true}) {
     _clearUserScrollActivity();
     _autoStickToBottom = true;
-    _setShowJumpToLatestButton(false);
+    if (hideJumpButton) {
+      _setShowJumpToLatestButton(false);
+    }
   }
 
   void _jumpToLatestMessage() {
-    _enableAutoStickToBottom();
-    _scheduleScrollToBottom();
+    _enableAutoStickToBottom(hideJumpButton: false);
+    _scrollToBottom();
   }
 
   void _setShowJumpToLatestButton(bool value) {

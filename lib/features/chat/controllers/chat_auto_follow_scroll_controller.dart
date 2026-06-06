@@ -43,8 +43,8 @@ class _ChatAutoFollowScrollPosition extends ScrollPositionWithSingleContext {
     );
     if (controller.shouldAutoFollow() &&
         userScrollDirection == ScrollDirection.idle) {
-      final gap = this.maxScrollExtent - pixels;
-      if (gap > 0.5) {
+      final delta = this.maxScrollExtent - pixels;
+      if (delta.abs() > 0.5) {
         correctPixels(this.maxScrollExtent);
         return false;
       }

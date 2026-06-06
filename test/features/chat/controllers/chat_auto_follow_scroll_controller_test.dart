@@ -49,6 +49,37 @@ void main() {
 
       await gesture.up();
     });
+
+    testWidgets('jumps to bottom immediately from far away', (tester) async {
+      final controller = ChatAutoFollowScrollController();
+      addTearDown(controller.dispose);
+
+      await _pumpList(tester, controller: controller, itemCount: 30);
+      controller.jumpTo(0);
+
+      controller.jumpTo(controller.position.maxScrollExtent);
+
+      expect(controller.offset, controller.position.maxScrollExtent);
+    });
+
+    testWidgets('corrects overestimated bottom during layout', (tester) async {
+      var shouldAutoFollow = false;
+      final controller = ChatAutoFollowScrollController();
+      addTearDown(controller.dispose);
+      controller.shouldAutoFollow = () => shouldAutoFollow;
+
+      await _pumpVariableHeightList(tester, controller: controller);
+      controller.jumpTo(0);
+      await tester.pump();
+      final estimatedMaxFromTop = controller.position.maxScrollExtent;
+
+      shouldAutoFollow = true;
+      controller.jumpTo(estimatedMaxFromTop);
+      await tester.pump();
+
+      expect(controller.offset, controller.position.maxScrollExtent);
+      expect(controller.offset, lessThan(estimatedMaxFromTop));
+    });
   });
 }
 
@@ -70,6 +101,31 @@ Future<void> _pumpList(
           itemCount: itemCount,
           itemBuilder: (context, index) {
             return SizedBox(height: 64, child: Text('Message $index'));
+          },
+        ),
+      ),
+    ),
+  );
+}
+
+Future<void> _pumpVariableHeightList(
+  WidgetTester tester, {
+  required ChatAutoFollowScrollController controller,
+}) {
+  return tester.pumpWidget(
+    MaterialApp(
+      home: SizedBox(
+        width: 240,
+        height: 300,
+        child: ListView.builder(
+          key: _listKey,
+          controller: controller,
+          itemCount: 80,
+          itemBuilder: (context, index) {
+            return SizedBox(
+              height: index < 20 ? 260 : 44,
+              child: Text('Message $index'),
+            );
           },
         ),
       ),
