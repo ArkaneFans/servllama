@@ -1,9 +1,12 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/core/providers/server_provider.dart';
+import 'package:servllama/features/chat/controllers/chat_auto_follow_scroll_controller.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/providers/chat_provider.dart';
 import 'package:servllama/features/chat/services/image_attachment_service.dart';
@@ -56,9 +59,11 @@ class _ChatView extends StatefulWidget {
 }
 
 class _ChatViewState extends State<_ChatView> {
+  static const double _autoFollowResumeThreshold = 24;
   static const double _bottomStickThreshold = 72;
 
-  final ScrollController _scrollController = ScrollController();
+  final ChatAutoFollowScrollController _scrollController =
+      ChatAutoFollowScrollController();
   final TextEditingController _inputController = TextEditingController();
   final ImageAttachmentService _imageAttachmentService =
       ImageAttachmentService();
@@ -71,10 +76,13 @@ class _ChatViewState extends State<_ChatView> {
   bool _autoStickToBottom = true;
   bool _isScrollToBottomScheduled = false;
   bool _showJumpToLatestButton = false;
+  bool _isUserScrollActive = false;
+  Timer? _userScrollActivityTimer;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.shouldAutoFollow = _shouldAutoFollow;
     _scrollController.addListener(_handleScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
@@ -108,7 +116,15 @@ class _ChatViewState extends State<_ChatView> {
     _scrollController.removeListener(_handleScroll);
     _scrollController.dispose();
     _inputController.dispose();
+    _userScrollActivityTimer?.cancel();
     super.dispose();
+  }
+
+  bool _shouldAutoFollow() {
+    return mounted &&
+        _autoStickToBottom &&
+        !_isUserScrollActive &&
+        !_isLoadingOlderFromScroll;
   }
 
   void _handleProviderChanged() {
@@ -121,7 +137,7 @@ class _ChatViewState extends State<_ChatView> {
     if (selectedSessionId != _lastSelectedSessionId) {
       _lastSelectedSessionId = selectedSessionId;
       _lastMessageCount = provider.visibleMessages.length;
-      _autoStickToBottom = true;
+      _enableAutoStickToBottom();
       _setShowJumpToLatestButton(false);
     }
 
@@ -142,9 +158,14 @@ class _ChatViewState extends State<_ChatView> {
     if (!_scrollController.hasClients) {
       return;
     }
-    if (_isNearBottom()) {
+    if (_isNearBottom(_autoFollowResumeThreshold)) {
       _autoStickToBottom = true;
       _setShowJumpToLatestButton(false);
+    } else if (_isUserScrollActive) {
+      _autoStickToBottom = false;
+      _setShowJumpToLatestButton(_hasVisibleMessageList);
+    } else if (!_isNearBottom(_bottomStickThreshold)) {
+      _setShowJumpToLatestButton(_hasVisibleMessageList);
     }
 
     final provider = _provider;
@@ -160,37 +181,106 @@ class _ChatViewState extends State<_ChatView> {
     }
   }
 
-  bool _isNearBottom() {
+  bool _isNearBottom([double threshold = _bottomStickThreshold]) {
     if (!_scrollController.hasClients) {
       return true;
     }
     final position = _scrollController.position;
-    return position.maxScrollExtent - position.pixels <= _bottomStickThreshold;
+    return position.maxScrollExtent - position.pixels <= threshold;
+  }
+
+  bool _isMetricsNearBottom(
+    ScrollMetrics metrics, [
+    double threshold = _bottomStickThreshold,
+  ]) {
+    return metrics.maxScrollExtent - metrics.pixels <= threshold;
   }
 
   bool _handleMessageScrollNotification(ScrollNotification notification) {
-    if (notification is! ScrollUpdateNotification ||
-        notification.dragDetails == null) {
+    if (notification.depth != 0 || notification.metrics.axis != Axis.vertical) {
       return false;
     }
-    if (_isNearBottom()) {
+
+    if (notification is ScrollUpdateNotification &&
+        notification.dragDetails != null) {
+      _handleUserScrollActivity(notification.metrics);
+    } else if (notification is OverscrollNotification &&
+        notification.dragDetails != null) {
+      _handleUserScrollActivity(notification.metrics);
+    } else if (notification is ScrollStartNotification &&
+        notification.dragDetails != null) {
+      _handleUserScrollActivity(notification.metrics);
+    } else if (notification is UserScrollNotification) {
+      if (notification.direction == ScrollDirection.idle) {
+        _scheduleUserScrollIdle();
+      } else {
+        _handleUserScrollActivity(notification.metrics);
+      }
+    } else if (notification is ScrollEndNotification) {
+      _scheduleUserScrollIdle();
+    }
+
+    if (_isMetricsNearBottom(
+      notification.metrics,
+      _autoFollowResumeThreshold,
+    )) {
+      _autoStickToBottom = true;
+      _setShowJumpToLatestButton(false);
+    } else if (_isUserScrollActive) {
+      _autoStickToBottom = false;
+      _setShowJumpToLatestButton(_hasVisibleMessageList);
+    } else if (_isMetricsNearBottom(notification.metrics)) {
+      _setShowJumpToLatestButton(false);
+    } else if (!_autoStickToBottom) {
+      _setShowJumpToLatestButton(_hasVisibleMessageList);
+    }
+    return false;
+  }
+
+  void _handlePointerSignal(PointerSignalEvent event) {
+    if (event is PointerScrollEvent) {
+      _handleUserScrollActivity();
+    }
+  }
+
+  void _handleUserScrollActivity([ScrollMetrics? metrics]) {
+    _isUserScrollActive = true;
+    if (metrics == null
+        ? _isNearBottom(_autoFollowResumeThreshold)
+        : _isMetricsNearBottom(metrics, _autoFollowResumeThreshold)) {
       _autoStickToBottom = true;
       _setShowJumpToLatestButton(false);
     } else {
       _autoStickToBottom = false;
       _setShowJumpToLatestButton(_hasVisibleMessageList);
     }
-    return false;
+    _scheduleUserScrollIdle();
+  }
+
+  void _scheduleUserScrollIdle() {
+    _userScrollActivityTimer?.cancel();
+    _userScrollActivityTimer = Timer(const Duration(milliseconds: 180), () {
+      _isUserScrollActive = false;
+      if (_isNearBottom(_autoFollowResumeThreshold)) {
+        _autoStickToBottom = true;
+        _setShowJumpToLatestButton(false);
+      }
+    });
+  }
+
+  void _clearUserScrollActivity() {
+    _userScrollActivityTimer?.cancel();
+    _userScrollActivityTimer = null;
+    _isUserScrollActive = false;
   }
 
   void _handleStreamingMessageChanged() {
     if (!mounted) {
       return;
     }
-    if (_autoStickToBottom || _isNearBottom()) {
+    if (_autoStickToBottom || _isNearBottom(_autoFollowResumeThreshold)) {
       _autoStickToBottom = true;
       _setShowJumpToLatestButton(false);
-      _scheduleScrollToBottom();
       return;
     }
     _setShowJumpToLatestButton(_hasVisibleMessageList);
@@ -216,14 +306,6 @@ class _ChatViewState extends State<_ChatView> {
       if (_autoStickToBottom || _isNearBottom()) {
         _scrollToBottom();
       }
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) {
-          return;
-        }
-        if (_autoStickToBottom || _isNearBottom()) {
-          _scrollToBottom();
-        }
-      });
     });
   }
 
@@ -238,6 +320,7 @@ class _ChatViewState extends State<_ChatView> {
   }
 
   void _enableAutoStickToBottom() {
+    _clearUserScrollActivity();
     _autoStickToBottom = true;
     _setShowJumpToLatestButton(false);
   }
@@ -261,6 +344,7 @@ class _ChatViewState extends State<_ChatView> {
       return;
     }
     _isLoadingOlderFromScroll = true;
+    _autoStickToBottom = false;
     final position = _scrollController.position;
     final previousMaxScrollExtent = position.maxScrollExtent;
     final previousPixels = position.pixels;
@@ -577,57 +661,59 @@ class _ChatViewState extends State<_ChatView> {
                                         'chat_message_list_stack',
                                       ),
                                       children: [
-                                        NotificationListener<
-                                          ScrollNotification
-                                        >(
-                                          onNotification:
-                                              _handleMessageScrollNotification,
-                                          child: ChatMessageList(
-                                            key: const ValueKey<String>(
-                                              'chat_message_list',
+                                        Listener(
+                                          onPointerSignal: _handlePointerSignal,
+                                          child: NotificationListener<ScrollNotification>(
+                                            onNotification:
+                                                _handleMessageScrollNotification,
+                                            child: ChatMessageList(
+                                              key: const ValueKey<String>(
+                                                'chat_message_list',
+                                              ),
+                                              controller: _scrollController,
+                                              streamingMessages:
+                                                  provider.streamingMessages,
+                                              messages:
+                                                  provider.visibleMessages,
+                                              draftMessageId:
+                                                  provider.draftMessageId,
+                                              canManageMessages:
+                                                  provider.canManageMessages,
+                                              canRegenerateMessage:
+                                                  provider.canRegenerateMessage,
+                                              onCopyMessage: (message) =>
+                                                  _handleCopyMessage(
+                                                    context,
+                                                    message,
+                                                  ),
+                                              onEditMessage: (message) =>
+                                                  _handleEditMessage(
+                                                    context,
+                                                    message,
+                                                  ),
+                                              onDeleteMessage: (message) =>
+                                                  _handleDeleteMessage(
+                                                    context,
+                                                    message,
+                                                  ),
+                                              onRegenerateMessage: (message) =>
+                                                  _handleRegenerateMessage(
+                                                    context,
+                                                    message,
+                                                  ),
+                                              onShowMessageActions: (message) =>
+                                                  _showMessageActions(
+                                                    context,
+                                                    message,
+                                                  ),
+                                              onSelectMessageVersion:
+                                                  (message, versionIndex) =>
+                                                      _handleSelectMessageVersion(
+                                                        context,
+                                                        message,
+                                                        versionIndex,
+                                                      ),
                                             ),
-                                            controller: _scrollController,
-                                            streamingMessages:
-                                                provider.streamingMessages,
-                                            messages: provider.visibleMessages,
-                                            draftMessageId:
-                                                provider.draftMessageId,
-                                            canManageMessages:
-                                                provider.canManageMessages,
-                                            canRegenerateMessage:
-                                                provider.canRegenerateMessage,
-                                            onCopyMessage: (message) =>
-                                                _handleCopyMessage(
-                                                  context,
-                                                  message,
-                                                ),
-                                            onEditMessage: (message) =>
-                                                _handleEditMessage(
-                                                  context,
-                                                  message,
-                                                ),
-                                            onDeleteMessage: (message) =>
-                                                _handleDeleteMessage(
-                                                  context,
-                                                  message,
-                                                ),
-                                            onRegenerateMessage: (message) =>
-                                                _handleRegenerateMessage(
-                                                  context,
-                                                  message,
-                                                ),
-                                            onShowMessageActions: (message) =>
-                                                _showMessageActions(
-                                                  context,
-                                                  message,
-                                                ),
-                                            onSelectMessageVersion:
-                                                (message, versionIndex) =>
-                                                    _handleSelectMessageVersion(
-                                                      context,
-                                                      message,
-                                                      versionIndex,
-                                                    ),
                                           ),
                                         ),
                                         if (_showJumpToLatestButton)
