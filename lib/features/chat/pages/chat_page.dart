@@ -56,6 +56,8 @@ class _ChatView extends StatefulWidget {
 }
 
 class _ChatViewState extends State<_ChatView> {
+  static const double _bottomStickThreshold = 72;
+
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _inputController = TextEditingController();
   final ImageAttachmentService _imageAttachmentService =
@@ -66,6 +68,9 @@ class _ChatViewState extends State<_ChatView> {
   String? _lastSelectedSessionId;
   bool _wasLoadingMessages = false;
   bool _isLoadingOlderFromScroll = false;
+  bool _autoStickToBottom = true;
+  bool _isScrollToBottomScheduled = false;
+  bool _showJumpToLatestButton = false;
 
   @override
   void initState() {
@@ -86,16 +91,19 @@ class _ChatViewState extends State<_ChatView> {
     if (identical(provider, _provider)) {
       return;
     }
+    _provider?.streamingMessages.removeListener(_handleStreamingMessageChanged);
     _provider?.removeListener(_handleProviderChanged);
     _provider = provider;
     _lastMessageCount = provider.visibleMessages.length;
     _lastSelectedSessionId = provider.selectedSession?.id;
     _wasLoadingMessages = provider.isLoadingMessages;
     provider.addListener(_handleProviderChanged);
+    provider.streamingMessages.addListener(_handleStreamingMessageChanged);
   }
 
   @override
   void dispose() {
+    _provider?.streamingMessages.removeListener(_handleStreamingMessageChanged);
     _provider?.removeListener(_handleProviderChanged);
     _scrollController.removeListener(_handleScroll);
     _scrollController.dispose();
@@ -113,25 +121,34 @@ class _ChatViewState extends State<_ChatView> {
     if (selectedSessionId != _lastSelectedSessionId) {
       _lastSelectedSessionId = selectedSessionId;
       _lastMessageCount = provider.visibleMessages.length;
+      _autoStickToBottom = true;
+      _setShowJumpToLatestButton(false);
     }
 
     final finishedLoadingMessages =
         _wasLoadingMessages && !provider.isLoadingMessages;
     _wasLoadingMessages = provider.isLoadingMessages;
-    final shouldAutoScroll = _isNearBottom();
+    final shouldAutoScroll = _autoStickToBottom || _isNearBottom();
     final count = provider.visibleMessages.length;
     final countIncreased = count > _lastMessageCount;
     _lastMessageCount = count;
 
     if (!finishedLoadingMessages && shouldAutoScroll && countIncreased) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+      _scheduleScrollToBottom();
     }
   }
 
   void _handleScroll() {
+    if (!_scrollController.hasClients) {
+      return;
+    }
+    if (_isNearBottom()) {
+      _autoStickToBottom = true;
+      _setShowJumpToLatestButton(false);
+    }
+
     final provider = _provider;
     if (provider == null ||
-        !_scrollController.hasClients ||
         _isLoadingOlderFromScroll ||
         provider.isLoadingMessages ||
         provider.isLoadingOlderMessages ||
@@ -148,18 +165,95 @@ class _ChatViewState extends State<_ChatView> {
       return true;
     }
     final position = _scrollController.position;
-    return position.maxScrollExtent - position.pixels <= 72;
+    return position.maxScrollExtent - position.pixels <= _bottomStickThreshold;
+  }
+
+  bool _handleMessageScrollNotification(ScrollNotification notification) {
+    if (notification is! ScrollUpdateNotification ||
+        notification.dragDetails == null) {
+      return false;
+    }
+    if (_isNearBottom()) {
+      _autoStickToBottom = true;
+      _setShowJumpToLatestButton(false);
+    } else {
+      _autoStickToBottom = false;
+      _setShowJumpToLatestButton(_hasVisibleMessageList);
+    }
+    return false;
+  }
+
+  void _handleStreamingMessageChanged() {
+    if (!mounted) {
+      return;
+    }
+    if (_autoStickToBottom || _isNearBottom()) {
+      _autoStickToBottom = true;
+      _setShowJumpToLatestButton(false);
+      _scheduleScrollToBottom();
+      return;
+    }
+    _setShowJumpToLatestButton(_hasVisibleMessageList);
+  }
+
+  bool get _hasVisibleMessageList {
+    final provider = _provider;
+    return provider != null &&
+        !provider.isLoadingMessages &&
+        provider.visibleMessages.isNotEmpty;
+  }
+
+  void _scheduleScrollToBottom() {
+    if (_isScrollToBottomScheduled) {
+      return;
+    }
+    _isScrollToBottomScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _isScrollToBottomScheduled = false;
+      if (!mounted) {
+        return;
+      }
+      if (_autoStickToBottom || _isNearBottom()) {
+        _scrollToBottom();
+      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        if (_autoStickToBottom || _isNearBottom()) {
+          _scrollToBottom();
+        }
+      });
+    });
   }
 
   void _scrollToBottom() {
     if (!_scrollController.hasClients) {
       return;
     }
-    _scrollController.animateTo(
-      _scrollController.position.maxScrollExtent,
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOut,
-    );
+    _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+    if (_isNearBottom()) {
+      _setShowJumpToLatestButton(false);
+    }
+  }
+
+  void _enableAutoStickToBottom() {
+    _autoStickToBottom = true;
+    _setShowJumpToLatestButton(false);
+  }
+
+  void _jumpToLatestMessage() {
+    _enableAutoStickToBottom();
+    _scheduleScrollToBottom();
+  }
+
+  void _setShowJumpToLatestButton(bool value) {
+    if (!mounted || _showJumpToLatestButton == value) {
+      return;
+    }
+    setState(() {
+      _showJumpToLatestButton = value;
+    });
   }
 
   Future<void> _loadOlderMessagesPreservingOffset(ChatProvider provider) async {
@@ -197,6 +291,7 @@ class _ChatViewState extends State<_ChatView> {
       return;
     }
     _inputController.clear();
+    _enableAutoStickToBottom();
     final provider = context.read<ChatProvider>();
     final attachments = List<String>.from(provider.pendingImageAttachments);
     await provider.sendMessage(text, imageAttachments: attachments);
@@ -338,6 +433,7 @@ class _ChatViewState extends State<_ChatView> {
     BuildContext context,
     ChatMessageRecord message,
   ) async {
+    _enableAutoStickToBottom();
     final provider = context.read<ChatProvider>();
     await provider.regenerateFromMessage(message.id);
     if (!context.mounted) {
@@ -476,42 +572,83 @@ class _ChatViewState extends State<_ChatView> {
                                           ? () => _showModels(context)
                                           : null,
                                     )
-                                  : ChatMessageList(
+                                  : Stack(
                                       key: const ValueKey<String>(
-                                        'chat_message_list',
+                                        'chat_message_list_stack',
                                       ),
-                                      controller: _scrollController,
-                                      streamingMessages:
-                                          provider.streamingMessages,
-                                      messages: provider.visibleMessages,
-                                      draftMessageId: provider.draftMessageId,
-                                      canManageMessages:
-                                          provider.canManageMessages,
-                                      canRegenerateMessage:
-                                          provider.canRegenerateMessage,
-                                      onCopyMessage: (message) =>
-                                          _handleCopyMessage(context, message),
-                                      onEditMessage: (message) =>
-                                          _handleEditMessage(context, message),
-                                      onDeleteMessage: (message) =>
-                                          _handleDeleteMessage(
-                                            context,
-                                            message,
+                                      children: [
+                                        NotificationListener<
+                                          ScrollNotification
+                                        >(
+                                          onNotification:
+                                              _handleMessageScrollNotification,
+                                          child: ChatMessageList(
+                                            key: const ValueKey<String>(
+                                              'chat_message_list',
+                                            ),
+                                            controller: _scrollController,
+                                            streamingMessages:
+                                                provider.streamingMessages,
+                                            messages: provider.visibleMessages,
+                                            draftMessageId:
+                                                provider.draftMessageId,
+                                            canManageMessages:
+                                                provider.canManageMessages,
+                                            canRegenerateMessage:
+                                                provider.canRegenerateMessage,
+                                            onCopyMessage: (message) =>
+                                                _handleCopyMessage(
+                                                  context,
+                                                  message,
+                                                ),
+                                            onEditMessage: (message) =>
+                                                _handleEditMessage(
+                                                  context,
+                                                  message,
+                                                ),
+                                            onDeleteMessage: (message) =>
+                                                _handleDeleteMessage(
+                                                  context,
+                                                  message,
+                                                ),
+                                            onRegenerateMessage: (message) =>
+                                                _handleRegenerateMessage(
+                                                  context,
+                                                  message,
+                                                ),
+                                            onShowMessageActions: (message) =>
+                                                _showMessageActions(
+                                                  context,
+                                                  message,
+                                                ),
+                                            onSelectMessageVersion:
+                                                (message, versionIndex) =>
+                                                    _handleSelectMessageVersion(
+                                                      context,
+                                                      message,
+                                                      versionIndex,
+                                                    ),
                                           ),
-                                      onRegenerateMessage: (message) =>
-                                          _handleRegenerateMessage(
-                                            context,
-                                            message,
-                                          ),
-                                      onShowMessageActions: (message) =>
-                                          _showMessageActions(context, message),
-                                      onSelectMessageVersion:
-                                          (message, versionIndex) =>
-                                              _handleSelectMessageVersion(
-                                                context,
-                                                message,
-                                                versionIndex,
+                                        ),
+                                        if (_showJumpToLatestButton)
+                                          Positioned(
+                                            right: 12,
+                                            bottom: 12,
+                                            child: FloatingActionButton.small(
+                                              key: const Key(
+                                                'chat_jump_to_latest_button',
                                               ),
+                                              heroTag: null,
+                                              tooltip:
+                                                  context.l10n.chatJumpToLatest,
+                                              onPressed: _jumpToLatestMessage,
+                                              child: const Icon(
+                                                Icons
+                                                    .keyboard_arrow_down_rounded,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
                                     ),
                             ),
                           ),

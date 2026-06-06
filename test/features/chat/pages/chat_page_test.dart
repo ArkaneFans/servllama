@@ -1435,6 +1435,185 @@ void main() {
       expect(find.text('消息已复制'), findsOneWidget);
     });
 
+    testWidgets('keeps streaming response pinned while already at bottom', (
+      tester,
+    ) async {
+      final repository = _FakeChatSessionRepository(
+        sessions: <ChatSessionRecord>[
+          _session(id: 's1', title: '长会话', messages: _messages(count: 65)),
+        ],
+      );
+      final apiClient = _FakeLlamaChatApiClient(
+        models: <ChatModelOption>[
+          const ChatModelOption(
+            id: 'alpha',
+            displayName: 'alpha',
+            status: ChatModelStatus.loaded,
+          ),
+        ],
+      );
+      final streamController = StreamController<ChatStreamDelta>();
+      apiClient.streamController = streamController;
+      apiClient.streamStartedCompleter = Completer<void>();
+      addTearDown(() async {
+        if (!streamController.isClosed) {
+          await streamController.close();
+        }
+      });
+      final provider = ChatProvider(
+        repository: repository,
+        apiClient: apiClient,
+      );
+      provider.updateServerState(
+        baseUrl: 'http://127.0.0.1:8080',
+        isServerRunning: true,
+      );
+      await provider.load();
+      await provider.refreshModels();
+      provider.selectLoadedModel('alpha');
+      await provider.selectSession('s1');
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider<ChatProvider>.value(
+          value: provider,
+          child: const MaterialApp(home: ChatPage()),
+        ),
+      );
+      await tester.pump();
+      await _scrollMessageListToBottom(tester);
+
+      expect(
+        _isMessageListAtBottom(tester),
+        isTrue,
+        reason: _messageListPositionDescription(tester),
+      );
+
+      await streamController.close();
+      await tester.pump();
+
+      await tester.enterText(find.byKey(const Key('chat_input_field')), 'next');
+      await tester.tap(find.byKey(const Key('chat_send_button')));
+      await tester.pump();
+      await apiClient.streamStartedCompleter!.future;
+      await tester.pump(const Duration(milliseconds: 300));
+      await _scrollMessageListToBottom(tester);
+
+      expect(
+        _isMessageListAtBottom(tester),
+        isTrue,
+        reason: _messageListPositionDescription(tester),
+      );
+
+      streamController.add(
+        ChatStreamDelta(
+          content: List.filled(48, 'generated line').join('\n\n'),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        _isMessageListAtBottom(tester),
+        isTrue,
+        reason: _messageListPositionDescription(tester),
+      );
+    });
+
+    testWidgets(
+      'pauses streaming auto-stick after user scrolls away and resumes from button',
+      (tester) async {
+        final repository = _FakeChatSessionRepository(
+          sessions: <ChatSessionRecord>[
+            _session(id: 's1', title: '长会话', messages: _messages(count: 65)),
+          ],
+        );
+        final apiClient = _FakeLlamaChatApiClient(
+          models: <ChatModelOption>[
+            const ChatModelOption(
+              id: 'alpha',
+              displayName: 'alpha',
+              status: ChatModelStatus.loaded,
+            ),
+          ],
+        );
+        final streamController = StreamController<ChatStreamDelta>();
+        apiClient.streamController = streamController;
+        apiClient.streamStartedCompleter = Completer<void>();
+        addTearDown(() async {
+          if (!streamController.isClosed) {
+            await streamController.close();
+          }
+        });
+        final provider = ChatProvider(
+          repository: repository,
+          apiClient: apiClient,
+        );
+        provider.updateServerState(
+          baseUrl: 'http://127.0.0.1:8080',
+          isServerRunning: true,
+        );
+        await provider.load();
+        await provider.refreshModels();
+        provider.selectLoadedModel('alpha');
+        await provider.selectSession('s1');
+
+        await tester.pumpWidget(
+          ChangeNotifierProvider<ChatProvider>.value(
+            value: provider,
+            child: const MaterialApp(home: ChatPage()),
+          ),
+        );
+        await tester.pump();
+        await _scrollMessageListToBottom(tester);
+
+        await tester.enterText(
+          find.byKey(const Key('chat_input_field')),
+          'next',
+        );
+        await tester.tap(find.byKey(const Key('chat_send_button')));
+        await tester.pump();
+        await apiClient.streamStartedCompleter!.future;
+        await tester.pump(const Duration(milliseconds: 300));
+        await _scrollMessageListToBottom(tester);
+
+        await tester.drag(_messageScrollable(), const Offset(0, 520));
+        await tester.pump();
+
+        expect(_isMessageListAtBottom(tester), isFalse);
+
+        streamController.add(
+          ChatStreamDelta(
+            content: List.filled(48, 'more generated text').join('\n\n'),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(_isMessageListAtBottom(tester), isFalse);
+        expect(
+          find.byKey(const Key('chat_jump_to_latest_button')),
+          findsOneWidget,
+        );
+
+        await tester.tap(find.byKey(const Key('chat_jump_to_latest_button')));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(
+          _isMessageListAtBottom(tester),
+          isTrue,
+          reason: _messageListPositionDescription(tester),
+        );
+        expect(
+          find.byKey(const Key('chat_jump_to_latest_button')),
+          findsNothing,
+        );
+
+        await streamController.close();
+        await tester.pump();
+      },
+    );
+
     testWidgets('regenerate adds assistant reply versions and switches them', (
       tester,
     ) async {
@@ -1759,6 +1938,8 @@ class _FakeLlamaChatApiClient extends LlamaChatApiClient {
   List<ChatModelOption> models;
   int fetchModelsCallCount = 0;
   Completer<void>? fetchModelsCompleter;
+  Completer<void>? streamStartedCompleter;
+  StreamController<ChatStreamDelta>? streamController;
   List<ChatStreamDelta> streamDeltas = const <ChatStreamDelta>[];
 
   @override
@@ -1806,6 +1987,11 @@ class _FakeLlamaChatApiClient extends LlamaChatApiClient {
     required List<ChatMessageRecord> messages,
     required CancelToken cancelToken,
   }) {
+    final controller = streamController;
+    if (controller != null) {
+      streamStartedCompleter?.complete();
+      return controller.stream;
+    }
     return Stream<ChatStreamDelta>.fromIterable(streamDeltas);
   }
 }
@@ -1894,4 +2080,35 @@ List<ChatMessageRecord> _messages({required int count}) {
       createdAt: DateTime(2026, 3, 25, 10, index),
     ),
   );
+}
+
+Finder _messageScrollable() {
+  return find
+      .descendant(
+        of: find.byKey(const Key('chat_message_list')),
+        matching: find.byType(Scrollable),
+      )
+      .first;
+}
+
+Future<void> _scrollMessageListToBottom(WidgetTester tester) async {
+  await tester.dragUntilVisible(
+    find.text('message 64'),
+    _messageScrollable(),
+    const Offset(0, -640),
+  );
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 300));
+}
+
+bool _isMessageListAtBottom(WidgetTester tester) {
+  final scrollable = tester.state<ScrollableState>(_messageScrollable());
+  final position = scrollable.position;
+  return position.maxScrollExtent - position.pixels <= 1;
+}
+
+String _messageListPositionDescription(WidgetTester tester) {
+  final scrollable = tester.state<ScrollableState>(_messageScrollable());
+  final position = scrollable.position;
+  return 'pixels=${position.pixels}, max=${position.maxScrollExtent}';
 }

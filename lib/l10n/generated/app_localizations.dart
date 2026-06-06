@@ -416,6 +416,12 @@ abstract class AppLocalizations {
   /// **'Next version'**
   String get chatNextMessageVersion;
 
+  /// No description provided for @chatJumpToLatest.
+  ///
+  /// In en, this message translates to:
+  /// **'Jump to latest'**
+  String get chatJumpToLatest;
+
   /// No description provided for @chatMessageCopied.
   ///
   /// In en, this message translates to:

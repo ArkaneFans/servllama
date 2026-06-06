@@ -12,7 +12,7 @@ class StreamingChatMessageData {
   final bool isStreaming;
 }
 
-class StreamingChatMessageNotifier {
+class StreamingChatMessageNotifier extends ChangeNotifier {
   final Map<String, ValueNotifier<StreamingChatMessageData>> _notifiers =
       <String, ValueNotifier<StreamingChatMessageData>>{};
 
@@ -39,6 +39,7 @@ class StreamingChatMessageNotifier {
       message: message,
       isStreaming: isStreaming,
     );
+    notifyListeners();
   }
 
   void clear() {
@@ -46,5 +47,11 @@ class StreamingChatMessageNotifier {
       notifier.dispose();
     }
     _notifiers.clear();
+  }
+
+  @override
+  void dispose() {
+    clear();
+    super.dispose();
   }
 }

@@ -766,7 +766,7 @@ class ChatGenerationController extends ChangeNotifier {
 
   @override
   void dispose() {
-    streamingMessages.clear();
+    streamingMessages.dispose();
     super.dispose();
   }
 }
