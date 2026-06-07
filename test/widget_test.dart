@@ -417,6 +417,9 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
   }
 
   @override
+  Future<void> warmUpMessageStore() async {}
+
+  @override
   Future<void> deleteSession(String sessionId) async {
     sessions.removeWhere((session) => session.id == sessionId);
   }
@@ -430,6 +433,16 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
         ? session.messageIds.length - limit
         : 0;
     return _messagesByIds(session.messageIds.skip(start));
+  }
+
+  @override
+  Future<List<ChatMessageRecord>> loadInitialMessages(
+    ChatSessionRecord session, {
+    int minMessages = ChatSessionRepository.defaultInitialMessageMin,
+    int maxMessages = ChatSessionRepository.defaultInitialMessageMax,
+    int textBudget = ChatSessionRepository.defaultInitialTextBudget,
+  }) async {
+    return loadRecentMessages(session, limit: maxMessages);
   }
 
   @override

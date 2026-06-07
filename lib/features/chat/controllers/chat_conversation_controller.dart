@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -11,18 +12,31 @@ class ChatConversationController extends ChangeNotifier {
     required ChatSessionRepository repository,
     required ChatSessionListController sessionList,
     required this.messageWindowSize,
+    this.initialMessageMin = ChatSessionRepository.defaultInitialMessageMin,
+    this.initialMessageMax = ChatSessionRepository.defaultInitialMessageMax,
+    this.initialTextBudget = ChatSessionRepository.defaultInitialTextBudget,
+    this.initialMessageCacheCapacity = 8,
   }) : _repository = repository,
        _sessionList = sessionList;
 
   final ChatSessionRepository _repository;
   final ChatSessionListController _sessionList;
   final int messageWindowSize;
+  final int initialMessageMin;
+  final int initialMessageMax;
+  final int initialTextBudget;
+  final int initialMessageCacheCapacity;
 
   List<ChatMessageRecord> _visibleMessages = <ChatMessageRecord>[];
   bool _isLoadingMessages = false;
   bool _isLoadingOlderMessages = false;
   String? _selectedSessionId;
   int _sessionLoadGeneration = 0;
+  final LinkedHashMap<String, _InitialMessageCacheEntry> _initialMessageCache =
+      LinkedHashMap<String, _InitialMessageCacheEntry>();
+  final Map<String, _InitialMessageLoad> _preloadLoads =
+      <String, _InitialMessageLoad>{};
+  Future<void> _preloadQueue = Future<void>.value();
 
   String? get selectedSessionId => _selectedSessionId;
   bool get isLoadingMessages => _isLoadingMessages;
@@ -86,21 +100,33 @@ class ChatConversationController extends ChangeNotifier {
     return true;
   }
 
-  Future<void> selectSession(String sessionId) async {
-    if (_selectedSessionId == sessionId && !_isLoadingMessages) {
-      return;
-    }
+  Future<bool> switchSession(String sessionId) async {
     final session = _sessionList.findSession(sessionId);
     if (session == null) {
-      return;
+      return false;
     }
+    if (_selectedSessionId == sessionId && !_isLoadingMessages) {
+      return false;
+    }
+
     final generation = ++_sessionLoadGeneration;
+    final cachedMessages = _cachedInitialMessages(session);
     _selectedSessionId = sessionId;
-    _visibleMessages = <ChatMessageRecord>[];
-    _isLoadingMessages = true;
+    _visibleMessages = cachedMessages ?? <ChatMessageRecord>[];
+    _isLoadingMessages = cachedMessages == null;
+    _isLoadingOlderMessages = false;
     notifyListeners();
 
+    if (cachedMessages != null) {
+      return true;
+    }
+
     await _loadMessagesForSession(session, generation);
+    return true;
+  }
+
+  Future<void> selectSession(String sessionId) async {
+    await switchSession(sessionId);
   }
 
   Future<void> loadSelectedSessionMessages(String sessionId) async {
@@ -108,6 +134,13 @@ class ChatConversationController extends ChangeNotifier {
     if (session == null || _selectedSessionId != sessionId) {
       return;
     }
+    final cachedMessages = _cachedInitialMessages(session);
+    if (cachedMessages != null) {
+      _visibleMessages = cachedMessages;
+      _isLoadingMessages = false;
+      notifyListeners();
+      return;
+    }
     final generation = ++_sessionLoadGeneration;
     _isLoadingMessages = true;
     notifyListeners();
@@ -115,15 +148,30 @@ class ChatConversationController extends ChangeNotifier {
     await _loadMessagesForSession(session, generation);
   }
 
+  void preloadInitialMessages(Iterable<ChatSessionRecord> sessions) {
+    for (final session in sessions) {
+      if (_cachedInitialMessages(session) != null ||
+          _activeInitialMessageLoad(session) != null) {
+        continue;
+      }
+      _preloadQueue = _preloadQueue.then((_) async {
+        if (_cachedInitialMessages(session) != null ||
+            _activeInitialMessageLoad(session) != null) {
+          return;
+        }
+        try {
+          await _initialMessagesForSession(session);
+        } catch (_) {}
+      });
+    }
+  }
+
   Future<void> _loadMessagesForSession(
     ChatSessionRecord session,
     int generation,
   ) async {
     try {
-      final messages = await _repository.loadRecentMessages(
-        session,
-        limit: messageWindowSize,
-      );
+      final messages = await _initialMessagesForSession(session);
       if (generation != _sessionLoadGeneration) {
         return;
       }
@@ -194,6 +242,7 @@ class ChatConversationController extends ChangeNotifier {
     }
     if (fullMessages.isEmpty) {
       _visibleMessages = <ChatMessageRecord>[];
+      _refreshSelectedSessionCacheFromVisibleMessages();
       if (notify) {
         notifyListeners();
       }
@@ -208,6 +257,7 @@ class ChatConversationController extends ChangeNotifier {
         _visibleMessages = fullMessages
             .skip(firstVisibleIndex)
             .toList(growable: false);
+        _refreshSelectedSessionCacheFromVisibleMessages();
         if (notify) {
           notifyListeners();
         }
@@ -221,9 +271,104 @@ class ChatConversationController extends ChangeNotifier {
     _visibleMessages = fullMessages
         .skip(fullMessages.length - targetCount)
         .toList(growable: false);
+    _refreshSelectedSessionCacheFromVisibleMessages();
     if (notify) {
       notifyListeners();
     }
+  }
+
+  Future<List<ChatMessageRecord>> _initialMessagesForSession(
+    ChatSessionRecord session,
+  ) {
+    final cachedMessages = _cachedInitialMessages(session);
+    if (cachedMessages != null) {
+      return SynchronousFuture<List<ChatMessageRecord>>(cachedMessages);
+    }
+
+    final signature = _InitialMessageCacheSignature.fromSession(session);
+    final existingLoad = _activeInitialMessageLoad(session);
+    if (existingLoad != null) {
+      return existingLoad.future;
+    }
+
+    final future = _repository
+        .loadInitialMessages(
+          session,
+          minMessages: initialMessageMin,
+          maxMessages: initialMessageMax,
+          textBudget: initialTextBudget,
+        )
+        .then((messages) {
+          _storeInitialMessages(session.id, signature, messages);
+          return messages;
+        })
+        .whenComplete(() {
+          final load = _preloadLoads[session.id];
+          if (load?.signature == signature) {
+            _preloadLoads.remove(session.id);
+          }
+        });
+    _preloadLoads[session.id] = _InitialMessageLoad(
+      signature: signature,
+      future: future,
+    );
+    return future;
+  }
+
+  _InitialMessageLoad? _activeInitialMessageLoad(ChatSessionRecord session) {
+    final load = _preloadLoads[session.id];
+    if (load == null) {
+      return null;
+    }
+    final signature = _InitialMessageCacheSignature.fromSession(session);
+    if (load.signature == signature) {
+      return load;
+    }
+    _preloadLoads.remove(session.id);
+    return null;
+  }
+
+  List<ChatMessageRecord>? _cachedInitialMessages(ChatSessionRecord session) {
+    final entry = _initialMessageCache.remove(session.id);
+    if (entry == null) {
+      return null;
+    }
+    if (entry.signature != _InitialMessageCacheSignature.fromSession(session)) {
+      return null;
+    }
+    _initialMessageCache[session.id] = entry;
+    return List<ChatMessageRecord>.from(entry.messages, growable: false);
+  }
+
+  void _storeInitialMessages(
+    String sessionId,
+    _InitialMessageCacheSignature signature,
+    List<ChatMessageRecord> messages,
+  ) {
+    _initialMessageCache.remove(sessionId);
+    _initialMessageCache[sessionId] = _InitialMessageCacheEntry(
+      signature: signature,
+      messages: List<ChatMessageRecord>.unmodifiable(messages),
+    );
+    while (_initialMessageCache.length > initialMessageCacheCapacity) {
+      _initialMessageCache.remove(_initialMessageCache.keys.first);
+    }
+  }
+
+  void _refreshSelectedSessionCacheFromVisibleMessages() {
+    final session = selectedSession;
+    if (session == null) {
+      return;
+    }
+    _storeInitialMessages(
+      session.id,
+      _InitialMessageCacheSignature.fromSession(session),
+      _visibleMessages.length > initialMessageMax
+          ? _visibleMessages.sublist(
+              _visibleMessages.length - initialMessageMax,
+            )
+          : _visibleMessages,
+    );
   }
 
   int messageIndex(List<ChatMessageRecord> messages, String messageId) {
@@ -241,4 +386,55 @@ class ChatConversationController extends ChangeNotifier {
     }
     return -1;
   }
+}
+
+class _InitialMessageCacheEntry {
+  const _InitialMessageCacheEntry({
+    required this.signature,
+    required this.messages,
+  });
+
+  final _InitialMessageCacheSignature signature;
+  final List<ChatMessageRecord> messages;
+}
+
+class _InitialMessageLoad {
+  const _InitialMessageLoad({required this.signature, required this.future});
+
+  final _InitialMessageCacheSignature signature;
+  final Future<List<ChatMessageRecord>> future;
+}
+
+class _InitialMessageCacheSignature {
+  const _InitialMessageCacheSignature({
+    required this.messageCount,
+    required this.lastMessageId,
+    required this.updatedAt,
+  });
+
+  factory _InitialMessageCacheSignature.fromSession(ChatSessionRecord session) {
+    return _InitialMessageCacheSignature(
+      messageCount: session.messageIds.length,
+      lastMessageId: session.messageIds.isEmpty
+          ? null
+          : session.messageIds.last,
+      updatedAt: session.updatedAt,
+    );
+  }
+
+  final int messageCount;
+  final String? lastMessageId;
+  final DateTime updatedAt;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is _InitialMessageCacheSignature &&
+            messageCount == other.messageCount &&
+            lastMessageId == other.lastMessageId &&
+            updatedAt == other.updatedAt;
+  }
+
+  @override
+  int get hashCode => Object.hash(messageCount, lastMessageId, updatedAt);
 }

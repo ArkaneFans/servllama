@@ -53,36 +53,44 @@ class ChatMessageList extends StatelessWidget {
             valueListenable: streamingListenable,
             builder: (context, data, _) {
               final streamingMessage = data.message;
-              return _MessageBubble(
-                key: ValueKey<String>(streamingMessage.id),
-                message: streamingMessage,
-                isDraft: data.isStreaming || isDraft,
-                canManageMessages: canManageMessages,
-                canRegenerate: canRegenerateMessage(streamingMessage.id),
-                onCopy: () => onCopyMessage(streamingMessage),
-                onEdit: () => onEditMessage(streamingMessage),
-                onDelete: () => onDeleteMessage(streamingMessage),
-                onRegenerate: () => onRegenerateMessage(streamingMessage),
-                onShowActions: () => onShowMessageActions(streamingMessage),
-                onSelectVersion: (versionIndex) =>
-                    onSelectMessageVersion(streamingMessage, versionIndex),
+              return RepaintBoundary(
+                key: ValueKey<String>(
+                  'chat_message_repaint_${streamingMessage.id}',
+                ),
+                child: _MessageBubble(
+                  key: ValueKey<String>(streamingMessage.id),
+                  message: streamingMessage,
+                  isDraft: data.isStreaming || isDraft,
+                  canManageMessages: canManageMessages,
+                  canRegenerate: canRegenerateMessage(streamingMessage.id),
+                  onCopy: () => onCopyMessage(streamingMessage),
+                  onEdit: () => onEditMessage(streamingMessage),
+                  onDelete: () => onDeleteMessage(streamingMessage),
+                  onRegenerate: () => onRegenerateMessage(streamingMessage),
+                  onShowActions: () => onShowMessageActions(streamingMessage),
+                  onSelectVersion: (versionIndex) =>
+                      onSelectMessageVersion(streamingMessage, versionIndex),
+                ),
               );
             },
           );
         }
-        return _MessageBubble(
-          key: ValueKey<String>(message.id),
-          message: message,
-          isDraft: isDraft,
-          canManageMessages: canManageMessages,
-          canRegenerate: canRegenerateMessage(message.id),
-          onCopy: () => onCopyMessage(message),
-          onEdit: () => onEditMessage(message),
-          onDelete: () => onDeleteMessage(message),
-          onRegenerate: () => onRegenerateMessage(message),
-          onShowActions: () => onShowMessageActions(message),
-          onSelectVersion: (versionIndex) =>
-              onSelectMessageVersion(message, versionIndex),
+        return RepaintBoundary(
+          key: ValueKey<String>('chat_message_repaint_${message.id}'),
+          child: _MessageBubble(
+            key: ValueKey<String>(message.id),
+            message: message,
+            isDraft: isDraft,
+            canManageMessages: canManageMessages,
+            canRegenerate: canRegenerateMessage(message.id),
+            onCopy: () => onCopyMessage(message),
+            onEdit: () => onEditMessage(message),
+            onDelete: () => onDeleteMessage(message),
+            onRegenerate: () => onRegenerateMessage(message),
+            onShowActions: () => onShowMessageActions(message),
+            onSelectVersion: (versionIndex) =>
+                onSelectMessageVersion(message, versionIndex),
+          ),
         );
       },
     );
@@ -204,11 +212,13 @@ class _MessageBubbleState extends State<_MessageBubble> {
 
     final footer = buildFooter(includeModelName: !isUser);
     final contentWidget = hasVisibleContent
-        ? GptMarkdown(
-            message.content.isEmpty && isDraft ? '...' : message.content,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: foregroundColor,
-              height: 1.5,
+        ? RepaintBoundary(
+            child: GptMarkdown(
+              message.content.isEmpty && isDraft ? '...' : message.content,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: foregroundColor,
+                height: 1.5,
+              ),
             ),
           )
         : null;
@@ -321,11 +331,13 @@ class _MessageBubbleState extends State<_MessageBubble> {
                       if (_isReasoningExpanded)
                         Padding(
                           padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                          child: GptMarkdown(
-                            reasoningContent,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: foregroundColor.withAlpha(210),
-                              height: 1.5,
+                          child: RepaintBoundary(
+                            child: GptMarkdown(
+                              reasoningContent,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: foregroundColor.withAlpha(210),
+                                height: 1.5,
+                              ),
                             ),
                           ),
                         ),

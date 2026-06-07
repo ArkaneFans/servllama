@@ -1,12 +1,10 @@
 import 'dart:async';
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/core/providers/server_provider.dart';
-import 'package:servllama/features/chat/controllers/chat_auto_follow_scroll_controller.dart';
+import 'package:servllama/features/chat/controllers/chat_scroll_coordinator.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/providers/chat_provider.dart';
 import 'package:servllama/features/chat/services/image_attachment_service.dart';
@@ -59,33 +57,15 @@ class _ChatView extends StatefulWidget {
 }
 
 class _ChatViewState extends State<_ChatView> {
-  static const double _autoFollowResumeThreshold = 24;
-  static const double _bottomStickThreshold = 72;
-
-  final ChatAutoFollowScrollController _scrollController =
-      ChatAutoFollowScrollController();
+  final ChatScrollCoordinator _scrollCoordinator = ChatScrollCoordinator();
   final TextEditingController _inputController = TextEditingController();
   final ImageAttachmentService _imageAttachmentService =
       ImageAttachmentService();
 
-  ChatProvider? _provider;
-  int _lastMessageCount = 0;
-  String? _lastSelectedSessionId;
-  bool _wasLoadingMessages = false;
-  bool _isLoadingOlderFromScroll = false;
-  bool _autoStickToBottom = true;
-  bool _isScrollToBottomScheduled = false;
-  bool _showJumpToLatestButton = false;
-  bool _isUserScrollActive = false;
-  Timer? _userScrollActivityTimer;
-  Timer? _sessionSwitchScrollTimer;
-  String? _pendingSessionSwitchScrollSessionId;
-
   @override
   void initState() {
     super.initState();
-    _scrollController.shouldAutoFollow = _shouldAutoFollow;
-    _scrollController.addListener(_handleScroll);
+    _scrollCoordinator.addListener(_handleScrollCoordinatorChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         return;
@@ -97,325 +77,23 @@ class _ChatViewState extends State<_ChatView> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final provider = context.read<ChatProvider>();
-    if (identical(provider, _provider)) {
-      return;
-    }
-    _provider?.streamingMessages.removeListener(_handleStreamingMessageChanged);
-    _provider?.removeListener(_handleProviderChanged);
-    _provider = provider;
-    _lastMessageCount = provider.visibleMessages.length;
-    _lastSelectedSessionId = provider.selectedSession?.id;
-    _wasLoadingMessages = provider.isLoadingMessages;
-    provider.addListener(_handleProviderChanged);
-    provider.streamingMessages.addListener(_handleStreamingMessageChanged);
+    _scrollCoordinator.attachProvider(context.read<ChatProvider>());
   }
 
   @override
   void dispose() {
-    _provider?.streamingMessages.removeListener(_handleStreamingMessageChanged);
-    _provider?.removeListener(_handleProviderChanged);
-    _scrollController.removeListener(_handleScroll);
-    _scrollController.dispose();
+    _scrollCoordinator.removeListener(_handleScrollCoordinatorChanged);
+    _scrollCoordinator.dispose();
     _inputController.dispose();
-    _userScrollActivityTimer?.cancel();
-    _sessionSwitchScrollTimer?.cancel();
     super.dispose();
   }
 
-  bool _shouldAutoFollow() {
-    return mounted &&
-        _autoStickToBottom &&
-        !_isUserScrollActive &&
-        !_isLoadingOlderFromScroll;
-  }
-
-  void _handleProviderChanged() {
-    final provider = _provider;
-    if (provider == null) {
-      return;
-    }
-
-    final selectedSessionId = provider.selectedSession?.id;
-    if (selectedSessionId != _lastSelectedSessionId) {
-      _lastSelectedSessionId = selectedSessionId;
-      _lastMessageCount = provider.visibleMessages.length;
-      _isLoadingOlderFromScroll = false;
-      _pendingSessionSwitchScrollSessionId = selectedSessionId;
-      _enableAutoStickToBottom();
-      _setShowJumpToLatestButton(false);
-    }
-
-    final finishedLoadingMessages =
-        _wasLoadingMessages && !provider.isLoadingMessages;
-    _wasLoadingMessages = provider.isLoadingMessages;
-    if (finishedLoadingMessages &&
-        selectedSessionId != null &&
-        _pendingSessionSwitchScrollSessionId == selectedSessionId) {
-      _pendingSessionSwitchScrollSessionId = null;
-      _scheduleSessionSwitchScrollToBottom();
-    }
-    final shouldAutoScroll = _autoStickToBottom || _isNearBottom();
-    final count = provider.visibleMessages.length;
-    final countIncreased = count > _lastMessageCount;
-    _lastMessageCount = count;
-
-    if (!finishedLoadingMessages && shouldAutoScroll && countIncreased) {
-      _scheduleScrollToBottom();
-    }
-  }
-
-  void _handleScroll() {
-    if (!_hasSingleScrollPosition) {
-      return;
-    }
-    if (_isNearBottom(_autoFollowResumeThreshold)) {
-      _autoStickToBottom = true;
-      _setShowJumpToLatestButton(false);
-    } else if (_isUserScrollActive) {
-      _autoStickToBottom = false;
-      _setShowJumpToLatestButton(_hasVisibleMessageList);
-    } else if (!_isNearBottom(_bottomStickThreshold)) {
-      _setShowJumpToLatestButton(_hasVisibleMessageList);
-    }
-
-    final provider = _provider;
-    if (provider == null ||
-        _isLoadingOlderFromScroll ||
-        provider.isLoadingMessages ||
-        provider.isLoadingOlderMessages ||
-        !provider.hasOlderMessages) {
-      return;
-    }
-    if (_scrollController.position.pixels <= 96) {
-      unawaited(_loadOlderMessagesPreservingOffset(provider));
-    }
-  }
-
-  bool _isNearBottom([double threshold = _bottomStickThreshold]) {
-    if (!_hasSingleScrollPosition) {
-      return true;
-    }
-    final position = _scrollController.position;
-    return position.maxScrollExtent - position.pixels <= threshold;
-  }
-
-  bool get _hasSingleScrollPosition {
-    return _scrollController.hasClients &&
-        _scrollController.positions.length == 1;
-  }
-
-  bool _isMetricsNearBottom(
-    ScrollMetrics metrics, [
-    double threshold = _bottomStickThreshold,
-  ]) {
-    return metrics.maxScrollExtent - metrics.pixels <= threshold;
-  }
-
-  bool _handleMessageScrollNotification(ScrollNotification notification) {
-    if (notification.depth != 0 || notification.metrics.axis != Axis.vertical) {
-      return false;
-    }
-
-    if (notification is ScrollUpdateNotification &&
-        notification.dragDetails != null) {
-      _handleUserScrollActivity(notification.metrics);
-    } else if (notification is OverscrollNotification &&
-        notification.dragDetails != null) {
-      _handleUserScrollActivity(notification.metrics);
-    } else if (notification is ScrollStartNotification &&
-        notification.dragDetails != null) {
-      _handleUserScrollActivity(notification.metrics);
-    } else if (notification is UserScrollNotification) {
-      if (notification.direction == ScrollDirection.idle) {
-        _scheduleUserScrollIdle();
-      } else {
-        _handleUserScrollActivity(notification.metrics);
-      }
-    } else if (notification is ScrollEndNotification) {
-      _scheduleUserScrollIdle();
-    }
-
-    if (_isMetricsNearBottom(
-      notification.metrics,
-      _autoFollowResumeThreshold,
-    )) {
-      _autoStickToBottom = true;
-      _setShowJumpToLatestButton(false);
-    } else if (_isUserScrollActive) {
-      _autoStickToBottom = false;
-      _setShowJumpToLatestButton(_hasVisibleMessageList);
-    } else if (_isMetricsNearBottom(notification.metrics)) {
-      _setShowJumpToLatestButton(false);
-    } else if (!_autoStickToBottom) {
-      _setShowJumpToLatestButton(_hasVisibleMessageList);
-    }
-    return false;
-  }
-
-  void _handlePointerSignal(PointerSignalEvent event) {
-    if (event is PointerScrollEvent) {
-      _handleUserScrollActivity();
-    }
-  }
-
-  void _handleUserScrollActivity([ScrollMetrics? metrics]) {
-    _isUserScrollActive = true;
-    if (metrics == null
-        ? _isNearBottom(_autoFollowResumeThreshold)
-        : _isMetricsNearBottom(metrics, _autoFollowResumeThreshold)) {
-      _autoStickToBottom = true;
-      _setShowJumpToLatestButton(false);
-    } else {
-      _autoStickToBottom = false;
-      _setShowJumpToLatestButton(_hasVisibleMessageList);
-    }
-    _scheduleUserScrollIdle();
-  }
-
-  void _scheduleUserScrollIdle() {
-    _userScrollActivityTimer?.cancel();
-    _userScrollActivityTimer = Timer(const Duration(milliseconds: 180), () {
-      _isUserScrollActive = false;
-      if (_isNearBottom(_autoFollowResumeThreshold)) {
-        _autoStickToBottom = true;
-        _setShowJumpToLatestButton(false);
-      }
-    });
-  }
-
-  void _clearUserScrollActivity() {
-    _userScrollActivityTimer?.cancel();
-    _userScrollActivityTimer = null;
-    _isUserScrollActive = false;
-  }
-
-  void _handleStreamingMessageChanged() {
+  void _handleScrollCoordinatorChanged() {
     if (!mounted) {
-      return;
-    }
-    if (_autoStickToBottom || _isNearBottom(_autoFollowResumeThreshold)) {
-      _autoStickToBottom = true;
-      _setShowJumpToLatestButton(false);
-      return;
-    }
-    _setShowJumpToLatestButton(_hasVisibleMessageList);
-  }
-
-  bool get _hasVisibleMessageList {
-    final provider = _provider;
-    return provider != null &&
-        !provider.isLoadingMessages &&
-        provider.visibleMessages.isNotEmpty;
-  }
-
-  void _scheduleScrollToBottom({int remainingRetries = 0}) {
-    if (_isScrollToBottomScheduled) {
-      return;
-    }
-    _isScrollToBottomScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _isScrollToBottomScheduled = false;
-      if (!mounted) {
-        return;
-      }
-      if (_autoStickToBottom || _isNearBottom()) {
-        _scrollToBottom(remainingRetries: remainingRetries);
-      }
-    });
-  }
-
-  void _scrollToBottom({int remainingRetries = 0}) {
-    if (!_scrollController.hasClients) {
-      return;
-    }
-    if (!_hasSingleScrollPosition) {
-      if (remainingRetries > 0) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) {
-            return;
-          }
-          _scrollToBottom(remainingRetries: remainingRetries - 1);
-        });
-      }
-      return;
-    }
-    _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-    if (_isNearBottom()) {
-      _setShowJumpToLatestButton(false);
-    }
-  }
-
-  void _enableAutoStickToBottom({bool hideJumpButton = true}) {
-    _clearUserScrollActivity();
-    _autoStickToBottom = true;
-    if (hideJumpButton) {
-      _setShowJumpToLatestButton(false);
-    }
-  }
-
-  void _jumpToLatestMessage() {
-    _enableAutoStickToBottom(hideJumpButton: false);
-    _scrollToBottom();
-  }
-
-  void _scheduleSessionSwitchScrollToBottom() {
-    _sessionSwitchScrollTimer?.cancel();
-    _enableAutoStickToBottom();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
-      _enableAutoStickToBottom();
-      _scrollToBottom(remainingRetries: 1);
-    });
-    _sessionSwitchScrollTimer = Timer(const Duration(milliseconds: 220), () {
-      _sessionSwitchScrollTimer = null;
-      if (!mounted) {
-        return;
-      }
-      _enableAutoStickToBottom();
-      _scrollToBottom(remainingRetries: 1);
-    });
-  }
-
-  void _setShowJumpToLatestButton(bool value) {
-    if (!mounted || _showJumpToLatestButton == value) {
       return;
     }
     setState(() {
-      _showJumpToLatestButton = value;
-    });
-  }
-
-  Future<void> _loadOlderMessagesPreservingOffset(ChatProvider provider) async {
-    if (!_scrollController.hasClients || _isLoadingOlderFromScroll) {
-      return;
-    }
-    _isLoadingOlderFromScroll = true;
-    _autoStickToBottom = false;
-    final sessionId = provider.selectedSession?.id;
-    final position = _scrollController.position;
-    final previousMaxScrollExtent = position.maxScrollExtent;
-    final previousPixels = position.pixels;
-
-    await provider.loadOlderMessages();
-    if (!mounted) {
-      return;
-    }
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _isLoadingOlderFromScroll = false;
-      if (!_hasSingleScrollPosition ||
-          _provider?.selectedSession?.id != sessionId) {
-        return;
-      }
-      final position = _scrollController.position;
-      final targetPixels =
-          previousPixels + position.maxScrollExtent - previousMaxScrollExtent;
-      _scrollController.jumpTo(
-        targetPixels.clamp(0.0, position.maxScrollExtent),
-      );
+      // Rebuild only the floating jump button visibility.
     });
   }
 
@@ -426,7 +104,7 @@ class _ChatViewState extends State<_ChatView> {
       return;
     }
     _inputController.clear();
-    _enableAutoStickToBottom();
+    _scrollCoordinator.enableAutoStickToBottom();
     final provider = context.read<ChatProvider>();
     final attachments = List<String>.from(provider.pendingImageAttachments);
     await provider.sendMessage(text, imageAttachments: attachments);
@@ -568,7 +246,7 @@ class _ChatViewState extends State<_ChatView> {
     BuildContext context,
     ChatMessageRecord message,
   ) async {
-    _enableAutoStickToBottom();
+    _scrollCoordinator.enableAutoStickToBottom();
     final provider = context.read<ChatProvider>();
     await provider.regenerateFromMessage(message.id);
     if (!context.mounted) {
@@ -637,6 +315,7 @@ class _ChatViewState extends State<_ChatView> {
       builder: (context, provider, _) {
         final serverProvider = context.watch<ServerProvider?>();
         final hasLoadedModel = provider.currentModel?.isLoaded == true;
+        final conversationKey = provider.selectedSession?.id ?? 'draft';
         final shouldShowHeroState =
             !provider.isLoadingMessages &&
             provider.visibleMessages.isEmpty &&
@@ -680,17 +359,20 @@ class _ChatViewState extends State<_ChatView> {
                               duration: const Duration(milliseconds: 220),
                               switchInCurve: Curves.easeOutCubic,
                               switchOutCurve: Curves.easeInCubic,
+                              layoutBuilder: (currentChild, previousChildren) {
+                                return currentChild ?? const SizedBox.shrink();
+                              },
                               child: provider.isLoadingMessages
-                                  ? const Center(
+                                  ? Center(
                                       key: ValueKey<String>(
-                                        'chat_message_loading',
+                                        'chat_message_loading_$conversationKey',
                                       ),
                                       child: CircularProgressIndicator(),
                                     )
                                   : shouldShowHeroState
                                   ? ChatConversationHero(
-                                      key: const ValueKey<String>(
-                                        'chat_conversation_hero',
+                                      key: ValueKey<String>(
+                                        'chat_conversation_hero_$conversationKey',
                                       ),
                                       isServerRunning: provider.isServerRunning,
                                       isServerBusy:
@@ -708,20 +390,22 @@ class _ChatViewState extends State<_ChatView> {
                                           : null,
                                     )
                                   : Stack(
-                                      key: const ValueKey<String>(
-                                        'chat_message_list_stack',
+                                      key: ValueKey<String>(
+                                        'chat_message_list_stack_$conversationKey',
                                       ),
                                       children: [
                                         Listener(
-                                          onPointerSignal: _handlePointerSignal,
+                                          onPointerSignal: _scrollCoordinator
+                                              .handlePointerSignal,
                                           child: NotificationListener<ScrollNotification>(
-                                            onNotification:
-                                                _handleMessageScrollNotification,
+                                            onNotification: _scrollCoordinator
+                                                .handleMessageScrollNotification,
                                             child: ChatMessageList(
                                               key: const ValueKey<String>(
                                                 'chat_message_list',
                                               ),
-                                              controller: _scrollController,
+                                              controller: _scrollCoordinator
+                                                  .scrollController,
                                               streamingMessages:
                                                   provider.streamingMessages,
                                               messages:
@@ -767,7 +451,8 @@ class _ChatViewState extends State<_ChatView> {
                                             ),
                                           ),
                                         ),
-                                        if (_showJumpToLatestButton)
+                                        if (_scrollCoordinator
+                                            .showJumpToLatestButton)
                                           Positioned(
                                             right: 12,
                                             bottom: 12,
@@ -778,7 +463,8 @@ class _ChatViewState extends State<_ChatView> {
                                               heroTag: null,
                                               tooltip:
                                                   context.l10n.chatJumpToLatest,
-                                              onPressed: _jumpToLatestMessage,
+                                              onPressed: _scrollCoordinator
+                                                  .jumpToLatestMessage,
                                               child: const Icon(
                                                 Icons
                                                     .keyboard_arrow_down_rounded,

@@ -14,6 +14,10 @@ class ChatSessionRepository {
   static const String boxName = 'chat_sessions';
   static const String messageBoxName = 'chat_messages';
   static const String versionBoxName = 'chat_message_versions';
+  static const int defaultInitialMessageMin = 2;
+  static const int defaultInitialMessageMax = 30;
+  static const int defaultInitialTextBudget = 20000;
+  static const int _imageInitialLoadWeight = 1200;
 
   final Directory? _appSupportDirectory;
   final HiveInterface _hive;
@@ -38,6 +42,11 @@ class ChatSessionRepository {
     final box = await _box();
     final cleanSession = await _saveLegacyMessagesIfNeeded(session);
     await box.put(cleanSession.id, _withoutLegacyMessages(cleanSession));
+  }
+
+  Future<void> warmUpMessageStore() async {
+    await _messageBox();
+    await _versionBox();
   }
 
   Future<ChatSessionRecord> saveSessionWithMessages(
@@ -65,6 +74,52 @@ class ChatSessionRepository {
     final ids = session.messageIds;
     final start = ids.length > limit ? ids.length - limit : 0;
     return _loadMessagesByIds(ids.skip(start));
+  }
+
+  Future<List<ChatMessageRecord>> loadInitialMessages(
+    ChatSessionRecord session, {
+    int minMessages = defaultInitialMessageMin,
+    int maxMessages = defaultInitialMessageMax,
+    int textBudget = defaultInitialTextBudget,
+  }) async {
+    final ids = session.messageIds;
+    if (ids.isEmpty) {
+      return const <ChatMessageRecord>[];
+    }
+
+    final box = await _messageBox();
+    final minCount = minMessages.clamp(1, ids.length).toInt();
+    final configuredMax = maxMessages <= 0
+        ? defaultInitialMessageMax
+        : maxMessages;
+    final maxCount = configuredMax.clamp(minCount, ids.length).toInt();
+    final budget = textBudget <= 0 ? defaultInitialTextBudget : textBudget;
+    final messages = <ChatMessageRecord>[];
+
+    var index = ids.length;
+    var weight = 0;
+    while (index > 0 && messages.length < maxCount) {
+      index -= 1;
+      final message = box.get(ids[index]);
+      if (message == null) {
+        continue;
+      }
+      messages.add(message);
+      weight += _estimateInitialLoadWeight(message);
+      if (messages.length >= minCount && weight >= budget) {
+        break;
+      }
+    }
+
+    if (messages.length.isOdd && index > 0 && messages.length < maxCount) {
+      index -= 1;
+      final message = box.get(ids[index]);
+      if (message != null) {
+        messages.add(message);
+      }
+    }
+
+    return messages.reversed.toList(growable: false);
   }
 
   Future<List<ChatMessageRecord>> loadMessagesBefore(
@@ -282,6 +337,15 @@ class ChatSessionRepository {
         .map(box.get)
         .whereType<ChatMessageRecord>()
         .toList(growable: false);
+  }
+
+  int _estimateInitialLoadWeight(ChatMessageRecord message) {
+    final reasoningLength = message.reasoningContent?.length ?? 0;
+    final textWeight = message.content.length + (reasoningLength * 0.8).round();
+    final roleWeight = message.role == ChatRole.user && textWeight < 200
+        ? 200
+        : textWeight;
+    return roleWeight + message.imageFilePaths.length * _imageInitialLoadWeight;
   }
 
   ChatMessageRecord _messageForSession(

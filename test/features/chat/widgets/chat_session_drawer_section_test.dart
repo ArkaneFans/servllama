@@ -129,6 +129,48 @@ void main() {
       },
     );
 
+    testWidgets('switches and loads session before drawer close completes', (
+      tester,
+    ) async {
+      final closeCompleter = Completer<void>();
+      final provider = await _createProvider(
+        sessions: <ChatSessionRecord>[
+          _session(
+            id: 's1',
+            title: '会话一',
+            messages: <ChatMessageRecord>[
+              _message(id: 'old', content: '旧会话消息'),
+            ],
+          ),
+          _session(
+            id: 's2',
+            title: '会话二',
+            messages: <ChatMessageRecord>[
+              _message(id: 'new', content: '新会话消息'),
+            ],
+          ),
+        ],
+      );
+      await provider.switchSession('s1');
+
+      await tester.pumpWidget(
+        _TestHost(provider: provider, onOpenChat: () => closeCompleter.future),
+      );
+      await tester.pump();
+
+      expect(provider.selectedSession?.id, 's1');
+      expect(provider.visibleMessages.single.content, '旧会话消息');
+
+      await tester.tap(find.byKey(const Key('chat_session_item_s2')));
+      await tester.pump();
+
+      expect(closeCompleter.isCompleted, isFalse);
+      expect(provider.selectedSession?.id, 's2');
+      expect(provider.visibleMessages.single.content, '新会话消息');
+
+      closeCompleter.complete();
+    });
+
     testWidgets('renames a session from the action sheet', (tester) async {
       final provider = await _createProvider(
         sessions: <ChatSessionRecord>[_session(id: 's1', title: '旧名称')],
@@ -204,7 +246,7 @@ class _TestHost extends StatelessWidget {
   const _TestHost({required this.provider, this.onOpenChat});
 
   final ChatProvider provider;
-  final VoidCallback? onOpenChat;
+  final FutureOr<void> Function()? onOpenChat;
 
   @override
   Widget build(BuildContext context) {
@@ -256,6 +298,9 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
   }
 
   @override
+  Future<void> warmUpMessageStore() async {}
+
+  @override
   Future<void> deleteSession(String sessionId) async {
     sessions.removeWhere((session) => session.id == sessionId);
   }
@@ -269,6 +314,16 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
         ? session.messageIds.length - limit
         : 0;
     return _messagesByIds(session.messageIds.skip(start));
+  }
+
+  @override
+  Future<List<ChatMessageRecord>> loadInitialMessages(
+    ChatSessionRecord session, {
+    int minMessages = ChatSessionRepository.defaultInitialMessageMin,
+    int maxMessages = ChatSessionRepository.defaultInitialMessageMax,
+    int textBudget = ChatSessionRepository.defaultInitialTextBudget,
+  }) async {
+    return loadRecentMessages(session, limit: maxMessages);
   }
 
   @override
@@ -342,6 +397,9 @@ class _PendingChatSessionRepository extends ChatSessionRepository {
   }
 
   @override
+  Future<void> warmUpMessageStore() async {}
+
+  @override
   Future<void> deleteSession(String sessionId) async {
     sessions.removeWhere((session) => session.id == sessionId);
   }
@@ -355,6 +413,16 @@ class _PendingChatSessionRepository extends ChatSessionRepository {
         ? session.messageIds.length - limit
         : 0;
     return _messagesByIds(session.messageIds.skip(start));
+  }
+
+  @override
+  Future<List<ChatMessageRecord>> loadInitialMessages(
+    ChatSessionRecord session, {
+    int minMessages = ChatSessionRepository.defaultInitialMessageMin,
+    int maxMessages = ChatSessionRepository.defaultInitialMessageMax,
+    int textBudget = ChatSessionRepository.defaultInitialTextBudget,
+  }) async {
+    return loadRecentMessages(session, limit: maxMessages);
   }
 
   @override
@@ -427,13 +495,26 @@ Future<ChatProvider> _createProvider({
   return provider;
 }
 
-ChatSessionRecord _session({required String id, required String title}) {
+ChatSessionRecord _session({
+  required String id,
+  required String title,
+  List<ChatMessageRecord> messages = const <ChatMessageRecord>[],
+}) {
   final timestamp = DateTime(2026, 3, 25, 10);
   return ChatSessionRecord(
     id: id,
     title: title,
-    messages: const <ChatMessageRecord>[],
+    messages: messages,
     createdAt: timestamp,
     updatedAt: timestamp,
+  );
+}
+
+ChatMessageRecord _message({required String id, required String content}) {
+  return ChatMessageRecord(
+    id: id,
+    role: ChatRole.user,
+    content: content,
+    createdAt: DateTime(2026, 3, 25, 10),
   );
 }

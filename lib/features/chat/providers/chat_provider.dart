@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:servllama/features/chat/controllers/chat_conversation_controller.dart';
 import 'package:servllama/features/chat/controllers/chat_generation_controller.dart';
@@ -43,6 +45,7 @@ class ChatProvider extends ChangeNotifier {
 
   static const String defaultSessionTitle = '新会话';
   static const int messageWindowSize = 30;
+  static const int initialMessagePreloadCount = 4;
 
   final ChatSessionRepository _repository;
   final LlamaChatApiClient _apiClient;
@@ -101,6 +104,10 @@ class ChatProvider extends ChangeNotifier {
   Future<void> load() async {
     await _sessionList.load();
     _conversation.clearIfSelectedSessionMissing(notify: false);
+    unawaited(_repository.warmUpMessageStore().catchError((_) {}));
+    _conversation.preloadInitialMessages(
+      _sessionList.sessions.take(initialMessagePreloadCount),
+    );
   }
 
   void updateSessionQuery(String value) {
@@ -176,11 +183,15 @@ class ChatProvider extends ChangeNotifier {
     await _conversation.loadSelectedSessionMessages(sessionId);
   }
 
-  Future<void> selectSession(String sessionId) async {
+  Future<bool> switchSession(String sessionId) async {
     if (!canManageSessions) {
-      return;
+      return false;
     }
-    await _conversation.selectSession(sessionId);
+    return _conversation.switchSession(sessionId);
+  }
+
+  Future<void> selectSession(String sessionId) async {
+    await switchSession(sessionId);
   }
 
   Future<void> loadOlderMessages() async {
