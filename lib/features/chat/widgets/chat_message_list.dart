@@ -22,6 +22,7 @@ class ChatMessageList extends StatelessWidget {
     required this.onRegenerateMessage,
     required this.onShowMessageActions,
     required this.onSelectMessageVersion,
+    this.padding = const EdgeInsets.fromLTRB(0, 24, 0, 8),
   });
 
   final ScrollController controller;
@@ -37,12 +38,13 @@ class ChatMessageList extends StatelessWidget {
   final Future<void> Function(ChatMessageRecord message) onShowMessageActions;
   final Future<void> Function(ChatMessageRecord message, int versionIndex)
   onSelectMessageVersion;
+  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
       controller: controller,
-      padding: const EdgeInsets.fromLTRB(0, 24, 0, 8),
+      padding: padding,
       itemCount: messages.length,
       itemBuilder: (context, index) {
         final message = messages[index];

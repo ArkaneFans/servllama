@@ -20,9 +20,8 @@ class ChatSessionDrawerSection extends StatelessWidget {
   final FutureOr<void> Function() onOpenChat;
 
   Future<void> _openSession(ChatProvider provider, String sessionId) async {
-    final switchFuture = provider.switchSession(sessionId);
     unawaited(Future<void>.sync(onOpenChat));
-    await switchFuture;
+    await provider.switchSession(sessionId, staged: true);
   }
 
   Future<void> _showSessionActions(

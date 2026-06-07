@@ -166,6 +166,9 @@ void main() {
 
       expect(closeCompleter.isCompleted, isFalse);
       expect(provider.selectedSession?.id, 's2');
+      await tester.pumpAndSettle();
+
+      expect(closeCompleter.isCompleted, isFalse);
       expect(provider.visibleMessages.single.content, '新会话消息');
 
       closeCompleter.complete();

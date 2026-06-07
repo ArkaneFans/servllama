@@ -34,6 +34,19 @@ class ChatScrollCoordinator extends ChangeNotifier {
 
   bool get showJumpToLatestButton => _showJumpToLatestButton;
 
+  void handleConversationBodyCommitted(String conversationKey) {
+    if (_isDisposed) {
+      return;
+    }
+    final provider = _provider;
+    final selectedConversationKey = provider?.selectedSession?.id ?? 'draft';
+    if (selectedConversationKey != conversationKey) {
+      return;
+    }
+    _pendingSessionSwitchScrollSessionId = null;
+    _scheduleSessionSwitchScrollToBottom();
+  }
+
   void attachProvider(ChatProvider provider) {
     if (identical(provider, _provider)) {
       return;

@@ -45,7 +45,7 @@ class ChatProvider extends ChangeNotifier {
 
   static const String defaultSessionTitle = '新会话';
   static const int messageWindowSize = 30;
-  static const int initialMessagePreloadCount = 4;
+  static const int initialMessagePreloadCount = 8;
 
   final ChatSessionRepository _repository;
   final LlamaChatApiClient _apiClient;
@@ -98,6 +98,7 @@ class ChatProvider extends ChangeNotifier {
   List<ChatModelOption> get loadedModels => _models.loadedModels;
   List<ChatModelOption> get availableModels => _models.availableModels;
   List<ChatMessageRecord> get visibleMessages => _conversation.visibleMessages;
+  int get visibleMessagesRevision => _conversation.visibleMessagesRevision;
   List<ChatSessionRecord> get filteredSessions => _sessionList.filteredSessions;
   String get inputHintText => _models.inputHintText;
 
@@ -112,6 +113,9 @@ class ChatProvider extends ChangeNotifier {
 
   void updateSessionQuery(String value) {
     _sessionList.updateQuery(value);
+    _conversation.preloadInitialMessages(
+      _sessionList.filteredSessions.take(initialMessagePreloadCount),
+    );
   }
 
   void updateServerState({
@@ -183,11 +187,11 @@ class ChatProvider extends ChangeNotifier {
     await _conversation.loadSelectedSessionMessages(sessionId);
   }
 
-  Future<bool> switchSession(String sessionId) async {
+  Future<bool> switchSession(String sessionId, {bool staged = false}) async {
     if (!canManageSessions) {
       return false;
     }
-    return _conversation.switchSession(sessionId);
+    return _conversation.switchSession(sessionId, staged: staged);
   }
 
   Future<void> selectSession(String sessionId) async {

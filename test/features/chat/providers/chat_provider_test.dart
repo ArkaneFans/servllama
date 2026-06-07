@@ -69,6 +69,10 @@ void main() {
           _session(id: 's3', title: '会话三', messages: _messages(count: 4)),
           _session(id: 's4', title: '会话四', messages: _messages(count: 4)),
           _session(id: 's5', title: '会话五', messages: _messages(count: 4)),
+          _session(id: 's6', title: '会话六', messages: _messages(count: 4)),
+          _session(id: 's7', title: '会话七', messages: _messages(count: 4)),
+          _session(id: 's8', title: '会话八', messages: _messages(count: 4)),
+          _session(id: 's9', title: '会话九', messages: _messages(count: 4)),
         ];
 
         await provider.load();
@@ -77,9 +81,9 @@ void main() {
         expect(repository.warmUpMessageStoreCallCount, 1);
         expect(
           repository.initialMessagesLoadCounts.keys,
-          containsAll(<String>['s1', 's2', 's3', 's4']),
+          containsAll(<String>['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8']),
         );
-        expect(repository.initialMessagesLoadCounts, isNot(contains('s5')));
+        expect(repository.initialMessagesLoadCounts, isNot(contains('s9')));
       },
     );
 
@@ -174,6 +178,48 @@ void main() {
 
       expect(repository.initialMessagesLoadCounts['s1'], firstLoadCount);
     });
+
+    test(
+      'staged switch selects target before committing loaded messages',
+      () async {
+        repository.sessions = <ChatSessionRecord>[
+          _session(id: 's1', title: '会话一', messages: _messages(count: 2)),
+          _session(id: 's2', title: '会话二'),
+          _session(id: 's3', title: '会话三'),
+          _session(id: 's4', title: '会话四'),
+          _session(id: 's5', title: '会话五'),
+          _session(id: 's6', title: '会话六'),
+          _session(id: 's7', title: '会话七'),
+          _session(id: 's8', title: '会话八'),
+          _session(id: 's9', title: '会话九', messages: _messages(count: 3)),
+        ];
+        final s9Blocker = Completer<void>();
+        repository.initialMessagesLoadBlockers['s9'] = s9Blocker;
+
+        await provider.load();
+        await provider.selectSession('s1');
+        final previousMessages = provider.visibleMessages;
+        final previousRevision = provider.visibleMessagesRevision;
+
+        final switchFuture = provider.switchSession('s9', staged: true);
+        await _flushMicrotasks();
+
+        expect(provider.selectedSession?.id, 's9');
+        expect(provider.isLoadingMessages, isTrue);
+        expect(identical(provider.visibleMessages, previousMessages), isTrue);
+        expect(provider.visibleMessagesRevision, previousRevision);
+
+        s9Blocker.complete();
+        await switchFuture;
+
+        expect(provider.isLoadingMessages, isFalse);
+        expect(
+          provider.visibleMessages.map((message) => message.id).toList(),
+          <String>['m0', 'm1', 'm2'],
+        );
+        expect(provider.visibleMessagesRevision, greaterThan(previousRevision));
+      },
+    );
 
     test(
       'selectSession reloads when cached session signature changes',
@@ -948,6 +994,8 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
   final List<ChatMessageVersionRecord> savedVersions =
       <ChatMessageVersionRecord>[];
   final Map<String, int> initialMessagesLoadCounts = <String, int>{};
+  final Map<String, Completer<void>> initialMessagesLoadBlockers =
+      <String, Completer<void>>{};
   int warmUpMessageStoreCallCount = 0;
   bool returnFixedLengthList = false;
 
@@ -1042,6 +1090,10 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
   }) async {
     initialMessagesLoadCounts[session.id] =
         (initialMessagesLoadCounts[session.id] ?? 0) + 1;
+    final blocker = initialMessagesLoadBlockers[session.id];
+    if (blocker != null) {
+      await blocker.future;
+    }
     final ids = session.messageIds;
     if (ids.isEmpty) {
       return const <ChatMessageRecord>[];

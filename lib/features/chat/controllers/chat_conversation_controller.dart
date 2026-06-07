@@ -27,11 +27,13 @@ class ChatConversationController extends ChangeNotifier {
   final int initialTextBudget;
   final int initialMessageCacheCapacity;
 
-  List<ChatMessageRecord> _visibleMessages = <ChatMessageRecord>[];
+  List<ChatMessageRecord> _visibleMessages =
+      List<ChatMessageRecord>.unmodifiable(const <ChatMessageRecord>[]);
   bool _isLoadingMessages = false;
   bool _isLoadingOlderMessages = false;
   String? _selectedSessionId;
   int _sessionLoadGeneration = 0;
+  int _visibleMessagesRevision = 0;
   final LinkedHashMap<String, _InitialMessageCacheEntry> _initialMessageCache =
       LinkedHashMap<String, _InitialMessageCacheEntry>();
   final Map<String, _InitialMessageLoad> _preloadLoads =
@@ -41,13 +43,13 @@ class ChatConversationController extends ChangeNotifier {
   String? get selectedSessionId => _selectedSessionId;
   bool get isLoadingMessages => _isLoadingMessages;
   bool get isLoadingOlderMessages => _isLoadingOlderMessages;
+  int get visibleMessagesRevision => _visibleMessagesRevision;
 
   ChatSessionRecord? get selectedSession =>
       _sessionList.findSession(_selectedSessionId);
   bool get isShowingDraftSession => _selectedSessionId == null;
 
-  List<ChatMessageRecord> get visibleMessages =>
-      List<ChatMessageRecord>.from(_visibleMessages, growable: false);
+  List<ChatMessageRecord> get visibleMessages => _visibleMessages;
 
   bool get hasOlderMessages {
     final session = selectedSession;
@@ -61,7 +63,7 @@ class ChatConversationController extends ChangeNotifier {
 
   void clearSelection({bool notify = true}) {
     _selectedSessionId = null;
-    _visibleMessages = <ChatMessageRecord>[];
+    _setVisibleMessages(const <ChatMessageRecord>[]);
     _isLoadingMessages = false;
     _isLoadingOlderMessages = false;
     _sessionLoadGeneration += 1;
@@ -94,13 +96,13 @@ class ChatConversationController extends ChangeNotifier {
     _isLoadingOlderMessages = false;
     _sessionLoadGeneration += 1;
     if (!keepVisibleMessages) {
-      _visibleMessages = <ChatMessageRecord>[];
+      _setVisibleMessages(const <ChatMessageRecord>[]);
     }
     notifyListeners();
     return true;
   }
 
-  Future<bool> switchSession(String sessionId) async {
+  Future<bool> switchSession(String sessionId, {bool staged = false}) async {
     final session = _sessionList.findSession(sessionId);
     if (session == null) {
       return false;
@@ -112,9 +114,24 @@ class ChatConversationController extends ChangeNotifier {
     final generation = ++_sessionLoadGeneration;
     final cachedMessages = _cachedInitialMessages(session);
     _selectedSessionId = sessionId;
-    _visibleMessages = cachedMessages ?? <ChatMessageRecord>[];
-    _isLoadingMessages = cachedMessages == null;
     _isLoadingOlderMessages = false;
+    if (staged) {
+      _isLoadingMessages = true;
+      notifyListeners();
+      if (cachedMessages != null) {
+        _commitLoadedMessages(
+          sessionId: session.id,
+          generation: generation,
+          messages: cachedMessages,
+        );
+        return true;
+      }
+      await _loadMessagesForSession(session, generation);
+      return true;
+    }
+
+    _setVisibleMessages(cachedMessages ?? const <ChatMessageRecord>[]);
+    _isLoadingMessages = cachedMessages == null;
     notifyListeners();
 
     if (cachedMessages != null) {
@@ -136,7 +153,7 @@ class ChatConversationController extends ChangeNotifier {
     }
     final cachedMessages = _cachedInitialMessages(session);
     if (cachedMessages != null) {
-      _visibleMessages = cachedMessages;
+      _setVisibleMessages(cachedMessages);
       _isLoadingMessages = false;
       notifyListeners();
       return;
@@ -175,12 +192,12 @@ class ChatConversationController extends ChangeNotifier {
       if (generation != _sessionLoadGeneration) {
         return;
       }
-      _visibleMessages = messages;
+      _setVisibleMessages(messages);
     } catch (_) {
       if (generation != _sessionLoadGeneration) {
         return;
       }
-      _visibleMessages = <ChatMessageRecord>[];
+      _setVisibleMessages(const <ChatMessageRecord>[]);
     } finally {
       if (generation == _sessionLoadGeneration) {
         _isLoadingMessages = false;
@@ -209,10 +226,10 @@ class ChatConversationController extends ChangeNotifier {
         limit: messageWindowSize,
       );
       if (olderMessages.isNotEmpty && _selectedSessionId == session.id) {
-        _visibleMessages = <ChatMessageRecord>[
+        _setVisibleMessages(<ChatMessageRecord>[
           ...olderMessages,
           ..._visibleMessages,
-        ];
+        ]);
       }
     } catch (_) {
     } finally {
@@ -223,7 +240,7 @@ class ChatConversationController extends ChangeNotifier {
 
   void startDraftSession(String sessionId, {bool notify = true}) {
     _selectedSessionId = sessionId;
-    _visibleMessages = <ChatMessageRecord>[];
+    _setVisibleMessages(const <ChatMessageRecord>[]);
     _isLoadingMessages = false;
     _isLoadingOlderMessages = false;
     _sessionLoadGeneration += 1;
@@ -241,7 +258,7 @@ class ChatConversationController extends ChangeNotifier {
       return;
     }
     if (fullMessages.isEmpty) {
-      _visibleMessages = <ChatMessageRecord>[];
+      _setVisibleMessages(const <ChatMessageRecord>[]);
       _refreshSelectedSessionCacheFromVisibleMessages();
       if (notify) {
         notifyListeners();
@@ -254,9 +271,7 @@ class ChatConversationController extends ChangeNotifier {
         (message) => message.id == firstVisibleId,
       );
       if (firstVisibleIndex >= 0) {
-        _visibleMessages = fullMessages
-            .skip(firstVisibleIndex)
-            .toList(growable: false);
+        _setVisibleMessages(fullMessages.skip(firstVisibleIndex));
         _refreshSelectedSessionCacheFromVisibleMessages();
         if (notify) {
           notifyListeners();
@@ -268,13 +283,52 @@ class ChatConversationController extends ChangeNotifier {
       fullMessages.length,
       max(messageWindowSize, _visibleMessages.length),
     );
-    _visibleMessages = fullMessages
-        .skip(fullMessages.length - targetCount)
-        .toList(growable: false);
+    _setVisibleMessages(fullMessages.skip(fullMessages.length - targetCount));
     _refreshSelectedSessionCacheFromVisibleMessages();
     if (notify) {
       notifyListeners();
     }
+  }
+
+  void _commitLoadedMessages({
+    required String sessionId,
+    required int generation,
+    required List<ChatMessageRecord> messages,
+  }) {
+    if (generation != _sessionLoadGeneration ||
+        _selectedSessionId != sessionId) {
+      return;
+    }
+    _setVisibleMessages(messages);
+    _isLoadingMessages = false;
+    notifyListeners();
+  }
+
+  void _setVisibleMessages(Iterable<ChatMessageRecord> messages) {
+    final nextMessages = List<ChatMessageRecord>.unmodifiable(messages);
+    if (_sameMessageWindow(_visibleMessages, nextMessages)) {
+      return;
+    }
+    _visibleMessages = nextMessages;
+    _visibleMessagesRevision += 1;
+  }
+
+  bool _sameMessageWindow(
+    List<ChatMessageRecord> left,
+    List<ChatMessageRecord> right,
+  ) {
+    if (identical(left, right)) {
+      return true;
+    }
+    if (left.length != right.length) {
+      return false;
+    }
+    for (var i = 0; i < left.length; i += 1) {
+      if (!identical(left[i], right[i]) && left[i] != right[i]) {
+        return false;
+      }
+    }
+    return true;
   }
 
   Future<List<ChatMessageRecord>> _initialMessagesForSession(
@@ -337,7 +391,7 @@ class ChatConversationController extends ChangeNotifier {
       return null;
     }
     _initialMessageCache[session.id] = entry;
-    return List<ChatMessageRecord>.from(entry.messages, growable: false);
+    return entry.messages;
   }
 
   void _storeInitialMessages(
