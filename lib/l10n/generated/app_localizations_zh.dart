@@ -172,6 +172,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatNextMessageVersion => '下一版本';
 
   @override
+  String get chatJumpToLatest => '跳到最新消息';
+
+  @override
   String get chatMessageCopied => '消息已复制';
 
   @override

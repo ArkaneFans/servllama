@@ -61,6 +61,33 @@ void main() {
     });
 
     test(
+      'load warms message store and preloads initial message windows',
+      () async {
+        repository.sessions = <ChatSessionRecord>[
+          _session(id: 's1', title: '会话一', messages: _messages(count: 4)),
+          _session(id: 's2', title: '会话二', messages: _messages(count: 4)),
+          _session(id: 's3', title: '会话三', messages: _messages(count: 4)),
+          _session(id: 's4', title: '会话四', messages: _messages(count: 4)),
+          _session(id: 's5', title: '会话五', messages: _messages(count: 4)),
+          _session(id: 's6', title: '会话六', messages: _messages(count: 4)),
+          _session(id: 's7', title: '会话七', messages: _messages(count: 4)),
+          _session(id: 's8', title: '会话八', messages: _messages(count: 4)),
+          _session(id: 's9', title: '会话九', messages: _messages(count: 4)),
+        ];
+
+        await provider.load();
+        await _flushMicrotasks();
+
+        expect(repository.warmUpMessageStoreCallCount, 1);
+        expect(
+          repository.initialMessagesLoadCounts.keys,
+          containsAll(<String>['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8']),
+        );
+        expect(repository.initialMessagesLoadCounts, isNot(contains('s9')));
+      },
+    );
+
+    test(
       'switching sessions keeps current model unselected before user picks one',
       () async {
         repository.sessions = <ChatSessionRecord>[
@@ -112,6 +139,109 @@ void main() {
         expect(provider.visibleMessages, hasLength(65));
         expect(provider.visibleMessages.first.id, 'm0');
         expect(provider.hasOlderMessages, isFalse);
+      },
+    );
+
+    test(
+      'selectSession uses budgeted initial window for heavy conversations',
+      () async {
+        repository.sessions = <ChatSessionRecord>[
+          _session(
+            id: 's1',
+            title: '重内容会话',
+            messages: _messages(count: 10, contentLength: 12000),
+          ),
+        ];
+
+        await provider.load();
+        await provider.selectSession('s1');
+
+        expect(provider.visibleMessages, hasLength(2));
+        expect(provider.visibleMessages.first.id, 'm8');
+        expect(provider.visibleMessages.last.id, 'm9');
+      },
+    );
+
+    test('selectSession reuses cached initial window', () async {
+      repository.sessions = <ChatSessionRecord>[
+        _session(id: 's1', title: '会话一', messages: _messages(count: 8)),
+        _session(id: 's2', title: '会话二', messages: _messages(count: 8)),
+      ];
+
+      await provider.load();
+      await _flushMicrotasks();
+      final firstLoadCount = repository.initialMessagesLoadCounts['s1'] ?? 0;
+
+      await provider.selectSession('s1');
+      await provider.selectSession('s2');
+      await provider.selectSession('s1');
+
+      expect(repository.initialMessagesLoadCounts['s1'], firstLoadCount);
+    });
+
+    test(
+      'staged switch selects target before committing loaded messages',
+      () async {
+        repository.sessions = <ChatSessionRecord>[
+          _session(id: 's1', title: '会话一', messages: _messages(count: 2)),
+          _session(id: 's2', title: '会话二'),
+          _session(id: 's3', title: '会话三'),
+          _session(id: 's4', title: '会话四'),
+          _session(id: 's5', title: '会话五'),
+          _session(id: 's6', title: '会话六'),
+          _session(id: 's7', title: '会话七'),
+          _session(id: 's8', title: '会话八'),
+          _session(id: 's9', title: '会话九', messages: _messages(count: 3)),
+        ];
+        final s9Blocker = Completer<void>();
+        repository.initialMessagesLoadBlockers['s9'] = s9Blocker;
+
+        await provider.load();
+        await provider.selectSession('s1');
+        final previousMessages = provider.visibleMessages;
+        final previousRevision = provider.visibleMessagesRevision;
+
+        final switchFuture = provider.switchSession('s9', staged: true);
+        await _flushMicrotasks();
+
+        expect(provider.selectedSession?.id, 's9');
+        expect(provider.isLoadingMessages, isTrue);
+        expect(identical(provider.visibleMessages, previousMessages), isTrue);
+        expect(provider.visibleMessagesRevision, previousRevision);
+
+        s9Blocker.complete();
+        await switchFuture;
+
+        expect(provider.isLoadingMessages, isFalse);
+        expect(
+          provider.visibleMessages.map((message) => message.id).toList(),
+          <String>['m0', 'm1', 'm2'],
+        );
+        expect(provider.visibleMessagesRevision, greaterThan(previousRevision));
+      },
+    );
+
+    test(
+      'selectSession reloads when cached session signature changes',
+      () async {
+        repository.sessions = <ChatSessionRecord>[
+          _session(id: 's1', title: '会话一', messages: _messages(count: 8)),
+          _session(id: 's2', title: '会话二', messages: _messages(count: 8)),
+        ];
+
+        await provider.load();
+        await _flushMicrotasks();
+        await provider.selectSession('s1');
+        final firstLoadCount = repository.initialMessagesLoadCounts['s1'] ?? 0;
+
+        await provider.selectSession('s2');
+        await provider.renameSession('s1', '会话一重命名');
+        await provider.selectSession('s1');
+
+        expect(
+          repository.initialMessagesLoadCounts['s1'],
+          greaterThan(firstLoadCount),
+        );
       },
     );
 
@@ -863,6 +993,10 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
       <List<ChatMessageRecord>>[];
   final List<ChatMessageVersionRecord> savedVersions =
       <ChatMessageVersionRecord>[];
+  final Map<String, int> initialMessagesLoadCounts = <String, int>{};
+  final Map<String, Completer<void>> initialMessagesLoadBlockers =
+      <String, Completer<void>>{};
+  int warmUpMessageStoreCallCount = 0;
   bool returnFixedLengthList = false;
 
   @override
@@ -884,6 +1018,11 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
     } else {
       sessions.add(cleanSession);
     }
+  }
+
+  @override
+  Future<void> warmUpMessageStore() async {
+    warmUpMessageStoreCallCount += 1;
   }
 
   @override
@@ -940,6 +1079,62 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
         ? session.messageIds.length - limit
         : 0;
     return _messagesByIds(session.messageIds.skip(start));
+  }
+
+  @override
+  Future<List<ChatMessageRecord>> loadInitialMessages(
+    ChatSessionRecord session, {
+    int minMessages = ChatSessionRepository.defaultInitialMessageMin,
+    int maxMessages = ChatSessionRepository.defaultInitialMessageMax,
+    int textBudget = ChatSessionRepository.defaultInitialTextBudget,
+  }) async {
+    initialMessagesLoadCounts[session.id] =
+        (initialMessagesLoadCounts[session.id] ?? 0) + 1;
+    final blocker = initialMessagesLoadBlockers[session.id];
+    if (blocker != null) {
+      await blocker.future;
+    }
+    final ids = session.messageIds;
+    if (ids.isEmpty) {
+      return const <ChatMessageRecord>[];
+    }
+
+    final minCount = minMessages.clamp(1, ids.length).toInt();
+    final configuredMax = maxMessages <= 0
+        ? ChatSessionRepository.defaultInitialMessageMax
+        : maxMessages;
+    final maxCount = configuredMax.clamp(minCount, ids.length).toInt();
+    final budget = textBudget <= 0
+        ? ChatSessionRepository.defaultInitialTextBudget
+        : textBudget;
+    final loadedMessages = <ChatMessageRecord>[];
+
+    var index = ids.length;
+    var weight = 0;
+    while (index > 0 && loadedMessages.length < maxCount) {
+      index -= 1;
+      final message = messages[ids[index]];
+      if (message == null) {
+        continue;
+      }
+      loadedMessages.add(message);
+      weight += _estimateInitialLoadWeight(message);
+      if (loadedMessages.length >= minCount && weight >= budget) {
+        break;
+      }
+    }
+
+    if (loadedMessages.length.isOdd &&
+        index > 0 &&
+        loadedMessages.length < maxCount) {
+      index -= 1;
+      final message = messages[ids[index]];
+      if (message != null) {
+        loadedMessages.add(message);
+      }
+    }
+
+    return loadedMessages.reversed.toList(growable: false);
   }
 
   @override
@@ -1038,6 +1233,15 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
         .map((messageId) => messages[messageId])
         .whereType<ChatMessageRecord>()
         .toList(growable: false);
+  }
+
+  int _estimateInitialLoadWeight(ChatMessageRecord message) {
+    final reasoningLength = message.reasoningContent?.length ?? 0;
+    final textWeight = message.content.length + (reasoningLength * 0.8).round();
+    final roleWeight = message.role == ChatRole.user && textWeight < 200
+        ? 200
+        : textWeight;
+    return roleWeight + message.imageFilePaths.length * 1200;
   }
 
   List<ChatMessageRecord> messagesForSession(String sessionId) {
@@ -1143,14 +1347,22 @@ ChatSessionRecord _session({
   );
 }
 
-List<ChatMessageRecord> _messages({required int count}) {
+List<ChatMessageRecord> _messages({required int count, int? contentLength}) {
   return List<ChatMessageRecord>.generate(
     count,
     (index) => ChatMessageRecord(
       id: 'm$index',
       role: index.isEven ? ChatRole.user : ChatRole.assistant,
-      content: 'message $index',
+      content: contentLength == null
+          ? 'message $index'
+          : List<String>.filled(contentLength, 'x').join(),
       createdAt: DateTime(2026, 3, 25, 10, index),
     ),
   );
+}
+
+Future<void> _flushMicrotasks([int count = 8]) async {
+  for (var index = 0; index < count; index += 1) {
+    await Future<void>.delayed(Duration.zero);
+  }
 }

@@ -18,7 +18,7 @@ class ChatHistoryPage extends StatelessWidget {
     ChatProvider provider,
     String sessionId,
   ) async {
-    unawaited(provider.selectSession(sessionId));
+    unawaited(provider.switchSession(sessionId));
     Navigator.of(context).pop();
     onSessionOpened?.call();
   }

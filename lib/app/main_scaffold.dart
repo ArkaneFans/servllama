@@ -21,10 +21,6 @@ class _MainScaffoldState extends State<MainScaffold> {
   final PushSidebarController _sidebarController = PushSidebarController();
   double _embeddedSidebarWidth = 300;
 
-  Future<void> _openSidebar() {
-    return _sidebarController.open();
-  }
-
   Future<void> _closeSidebar() {
     return _sidebarController.close();
   }
@@ -53,10 +49,11 @@ class _MainScaffoldState extends State<MainScaffold> {
     );
   }
 
-  void _handleSessionOpened() {
+  Future<void> _handleSessionOpened() {
     if (_sidebarController.isDrawerMode) {
-      _closeSidebar();
+      return _closeSidebar();
     }
+    return Future<void>.value();
   }
 
   void _handleSidebarWidthChanged(double width) {

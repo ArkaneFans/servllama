@@ -48,7 +48,7 @@ class PushSidebar extends StatefulWidget {
     this.semanticLabel,
     this.breakpoint = 900,
     this.drawerWidth,
-    this.duration = const Duration(milliseconds: 250),
+    this.duration = const Duration(milliseconds: 200),
     this.curve = Curves.easeOutCubic,
     this.scrimColor,
     this.maxScrimOpacity = 0.12,
@@ -133,6 +133,7 @@ class _PushSidebarState extends State<PushSidebar>
   bool _isDrawerMode = false;
   bool _isResizeHovered = false;
   bool _isResizing = false;
+  bool _mobilePopBarrierActive = false;
   bool? _lastLayoutWasDrawerMode;
 
   double get _direction => widget.side == PushSidebarSide.left ? 1 : -1;
@@ -161,7 +162,7 @@ class _PushSidebarState extends State<PushSidebar>
       vsync: this,
       duration: widget.duration,
       value: 0,
-    )..addListener(_handleMobileProgressChanged);
+    )..addListener(_handleMobilePopBarrierChanged);
     _embeddedOpen = widget.largeScreenInitiallyOpen;
     _uncontrolledEmbeddedWidth = _clampWidth(
       widget.embeddedSidebarWidth ?? 300,
@@ -191,7 +192,7 @@ class _PushSidebarState extends State<PushSidebar>
   void dispose() {
     _controller._detach(this);
     _mobileController
-      ..removeListener(_handleMobileProgressChanged)
+      ..removeListener(_handleMobilePopBarrierChanged)
       ..dispose();
     super.dispose();
   }
@@ -260,12 +261,13 @@ class _PushSidebarState extends State<PushSidebar>
     });
   }
 
-  Future<bool> _handleWillPop() async {
-    if (_isDrawerMode && isOpen) {
-      await close();
-      return false;
+  void _handlePopInvoked(bool didPop) {
+    if (didPop) {
+      return;
     }
-    return true;
+    if (_isDrawerMode && isOpen) {
+      close();
+    }
   }
 
   Future<void> _animateMobileTo(double target) async {
@@ -281,10 +283,17 @@ class _PushSidebarState extends State<PushSidebar>
     );
   }
 
-  void _handleMobileProgressChanged() {
-    if (mounted) {
-      setState(() {});
+  void _handleMobilePopBarrierChanged() {
+    if (!mounted) {
+      return;
     }
+    final nextValue = _isDrawerMode && isOpen;
+    if (_mobilePopBarrierActive == nextValue) {
+      return;
+    }
+    setState(() {
+      _mobilePopBarrierActive = nextValue;
+    });
   }
 
   void _handleDrawerDragStart(DragStartDetails details) {
@@ -389,7 +398,11 @@ class _PushSidebarState extends State<PushSidebar>
     };
   }
 
-  Widget _buildMobileLayout(BuildContext context, double drawerWidth) {
+  Widget _buildMobileLayout(
+    BuildContext context,
+    double drawerWidth,
+    Widget child,
+  ) {
     final theme = Theme.of(context);
     final opacity = (widget.maxScrimOpacity * progress).clamp(0.0, 1.0);
     final scrimColor = (widget.scrimColor ?? theme.colorScheme.onSurface)
@@ -410,7 +423,7 @@ class _PushSidebarState extends State<PushSidebar>
             onHorizontalDragEnd: _handleDrawerDragEnd,
             child: Stack(
               children: [
-                Positioned.fill(child: widget.child),
+                Positioned.fill(child: child),
                 if (progress > 0)
                   Positioned.fill(
                     child: GestureDetector(
@@ -551,14 +564,28 @@ class _PushSidebarState extends State<PushSidebar>
               _embeddedOpen = wasOpen;
             }
           }
+          _mobilePopBarrierActive = _isDrawerMode && isOpen;
         }
         final drawerWidth = widget.drawerWidth ?? constraints.maxWidth * 0.75;
 
-        return WillPopScope(
-          onWillPop: _handleWillPop,
-          child: _isDrawerMode
-              ? _buildMobileLayout(context, drawerWidth)
-              : _buildEmbeddedLayout(context, constraints.maxWidth),
+        if (_isDrawerMode) {
+          return PopScope(
+            canPop: !_mobilePopBarrierActive,
+            onPopInvokedWithResult: (didPop, _) => _handlePopInvoked(didPop),
+            child: AnimatedBuilder(
+              animation: _mobileController,
+              child: widget.child,
+              builder: (context, child) {
+                return _buildMobileLayout(context, drawerWidth, child!);
+              },
+            ),
+          );
+        }
+
+        return PopScope(
+          canPop: true,
+          onPopInvokedWithResult: (didPop, _) => _handlePopInvoked(didPop),
+          child: _buildEmbeddedLayout(context, constraints.maxWidth),
         );
       },
     );

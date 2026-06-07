@@ -67,6 +67,7 @@
   "chatRegenerateMessage": "Regenerate",
   "chatPreviousMessageVersion": "Previous version",
   "chatNextMessageVersion": "Next version",
+  "chatJumpToLatest": "Jump to latest",
   "chatMessageCopied": "Message copied",
   "chatMessageUpdated": "Message updated",
   "chatEditMessageTitle": "Edit message",

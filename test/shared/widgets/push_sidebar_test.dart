@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/shared/widgets/push_sidebar.dart';
@@ -29,28 +31,19 @@ void main() {
 
         expect(find.text('drawer'), findsNothing);
 
-        await controller.open();
+        unawaited(controller.open());
+        await tester.pump();
         await tester.pumpAndSettle();
 
         expect(find.text('drawer'), findsOneWidget);
         expect(find.byKey(const Key('push_sidebar_scrim')), findsOneWidget);
-        expect(
-          tester
-              .getTopLeft(find.byKey(const Key('push_sidebar_main_content')))
-              .dx,
-          240,
-        );
+        expect(_mainContentDx(tester), 240);
 
         await tester.tap(find.byKey(const Key('push_sidebar_scrim')));
         await tester.pumpAndSettle();
 
         expect(find.text('drawer'), findsNothing);
-        expect(
-          tester
-              .getTopLeft(find.byKey(const Key('push_sidebar_main_content')))
-              .dx,
-          0,
-        );
+        expect(_mainContentDx(tester), 0);
       },
     );
 
@@ -64,6 +57,7 @@ void main() {
       await tester.drag(
         find.byKey(const Key('push_sidebar_main_content')),
         const Offset(140, 0),
+        warnIfMissed: false,
       );
       await tester.pumpAndSettle();
 
@@ -94,16 +88,98 @@ void main() {
         ),
       );
 
-      await controller.open();
+      unawaited(controller.open());
+      await tester.pump();
       await tester.pumpAndSettle();
       expect(find.text('drawer'), findsOneWidget);
 
-      final didPop = await tester.binding.handlePopRoute();
+      final nestedNavigator = tester.state<NavigatorState>(
+        find.byType(Navigator).last,
+      );
+      await nestedNavigator.maybePop();
       await tester.pumpAndSettle();
 
-      expect(didPop, isTrue);
       expect(find.text('drawer'), findsNothing);
       expect(find.text('main'), findsOneWidget);
+    });
+
+    testWidgets('uses 200ms for mobile open and close animations', (
+      tester,
+    ) async {
+      final controller = PushSidebarController();
+
+      await tester.pumpWidget(
+        _TestHost(
+          width: 700,
+          child: PushSidebar(
+            controller: controller,
+            drawerWidth: 240,
+            drawer: const ColoredBox(
+              color: Colors.blue,
+              child: SizedBox.expand(child: Center(child: Text('drawer'))),
+            ),
+            child: const ColoredBox(
+              color: Colors.white,
+              child: SizedBox.expand(child: Center(child: Text('main'))),
+            ),
+          ),
+        ),
+      );
+
+      unawaited(controller.open());
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 199));
+
+      expect(_mainContentDx(tester), lessThan(240));
+      expect(find.text('drawer'), findsOneWidget);
+
+      await tester.pump(const Duration(milliseconds: 1));
+
+      expect(_mainContentDx(tester), 240);
+
+      unawaited(controller.close());
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 199));
+
+      expect(_mainContentDx(tester), greaterThan(0));
+
+      await tester.pump(const Duration(milliseconds: 1));
+
+      expect(_mainContentDx(tester), 0);
+      expect(find.text('drawer'), findsNothing);
+    });
+
+    testWidgets('does not rebuild main child on mobile animation ticks', (
+      tester,
+    ) async {
+      final controller = PushSidebarController();
+      var buildCount = 0;
+
+      await tester.pumpWidget(
+        _TestHost(
+          width: 700,
+          child: PushSidebar(
+            controller: controller,
+            drawerWidth: 240,
+            drawer: const SizedBox.expand(child: Text('drawer')),
+            child: _BuildCounter(
+              onBuild: () {
+                buildCount += 1;
+              },
+            ),
+          ),
+        ),
+      );
+
+      final initialBuildCount = buildCount;
+      unawaited(controller.open());
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 80));
+
+      expect(buildCount, initialBuildCount);
+
+      await tester.pumpAndSettle();
+      expect(buildCount, initialBuildCount);
     });
 
     testWidgets(
@@ -156,6 +232,21 @@ void main() {
   });
 }
 
+class _BuildCounter extends StatelessWidget {
+  const _BuildCounter({required this.onBuild});
+
+  final VoidCallback onBuild;
+
+  @override
+  Widget build(BuildContext context) {
+    onBuild();
+    return const ColoredBox(
+      color: Colors.white,
+      child: SizedBox.expand(child: Center(child: Text('main'))),
+    );
+  }
+}
+
 class _SidebarHarness extends StatelessWidget {
   const _SidebarHarness();
 
@@ -186,8 +277,22 @@ class _TestHost extends StatelessWidget {
     return MaterialApp(
       home: MediaQuery(
         data: MediaQueryData(size: Size(width, 900)),
-        child: SizedBox(width: width, height: 900, child: child),
+        child: OverflowBox(
+          alignment: Alignment.topLeft,
+          minWidth: width,
+          maxWidth: width,
+          minHeight: 900,
+          maxHeight: 900,
+          child: SizedBox(width: width, height: 900, child: child),
+        ),
       ),
     );
   }
+}
+
+double _mainContentDx(WidgetTester tester) {
+  final transform = tester.widget<Transform>(
+    find.byKey(const Key('push_sidebar_main_content')),
+  );
+  return transform.transform.getTranslation().x;
 }

@@ -1,16 +1,23 @@
 import 'dart:async';
-import 'dart:io';
 
-import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:gpt_markdown/gpt_markdown.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/core/providers/server_provider.dart';
+import 'package:servllama/features/chat/controllers/chat_scroll_coordinator.dart';
+import 'package:servllama/features/chat/controllers/streaming_chat_message_notifier.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
-import 'package:servllama/features/chat/models/chat_model_option.dart';
 import 'package:servllama/features/chat/providers/chat_provider.dart';
 import 'package:servllama/features/chat/services/image_attachment_service.dart';
+import 'package:servllama/features/chat/widgets/chat_conversation_transition.dart';
+import 'package:servllama/features/chat/widgets/chat_conversation_hero.dart';
+import 'package:servllama/features/chat/widgets/chat_input_bar.dart';
+import 'package:servllama/features/chat/widgets/chat_input_overlay_layout.dart';
+import 'package:servllama/features/chat/widgets/chat_message_list.dart';
+import 'package:servllama/features/chat/widgets/chat_message_sheets.dart';
+import 'package:servllama/features/chat/widgets/chat_model_sheet.dart';
+import 'package:servllama/features/chat/widgets/chat_staged_message_list.dart';
 import 'package:servllama/l10n/l10n.dart';
 
 class ChatPage extends StatelessWidget {
@@ -55,21 +62,14 @@ class _ChatView extends StatefulWidget {
 }
 
 class _ChatViewState extends State<_ChatView> {
-  final ScrollController _scrollController = ScrollController();
+  final ChatScrollCoordinator _scrollCoordinator = ChatScrollCoordinator();
   final TextEditingController _inputController = TextEditingController();
   final ImageAttachmentService _imageAttachmentService =
       ImageAttachmentService();
 
-  ChatProvider? _provider;
-  int _lastMessageCount = 0;
-  String? _lastSelectedSessionId;
-  bool _pendingInitialBottomJump = false;
-  bool _isLoadingOlderFromScroll = false;
-
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_handleScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         return;
@@ -81,132 +81,14 @@ class _ChatViewState extends State<_ChatView> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final provider = context.read<ChatProvider>();
-    if (identical(provider, _provider)) {
-      return;
-    }
-    _provider?.removeListener(_handleProviderChanged);
-    _provider = provider;
-    _lastMessageCount = provider.visibleMessages.length;
-    _lastSelectedSessionId = provider.selectedSession?.id;
-    _pendingInitialBottomJump = _lastSelectedSessionId != null;
-    if (_pendingInitialBottomJump && !provider.isLoadingMessages) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!_pendingInitialBottomJump) {
-          return;
-        }
-        _pendingInitialBottomJump = false;
-        _jumpToBottom();
-      });
-    }
-    provider.addListener(_handleProviderChanged);
+    _scrollCoordinator.attachProvider(context.read<ChatProvider>());
   }
 
   @override
   void dispose() {
-    _provider?.removeListener(_handleProviderChanged);
-    _scrollController.removeListener(_handleScroll);
-    _scrollController.dispose();
+    _scrollCoordinator.dispose();
     _inputController.dispose();
     super.dispose();
-  }
-
-  void _handleProviderChanged() {
-    final provider = _provider;
-    if (provider == null) {
-      return;
-    }
-
-    final selectedSessionId = provider.selectedSession?.id;
-    if (selectedSessionId != _lastSelectedSessionId) {
-      _lastSelectedSessionId = selectedSessionId;
-      _lastMessageCount = provider.visibleMessages.length;
-      _pendingInitialBottomJump = selectedSessionId != null;
-    }
-
-    final shouldAutoScroll = _isNearBottom();
-    final count = provider.visibleMessages.length;
-    final countIncreased = count > _lastMessageCount;
-    _lastMessageCount = count;
-
-    if (_pendingInitialBottomJump && !provider.isLoadingMessages) {
-      _pendingInitialBottomJump = false;
-      WidgetsBinding.instance.addPostFrameCallback((_) => _jumpToBottom());
-      return;
-    }
-
-    if (shouldAutoScroll && countIncreased) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
-    }
-  }
-
-  void _handleScroll() {
-    final provider = _provider;
-    if (provider == null ||
-        !_scrollController.hasClients ||
-        _isLoadingOlderFromScroll ||
-        provider.isLoadingMessages ||
-        provider.isLoadingOlderMessages ||
-        !provider.hasOlderMessages) {
-      return;
-    }
-    if (_scrollController.position.pixels <= 96) {
-      unawaited(_loadOlderMessagesPreservingOffset(provider));
-    }
-  }
-
-  bool _isNearBottom() {
-    if (!_scrollController.hasClients) {
-      return true;
-    }
-    final position = _scrollController.position;
-    return position.maxScrollExtent - position.pixels <= 72;
-  }
-
-  void _scrollToBottom() {
-    if (!_scrollController.hasClients) {
-      return;
-    }
-    _scrollController.animateTo(
-      _scrollController.position.maxScrollExtent,
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOut,
-    );
-  }
-
-  void _jumpToBottom() {
-    if (!_scrollController.hasClients) {
-      return;
-    }
-    _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-  }
-
-  Future<void> _loadOlderMessagesPreservingOffset(ChatProvider provider) async {
-    if (!_scrollController.hasClients || _isLoadingOlderFromScroll) {
-      return;
-    }
-    _isLoadingOlderFromScroll = true;
-    final position = _scrollController.position;
-    final previousMaxScrollExtent = position.maxScrollExtent;
-    final previousPixels = position.pixels;
-
-    await provider.loadOlderMessages();
-    if (!mounted) {
-      return;
-    }
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _isLoadingOlderFromScroll = false;
-      if (!_scrollController.hasClients) {
-        return;
-      }
-      final position = _scrollController.position;
-      final targetPixels =
-          previousPixels + position.maxScrollExtent - previousMaxScrollExtent;
-      _scrollController.jumpTo(
-        targetPixels.clamp(0.0, position.maxScrollExtent),
-      );
-    });
   }
 
   Future<void> _send(BuildContext context) async {
@@ -216,6 +98,7 @@ class _ChatViewState extends State<_ChatView> {
       return;
     }
     _inputController.clear();
+    _scrollCoordinator.enableAutoStickToBottom();
     final provider = context.read<ChatProvider>();
     final attachments = List<String>.from(provider.pendingImageAttachments);
     await provider.sendMessage(text, imageAttachments: attachments);
@@ -260,11 +143,11 @@ class _ChatViewState extends State<_ChatView> {
           child: SingleChildScrollView(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(8, 8, 8, 28),
-              child: _ModelSheetContent(
+              child: ChatModelSheetContent(
                 provider: provider,
                 onRefresh: () => provider.refreshModels(),
                 children: [
-                  _ModelSection(
+                  ChatModelSection(
                     title: l10n.chatLoadedModels,
                     models: provider.loadedModels,
                     currentModelId: provider.currentModelId,
@@ -280,7 +163,7 @@ class _ChatViewState extends State<_ChatView> {
                         : null,
                   ),
                   if (provider.availableModels.isNotEmpty) ...[
-                    _ModelSection(
+                    ChatModelSection(
                       title: l10n.chatAvailableModels,
                       models: provider.availableModels,
                       currentModelId: provider.currentModelId,
@@ -327,7 +210,7 @@ class _ChatViewState extends State<_ChatView> {
     BuildContext context,
     ChatMessageRecord message,
   ) async {
-    final editedContent = await _showEditMessageSheet(
+    final editedContent = await showEditMessageSheet(
       context: context,
       initialValue: message.content,
     );
@@ -357,6 +240,7 @@ class _ChatViewState extends State<_ChatView> {
     BuildContext context,
     ChatMessageRecord message,
   ) async {
+    _scrollCoordinator.enableAutoStickToBottom();
     final provider = context.read<ChatProvider>();
     await provider.regenerateFromMessage(message.id);
     if (!context.mounted) {
@@ -384,17 +268,17 @@ class _ChatViewState extends State<_ChatView> {
 
   Future<void> _handleMessageAction(
     BuildContext context,
-    _ChatMessageAction action,
+    ChatMessageAction action,
     ChatMessageRecord message,
   ) async {
     switch (action) {
-      case _ChatMessageAction.copy:
+      case ChatMessageAction.copy:
         await _handleCopyMessage(context, message);
-      case _ChatMessageAction.edit:
+      case ChatMessageAction.edit:
         await _handleEditMessage(context, message);
-      case _ChatMessageAction.regenerate:
+      case ChatMessageAction.regenerate:
         await _handleRegenerateMessage(context, message);
-      case _ChatMessageAction.delete:
+      case ChatMessageAction.delete:
         await _handleDeleteMessage(context, message);
     }
   }
@@ -403,10 +287,10 @@ class _ChatViewState extends State<_ChatView> {
     BuildContext context,
     ChatMessageRecord message,
   ) async {
-    final action = await showModalBottomSheet<_ChatMessageAction>(
+    final action = await showModalBottomSheet<ChatMessageAction>(
       context: context,
       showDragHandle: true,
-      builder: (sheetContext) => _MessageActionSheet(
+      builder: (sheetContext) => ChatMessageActionSheet(
         message: message,
         canRegenerate: context.read<ChatProvider>().canRegenerateMessage(
           message.id,
@@ -421,700 +305,83 @@ class _ChatViewState extends State<_ChatView> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ChatProvider>(
-      builder: (context, provider, _) {
-        final serverProvider = context.watch<ServerProvider?>();
-        final hasLoadedModel = provider.currentModel?.isLoaded == true;
-        final shouldShowHeroState =
-            !provider.isLoadingMessages &&
-            provider.visibleMessages.isEmpty &&
-            (!provider.isServerRunning || !hasLoadedModel);
-
-        return Builder(
-          builder: (context) => Scaffold(
-            appBar: AppBar(
-              leadingWidth: 52,
-              titleSpacing: 4,
-              leading: IconButton(
-                icon: const Icon(Icons.menu),
-                onPressed: widget.onOpenSidebar,
-              ),
-              title: Text(
-                _sessionTitle(context, provider),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              actions: [
-                IconButton(
-                  onPressed: provider.canManageSessions
-                      ? () => provider.createSession()
-                      : null,
-                  tooltip: context.l10n.chatCreateSessionTooltip,
-                  icon: const Icon(Icons.add),
-                ),
-              ],
-            ),
-            body: provider.isLoading && provider.sessions.isEmpty
-                ? const Center(child: CircularProgressIndicator())
-                : SafeArea(
-                    top: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(15, 2, 15, 12),
-                      child: Column(
-                        children: [
-                          Expanded(
-                            child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 220),
-                              switchInCurve: Curves.easeOutCubic,
-                              switchOutCurve: Curves.easeInCubic,
-                              child: provider.isLoadingMessages
-                                  ? const Center(
-                                      key: ValueKey<String>(
-                                        'chat_message_loading',
-                                      ),
-                                      child: CircularProgressIndicator(),
-                                    )
-                                  : shouldShowHeroState
-                                  ? _ConversationHero(
-                                      key: const ValueKey<String>(
-                                        'chat_conversation_hero',
-                                      ),
-                                      isServerRunning: provider.isServerRunning,
-                                      isServerBusy:
-                                          serverProvider?.isBusy == true,
-                                      isModelLoading:
-                                          provider.loadingModelId != null,
-                                      hasModel: hasLoadedModel,
-                                      onStartServer: serverProvider == null
-                                          ? null
-                                          : () {
-                                              serverProvider.start();
-                                            },
-                                      onOpenModels: provider.isServerRunning
-                                          ? () => _showModels(context)
-                                          : null,
-                                    )
-                                  : _MessageList(
-                                      key: const ValueKey<String>(
-                                        'chat_message_list',
-                                      ),
-                                      controller: _scrollController,
-                                      messages: provider.visibleMessages,
-                                      draftMessageId: provider.draftMessageId,
-                                      canManageMessages:
-                                          provider.canManageMessages,
-                                      canRegenerateMessage:
-                                          provider.canRegenerateMessage,
-                                      onCopyMessage: (message) =>
-                                          _handleCopyMessage(context, message),
-                                      onEditMessage: (message) =>
-                                          _handleEditMessage(context, message),
-                                      onDeleteMessage: (message) =>
-                                          _handleDeleteMessage(
-                                            context,
-                                            message,
-                                          ),
-                                      onRegenerateMessage: (message) =>
-                                          _handleRegenerateMessage(
-                                            context,
-                                            message,
-                                          ),
-                                      onShowMessageActions: (message) =>
-                                          _showMessageActions(context, message),
-                                      onSelectMessageVersion:
-                                          (message, versionIndex) =>
-                                              _handleSelectMessageVersion(
-                                                context,
-                                                message,
-                                                versionIndex,
-                                              ),
-                                    ),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          _InputBar(
-                            controller: _inputController,
-                            hintText: _inputHintText(context, provider),
-                            isServerRunning: serverProvider?.isRunning == true,
-                            isServerBusy: serverProvider?.isBusy == true,
-                            modelLabel: _modelSelectorLabel(context, provider),
-                            canOpenModels: provider.canSelectModels,
-                            isModelLoading: provider.loadingModelId != null,
-                            hasLoadedModel: hasLoadedModel,
-                            onToggleServer: serverProvider == null
-                                ? null
-                                : () => serverProvider.toggle(),
-                            onOpenModels: () => _showModels(context),
-                            canSend: provider.canSend,
-                            isSending: provider.isSending,
-                            onSend: () => _send(context),
-                            onStop: provider.cancelStreaming,
-                            onPickFromGallery: () => _pickFromGallery(context),
-                            pendingImageAttachments:
-                                provider.pendingImageAttachments,
-                            onRemoveImageAttachment:
-                                provider.removeImageAttachment,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _ModelSheetContent extends StatelessWidget {
-  const _ModelSheetContent({
-    required this.provider,
-    required this.onRefresh,
-    required this.children,
-  });
-
-  final ChatProvider provider;
-  final VoidCallback onRefresh;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final showInitialLoading =
-        provider.isRefreshingModels && provider.models.isEmpty;
-    final titleStyle = Theme.of(
-      context,
-    ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700);
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Row(
-            children: [
-              Text(l10n.chatSelectModel, style: titleStyle),
-              const Spacer(),
-              IconButton(
-                onPressed: provider.isRefreshingModels ? null : onRefresh,
-                tooltip: l10n.chatRefreshModels,
-                icon: const Icon(Icons.refresh),
-              ),
-            ],
+    return Scaffold(
+      appBar: AppBar(
+        leadingWidth: 52,
+        titleSpacing: 4,
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          onPressed: widget.onOpenSidebar,
+        ),
+        title: Selector<ChatProvider, _ChatTitleSnapshot>(
+          selector: (_, provider) => _ChatTitleSnapshot.fromProvider(provider),
+          builder: (context, snapshot, _) => _ChatSessionTitle(
+            conversationKey: snapshot.conversationKey,
+            title: snapshot.title ?? context.l10n.chatNewSession,
           ),
         ),
-        const SizedBox(height: 16),
-        if (showInitialLoading)
-          const SizedBox(
-            height: 180,
-            child: Center(
-              child: CircularProgressIndicator(
-                key: Key('chat_model_sheet_loading_indicator'),
+        actions: [
+          Selector<ChatProvider, bool>(
+            selector: (_, provider) => provider.canManageSessions,
+            builder: (context, canManageSessions, _) => IconButton(
+              onPressed: canManageSessions
+                  ? () => context.read<ChatProvider>().createSession()
+                  : null,
+              tooltip: context.l10n.chatCreateSessionTooltip,
+              icon: const Icon(Icons.add),
+            ),
+          ),
+        ],
+      ),
+      body: Selector<ChatProvider, bool>(
+        selector: (_, provider) =>
+            provider.isLoading && provider.sessions.isEmpty,
+        builder: (context, isInitialLoading, _) {
+          if (isInitialLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(15, 2, 15, 12),
+              child: _ChatInputOverlayScaffold(
+                scrollCoordinator: _scrollCoordinator,
+                inputController: _inputController,
+                onStartServer: () {
+                  context.read<ServerProvider?>()?.start();
+                },
+                onOpenModels: () => _showModels(context),
+                onSend: () => _send(context),
+                onPickFromGallery: () => _pickFromGallery(context),
+                onCopyMessage: (message) =>
+                    _handleCopyMessage(context, message),
+                onEditMessage: (message) =>
+                    _handleEditMessage(context, message),
+                onDeleteMessage: (message) =>
+                    _handleDeleteMessage(context, message),
+                onRegenerateMessage: (message) =>
+                    _handleRegenerateMessage(context, message),
+                onShowMessageActions: (message) =>
+                    _showMessageActions(context, message),
+                onSelectMessageVersion: (message, versionIndex) =>
+                    _handleSelectMessageVersion(context, message, versionIndex),
               ),
             ),
-          )
-        else
-          ...children,
-      ],
+          );
+        },
+      ),
     );
   }
 }
 
-class _ConversationHero extends StatelessWidget {
-  const _ConversationHero({
-    super.key,
-    required this.isServerRunning,
-    required this.isServerBusy,
-    required this.isModelLoading,
-    required this.hasModel,
+class _ChatInputOverlayScaffold extends StatefulWidget {
+  const _ChatInputOverlayScaffold({
+    required this.scrollCoordinator,
+    required this.inputController,
     required this.onStartServer,
     required this.onOpenModels,
-  });
-
-  final bool isServerRunning;
-  final bool isServerBusy;
-  final bool isModelLoading;
-  final bool hasModel;
-  final VoidCallback? onStartServer;
-  final VoidCallback? onOpenModels;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final brightness = theme.brightness;
-    final isLight = brightness == Brightness.light;
-    final heroTitleColor = isLight
-        ? const Color(0xFF171B24)
-        : colorScheme.onSurface.withAlpha(236);
-    final heroDescriptionColor = isLight
-        ? const Color(0xFF7D8698)
-        : colorScheme.onSurfaceVariant.withAlpha(210);
-    final heroButtonBackgroundColor = _chatActionButtonBackgroundColor(
-      brightness,
-    );
-    final heroButtonForegroundColor = _chatActionButtonForegroundColor(
-      brightness,
-    );
-    var description = l10n.chatHeroDescriptionReady;
-    if (!isServerRunning) {
-      description = l10n.chatHeroDescriptionStartServer;
-    } else if (!hasModel) {
-      description = l10n.chatHeroDescriptionSelectModel;
-    }
-
-    String? actionLabel;
-    VoidCallback? onAction;
-    final isActionBusy = isServerBusy || isModelLoading;
-
-    if (!isServerRunning) {
-      actionLabel = isServerBusy
-          ? l10n.chatStartingServer
-          : l10n.chatStartServer;
-      onAction = isServerBusy ? null : onStartServer;
-    } else if (!hasModel) {
-      actionLabel = isModelLoading
-          ? l10n.chatLoadingModel
-          : l10n.chatSelectModel;
-      onAction = isModelLoading ? null : onOpenModels;
-    }
-
-    return Align(
-      key: const Key('chat_conversation_hero_align'),
-      alignment: const Alignment(0, -0.236),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              key: const Key('chat_empty_state_logo'),
-              width: 118,
-              height: 118,
-              child: SvgPicture.asset('assets/app_icon.svg'),
-            ),
-            Text(
-              l10n.chatHeroTitle,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontSize: (theme.textTheme.bodyMedium?.fontSize ?? 14) + 4,
-                fontWeight: FontWeight.w500,
-                color: heroTitleColor,
-              ),
-            ),
-            const SizedBox(height: 10),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 292),
-              child: Text(
-                description,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: heroDescriptionColor,
-                  height: 1.5,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            if (actionLabel != null) ...[
-              const SizedBox(height: 10),
-              FilledButton(
-                key: const Key('chat_empty_state_action_button'),
-                onPressed: onAction,
-                style: FilledButton.styleFrom(
-                  backgroundColor: heroButtonBackgroundColor,
-                  disabledBackgroundColor: heroButtonBackgroundColor.withAlpha(
-                    isLight ? 190 : 210,
-                  ),
-                  foregroundColor: heroButtonForegroundColor,
-                  disabledForegroundColor: heroButtonForegroundColor.withAlpha(
-                    214,
-                  ),
-                  minimumSize: const Size(0, 10),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 44,
-                    vertical: 10,
-                  ),
-                  shape: const StadiumBorder(),
-                  elevation: 0,
-                  textStyle: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 160),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  child: isActionBusy
-                      ? Row(
-                          key: ValueKey<String>(actionLabel),
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              key: const Key(
-                                'chat_empty_state_action_progress',
-                              ),
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  heroButtonForegroundColor,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Text(actionLabel),
-                          ],
-                        )
-                      : Text(actionLabel, key: ValueKey<String>(actionLabel)),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InputBar extends StatelessWidget {
-  const _InputBar({
-    required this.controller,
-    required this.hintText,
-    required this.isServerRunning,
-    required this.isServerBusy,
-    required this.modelLabel,
-    required this.canOpenModels,
-    required this.isModelLoading,
-    required this.hasLoadedModel,
-    required this.canSend,
-    required this.isSending,
-    required this.onToggleServer,
-    required this.onOpenModels,
     required this.onSend,
-    required this.onStop,
     required this.onPickFromGallery,
-    required this.pendingImageAttachments,
-    required this.onRemoveImageAttachment,
-  });
-
-  final TextEditingController controller;
-  final String hintText;
-  final bool isServerRunning;
-  final bool isServerBusy;
-  final String modelLabel;
-  final bool canOpenModels;
-  final bool isModelLoading;
-  final bool hasLoadedModel;
-  final bool canSend;
-  final bool isSending;
-  final VoidCallback? onToggleServer;
-  final VoidCallback onOpenModels;
-  final VoidCallback onSend;
-  final VoidCallback onStop;
-  final VoidCallback onPickFromGallery;
-  final List<String> pendingImageAttachments;
-  final ValueChanged<int> onRemoveImageAttachment;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final brightness = theme.brightness;
-    final isLight = brightness == Brightness.light;
-    final panelBorderColor = colorScheme.outlineVariant.withAlpha(
-      isLight ? 190 : 128,
-    );
-    final panelBackgroundColor = colorScheme.surface;
-    final actionButtonShape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(24),
-    );
-    final actionButtonIconColor = _chatActionButtonBackgroundColor(brightness);
-    final disabledModelButtonIconColor = _chatDisabledActionButtonIconColor(
-      brightness,
-    );
-    final sendButtonBackgroundColor = isSending
-        ? colorScheme.error
-        : canSend
-        ? colorScheme.primary
-        : colorScheme.surfaceContainerHighest;
-    final sendButtonForegroundColor = isSending
-        ? colorScheme.onError
-        : canSend
-        ? colorScheme.onPrimary
-        : colorScheme.onSurfaceVariant;
-
-    return SafeArea(
-      top: false,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              panelBackgroundColor.withAlpha(0),
-              theme.scaffoldBackgroundColor.withAlpha(isLight ? 236 : 214),
-            ],
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(2, 6, 2, 0),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(18, 12, 14, 10),
-            decoration: BoxDecoration(
-              color: panelBackgroundColor,
-              borderRadius: BorderRadius.circular(26),
-              border: Border.all(color: panelBorderColor),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha(isLight ? 15 : 48),
-                  blurRadius: 28,
-                  offset: const Offset(0, 12),
-                ),
-                BoxShadow(
-                  color: Colors.black.withAlpha(isLight ? 10 : 28),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (pendingImageAttachments.isNotEmpty)
-                  _PendingImageStrip(
-                    paths: pendingImageAttachments,
-                    onRemove: onRemoveImageAttachment,
-                  ),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 40),
-                  child: Stack(
-                    alignment: Alignment.topLeft,
-                    children: [
-                      ValueListenableBuilder<TextEditingValue>(
-                        valueListenable: controller,
-                        builder: (context, value, _) {
-                          if (value.text.isNotEmpty) {
-                            return const SizedBox.shrink();
-                          }
-                          return IgnorePointer(
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(4, 4, 0, 0),
-                              child: Text(
-                                hintText,
-                                textAlign: TextAlign.left,
-                                style: theme.textTheme.bodyLarge?.copyWith(
-                                  color: colorScheme.onSurfaceVariant.withAlpha(
-                                    isLight ? 140 : 170,
-                                  ),
-                                  height: 1.5,
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(4, 2, 0, 2),
-                        child: TextField(
-                          key: const Key('chat_input_field'),
-                          controller: controller,
-                          minLines: 1,
-                          maxLines: 6,
-                          enabled: canSend,
-                          textInputAction: TextInputAction.send,
-                          cursorColor: colorScheme.primary,
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            color: colorScheme.onSurface,
-                            height: 1.5,
-                          ),
-                          onSubmitted: (_) {
-                            if (canSend) {
-                              onSend();
-                            }
-                          },
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
-                            isCollapsed: true,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Row(
-                  children: [
-                    Tooltip(
-                      message: isServerRunning
-                          ? l10n.serverStop
-                          : l10n.serverStart,
-                      child: Semantics(
-                        button: true,
-                        label: isServerRunning
-                            ? l10n.serverStop
-                            : l10n.serverStart,
-                        child: IconButton(
-                          key: const Key('chat_server_toggle_button'),
-                          onPressed: isServerBusy ? null : onToggleServer,
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            disabledBackgroundColor: Colors.transparent,
-                            foregroundColor: actionButtonIconColor,
-                            disabledForegroundColor: actionButtonIconColor,
-                            minimumSize: const Size(42, 42),
-                            padding: EdgeInsets.zero,
-                            shape: actionButtonShape,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          icon: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              Icon(
-                                Icons.dns_outlined,
-                                size: 22,
-                                color: actionButtonIconColor,
-                              ),
-                              Positioned(
-                                right: -1,
-                                bottom: -1,
-                                child: Container(
-                                  key: const Key('chat_server_status_badge'),
-                                  width: 10,
-                                  height: 10,
-                                  decoration: BoxDecoration(
-                                    color: isServerRunning
-                                        ? const Color(0xFF10B981)
-                                        : colorScheme.outlineVariant,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: panelBackgroundColor,
-                                      width: 2,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    Tooltip(
-                      message: modelLabel,
-                      child: Semantics(
-                        button: true,
-                        label: modelLabel,
-                        child: IconButton(
-                          key: const Key('chat_model_selector_button'),
-                          onPressed: canOpenModels ? onOpenModels : null,
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            disabledBackgroundColor: Colors.transparent,
-                            foregroundColor: actionButtonIconColor,
-                            disabledForegroundColor:
-                                disabledModelButtonIconColor,
-                            minimumSize: const Size(42, 42),
-                            padding: EdgeInsets.zero,
-                            shape: actionButtonShape,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          icon: isModelLoading
-                              ? SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: canOpenModels
-                                        ? actionButtonIconColor
-                                        : disabledModelButtonIconColor,
-                                  ),
-                                )
-                              : Icon(
-                                  Icons.memory_outlined,
-                                  size: 22,
-                                  color: canOpenModels
-                                      ? actionButtonIconColor
-                                      : disabledModelButtonIconColor,
-                                ),
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    Tooltip(
-                      message: l10n.chatAttachImage,
-                      child: Semantics(
-                        button: true,
-                        label: l10n.chatAttachImage,
-                        child: IconButton(
-                          key: const Key('chat_gallery_button'),
-                          onPressed: canSend ? onPickFromGallery : null,
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            disabledBackgroundColor: Colors.transparent,
-                            foregroundColor: actionButtonIconColor,
-                            disabledForegroundColor:
-                                disabledModelButtonIconColor,
-                            minimumSize: const Size(42, 42),
-                            padding: EdgeInsets.zero,
-                            shape: actionButtonShape,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          icon: Icon(
-                            Icons.add,
-                            size: 22,
-                            color: canSend
-                                ? actionButtonIconColor
-                                : disabledModelButtonIconColor,
-                          ),
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      key: const Key('chat_send_button'),
-                      tooltip: isSending ? l10n.chatStop : l10n.chatSend,
-                      onPressed: isSending ? onStop : (canSend ? onSend : null),
-                      style: IconButton.styleFrom(
-                        backgroundColor: sendButtonBackgroundColor,
-                        disabledBackgroundColor:
-                            colorScheme.surfaceContainerHighest,
-                        foregroundColor: sendButtonForegroundColor,
-                        disabledForegroundColor: colorScheme.onSurfaceVariant
-                            .withAlpha(170),
-                        minimumSize: const Size(42, 42),
-                        padding: EdgeInsets.zero,
-                        shape: actionButtonShape,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      icon: Icon(
-                        isSending ? Icons.stop_rounded : Icons.send_rounded,
-                        size: 22,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MessageList extends StatelessWidget {
-  const _MessageList({
-    super.key,
-    required this.controller,
-    required this.messages,
-    required this.draftMessageId,
-    required this.canManageMessages,
-    required this.canRegenerateMessage,
     required this.onCopyMessage,
     required this.onEditMessage,
     required this.onDeleteMessage,
@@ -1123,11 +390,119 @@ class _MessageList extends StatelessWidget {
     required this.onSelectMessageVersion,
   });
 
-  final ScrollController controller;
-  final List<ChatMessageRecord> messages;
-  final String? draftMessageId;
-  final bool canManageMessages;
-  final bool Function(String messageId) canRegenerateMessage;
+  final ChatScrollCoordinator scrollCoordinator;
+  final TextEditingController inputController;
+  final VoidCallback onStartServer;
+  final VoidCallback onOpenModels;
+  final VoidCallback onSend;
+  final VoidCallback onPickFromGallery;
+  final Future<void> Function(ChatMessageRecord message) onCopyMessage;
+  final Future<void> Function(ChatMessageRecord message) onEditMessage;
+  final Future<void> Function(ChatMessageRecord message) onDeleteMessage;
+  final Future<void> Function(ChatMessageRecord message) onRegenerateMessage;
+  final Future<void> Function(ChatMessageRecord message) onShowMessageActions;
+  final Future<void> Function(ChatMessageRecord message, int versionIndex)
+  onSelectMessageVersion;
+
+  @override
+  State<_ChatInputOverlayScaffold> createState() =>
+      _ChatInputOverlayScaffoldState();
+}
+
+class _ChatInputOverlayScaffoldState extends State<_ChatInputOverlayScaffold> {
+  static const double _defaultInputHeight = 126;
+  static const double _messageBottomGap = 12;
+
+  double _inputHeight = _defaultInputHeight;
+
+  void _handleInputSizeChanged(Size size) {
+    final nextHeight = size.height;
+    if ((nextHeight - _inputHeight).abs() < 0.5) {
+      return;
+    }
+    setState(() {
+      _inputHeight = nextHeight;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ChatInputOverlayLayout(
+      content: _ChatConversationPanel(
+        scrollCoordinator: widget.scrollCoordinator,
+        bottomContentPadding: _inputHeight + _messageBottomGap,
+        onStartServer: widget.onStartServer,
+        onOpenModels: widget.onOpenModels,
+        onCopyMessage: widget.onCopyMessage,
+        onEditMessage: widget.onEditMessage,
+        onDeleteMessage: widget.onDeleteMessage,
+        onRegenerateMessage: widget.onRegenerateMessage,
+        onShowMessageActions: widget.onShowMessageActions,
+        onSelectMessageVersion: widget.onSelectMessageVersion,
+      ),
+      bottomOverlay: _MeasureSize(
+        onChange: _handleInputSizeChanged,
+        child: RepaintBoundary(
+          child: _ChatInputPanel(
+            controller: widget.inputController,
+            onOpenModels: widget.onOpenModels,
+            onSend: widget.onSend,
+            onPickFromGallery: widget.onPickFromGallery,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MeasureSize extends StatefulWidget {
+  const _MeasureSize({required this.onChange, required this.child});
+
+  final ValueChanged<Size> onChange;
+  final Widget child;
+
+  @override
+  State<_MeasureSize> createState() => _MeasureSizeState();
+}
+
+class _MeasureSizeState extends State<_MeasureSize> {
+  Size? _lastSize;
+
+  @override
+  Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      final size = context.size;
+      if (size == null || size == _lastSize) {
+        return;
+      }
+      _lastSize = size;
+      widget.onChange(size);
+    });
+    return widget.child;
+  }
+}
+
+class _ChatConversationPanel extends StatelessWidget {
+  const _ChatConversationPanel({
+    required this.scrollCoordinator,
+    required this.bottomContentPadding,
+    required this.onStartServer,
+    required this.onOpenModels,
+    required this.onCopyMessage,
+    required this.onEditMessage,
+    required this.onDeleteMessage,
+    required this.onRegenerateMessage,
+    required this.onShowMessageActions,
+    required this.onSelectMessageVersion,
+  });
+
+  final ChatScrollCoordinator scrollCoordinator;
+  final double bottomContentPadding;
+  final VoidCallback onStartServer;
+  final VoidCallback onOpenModels;
   final Future<void> Function(ChatMessageRecord message) onCopyMessage;
   final Future<void> Function(ChatMessageRecord message) onEditMessage;
   final Future<void> Function(ChatMessageRecord message) onDeleteMessage;
@@ -1138,1018 +513,445 @@ class _MessageList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView.builder(
+    final snapshot = context.select<ChatProvider, _ChatBodySnapshot>(
+      _ChatBodySnapshot.fromProvider,
+    );
+    final serverProvider = context.watch<ServerProvider?>();
+    final animateConversationBody =
+        Theme.of(context).platform != TargetPlatform.android;
+    final conversationSwitchDelay = animateConversationBody
+        ? Duration.zero
+        : const Duration(milliseconds: 180);
+
+    return ChatConversationTransition(
+      conversationKey: snapshot.conversationKey,
+      animateBody: animateConversationBody,
+      readyToCommit: !snapshot.isLoadingMessages,
+      switchDelay: conversationSwitchDelay,
+      maxUnreadyDelay: const Duration(milliseconds: 320),
+      onConversationCommitted:
+          scrollCoordinator.handleConversationBodyCommitted,
+      child: _ChatConversationBody(
+        snapshot: snapshot,
+        serverProvider: serverProvider,
+        bottomContentPadding: bottomContentPadding,
+        scrollCoordinator: scrollCoordinator,
+        onStartServer: onStartServer,
+        onOpenModels: onOpenModels,
+        onCopyMessage: onCopyMessage,
+        onEditMessage: onEditMessage,
+        onDeleteMessage: onDeleteMessage,
+        onRegenerateMessage: onRegenerateMessage,
+        onShowMessageActions: onShowMessageActions,
+        onSelectMessageVersion: onSelectMessageVersion,
+      ),
+    );
+  }
+}
+
+class _ChatInputPanel extends StatelessWidget {
+  const _ChatInputPanel({
+    required this.controller,
+    required this.onOpenModels,
+    required this.onSend,
+    required this.onPickFromGallery,
+  });
+
+  final TextEditingController controller;
+  final VoidCallback onOpenModels;
+  final VoidCallback onSend;
+  final VoidCallback onPickFromGallery;
+
+  @override
+  Widget build(BuildContext context) {
+    final snapshot = context.select<ChatProvider, _ChatInputSnapshot>(
+      _ChatInputSnapshot.fromProvider,
+    );
+    final serverProvider = context.watch<ServerProvider?>();
+    final isServerRunning =
+        serverProvider?.isRunning ?? snapshot.isServerRunning;
+    final isServerBusy = serverProvider?.isBusy ?? false;
+    final provider = context.read<ChatProvider>();
+
+    return ChatInputBar(
+      key: const Key('chat_input_bar'),
       controller: controller,
-      padding: const EdgeInsets.fromLTRB(0, 24, 0, 8),
-      itemCount: messages.length,
-      itemBuilder: (context, index) {
-        final message = messages[index];
-        final isDraft = message.id == draftMessageId;
-        return _MessageBubble(
-          key: ValueKey<String>(message.id),
-          message: message,
-          isDraft: isDraft,
-          canManageMessages: canManageMessages,
-          canRegenerate: canRegenerateMessage(message.id),
-          onCopy: () => onCopyMessage(message),
-          onEdit: () => onEditMessage(message),
-          onDelete: () => onDeleteMessage(message),
-          onRegenerate: () => onRegenerateMessage(message),
-          onShowActions: () => onShowMessageActions(message),
-          onSelectVersion: (versionIndex) =>
-              onSelectMessageVersion(message, versionIndex),
-        );
-      },
+      hintText: _inputHintText(context, snapshot),
+      isServerRunning: isServerRunning,
+      isServerBusy: isServerBusy,
+      modelLabel: _modelSelectorLabel(context, snapshot),
+      canOpenModels: snapshot.canOpenModels,
+      isModelLoading: snapshot.isModelLoading,
+      hasLoadedModel: snapshot.hasLoadedModel,
+      onToggleServer: serverProvider == null
+          ? null
+          : () => serverProvider.toggle(),
+      onOpenModels: onOpenModels,
+      canSend: snapshot.canSend,
+      isSending: snapshot.isSending,
+      onSend: onSend,
+      onStop: provider.cancelStreaming,
+      onPickFromGallery: onPickFromGallery,
+      pendingImageAttachments: snapshot.pendingImageAttachments,
+      onRemoveImageAttachment: provider.removeImageAttachment,
     );
   }
 }
 
-class _ModelSection extends StatelessWidget {
-  const _ModelSection({
-    required this.title,
-    required this.models,
-    required this.currentModelId,
-    required this.loadingModelId,
-    required this.onTap,
-    this.onSecondaryAction,
+class _ChatConversationBody extends StatelessWidget {
+  const _ChatConversationBody({
+    required this.snapshot,
+    required this.serverProvider,
+    required this.bottomContentPadding,
+    required this.scrollCoordinator,
+    required this.onStartServer,
+    required this.onOpenModels,
+    required this.onCopyMessage,
+    required this.onEditMessage,
+    required this.onDeleteMessage,
+    required this.onRegenerateMessage,
+    required this.onShowMessageActions,
+    required this.onSelectMessageVersion,
   });
 
+  final _ChatBodySnapshot snapshot;
+  final ServerProvider? serverProvider;
+  final double bottomContentPadding;
+  final ChatScrollCoordinator scrollCoordinator;
+  final VoidCallback onStartServer;
+  final VoidCallback onOpenModels;
+  final Future<void> Function(ChatMessageRecord message) onCopyMessage;
+  final Future<void> Function(ChatMessageRecord message) onEditMessage;
+  final Future<void> Function(ChatMessageRecord message) onDeleteMessage;
+  final Future<void> Function(ChatMessageRecord message) onRegenerateMessage;
+  final Future<void> Function(ChatMessageRecord message) onShowMessageActions;
+  final Future<void> Function(ChatMessageRecord message, int versionIndex)
+  onSelectMessageVersion;
+
+  @override
+  Widget build(BuildContext context) {
+    final conversationKey = snapshot.conversationKey;
+    if (snapshot.isLoadingMessages) {
+      return Center(
+        key: ValueKey<String>('chat_message_loading_$conversationKey'),
+        child: const CircularProgressIndicator(),
+      );
+    }
+
+    final visibleMessages = snapshot.visibleMessages;
+    final shouldShowHeroState =
+        visibleMessages.isEmpty &&
+        (!snapshot.isServerRunning || !snapshot.hasLoadedModel);
+    if (shouldShowHeroState) {
+      return Padding(
+        padding: EdgeInsets.only(bottom: bottomContentPadding),
+        child: ChatConversationHero(
+          key: ValueKey<String>('chat_conversation_hero_$conversationKey'),
+          isServerRunning: snapshot.isServerRunning,
+          isServerBusy: serverProvider?.isBusy == true,
+          isModelLoading: snapshot.isModelLoading,
+          hasModel: snapshot.hasLoadedModel,
+          onStartServer: onStartServer,
+          onOpenModels: snapshot.isServerRunning ? onOpenModels : null,
+        ),
+      );
+    }
+
+    return Stack(
+      key: ValueKey<String>('chat_message_list_stack_$conversationKey'),
+      children: [
+        Listener(
+          onPointerSignal: scrollCoordinator.handlePointerSignal,
+          child: NotificationListener<ScrollNotification>(
+            onNotification: scrollCoordinator.handleMessageScrollNotification,
+            child: ChatStagedMessageList(
+              key: ValueKey<String>(
+                'chat_staged_message_list_$conversationKey',
+              ),
+              conversationKey: conversationKey,
+              messages: visibleMessages,
+              onSettled: scrollCoordinator.handleConversationBodyCommitted,
+              builder: (context, messages) {
+                return ChatMessageList(
+                  key: const ValueKey<String>('chat_message_list'),
+                  controller: scrollCoordinator.scrollController,
+                  streamingMessages: snapshot.streamingMessages,
+                  messages: messages,
+                  draftMessageId: snapshot.draftMessageId,
+                  canManageMessages: snapshot.canManageMessages,
+                  canRegenerateMessage: context
+                      .read<ChatProvider>()
+                      .canRegenerateMessage,
+                  padding: EdgeInsets.fromLTRB(0, 24, 0, bottomContentPadding),
+                  onCopyMessage: onCopyMessage,
+                  onEditMessage: onEditMessage,
+                  onDeleteMessage: onDeleteMessage,
+                  onRegenerateMessage: onRegenerateMessage,
+                  onShowMessageActions: onShowMessageActions,
+                  onSelectMessageVersion: onSelectMessageVersion,
+                );
+              },
+            ),
+          ),
+        ),
+        Positioned(
+          right: 12,
+          bottom: bottomContentPadding + 12,
+          child: AnimatedBuilder(
+            animation: scrollCoordinator,
+            builder: (context, _) {
+              if (!scrollCoordinator.showJumpToLatestButton) {
+                return const SizedBox.shrink();
+              }
+              return FloatingActionButton.small(
+                key: const Key('chat_jump_to_latest_button'),
+                heroTag: null,
+                tooltip: context.l10n.chatJumpToLatest,
+                onPressed: scrollCoordinator.jumpToLatestMessage,
+                child: const Icon(Icons.keyboard_arrow_down_rounded),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ChatSessionTitle extends StatelessWidget {
+  const _ChatSessionTitle({required this.conversationKey, required this.title});
+
+  final String conversationKey;
   final String title;
-  final List<ChatModelOption> models;
-  final String? currentModelId;
-  final String? loadingModelId;
-  final ValueChanged<ChatModelOption>? onTap;
-  final ValueChanged<ChatModelOption>? onSecondaryAction;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    if (models.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text(
-            title,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: colorScheme.onSurfaceVariant.withAlpha(170),
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        ...models.map((model) {
-          final isBusy = loadingModelId == model.id;
-          final isSelected = currentModelId == model.id;
-          return Material(
-            color: isSelected
-                ? colorScheme.primaryContainer.withAlpha(40)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: onTap == null || isBusy ? null : () => onTap!(model),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 12,
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        model.displayName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          fontWeight: isSelected
-                              ? FontWeight.w600
-                              : FontWeight.w500,
-                          color: isSelected
-                              ? colorScheme.primary
-                              : colorScheme.onSurface,
-                        ),
-                      ),
-                    ),
-                    if (onSecondaryAction != null && model.isLoaded)
-                      IconButton(
-                        key: Key('chat_model_unload_button_${model.id}'),
-                        tooltip: l10n.chatUnloadModel,
-                        onPressed: isBusy
-                            ? null
-                            : () => onSecondaryAction!(model),
-                        icon: const Icon(Icons.eject_outlined, size: 18),
-                        visualDensity: VisualDensity.compact,
-                        constraints: const BoxConstraints.tightFor(
-                          width: 32,
-                          height: 32,
-                        ),
-                      ),
-                    const SizedBox(width: 4),
-                    _StatusDot(isBusy: isBusy, isLoaded: model.isLoaded),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }),
-      ],
-    );
-  }
-}
-
-class _StatusDot extends StatelessWidget {
-  const _StatusDot({required this.isBusy, required this.isLoaded});
-
-  final bool isBusy;
-  final bool isLoaded;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    if (isBusy) {
-      return const SizedBox(
-        width: 16,
-        height: 16,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      );
-    }
-    return Container(
-      width: 10,
-      height: 10,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: isLoaded ? const Color(0xFF10B981) : colorScheme.outlineVariant,
-      ),
-    );
-  }
-}
-
-class _MessageBubble extends StatefulWidget {
-  const _MessageBubble({
-    super.key,
-    required this.message,
-    required this.isDraft,
-    required this.canManageMessages,
-    required this.canRegenerate,
-    required this.onCopy,
-    required this.onEdit,
-    required this.onDelete,
-    required this.onRegenerate,
-    required this.onShowActions,
-    required this.onSelectVersion,
-  });
-
-  final ChatMessageRecord message;
-  final bool isDraft;
-  final bool canManageMessages;
-  final bool canRegenerate;
-  final Future<void> Function() onCopy;
-  final Future<void> Function() onEdit;
-  final Future<void> Function() onDelete;
-  final Future<void> Function() onRegenerate;
-  final Future<void> Function() onShowActions;
-  final Future<void> Function(int versionIndex) onSelectVersion;
-
-  @override
-  State<_MessageBubble> createState() => _MessageBubbleState();
-}
-
-class _MessageBubbleState extends State<_MessageBubble> {
-  bool _isReasoningExpanded = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final message = widget.message;
-    final isDraft = widget.isDraft;
-    final isUser = message.role == ChatRole.user;
-    final colorScheme = Theme.of(context).colorScheme;
-    final theme = Theme.of(context);
-    final l10n = context.l10n;
-    final foregroundColor = colorScheme.onSurface;
-    final reasoningContent = message.reasoningContent?.trim() ?? '';
-    final hasReasoningContent = reasoningContent.isNotEmpty;
-    final hasVisibleContent =
-        message.content.isNotEmpty || (isDraft && !hasReasoningContent);
-    final showFooter = hasVisibleContent || hasReasoningContent || isDraft;
-    final reasoningBackgroundColor = colorScheme.primaryContainer.withAlpha(
-      110,
-    );
-    final userBubbleDecoration = BoxDecoration(
-      color: colorScheme.secondaryContainer.withAlpha(92),
-      borderRadius: BorderRadius.circular(22),
-    );
-    final footerColor = colorScheme.onSurfaceVariant;
-    final canShowMessageActions = widget.canManageMessages && !isDraft;
-    final showQuickActions = !isDraft;
-
-    Widget buildFooter({required bool includeModelName}) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            _formatTime(message.createdAt),
-            style: theme.textTheme.bodySmall?.copyWith(color: footerColor),
-          ),
-          if (includeModelName &&
-              message.modelName != null &&
-              message.modelName!.isNotEmpty)
-            Flexible(
-              child: Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: Text(
-                  message.modelName!,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: footerColor,
-                  ),
-                ),
-              ),
-            ),
-          if (isDraft) ...[
-            const SizedBox(width: 8),
-            SizedBox(
-              width: 12,
-              height: 12,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: footerColor,
-              ),
-            ),
-          ],
-        ],
-      );
-    }
-
-    Widget wrapMessageActionTarget({
-      required Widget child,
-      required String keySuffix,
-    }) {
-      if (!canShowMessageActions) {
-        return child;
-      }
-      return GestureDetector(
-        key: Key('chat_message_target_${message.id}_$keySuffix'),
-        behavior: HitTestBehavior.opaque,
-        onLongPress: () {
-          unawaited(widget.onShowActions());
-        },
-        child: child,
-      );
-    }
-
-    final footer = buildFooter(includeModelName: !isUser);
-    final contentWidget = hasVisibleContent
-        ? GptMarkdown(
-            message.content.isEmpty && isDraft ? '...' : message.content,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: foregroundColor,
-              height: 1.5,
-            ),
-          )
-        : null;
-
-    final userBubbleBody = wrapMessageActionTarget(
-      keySuffix: 'bubble',
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: userBubbleDecoration,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (message.imageFilePaths.isNotEmpty)
-              _MessageImageStrip(imageFilePaths: message.imageFilePaths),
-            if (contentWidget != null) contentWidget,
-          ],
-        ),
-      ),
-    );
-
-    final assistantContentBody = wrapMessageActionTarget(
-      keySuffix: 'content',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (contentWidget != null) contentWidget,
-          if (showFooter) ...[
-            if (contentWidget != null) const SizedBox(height: 10),
-            footer,
-          ],
-        ],
-      ),
-    );
-
     return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.82,
-        ),
-        margin: const EdgeInsets.only(bottom: 14),
-        child: Column(
-          crossAxisAlignment: isUser
-              ? CrossAxisAlignment.end
-              : CrossAxisAlignment.start,
-          children: [
-            if (isUser) ...[
-              userBubbleBody,
-              if (showFooter) ...[
-                const SizedBox(height: 6),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: wrapMessageActionTarget(
-                    keySuffix: 'footer',
-                    child: footer,
-                  ),
-                ),
-              ],
-            ] else ...[
-              if (hasReasoningContent) ...[
-                Container(
-                  key: Key('chat_message_reasoning_${message.id}'),
-                  decoration: BoxDecoration(
-                    color: reasoningBackgroundColor,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      InkWell(
-                        onTap: () {
-                          setState(() {
-                            _isReasoningExpanded = !_isReasoningExpanded;
-                          });
-                        },
-                        borderRadius: BorderRadius.circular(12),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.psychology_alt_outlined,
-                                size: 18,
-                                color: foregroundColor.withAlpha(210),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  l10n.chatReasoningProcess,
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: foregroundColor.withAlpha(210),
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                              Icon(
-                                _isReasoningExpanded
-                                    ? Icons.expand_less
-                                    : Icons.expand_more,
-                                size: 18,
-                                color: foregroundColor.withAlpha(210),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      if (_isReasoningExpanded)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                          child: GptMarkdown(
-                            reasoningContent,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: foregroundColor.withAlpha(210),
-                              height: 1.5,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-              if (contentWidget != null || showFooter) ...[
-                if (hasReasoningContent) const SizedBox(height: 12),
-                assistantContentBody,
-              ],
-            ],
-            if (showQuickActions) ...[
-              const SizedBox(height: 8),
-              _MessageQuickActions(
-                messageId: message.id,
-                isUser: isUser,
-                canUseActions: widget.canManageMessages,
-                canRegenerate: widget.canRegenerate,
-                currentVersionIndex: message.currentVersionIndex,
-                versionCount: message.versionCount,
-                onCopy: widget.onCopy,
-                onEdit: widget.onEdit,
-                onRegenerate: widget.onRegenerate,
-                onShowActions: widget.onShowActions,
-                onSelectVersion: widget.onSelectVersion,
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _formatTime(DateTime value) {
-    final hour = value.hour.toString().padLeft(2, '0');
-    final minute = value.minute.toString().padLeft(2, '0');
-    return '$hour:$minute';
-  }
-}
-
-enum _ChatMessageAction { copy, edit, regenerate, delete }
-
-class _MessageQuickActions extends StatelessWidget {
-  const _MessageQuickActions({
-    required this.messageId,
-    required this.isUser,
-    required this.canUseActions,
-    required this.canRegenerate,
-    required this.currentVersionIndex,
-    required this.versionCount,
-    required this.onCopy,
-    required this.onEdit,
-    required this.onRegenerate,
-    required this.onShowActions,
-    required this.onSelectVersion,
-  });
-
-  final String messageId;
-  final bool isUser;
-  final bool canUseActions;
-  final bool canRegenerate;
-  final int currentVersionIndex;
-  final int versionCount;
-  final Future<void> Function() onCopy;
-  final Future<void> Function() onEdit;
-  final Future<void> Function() onRegenerate;
-  final Future<void> Function() onShowActions;
-  final Future<void> Function(int versionIndex) onSelectVersion;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 0,
-      runSpacing: 0,
-      alignment: isUser ? WrapAlignment.end : WrapAlignment.start,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        _MessageActionIconButton(
-          buttonKey: Key('chat_message_copy_button_$messageId'),
-          tooltip: context.l10n.chatCopyMessage,
-          icon: Icons.content_copy_outlined,
-          onPressed: canUseActions ? onCopy : null,
-        ),
-        _MessageActionIconButton(
-          buttonKey: Key('chat_message_edit_button_$messageId'),
-          tooltip: context.l10n.chatEditMessage,
-          icon: Icons.edit_outlined,
-          onPressed: canUseActions ? onEdit : null,
-        ),
-        _MessageActionIconButton(
-          buttonKey: Key('chat_message_regenerate_button_$messageId'),
-          tooltip: context.l10n.chatRegenerateMessage,
-          icon: Icons.refresh_rounded,
-          onPressed: canRegenerate ? onRegenerate : null,
-        ),
-        _MessageActionIconButton(
-          buttonKey: Key('chat_message_more_button_$messageId'),
-          tooltip: context.l10n.chatMoreActions,
-          icon: Icons.more_horiz_rounded,
-          onPressed: canUseActions ? onShowActions : null,
-        ),
-        if (!isUser && versionCount > 1)
-          _MessageVersionSwitcher(
-            messageId: messageId,
-            currentVersionIndex: currentVersionIndex,
-            versionCount: versionCount,
-            canUseActions: canUseActions,
-            onSelectVersion: onSelectVersion,
-          ),
-      ],
-    );
-  }
-}
-
-class _MessageVersionSwitcher extends StatelessWidget {
-  const _MessageVersionSwitcher({
-    required this.messageId,
-    required this.currentVersionIndex,
-    required this.versionCount,
-    required this.canUseActions,
-    required this.onSelectVersion,
-  });
-
-  final String messageId;
-  final int currentVersionIndex;
-  final int versionCount;
-  final bool canUseActions;
-  final Future<void> Function(int versionIndex) onSelectVersion;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final canGoPrevious = canUseActions && currentVersionIndex > 0;
-    final canGoNext = canUseActions && currentVersionIndex < versionCount - 1;
-
-    return SizedBox(
-      height: 36,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _MessageVersionButton(
-            buttonKey: Key('chat_message_version_previous_button_$messageId'),
-            tooltip: context.l10n.chatPreviousMessageVersion,
-            icon: Icons.chevron_left_rounded,
-            onPressed: canGoPrevious
-                ? () => onSelectVersion(currentVersionIndex - 1)
-                : null,
-          ),
-          SizedBox(
-            key: Key('chat_message_version_label_$messageId'),
-            width: 38,
-            child: Text(
-              '${currentVersionIndex + 1}/$versionCount',
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          _MessageVersionButton(
-            buttonKey: Key('chat_message_version_next_button_$messageId'),
-            tooltip: context.l10n.chatNextMessageVersion,
-            icon: Icons.chevron_right_rounded,
-            onPressed: canGoNext
-                ? () => onSelectVersion(currentVersionIndex + 1)
-                : null,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MessageVersionButton extends StatelessWidget {
-  const _MessageVersionButton({
-    required this.buttonKey,
-    required this.tooltip,
-    required this.icon,
-    required this.onPressed,
-  });
-
-  final Key buttonKey;
-  final String tooltip;
-  final IconData icon;
-  final Future<void> Function()? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return IconButton(
-      key: buttonKey,
-      tooltip: tooltip,
-      onPressed: onPressed == null
-          ? null
-          : () {
-              unawaited(onPressed!.call());
-            },
-      visualDensity: VisualDensity.compact,
-      iconSize: 18,
-      color: colorScheme.onSurfaceVariant,
-      disabledColor: colorScheme.onSurfaceVariant.withAlpha(90),
-      splashRadius: 16,
-      constraints: const BoxConstraints.tightFor(width: 28, height: 36),
-      icon: Icon(icon),
-    );
-  }
-}
-
-class _MessageActionIconButton extends StatelessWidget {
-  const _MessageActionIconButton({
-    required this.buttonKey,
-    required this.tooltip,
-    required this.icon,
-    required this.onPressed,
-  });
-
-  final Key buttonKey;
-  final String tooltip;
-  final IconData icon;
-  final Future<void> Function()? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return IconButton(
-      key: buttonKey,
-      tooltip: tooltip,
-      onPressed: onPressed == null
-          ? null
-          : () {
-              unawaited(onPressed!.call());
-            },
-      visualDensity: VisualDensity.compact,
-      iconSize: 20,
-      color: colorScheme.onSurfaceVariant,
-      disabledColor: colorScheme.onSurfaceVariant.withAlpha(90),
-      splashRadius: 18,
-      constraints: const BoxConstraints.tightFor(width: 36, height: 36),
-      icon: Icon(icon),
-    );
-  }
-}
-
-class _MessageActionSheet extends StatelessWidget {
-  const _MessageActionSheet({
-    required this.message,
-    required this.canRegenerate,
-  });
-
-  final ChatMessageRecord message;
-  final bool canRegenerate;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 8, 8, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              key: Key('chat_message_action_copy_${message.id}'),
-              leading: const Icon(Icons.content_copy_outlined),
-              title: Text(l10n.chatCopyMessage),
-              onTap: () => Navigator.of(context).pop(_ChatMessageAction.copy),
-            ),
-            ListTile(
-              key: Key('chat_message_action_edit_${message.id}'),
-              leading: const Icon(Icons.edit_outlined),
-              title: Text(l10n.chatEditMessage),
-              onTap: () => Navigator.of(context).pop(_ChatMessageAction.edit),
-            ),
-            ListTile(
-              key: Key('chat_message_action_regenerate_${message.id}'),
-              leading: const Icon(Icons.refresh_rounded),
-              title: Text(l10n.chatRegenerateMessage),
-              enabled: canRegenerate,
-              onTap: canRegenerate
-                  ? () =>
-                        Navigator.of(context).pop(_ChatMessageAction.regenerate)
-                  : null,
-            ),
-            ListTile(
-              key: Key('chat_message_action_delete_${message.id}'),
-              leading: Icon(
-                Icons.delete_outline_rounded,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              title: Text(l10n.commonDelete),
-              onTap: () => Navigator.of(context).pop(_ChatMessageAction.delete),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-Future<String?> _showEditMessageSheet({
-  required BuildContext context,
-  required String initialValue,
-}) {
-  return showModalBottomSheet<String>(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
-    builder: (sheetContext) => _EditMessageSheet(initialValue: initialValue),
-  );
-}
-
-class _EditMessageSheet extends StatefulWidget {
-  const _EditMessageSheet({required this.initialValue});
-
-  final String initialValue;
-
-  @override
-  State<_EditMessageSheet> createState() => _EditMessageSheetState();
-}
-
-class _EditMessageSheetState extends State<_EditMessageSheet> {
-  late final TextEditingController _controller = TextEditingController(
-    text: widget.initialValue,
-  );
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(20, 8, 20, bottomInset + 20),
-      child: StatefulBuilder(
-        builder: (context, setState) {
-          final canSave = _controller.text.trim().isNotEmpty;
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                l10n.chatEditMessageTitle,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                key: const Key('chat_message_edit_field'),
-                controller: _controller,
-                autofocus: true,
-                minLines: 4,
-                maxLines: 10,
-                onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(
-                  hintText: l10n.chatEditMessageHint,
-                  border: const OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: Text(l10n.commonCancel),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton(
-                    key: const Key('chat_message_edit_save_button'),
-                    onPressed: canSave
-                        ? () =>
-                              Navigator.of(context).pop(_controller.text.trim())
-                        : null,
-                    child: Text(l10n.commonSave),
-                  ),
-                ],
-              ),
+      alignment: Alignment.centerLeft,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 220),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        layoutBuilder: (currentChild, previousChildren) {
+          return Stack(
+            alignment: Alignment.centerLeft,
+            children: <Widget>[
+              ...previousChildren,
+              if (currentChild != null) currentChild,
             ],
           );
         },
+        transitionBuilder: (child, animation) {
+          final offsetAnimation = Tween<Offset>(
+            begin: const Offset(0, 0.08),
+            end: Offset.zero,
+          ).animate(animation);
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(position: offsetAnimation, child: child),
+          );
+        },
+        child: Text(
+          title,
+          key: ValueKey<String>('chat_session_title_$conversationKey:$title'),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
       ),
     );
   }
 }
 
-String _sessionTitle(BuildContext context, ChatProvider provider) {
-  return provider.selectedSession?.title ?? context.l10n.chatNewSession;
+@immutable
+class _ChatTitleSnapshot {
+  const _ChatTitleSnapshot({
+    required this.conversationKey,
+    required this.title,
+  });
+
+  factory _ChatTitleSnapshot.fromProvider(ChatProvider provider) {
+    return _ChatTitleSnapshot(
+      conversationKey: provider.selectedSession?.id ?? 'draft',
+      title: provider.selectedSession?.title,
+    );
+  }
+
+  final String conversationKey;
+  final String? title;
+
+  @override
+  bool operator ==(Object other) {
+    return other is _ChatTitleSnapshot &&
+        other.conversationKey == conversationKey &&
+        other.title == title;
+  }
+
+  @override
+  int get hashCode => Object.hash(conversationKey, title);
 }
 
-String _inputHintText(BuildContext context, ChatProvider provider) {
+@immutable
+class _ChatBodySnapshot {
+  const _ChatBodySnapshot({
+    required this.conversationKey,
+    required this.isLoadingMessages,
+    required this.visibleMessages,
+    required this.visibleMessagesRevision,
+    required this.isServerRunning,
+    required this.isModelLoading,
+    required this.hasLoadedModel,
+    required this.streamingMessages,
+    required this.draftMessageId,
+    required this.canManageMessages,
+  });
+
+  factory _ChatBodySnapshot.fromProvider(ChatProvider provider) {
+    return _ChatBodySnapshot(
+      conversationKey: provider.selectedSession?.id ?? 'draft',
+      isLoadingMessages: provider.isLoadingMessages,
+      visibleMessages: provider.visibleMessages,
+      visibleMessagesRevision: provider.visibleMessagesRevision,
+      isServerRunning: provider.isServerRunning,
+      isModelLoading: provider.loadingModelId != null,
+      hasLoadedModel: provider.currentModel?.isLoaded == true,
+      streamingMessages: provider.streamingMessages,
+      draftMessageId: provider.draftMessageId,
+      canManageMessages: provider.canManageMessages,
+    );
+  }
+
+  final String conversationKey;
+  final bool isLoadingMessages;
+  final List<ChatMessageRecord> visibleMessages;
+  final int visibleMessagesRevision;
+  final bool isServerRunning;
+  final bool isModelLoading;
+  final bool hasLoadedModel;
+  final StreamingChatMessageNotifier streamingMessages;
+  final String? draftMessageId;
+  final bool canManageMessages;
+
+  @override
+  bool operator ==(Object other) {
+    return other is _ChatBodySnapshot &&
+        other.conversationKey == conversationKey &&
+        other.isLoadingMessages == isLoadingMessages &&
+        other.visibleMessagesRevision == visibleMessagesRevision &&
+        other.isServerRunning == isServerRunning &&
+        other.isModelLoading == isModelLoading &&
+        other.hasLoadedModel == hasLoadedModel &&
+        identical(other.streamingMessages, streamingMessages) &&
+        other.draftMessageId == draftMessageId &&
+        other.canManageMessages == canManageMessages;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    conversationKey,
+    isLoadingMessages,
+    visibleMessagesRevision,
+    isServerRunning,
+    isModelLoading,
+    hasLoadedModel,
+    streamingMessages,
+    draftMessageId,
+    canManageMessages,
+  );
+}
+
+@immutable
+class _ChatInputSnapshot {
+  const _ChatInputSnapshot({
+    required this.isServerRunning,
+    required this.currentModelId,
+    required this.loadedModelDisplayName,
+    required this.isModelLoading,
+    required this.hasLoadedModel,
+    required this.canOpenModels,
+    required this.canSend,
+    required this.isSending,
+    required this.pendingImageAttachments,
+  });
+
+  factory _ChatInputSnapshot.fromProvider(ChatProvider provider) {
+    final currentModel = provider.currentModel;
+    return _ChatInputSnapshot(
+      isServerRunning: provider.isServerRunning,
+      currentModelId: provider.currentModelId,
+      loadedModelDisplayName: currentModel?.isLoaded == true
+          ? currentModel?.displayName
+          : null,
+      isModelLoading: provider.loadingModelId != null,
+      hasLoadedModel: currentModel?.isLoaded == true,
+      canOpenModels: provider.canSelectModels,
+      canSend: provider.canSend,
+      isSending: provider.isSending,
+      pendingImageAttachments: List<String>.unmodifiable(
+        provider.pendingImageAttachments,
+      ),
+    );
+  }
+
+  final bool isServerRunning;
+  final String? currentModelId;
+  final String? loadedModelDisplayName;
+  final bool isModelLoading;
+  final bool hasLoadedModel;
+  final bool canOpenModels;
+  final bool canSend;
+  final bool isSending;
+  final List<String> pendingImageAttachments;
+
+  @override
+  bool operator ==(Object other) {
+    return other is _ChatInputSnapshot &&
+        other.isServerRunning == isServerRunning &&
+        other.currentModelId == currentModelId &&
+        other.loadedModelDisplayName == loadedModelDisplayName &&
+        other.isModelLoading == isModelLoading &&
+        other.hasLoadedModel == hasLoadedModel &&
+        other.canOpenModels == canOpenModels &&
+        other.canSend == canSend &&
+        other.isSending == isSending &&
+        listEquals(other.pendingImageAttachments, pendingImageAttachments);
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    isServerRunning,
+    currentModelId,
+    loadedModelDisplayName,
+    isModelLoading,
+    hasLoadedModel,
+    canOpenModels,
+    canSend,
+    isSending,
+    Object.hashAll(pendingImageAttachments),
+  );
+}
+
+String _inputHintText(BuildContext context, _ChatInputSnapshot snapshot) {
   final l10n = context.l10n;
-  if (!provider.isServerRunning) {
+  if (!snapshot.isServerRunning) {
     return l10n.chatInputHintStartServer;
   }
-  if (provider.loadingModelId != null) {
+  if (snapshot.isModelLoading) {
     return l10n.chatInputHintLoadingModel;
   }
-  if (provider.currentModelId == null) {
+  if (snapshot.currentModelId == null) {
     return l10n.chatInputHintSelectModel;
   }
-  if (provider.currentModel?.isLoaded != true) {
+  if (!snapshot.hasLoadedModel) {
     return l10n.chatInputHintModelUnavailable;
   }
   return l10n.chatInputHintEnterMessage;
 }
 
-String _modelSelectorLabel(BuildContext context, ChatProvider provider) {
-  final model = provider.currentModel;
-  if (model != null && model.isLoaded) {
-    return model.displayName;
+String _modelSelectorLabel(BuildContext context, _ChatInputSnapshot snapshot) {
+  final loadedModelDisplayName = snapshot.loadedModelDisplayName;
+  if (loadedModelDisplayName != null) {
+    return loadedModelDisplayName;
   }
   return context.l10n.chatSelectModel;
-}
-
-Color _chatActionButtonBackgroundColor(Brightness brightness) {
-  return brightness == Brightness.light
-      ? const Color(0xFF565C68)
-      : const Color(0xFF253042);
-}
-
-Color _chatActionButtonForegroundColor(Brightness brightness) {
-  return brightness == Brightness.light
-      ? Colors.white
-      : const Color(0xFFF4F7FD);
-}
-
-Color _chatDisabledActionButtonIconColor(Brightness brightness) {
-  final color = _chatActionButtonBackgroundColor(brightness);
-  return color.withAlpha(brightness == Brightness.light ? 170 : 190);
-}
-
-class _PendingImageStrip extends StatelessWidget {
-  const _PendingImageStrip({required this.paths, required this.onRemove});
-
-  final List<String> paths;
-  final ValueChanged<int> onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 72,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.only(bottom: 8),
-        itemCount: paths.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          return _ImageThumbnail(
-            path: paths[index],
-            onRemove: () => onRemove(index),
-            onTap: () => _showImagePreview(context, paths[index]),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _ImageThumbnail extends StatelessWidget {
-  const _ImageThumbnail({
-    required this.path,
-    this.onRemove,
-    this.onTap,
-    this.size = 64,
-    this.borderRadius = 12,
-  });
-
-  final String path;
-  final VoidCallback? onRemove;
-  final VoidCallback? onTap;
-  final double size;
-  final double borderRadius;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final thumbnail = Stack(
-      clipBehavior: Clip.none,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(borderRadius),
-          child: SizedBox(
-            width: size,
-            height: size,
-            child: Image.file(
-              File(path),
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                color: colorScheme.surfaceContainerHighest,
-                child: Icon(
-                  Icons.broken_image_outlined,
-                  size: size * 0.4,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ),
-        ),
-        if (onRemove != null)
-          Positioned(
-            right: -4,
-            top: -4,
-            child: GestureDetector(
-              onTap: onRemove,
-              child: Container(
-                width: 20,
-                height: 20,
-                decoration: BoxDecoration(
-                  color: colorScheme.error,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: colorScheme.surface, width: 1.5),
-                ),
-                child: Icon(Icons.close, size: 12, color: colorScheme.onError),
-              ),
-            ),
-          ),
-      ],
-    );
-
-    if (onTap != null) {
-      return GestureDetector(onTap: onTap, child: thumbnail);
-    }
-    return thumbnail;
-  }
-}
-
-class _MessageImageStrip extends StatelessWidget {
-  const _MessageImageStrip({required this.imageFilePaths});
-
-  final List<String> imageFilePaths;
-
-  @override
-  Widget build(BuildContext context) {
-    if (imageFilePaths.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: imageFilePaths.map((path) {
-          return _ImageThumbnail(
-            path: path,
-            size: 80,
-            borderRadius: 14,
-            onTap: () => _showImagePreview(context, path),
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-
-void _showImagePreview(BuildContext context, String path) {
-  showGeneralDialog(
-    context: context,
-    barrierDismissible: true,
-    barrierLabel: '',
-    barrierColor: Colors.black87,
-    transitionDuration: const Duration(milliseconds: 200),
-    pageBuilder: (_, __, ___) {
-      return _ImagePreviewOverlay(path: path);
-    },
-  );
-}
-
-class _ImagePreviewOverlay extends StatelessWidget {
-  const _ImagePreviewOverlay({required this.path});
-
-  final String path;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: GestureDetector(
-              onTap: () => Navigator.of(context).pop(),
-              child: Container(color: Colors.black87),
-            ),
-          ),
-          Center(
-            child: InteractiveViewer(
-              minScale: 0.5,
-              maxScale: 4.0,
-              child: GestureDetector(
-                onTap: () {},
-                child: Image.file(
-                  File(path),
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Icon(
-                    Icons.broken_image_outlined,
-                    color: Colors.white54,
-                    size: 64,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            right: 8,
-            child: IconButton(
-              onPressed: () => Navigator.of(context).pop(),
-              icon: const Icon(Icons.close, color: Colors.white),
-              style: IconButton.styleFrom(backgroundColor: Colors.black45),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
