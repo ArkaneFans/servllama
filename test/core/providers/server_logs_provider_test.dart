@@ -55,6 +55,14 @@ void main() {
       provider.dispose();
     });
 
+    test('default maxEntries is 1000', () {
+      final logger = AppLogger();
+      final provider = ServerLogsProvider(logger: logger);
+
+      expect(provider.maxEntries, 1000);
+      provider.dispose();
+    });
+
     test('clear only clears server logs', () async {
       final logger = AppLogger();
       logger.info('server', channel: LogChannel.server, inMemory: true);

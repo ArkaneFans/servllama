@@ -67,11 +67,21 @@ class FileLogSink implements LogSink {
   @override
   Future<List<AppLogEntry>> loadRecent(int max) async {
     await flush();
-    final entries = await _readEntries(_logFile);
-    if (entries.length < max) {
-      final older = await _readEntries(File('${_logFile.path}.1'));
+    final entries = <AppLogEntry>[];
+
+    // Read current file first
+    entries.addAll(await _readEntries(_logFile));
+
+    // Read older rotated files until we have enough or run out
+    for (var i = 1; i < retainedFiles && entries.length < max; i++) {
+      final older = await _readEntries(File('${_logFile.path}.$i'));
+      if (older.isEmpty) {
+        break;
+      }
       entries.insertAll(0, older);
     }
+
+    // Return the most recent max entries
     if (entries.length > max) {
       return entries.sublist(entries.length - max);
     }

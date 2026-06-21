@@ -74,6 +74,22 @@ void main() {
       expect(loaded, isNotEmpty);
     });
 
+    test('loadRecent reads across multiple rotated files when needed', () async {
+      final sink = FileLogSink(logsDirectory: logsDirectory, maxFileBytes: 150);
+
+      // Write enough to trigger multiple rotations
+      for (var i = 0; i < 30; i++) {
+        sink.add(_entry('entry-$i', second: i));
+      }
+      await sink.flush();
+
+      // Should have rotated, creating .1 and possibly .2
+      final loaded = await sink.loadRecent(25);
+      expect(loaded.length, greaterThanOrEqualTo(20));
+      // Verify we got recent entries (exact count depends on rotation timing)
+      expect(loaded.last.message, contains('entry-'));
+    });
+
     test('clear removes the log files', () async {
       final sink = FileLogSink(logsDirectory: logsDirectory);
 

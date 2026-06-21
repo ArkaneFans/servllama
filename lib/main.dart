@@ -19,7 +19,7 @@ Future<void> _initLogging() async {
   try {
     final sink = await FileLogSink.open();
     AppLogger.instance.attachSink(sink);
-    AppLogger.instance.restore(await sink.loadRecent(2000));
+    AppLogger.instance.restore(await sink.loadRecent(1000));
     // Retained by WidgetsBinding as an observer; flushes on background/exit.
     AppLifecycleListener(
       onPause: () => unawaited(sink.flush()),

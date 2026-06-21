@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:servllama/core/logging/app_logger.dart';
 
 class ServerLogsProvider extends ChangeNotifier {
-  ServerLogsProvider({AppLogger? logger, this.maxEntries = 2000})
+  ServerLogsProvider({AppLogger? logger, this.maxEntries = 1000})
     : _logger = logger ?? AppLogger.instance,
       _logs = List<AppLogEntry>.from(
         (logger ?? AppLogger.instance).entriesFor(LogChannel.server),
