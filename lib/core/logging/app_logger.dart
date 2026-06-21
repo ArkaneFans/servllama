@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 
+import 'package:servllama/core/logging/log_sink.dart';
+
 enum LogChannel { app, server, model }
 
 enum LogLevel { debug, info, warning, error }
@@ -20,14 +22,7 @@ class AppLogEntry {
 
   bool get isError => level == LogLevel.error;
 
-  String get formattedMessage {
-    switch (channel) {
-      case LogChannel.server:
-        return '[server] $message';
-      default:
-        return message;
-    }
-  }
+  String get formattedMessage => message;
 }
 
 class AppLogger {
@@ -35,11 +30,13 @@ class AppLogger {
 
   AppLogger._shared() : maxEntries = defaultMaxEntries;
 
-  static const int defaultMaxEntries = 1000;
+  static const int defaultMaxEntries = 2000;
 
   static final AppLogger instance = AppLogger._shared();
 
   final int maxEntries;
+
+  LogSink _sink = const NoopLogSink();
 
   final Map<LogChannel, List<AppLogEntry>> _entries = {
     for (final channel in LogChannel.values) channel: <AppLogEntry>[],
@@ -52,6 +49,8 @@ class AppLogger {
   void debug(
     String message, {
     LogChannel channel = LogChannel.app,
+    bool inMemory = false,
+    bool? persist,
     Object? error,
     StackTrace? stackTrace,
   }) {
@@ -59,6 +58,8 @@ class AppLogger {
       message,
       channel: channel,
       level: LogLevel.debug,
+      inMemory: inMemory,
+      persist: persist,
       error: error,
       stackTrace: stackTrace,
     );
@@ -67,6 +68,8 @@ class AppLogger {
   void info(
     String message, {
     LogChannel channel = LogChannel.app,
+    bool inMemory = false,
+    bool? persist,
     Object? error,
     StackTrace? stackTrace,
   }) {
@@ -74,6 +77,8 @@ class AppLogger {
       message,
       channel: channel,
       level: LogLevel.info,
+      inMemory: inMemory,
+      persist: persist,
       error: error,
       stackTrace: stackTrace,
     );
@@ -82,6 +87,8 @@ class AppLogger {
   void warning(
     String message, {
     LogChannel channel = LogChannel.app,
+    bool inMemory = false,
+    bool? persist,
     Object? error,
     StackTrace? stackTrace,
   }) {
@@ -89,6 +96,8 @@ class AppLogger {
       message,
       channel: channel,
       level: LogLevel.warning,
+      inMemory: inMemory,
+      persist: persist,
       error: error,
       stackTrace: stackTrace,
     );
@@ -97,6 +106,8 @@ class AppLogger {
   void error(
     String message, {
     LogChannel channel = LogChannel.app,
+    bool inMemory = false,
+    bool? persist,
     Object? error,
     StackTrace? stackTrace,
   }) {
@@ -104,74 +115,10 @@ class AppLogger {
       message,
       channel: channel,
       level: LogLevel.error,
+      inMemory: inMemory,
+      persist: persist,
       error: error,
       stackTrace: stackTrace,
-    );
-  }
-
-  void pageInfo(
-    String message, {
-    required LogChannel channel,
-    Object? error,
-    StackTrace? stackTrace,
-  }) {
-    _record(
-      message,
-      channel: channel,
-      level: LogLevel.info,
-      displayInPage: true,
-      error: error,
-      stackTrace: stackTrace,
-    );
-  }
-
-  void pageWarning(
-    String message, {
-    required LogChannel channel,
-    Object? error,
-    StackTrace? stackTrace,
-  }) {
-    _record(
-      message,
-      channel: channel,
-      level: LogLevel.warning,
-      displayInPage: true,
-      error: error,
-      stackTrace: stackTrace,
-    );
-  }
-
-  void pageError(
-    String message, {
-    required LogChannel channel,
-    Object? error,
-    StackTrace? stackTrace,
-  }) {
-    _record(
-      message,
-      channel: channel,
-      level: LogLevel.error,
-      displayInPage: true,
-      error: error,
-      stackTrace: stackTrace,
-    );
-  }
-
-  void serverStdout(String message) {
-    _record(
-      message,
-      channel: LogChannel.server,
-      level: LogLevel.info,
-      displayInPage: true,
-    );
-  }
-
-  void serverStderr(String message) {
-    _record(
-      message,
-      channel: LogChannel.server,
-      level: LogLevel.info,
-      displayInPage: true,
     );
   }
 
@@ -180,6 +127,24 @@ class AppLogger {
 
   Stream<AppLogEntry> streamFor(LogChannel channel) =>
       _controllers[channel]!.stream;
+
+  void attachSink(LogSink sink) {
+    _sink = sink;
+  }
+
+  void restore(List<AppLogEntry> entries) {
+    for (final entry in entries) {
+      final cache = _entries[entry.channel]!;
+      cache.add(entry);
+      if (cache.length > maxEntries) {
+        cache.removeRange(0, cache.length - maxEntries);
+      }
+    }
+  }
+
+  Future<void> flushSink() => _sink.flush();
+
+  Future<void> clearPersisted() => _sink.clear();
 
   void clearChannel(LogChannel channel) {
     _entries[channel]!.clear();
@@ -195,7 +160,8 @@ class AppLogger {
     String message, {
     required LogChannel channel,
     required LogLevel level,
-    bool displayInPage = false,
+    bool inMemory = false,
+    bool? persist,
     Object? error,
     StackTrace? stackTrace,
   }) {
@@ -212,7 +178,8 @@ class AppLogger {
       stackTrace: stackTrace,
     );
 
-    if (!displayInPage) {
+    final shouldPersist = persist ?? inMemory;
+    if (!inMemory && !shouldPersist) {
       return;
     }
 
@@ -222,6 +189,15 @@ class AppLogger {
       level: level,
       message: normalizedMessage,
     );
+
+    if (shouldPersist) {
+      _sink.add(entry);
+    }
+
+    if (!inMemory) {
+      return;
+    }
+
     final entries = _entries[channel]!;
     entries.add(entry);
     if (entries.length > maxEntries) {

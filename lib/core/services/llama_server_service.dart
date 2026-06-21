@@ -66,9 +66,10 @@ class LlamaServerService {
       );
       return true;
     } catch (error) {
-      _logger.pageError(
+      _logger.error(
         'Failed to install llama-server when copying binary from assets',
         channel: LogChannel.server,
+        inMemory: true,
         error: error,
       );
       return false;
@@ -77,7 +78,7 @@ class LlamaServerService {
 
   Future<bool> startServer({List<String>? args}) async {
     if (_process != null) {
-      _logger.pageWarning('Server is already running', channel: LogChannel.server);
+      _logger.warning('Server is already running', channel: LogChannel.server, inMemory: true);
       return false;
     }
 
@@ -86,10 +87,11 @@ class LlamaServerService {
       final binaryDirectoryPath = await _getBinaryDirectoryPath(); // 获取存放库的目录
       final arguments = args ?? <String>[];
 
-      _logger.pageInfo('Starting llama-server...', channel: LogChannel.server);
-      _logger.pageInfo(
+      _logger.info('Starting llama-server...', channel: LogChannel.server, inMemory: true);
+      _logger.info(
         'Command: $binaryPath ${arguments.join(' ')}',
         channel: LogChannel.server,
+        inMemory: true,
       );
 
       final process = await Process.start(
@@ -112,20 +114,21 @@ class LlamaServerService {
       process.stdout.transform(utf8.decoder).listen(_handleStdout);
       process.stderr.transform(utf8.decoder).listen(_handleStderr);
       process.exitCode.then((code) async {
-        _logger.pageInfo('Server exited with code: $code', channel: LogChannel.server);
+        _logger.info('Server exited with code: $code', channel: LogChannel.server, inMemory: true);
         _process = null;
         _emitRunningState(false);
 
         await _foregroundTaskService.stop();
       });
 
-      _logger.pageInfo(
+      _logger.info(
         'Server started successfully, PID: ${process.pid}',
         channel: LogChannel.server,
+        inMemory: true,
       );
       return true;
     } catch (error) {
-      _logger.pageError('Server started failed', channel: LogChannel.server, error: error);
+      _logger.error('Server started failed', channel: LogChannel.server, inMemory: true, error: error);
       _process = null;
       _emitRunningState(false);
 
@@ -147,19 +150,22 @@ class LlamaServerService {
     }
 
     if (!hasInstalledBinary) {
-      _logger.pageInfo(
+      _logger.info(
         'Detected that the llama-server is not installed, installing built-in version $bundledVersion...',
         channel: LogChannel.server,
+        inMemory: true,
       );
     } else if (installedVersion == null) {
-      _logger.pageInfo(
+      _logger.info(
         'Detected that the local llama-server is missing version records, overwriting and installing the built-in version $bundledVersion...',
         channel: LogChannel.server,
+        inMemory: true,
       );
     } else {
-      _logger.pageInfo(
+      _logger.info(
         'Detected a change in llama-server version (Installed: $installedVersion, Bundled: $bundledVersion), updating...',
         channel: LogChannel.server,
+        inMemory: true,
       );
     }
 
@@ -240,7 +246,7 @@ class LlamaServerService {
         }
         await tempFile.rename(targetFile.path);
         
-        _logger.pageInfo('Extracted: $fileName', channel: LogChannel.server);
+        _logger.info('Extracted: $fileName', channel: LogChannel.server, inMemory: true);
       } finally {
         if (await tempFile.exists()) {
           await tempFile.delete();
@@ -252,9 +258,10 @@ class LlamaServerService {
       ServerPrefsKeys.llamaServerInstalledVersion,
       bundledVersion,
     );
-    _logger.pageInfo(
+    _logger.info(
       'Installed llama-server and dependencies version $bundledVersion',
       channel: LogChannel.server,
+      inMemory: true,
     );
   }
 
@@ -277,7 +284,7 @@ class LlamaServerService {
     for (final line in lines) {
       final message = line.trim();
       if (message.isNotEmpty) {
-        _logger.serverStdout(message);
+        _logger.info(message, channel: LogChannel.server, inMemory: true);
       }
     }
   }
@@ -287,19 +294,19 @@ class LlamaServerService {
     for (final line in lines) {
       final message = line.trim();
       if (message.isNotEmpty) {
-        _logger.serverStderr(message);
+        _logger.info(message, channel: LogChannel.server, inMemory: true);
       }
     }
   }
 
   Future<bool> stopServer() async {
     if (_process == null) {
-      _logger.pageWarning('Server is not running', channel: LogChannel.server);
+      _logger.warning('Server is not running', channel: LogChannel.server, inMemory: true);
       return false;
     }
 
     try {
-      _logger.pageInfo('Stopping service...', channel: LogChannel.server);
+      _logger.info('Stopping service...', channel: LogChannel.server, inMemory: true);
       _process!.kill(ProcessSignal.sigkill);
       _process = null;
       _emitRunningState(false);
@@ -308,7 +315,7 @@ class LlamaServerService {
 
       return true;
     } catch (error) {
-      _logger.pageError('Failed to stop service', channel: LogChannel.server, error: error);
+      _logger.error('Failed to stop service', channel: LogChannel.server, inMemory: true, error: error);
       _process = null;
       _emitRunningState(false);
 
