@@ -56,6 +56,10 @@ class ServerLaunchSettingsLoader {
         await _kvStorage.getString(ServerPrefsKeys.flashAttentionMode),
       ),
       useMmap: await _kvStorage.getBool(ServerPrefsKeys.useMmap) ?? true,
+      logEnabled: await _kvStorage.getBool(ServerPrefsKeys.logEnabled) ?? true,
+      logLevel: _readLogLevel(
+        await _kvStorage.getString(ServerPrefsKeys.logLevel),
+      ),
     );
   }
 
@@ -80,6 +84,18 @@ class ServerLaunchSettingsLoader {
       return FlashAttentionMode.values.byName(savedMode);
     } catch (_) {
       return ServerLaunchSettings.defaultFlashAttentionMode;
+    }
+  }
+
+  ServerLogLevel _readLogLevel(String? savedLevel) {
+    if (savedLevel == null) {
+      return ServerLaunchSettings.defaultLogLevel;
+    }
+
+    try {
+      return ServerLogLevel.values.byName(savedLevel);
+    } catch (_) {
+      return ServerLaunchSettings.defaultLogLevel;
     }
   }
 

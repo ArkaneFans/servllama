@@ -938,6 +938,60 @@ abstract class AppLocalizations {
   /// **'Improves model loading performance'**
   String get serverConfigUseMmapSubtitle;
 
+  /// No description provided for @serverConfigSectionLogging.
+  ///
+  /// In en, this message translates to:
+  /// **'Logs'**
+  String get serverConfigSectionLogging;
+
+  /// No description provided for @serverConfigLogEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable logs'**
+  String get serverConfigLogEnabled;
+
+  /// No description provided for @serverConfigLogEnabledSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Controls llama-server runtime log output'**
+  String get serverConfigLogEnabledSubtitle;
+
+  /// No description provided for @serverConfigLogLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Log level'**
+  String get serverConfigLogLevel;
+
+  /// No description provided for @serverConfigLogLevelDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Controls the granularity of log output information'**
+  String get serverConfigLogLevelDescription;
+
+  /// No description provided for @serverConfigLogLevelError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error'**
+  String get serverConfigLogLevelError;
+
+  /// No description provided for @serverConfigLogLevelWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Warning'**
+  String get serverConfigLogLevelWarning;
+
+  /// No description provided for @serverConfigLogLevelInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Info'**
+  String get serverConfigLogLevelInfo;
+
+  /// No description provided for @serverConfigLogLevelDebug.
+  ///
+  /// In en, this message translates to:
+  /// **'Debug'**
+  String get serverConfigLogLevelDebug;
+
   /// No description provided for @serverConfigSectionReset.
   ///
   /// In en, this message translates to:
@@ -965,7 +1019,7 @@ abstract class AppLocalizations {
   /// No description provided for @serverConfigResetDialogContent.
   ///
   /// In en, this message translates to:
-  /// **'All settings will be reset to defaults. Continue?'**
+  /// **'All settings will be reset to defaults and saved immediately. Continue?'**
   String get serverConfigResetDialogContent;
 
   /// No description provided for @serverConfigResetAction.

@@ -243,6 +243,45 @@ class _ServerConfigViewState extends State<_ServerConfigView> {
                           ),
                           const SizedBox(height: 18),
                           SettingsSection(
+                            title: l10n.serverConfigSectionLogging,
+                            child: _SectionItems(
+                              children: [
+                                SwitchSettingTile(
+                                  title: l10n.serverConfigLogEnabled,
+                                  subtitle: l10n.serverConfigLogEnabledSubtitle,
+                                  value: provider.logEnabled,
+                                  onChanged: provider.updateLogEnabled,
+                                ),
+                                SegmentedSetting<ServerLogLevel>(
+                                  label: l10n.serverConfigLogLevel,
+                                  description:
+                                      l10n.serverConfigLogLevelDescription,
+                                  value: provider.logLevel,
+                                  options: [
+                                    SegmentedSettingOption(
+                                      value: ServerLogLevel.error,
+                                      label: l10n.serverConfigLogLevelError,
+                                    ),
+                                    SegmentedSettingOption(
+                                      value: ServerLogLevel.warning,
+                                      label: l10n.serverConfigLogLevelWarning,
+                                    ),
+                                    SegmentedSettingOption(
+                                      value: ServerLogLevel.info,
+                                      label: l10n.serverConfigLogLevelInfo,
+                                    ),
+                                    SegmentedSettingOption(
+                                      value: ServerLogLevel.debug,
+                                      label: l10n.serverConfigLogLevelDebug,
+                                    ),
+                                  ],
+                                  onChanged: provider.updateLogLevel,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          SettingsSection(
                             title: l10n.serverConfigSectionReset,
                             child: ListTile(
                               contentPadding: EdgeInsets.zero,

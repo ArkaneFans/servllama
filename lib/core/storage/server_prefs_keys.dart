@@ -11,6 +11,8 @@ class ServerPrefsKeys {
   static const String imageMaxTokens = 'server.image_max_tokens';
   static const String flashAttentionMode = 'server.flash_attention_mode';
   static const String useMmap = 'server.use_mmap';
+  static const String logEnabled = 'server.log_enabled';
+  static const String logLevel = 'server.log_level';
   static const String llamaServerInstalledVersion =
       'server.llama_server_installed_version';
 }

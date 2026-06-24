@@ -35,6 +35,13 @@ class ServerLaunchArgsBuilder {
         ..add('--api-key')
         ..add(settings.apiKey);
     }
+    if (settings.logEnabled) {
+      args
+        ..add('--log-verbosity')
+        ..add('${settings.logLevel.cliValue}');
+    } else {
+      args.add('--log-disable');
+    }
 
     return args;
   }
