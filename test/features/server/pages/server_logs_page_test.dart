@@ -35,6 +35,45 @@ void main() {
       expect(find.text('failed'), findsOneWidget);
     });
 
+    testWidgets('uses a reversed list for bottom-anchored logs', (
+      tester,
+    ) async {
+      final logger = AppLogger();
+      logger.info('first', channel: LogChannel.server, inMemory: true);
+      logger.info('second', channel: LogChannel.server, inMemory: true);
+
+      await tester.pumpWidget(
+        MaterialApp(home: ServerLogsPage(logger: logger)),
+      );
+      await tester.pump();
+
+      final listView = tester.widget<ListView>(find.byType(ListView));
+      expect(listView.reverse, isTrue);
+    });
+
+    testWidgets('opens at the bottom without scrolling to max extent', (
+      tester,
+    ) async {
+      final logger = AppLogger();
+      for (var index = 0; index < 60; index++) {
+        logger.info(
+          'log-$index ' * 6,
+          channel: LogChannel.server,
+          inMemory: true,
+        );
+      }
+
+      await tester.pumpWidget(
+        MaterialApp(home: ServerLogsPage(logger: logger)),
+      );
+      await tester.pumpAndSettle();
+
+      final scrollable = tester.state<ScrollableState>(
+        find.byType(Scrollable).first,
+      );
+      expect(scrollable.position.pixels, 0);
+    });
+
     testWidgets('clear returns page to empty state', (tester) async {
       final logger = AppLogger();
       logger.info('system', channel: LogChannel.server, inMemory: true);

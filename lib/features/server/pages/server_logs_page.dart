@@ -43,7 +43,6 @@ class _ServerLogsViewState extends State<_ServerLogsView> {
     _provider = provider;
     _lastCount = provider.count;
     provider.addListener(_handleLogsChanged);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _jumpToBottom());
   }
 
   @override
@@ -87,14 +86,14 @@ class _ServerLogsViewState extends State<_ServerLogsView> {
       return true;
     }
     final position = _scrollController.position;
-    return position.maxScrollExtent - position.pixels <= 72;
+    return position.pixels <= 72;
   }
 
   void _jumpToBottom() {
     if (!_scrollController.hasClients) {
       return;
     }
-    _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+    _scrollController.jumpTo(0);
   }
 
   Color _resolveLogColor(BuildContext context, AppLogEntry entry) {
@@ -167,10 +166,12 @@ class _ServerLogsViewState extends State<_ServerLogsView> {
                     )
                   : ListView.builder(
                       controller: _scrollController,
+                      reverse: true,
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                       itemCount: provider.logs.length,
                       itemBuilder: (context, index) {
-                        final entry = provider.logs[index];
+                        final entry =
+                            provider.logs[provider.logs.length - 1 - index];
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: SelectableText(
