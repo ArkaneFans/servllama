@@ -219,7 +219,7 @@
   "serverConfigResetTitle": "Restore default config",
   "serverConfigResetSubtitle": "All default values will be saved immediately after confirmation.",
   "serverConfigResetDialogTitle": "Restore default config",
-  "serverConfigResetDialogContent": "All settings will be reset to defaults and saved immediately. Continue?",
+  "serverConfigResetDialogContent": "All settings will be reset to defaults. Continue?",
   "serverConfigResetAction": "Restore defaults",
   "modelManagementTitle": "Model management",
   "modelManagementImport": "Import model",
