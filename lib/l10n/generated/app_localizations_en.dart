@@ -463,6 +463,35 @@ class AppLocalizationsEn extends AppLocalizations {
       'Improves model loading performance';
 
   @override
+  String get serverConfigSectionLogging => 'Logs';
+
+  @override
+  String get serverConfigLogEnabled => 'Enable logs';
+
+  @override
+  String get serverConfigLogEnabledSubtitle =>
+      'Controls llama-server runtime log output';
+
+  @override
+  String get serverConfigLogLevel => 'Log level';
+
+  @override
+  String get serverConfigLogLevelDescription =>
+      'Controls the granularity of log output information';
+
+  @override
+  String get serverConfigLogLevelError => 'Error';
+
+  @override
+  String get serverConfigLogLevelWarning => 'Warning';
+
+  @override
+  String get serverConfigLogLevelInfo => 'Info';
+
+  @override
+  String get serverConfigLogLevelDebug => 'Debug';
+
+  @override
   String get serverConfigSectionReset => 'Reset';
 
   @override
@@ -477,7 +506,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get serverConfigResetDialogContent =>
-      'All settings will be reset to defaults. Continue?';
+      'All settings will be reset to defaults and saved immediately. Continue?';
 
   @override
   String get serverConfigResetAction => 'Restore defaults';

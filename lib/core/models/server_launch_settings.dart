@@ -2,6 +2,8 @@ enum ServerListenMode { localhost, allInterfaces }
 
 enum FlashAttentionMode { auto, enabled, disabled }
 
+enum ServerLogLevel { error, warning, info, debug }
+
 class ServerLaunchSettings {
   const ServerLaunchSettings({
     this.listenMode = ServerListenMode.localhost,
@@ -14,6 +16,8 @@ class ServerLaunchSettings {
     this.imageMaxTokens = defaultImageMaxTokens,
     this.flashAttentionMode = defaultFlashAttentionMode,
     this.useMmap = true,
+    this.logEnabled = true,
+    this.logLevel = defaultLogLevel,
   });
 
   static const int defaultPort = 8080;
@@ -42,6 +46,7 @@ class ServerLaunchSettings {
 
   static const FlashAttentionMode defaultFlashAttentionMode =
       FlashAttentionMode.disabled;
+  static const ServerLogLevel defaultLogLevel = ServerLogLevel.info;
 
   final ServerListenMode listenMode;
   final int port;
@@ -53,9 +58,26 @@ class ServerLaunchSettings {
   final int imageMaxTokens;
   final FlashAttentionMode flashAttentionMode;
   final bool useMmap;
+  final bool logEnabled;
+  final ServerLogLevel logLevel;
 
   String get host =>
       listenMode == ServerListenMode.localhost ? '127.0.0.1' : '0.0.0.0';
+}
+
+extension ServerLogLevelX on ServerLogLevel {
+  int get cliValue {
+    switch (this) {
+      case ServerLogLevel.error:
+        return 1;
+      case ServerLogLevel.warning:
+        return 2;
+      case ServerLogLevel.info:
+        return 3;
+      case ServerLogLevel.debug:
+        return 4;
+    }
+  }
 }
 
 extension FlashAttentionModeX on FlashAttentionMode {

@@ -29,6 +29,8 @@ void main() {
       expect(provider.hasCompletedInitialLoad, isTrue);
       expect(provider.contextSize, 8192);
       expect(provider.batchSize, 1024);
+      expect(provider.logEnabled, isTrue);
+      expect(provider.logLevel, ServerLogLevel.info);
       expect(provider.statusText, 'Configuration loaded');
     });
 
@@ -50,6 +52,8 @@ void main() {
         isNull,
       );
       expect(await kvStorage.getBool(ServerPrefsKeys.useMmap), isNull);
+      expect(await kvStorage.getBool(ServerPrefsKeys.logEnabled), isNull);
+      expect(await kvStorage.getString(ServerPrefsKeys.logLevel), isNull);
       expect(provider.statusText, 'Configuration saved');
     });
 
@@ -75,6 +79,26 @@ void main() {
         isNull,
       );
       expect(await kvStorage.getBool(ServerPrefsKeys.useMmap), isNull);
+      expect(await kvStorage.getBool(ServerPrefsKeys.logEnabled), isNull);
+      expect(await kvStorage.getString(ServerPrefsKeys.logLevel), isNull);
+      expect(provider.statusText, 'Configuration saved');
+    });
+
+    test('updates log settings independently', () async {
+      final kvStorage = KvStorage();
+      final provider = ServerConfigProvider(kvStorage: kvStorage);
+
+      await provider.updateLogEnabled(false);
+      await provider.updateLogLevel(ServerLogLevel.debug);
+
+      expect(provider.logEnabled, isFalse);
+      expect(provider.logLevel, ServerLogLevel.debug);
+      expect(await kvStorage.getBool(ServerPrefsKeys.logEnabled), isFalse);
+      expect(
+        await kvStorage.getString(ServerPrefsKeys.logLevel),
+        ServerLogLevel.debug.name,
+      );
+      expect(await kvStorage.getInt(ServerPrefsKeys.port), isNull);
       expect(provider.statusText, 'Configuration saved');
     });
 
@@ -91,6 +115,8 @@ void main() {
       await provider.updateParallelSlots(4);
       await provider.updateFlashAttentionMode(FlashAttentionMode.auto);
       await provider.updateUseMmap(false);
+      await provider.updateLogEnabled(false);
+      await provider.updateLogLevel(ServerLogLevel.debug);
 
       await provider.resetToDefaults();
 
@@ -106,6 +132,8 @@ void main() {
         ServerLaunchSettings.defaultFlashAttentionMode,
       );
       expect(provider.useMmap, isTrue);
+      expect(provider.logEnabled, isTrue);
+      expect(provider.logLevel, ServerLogLevel.info);
       expect(
         await kvStorage.getString(ServerPrefsKeys.listenMode),
         'localhost',
@@ -136,6 +164,11 @@ void main() {
         ServerLaunchSettings.defaultFlashAttentionMode.name,
       );
       expect(await kvStorage.getBool(ServerPrefsKeys.useMmap), isTrue);
+      expect(await kvStorage.getBool(ServerPrefsKeys.logEnabled), isTrue);
+      expect(
+        await kvStorage.getString(ServerPrefsKeys.logLevel),
+        ServerLogLevel.info.name,
+      );
       expect(provider.statusText, 'Configuration saved');
     });
 

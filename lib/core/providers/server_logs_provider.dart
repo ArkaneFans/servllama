@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:servllama/core/logging/app_logger.dart';
 
 class ServerLogsProvider extends ChangeNotifier {
-  ServerLogsProvider({AppLogger? logger})
+  ServerLogsProvider({AppLogger? logger, this.maxEntries = 1000})
     : _logger = logger ?? AppLogger.instance,
       _logs = List<AppLogEntry>.from(
         (logger ?? AppLogger.instance).entriesFor(LogChannel.server),
@@ -13,6 +13,7 @@ class ServerLogsProvider extends ChangeNotifier {
   }
 
   final AppLogger _logger;
+  final int maxEntries;
   final List<AppLogEntry> _logs;
   late final StreamSubscription<AppLogEntry> _subscription;
 
@@ -24,12 +25,16 @@ class ServerLogsProvider extends ChangeNotifier {
 
   void clear() {
     _logger.clearChannel(LogChannel.server);
+    unawaited(_logger.clearPersisted());
     _logs.clear();
     notifyListeners();
   }
 
   void _handleEntry(AppLogEntry entry) {
     _logs.add(entry);
+    if (_logs.length > maxEntries) {
+      _logs.removeRange(0, _logs.length - maxEntries);
+    }
     notifyListeners();
   }
 

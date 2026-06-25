@@ -6,7 +6,7 @@ void main() {
   group('ServerLogsProvider', () {
     test('loads existing server logs at initialization', () {
       final logger = AppLogger();
-      logger.pageInfo('existing', channel: LogChannel.server);
+      logger.info('existing', channel: LogChannel.server, inMemory: true);
 
       final provider = ServerLogsProvider(logger: logger);
 
@@ -19,7 +19,7 @@ void main() {
       final logger = AppLogger();
       final provider = ServerLogsProvider(logger: logger);
 
-      logger.serverStdout('hello');
+      logger.info('hello', channel: LogChannel.server, inMemory: true);
       await Future<void>.delayed(Duration.zero);
 
       expect(provider.count, 1);
@@ -31,19 +31,42 @@ void main() {
       final logger = AppLogger();
       final provider = ServerLogsProvider(logger: logger);
 
-      logger.pageInfo('system', channel: LogChannel.server);
-      logger.serverStdout('out');
-      logger.serverStderr('err');
+      logger.info('system', channel: LogChannel.server, inMemory: true);
+      logger.info('out', channel: LogChannel.server, inMemory: true);
+      logger.info('err', channel: LogChannel.server, inMemory: true);
       await Future<void>.delayed(Duration.zero);
 
       expect(provider.copyText, 'system\nout\nerr');
       provider.dispose();
     });
 
+    test('caps in-memory logs to maxEntries, dropping oldest', () async {
+      final logger = AppLogger();
+      final provider = ServerLogsProvider(logger: logger, maxEntries: 2);
+
+      logger.info('one', channel: LogChannel.server, inMemory: true);
+      logger.info('two', channel: LogChannel.server, inMemory: true);
+      logger.info('three', channel: LogChannel.server, inMemory: true);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(provider.count, 2);
+      expect(provider.logs.first.message, 'two');
+      expect(provider.logs.last.message, 'three');
+      provider.dispose();
+    });
+
+    test('default maxEntries is 1000', () {
+      final logger = AppLogger();
+      final provider = ServerLogsProvider(logger: logger);
+
+      expect(provider.maxEntries, 1000);
+      provider.dispose();
+    });
+
     test('clear only clears server logs', () async {
       final logger = AppLogger();
-      logger.pageInfo('server', channel: LogChannel.server);
-      logger.pageInfo('model', channel: LogChannel.model);
+      logger.info('server', channel: LogChannel.server, inMemory: true);
+      logger.info('model', channel: LogChannel.model, inMemory: true);
       final provider = ServerLogsProvider(logger: logger);
 
       provider.clear();

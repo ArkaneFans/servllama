@@ -22,8 +22,8 @@ void main() {
 
     testWidgets('shows log count and entries', (tester) async {
       final logger = AppLogger();
-      logger.pageInfo('system', channel: LogChannel.server);
-      logger.serverStderr('failed');
+      logger.info('system', channel: LogChannel.server, inMemory: true);
+      logger.info('failed', channel: LogChannel.server, inMemory: true);
 
       await tester.pumpWidget(
         MaterialApp(home: ServerLogsPage(logger: logger)),
@@ -35,9 +35,48 @@ void main() {
       expect(find.text('failed'), findsOneWidget);
     });
 
+    testWidgets('uses a reversed list for bottom-anchored logs', (
+      tester,
+    ) async {
+      final logger = AppLogger();
+      logger.info('first', channel: LogChannel.server, inMemory: true);
+      logger.info('second', channel: LogChannel.server, inMemory: true);
+
+      await tester.pumpWidget(
+        MaterialApp(home: ServerLogsPage(logger: logger)),
+      );
+      await tester.pump();
+
+      final listView = tester.widget<ListView>(find.byType(ListView));
+      expect(listView.reverse, isTrue);
+    });
+
+    testWidgets('opens at the bottom without scrolling to max extent', (
+      tester,
+    ) async {
+      final logger = AppLogger();
+      for (var index = 0; index < 60; index++) {
+        logger.info(
+          'log-$index ' * 6,
+          channel: LogChannel.server,
+          inMemory: true,
+        );
+      }
+
+      await tester.pumpWidget(
+        MaterialApp(home: ServerLogsPage(logger: logger)),
+      );
+      await tester.pumpAndSettle();
+
+      final scrollable = tester.state<ScrollableState>(
+        find.byType(Scrollable).first,
+      );
+      expect(scrollable.position.pixels, 0);
+    });
+
     testWidgets('clear returns page to empty state', (tester) async {
       final logger = AppLogger();
-      logger.pageInfo('system', channel: LogChannel.server);
+      logger.info('system', channel: LogChannel.server, inMemory: true);
 
       await tester.pumpWidget(
         MaterialApp(home: ServerLogsPage(logger: logger)),
@@ -53,8 +92,8 @@ void main() {
 
     testWidgets('copy all copies logs and shows feedback', (tester) async {
       final logger = AppLogger();
-      logger.pageInfo('system', channel: LogChannel.server);
-      logger.serverStdout('out');
+      logger.info('system', channel: LogChannel.server, inMemory: true);
+      logger.info('out', channel: LogChannel.server, inMemory: true);
       String? clipboardText;
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         SystemChannels.platform,

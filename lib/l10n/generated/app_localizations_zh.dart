@@ -448,6 +448,33 @@ class AppLocalizationsZh extends AppLocalizations {
   String get serverConfigUseMmapSubtitle => '提高模型的加载性能';
 
   @override
+  String get serverConfigSectionLogging => '日志';
+
+  @override
+  String get serverConfigLogEnabled => '日志启用';
+
+  @override
+  String get serverConfigLogEnabledSubtitle => '控制 llama-server 运行日志输出';
+
+  @override
+  String get serverConfigLogLevel => '日志级别';
+
+  @override
+  String get serverConfigLogLevelDescription => '控制日志输出信息的详细程度';
+
+  @override
+  String get serverConfigLogLevelError => '错误';
+
+  @override
+  String get serverConfigLogLevelWarning => '警告';
+
+  @override
+  String get serverConfigLogLevelInfo => '信息';
+
+  @override
+  String get serverConfigLogLevelDebug => '调试';
+
+  @override
   String get serverConfigSectionReset => '重置';
 
   @override
@@ -460,7 +487,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get serverConfigResetDialogTitle => '恢复默认配置';
 
   @override
-  String get serverConfigResetDialogContent => '所有配置项将恢复默认值，确定继续吗？';
+  String get serverConfigResetDialogContent => '所有配置项将恢复默认值并立即保存，确定继续吗？';
 
   @override
   String get serverConfigResetAction => '恢复默认';

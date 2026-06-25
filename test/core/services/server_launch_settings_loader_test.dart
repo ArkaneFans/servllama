@@ -36,6 +36,8 @@ void main() {
         ServerLaunchSettings.defaultFlashAttentionMode,
       );
       expect(settings.useMmap, isTrue);
+      expect(settings.logEnabled, isTrue);
+      expect(settings.logLevel, ServerLogLevel.info);
     });
 
     test('reads and sanitizes stored prefs values', () async {
@@ -50,6 +52,8 @@ void main() {
         ServerPrefsKeys.imageMaxTokens: 5000,
         ServerPrefsKeys.flashAttentionMode: FlashAttentionMode.enabled.name,
         ServerPrefsKeys.useMmap: false,
+        ServerPrefsKeys.logEnabled: false,
+        ServerPrefsKeys.logLevel: ServerLogLevel.debug.name,
       });
       kvStorage = KvStorage();
       loader = ServerLaunchSettingsLoader(kvStorage: kvStorage);
@@ -70,6 +74,8 @@ void main() {
       );
       expect(settings.flashAttentionMode, FlashAttentionMode.enabled);
       expect(settings.useMmap, isFalse);
+      expect(settings.logEnabled, isFalse);
+      expect(settings.logLevel, ServerLogLevel.debug);
     });
 
     test('maps legacy auto values to the new defaults', () async {
@@ -90,6 +96,7 @@ void main() {
       SharedPreferences.setMockInitialValues(<String, Object>{
         ServerPrefsKeys.listenMode: 'invalid',
         ServerPrefsKeys.flashAttentionMode: 'invalid',
+        ServerPrefsKeys.logLevel: 'invalid',
       });
       kvStorage = KvStorage();
       loader = ServerLaunchSettingsLoader(kvStorage: kvStorage);
@@ -101,6 +108,7 @@ void main() {
         settings.flashAttentionMode,
         ServerLaunchSettings.defaultFlashAttentionMode,
       );
+      expect(settings.logLevel, ServerLogLevel.info);
     });
   });
 }

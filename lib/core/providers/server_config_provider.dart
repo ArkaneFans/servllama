@@ -34,6 +34,8 @@ class ServerConfigProvider extends ChangeNotifier {
   FlashAttentionMode _flashAttentionMode =
       ServerLaunchSettings.defaultFlashAttentionMode;
   bool _useMmap = true;
+  bool _logEnabled = true;
+  ServerLogLevel _logLevel = ServerLaunchSettings.defaultLogLevel;
 
   bool get hasCompletedInitialLoad => _hasCompletedInitialLoad;
   bool get isLoading => _isLoading;
@@ -49,6 +51,8 @@ class ServerConfigProvider extends ChangeNotifier {
   int get imageMaxTokens => _imageMaxTokens;
   FlashAttentionMode get flashAttentionMode => _flashAttentionMode;
   bool get useMmap => _useMmap;
+  bool get logEnabled => _logEnabled;
+  ServerLogLevel get logLevel => _logLevel;
 
   String get host =>
       _listenMode == ServerListenMode.localhost ? '127.0.0.1' : '0.0.0.0';
@@ -203,6 +207,22 @@ class ServerConfigProvider extends ChangeNotifier {
     await _saveBool(ServerPrefsKeys.useMmap, _useMmap);
   }
 
+  Future<void> updateLogEnabled(bool value) async {
+    if (_logEnabled == value) {
+      return;
+    }
+    _logEnabled = value;
+    await _saveBool(ServerPrefsKeys.logEnabled, _logEnabled);
+  }
+
+  Future<void> updateLogLevel(ServerLogLevel value) async {
+    if (_logLevel == value) {
+      return;
+    }
+    _logLevel = value;
+    await _saveString(ServerPrefsKeys.logLevel, _logLevel.name);
+  }
+
   void _applySettings(ServerLaunchSettings settings) {
     _listenMode = settings.listenMode;
     _port = settings.port;
@@ -214,6 +234,8 @@ class ServerConfigProvider extends ChangeNotifier {
     _imageMaxTokens = settings.imageMaxTokens;
     _flashAttentionMode = settings.flashAttentionMode;
     _useMmap = settings.useMmap;
+    _logEnabled = settings.logEnabled;
+    _logLevel = settings.logLevel;
   }
 
   Future<void> _saveString(String key, String value) {
@@ -243,6 +265,8 @@ class ServerConfigProvider extends ChangeNotifier {
         _flashAttentionMode.name,
       );
       await _kvStorage.setBool(ServerPrefsKeys.useMmap, _useMmap);
+      await _kvStorage.setBool(ServerPrefsKeys.logEnabled, _logEnabled);
+      await _kvStorage.setString(ServerPrefsKeys.logLevel, _logLevel.name);
     });
   }
 

@@ -29,9 +29,11 @@ void main() {
           '--parallel',
           '1',
           '--image-max-tokens',
-          '512',
+          '${ServerLaunchSettings.defaultImageMaxTokens}',
           '--flash-attn',
           'off',
+          '--log-verbosity',
+          '3',
         ],
       );
     });
@@ -48,6 +50,7 @@ void main() {
         imageMaxTokens: 2048,
         flashAttentionMode: FlashAttentionMode.enabled,
         useMmap: false,
+        logLevel: ServerLogLevel.debug,
       );
 
       expect(
@@ -74,6 +77,37 @@ void main() {
           '--no-mmap',
           '--api-key',
           'secret',
+          '--log-verbosity',
+          '4',
+        ],
+      );
+    });
+
+    test('disables llama-server logs without passing a verbosity threshold', () {
+      const settings = ServerLaunchSettings(logEnabled: false);
+
+      expect(
+        builder.build(settings, modelsDirectoryPath: modelsDirectoryPath),
+        <String>[
+          '--host',
+          '127.0.0.1',
+          '--port',
+          '8080',
+          '--models-dir',
+          modelsDirectoryPath,
+          '--ctx-size',
+          '4096',
+          '--batch-size',
+          '2048',
+          '--threads',
+          '2',
+          '--parallel',
+          '1',
+          '--image-max-tokens',
+          '${ServerLaunchSettings.defaultImageMaxTokens}',
+          '--flash-attn',
+          'off',
+          '--log-disable',
         ],
       );
     });

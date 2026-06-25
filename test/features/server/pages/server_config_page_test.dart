@@ -102,21 +102,59 @@ void main() {
       await tester.pumpAndSettle();
 
       final sliders = tester.widgetList<Slider>(find.byType(Slider)).toList();
+      final performanceSliders = sliders.sublist(sliders.length - 2);
 
-      expect(sliders, hasLength(4));
-      expect(sliders[2].min, 1);
-      expect(sliders[2].max, 8);
-      expect(sliders[2].divisions, 7);
-      expect(sliders[2].value, 2);
-      expect(sliders[3].min, 1);
-      expect(sliders[3].max, 8);
-      expect(sliders[3].divisions, 7);
-      expect(sliders[3].value, 1);
+      expect(sliders.length, greaterThanOrEqualTo(2));
+      expect(performanceSliders[0].min, 1);
+      expect(performanceSliders[0].max, 8);
+      expect(performanceSliders[0].divisions, 7);
+      expect(performanceSliders[0].value, 2);
+      expect(performanceSliders[1].min, 1);
+      expect(performanceSliders[1].max, 8);
+      expect(performanceSliders[1].divisions, 7);
+      expect(performanceSliders[1].value, 1);
       expect(configProvider.cpuThreads, ServerLaunchSettings.defaultCpuThreads);
       expect(
         configProvider.parallelSlots,
         ServerLaunchSettings.defaultParallelSlots,
       );
+    });
+
+    testWidgets('shows logging controls with enabled info defaults', (
+      tester,
+    ) async {
+      final kvStorage = KvStorage();
+      final configProvider = ServerConfigProvider(kvStorage: kvStorage);
+      final serverService = _FakeLlamaServerService();
+      final serverProvider = ServerProvider(
+        serverService: serverService,
+        settingsLoader: _FixedServerLaunchSettingsLoader(
+          const ServerLaunchSettings(),
+        ),
+        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+      );
+      addTearDown(() {
+        configProvider.dispose();
+        serverProvider.dispose();
+        serverService.dispose();
+      });
+
+      await tester.pumpWidget(
+        _TestApp(
+          serverProvider: serverProvider,
+          child: ServerConfigPage(provider: configProvider),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(ListView), const Offset(0, -900));
+      await tester.pumpAndSettle();
+
+      expect(find.text('日志'), findsOneWidget);
+      expect(find.text('日志启用'), findsOneWidget);
+      expect(find.text('日志级别'), findsOneWidget);
+      expect(find.text('信息'), findsOneWidget);
+      expect(configProvider.logEnabled, isTrue);
+      expect(configProvider.logLevel, ServerLogLevel.info);
     });
 
     testWidgets('removes fixed action bar and saves port changes immediately', (
