@@ -26,6 +26,6 @@ class AppL10nService {
         return supportedLocale;
       }
     }
-    return const Locale('zh');
+    return AppLocalizations.supportedLocales.first;
   }
 }
