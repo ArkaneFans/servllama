@@ -22,6 +22,7 @@ class AppLocaleProvider extends ChangeNotifier {
   Locale? get locale {
     switch (_localeMode) {
       case AppLocaleMode.system:
+        // if system language not supported, use the first supported language
         return null;
       case AppLocaleMode.zh:
         return const Locale('zh');
