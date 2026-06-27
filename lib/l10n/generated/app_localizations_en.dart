@@ -402,7 +402,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get serverConfigApiKeyDescription =>
-      'Leave empty to disable verification.';
+      'Leave empty to disable verification';
 
   @override
   String get serverConfigSectionInference => 'Inference';
@@ -506,7 +506,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get serverConfigResetDialogContent =>
-      'All settings will be reset to defaults and saved immediately. Continue?';
+      'All settings will be reset to defaults. Continue?';
 
   @override
   String get serverConfigResetAction => 'Restore defaults';

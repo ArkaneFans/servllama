@@ -188,7 +188,7 @@
   "serverConfigPort": "Port",
   "serverConfigPortDescription": "The server listening port",
   "serverConfigApiKey": "API key",
-  "serverConfigApiKeyDescription": "Leave empty to disable verification.",
+  "serverConfigApiKeyDescription": "Leave empty to disable verification",
   "serverConfigSectionInference": "Inference",
   "serverConfigContextSize": "Context size",
   "serverConfigContextSizeDescription": "The maximum number of context tokens the model can attend to",

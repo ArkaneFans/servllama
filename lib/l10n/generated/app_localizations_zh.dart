@@ -393,7 +393,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get serverConfigApiKey => 'API Key';
 
   @override
-  String get serverConfigApiKeyDescription => '留空则不启用校验。';
+  String get serverConfigApiKeyDescription => '留空则不启用校验';
 
   @override
   String get serverConfigSectionInference => '推理参数';
@@ -442,7 +442,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get serverConfigFlashAttentionDescription => '降低某些模型的内存使用量和推理时间';
 
   @override
-  String get serverConfigUseMmap => '使用 mmap';
+  String get serverConfigUseMmap => '使用 mmap 内存映射';
 
   @override
   String get serverConfigUseMmapSubtitle => '提高模型的加载性能';
@@ -487,7 +487,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get serverConfigResetDialogTitle => '恢复默认配置';
 
   @override
-  String get serverConfigResetDialogContent => '所有配置项将恢复默认值并立即保存，确定继续吗？';
+  String get serverConfigResetDialogContent => '所有配置项将恢复默认值，确定继续吗？';
 
   @override
   String get serverConfigResetAction => '恢复默认';
