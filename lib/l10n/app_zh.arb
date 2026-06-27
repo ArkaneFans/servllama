@@ -188,7 +188,7 @@
   "serverConfigPort": "端口",
   "serverConfigPortDescription": "服务器监听端口",
   "serverConfigApiKey": "API Key",
-  "serverConfigApiKeyDescription": "留空则不启用校验。",
+  "serverConfigApiKeyDescription": "留空则不启用校验",
   "serverConfigSectionInference": "推理参数",
   "serverConfigContextSize": "上下文长度",
   "serverConfigContextSizeDescription": "模型能关注的最大上下文toekn数量",

@@ -833,7 +833,7 @@ abstract class AppLocalizations {
   /// No description provided for @serverConfigApiKeyDescription.
   ///
   /// In en, this message translates to:
-  /// **'Leave empty to disable verification.'**
+  /// **'Leave empty to disable verification'**
   String get serverConfigApiKeyDescription;
 
   /// No description provided for @serverConfigSectionInference.
@@ -1019,7 +1019,7 @@ abstract class AppLocalizations {
   /// No description provided for @serverConfigResetDialogContent.
   ///
   /// In en, this message translates to:
-  /// **'All settings will be reset to defaults and saved immediately. Continue?'**
+  /// **'All settings will be reset to defaults. Continue?'**
   String get serverConfigResetDialogContent;
 
   /// No description provided for @serverConfigResetAction.
