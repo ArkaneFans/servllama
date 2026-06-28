@@ -7,6 +7,8 @@ import 'package:servllama/core/services/model_storage_paths.dart';
 import 'package:servllama/core/services/server_launch_args_builder.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
 import 'package:servllama/core/services/app_l10n_service.dart';
+import 'package:servllama/core/storage/kv_storage.dart';
+import 'package:servllama/core/storage/server_prefs_keys.dart';
 import 'package:servllama/core/utils/network_utils.dart';
 
 class ServerProvider extends ChangeNotifier {
@@ -15,11 +17,13 @@ class ServerProvider extends ChangeNotifier {
     ServerLaunchSettingsLoader? settingsLoader,
     ServerLaunchArgsBuilder? launchArgsBuilder,
     ModelStoragePaths? modelStoragePaths,
+    KvStorage? kvStorage,
   }) : _serverService = serverService ?? LlamaServerService(),
        _settingsLoader = settingsLoader ?? ServerLaunchSettingsLoader(),
        _launchArgsBuilder =
            launchArgsBuilder ?? const ServerLaunchArgsBuilder(),
-       _modelStoragePaths = modelStoragePaths ?? ModelStoragePaths() {
+       _modelStoragePaths = modelStoragePaths ?? ModelStoragePaths(),
+       _kvStorage = kvStorage ?? KvStorage.instance {
     _isRunning = _serverService.isRunning;
     _runningStateSubscription = _serverService.runningStateStream.listen(
       _handleRunningStateChanged,
@@ -30,6 +34,7 @@ class ServerProvider extends ChangeNotifier {
   final ServerLaunchSettingsLoader _settingsLoader;
   final ServerLaunchArgsBuilder _launchArgsBuilder;
   final ModelStoragePaths _modelStoragePaths;
+  final KvStorage _kvStorage;
   late final StreamSubscription<bool> _runningStateSubscription;
 
   bool _isRunning = false;
@@ -114,14 +119,7 @@ class ServerProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Android 13+ require notification permissions
-      if (defaultTargetPlatform == TargetPlatform.android) {
-        final notificationPermission =
-            await FlutterForegroundTask.checkNotificationPermission();
-        if (notificationPermission != NotificationPermission.granted) {
-          await FlutterForegroundTask.requestNotificationPermission();
-        }
-      }
+      await _requestNotificationPermissionOnce();
 
       _serverService.initForegroundTask();
 
@@ -166,6 +164,43 @@ class ServerProvider extends ChangeNotifier {
     } finally {
       _isBusy = false;
       notifyListeners();
+    }
+  }
+
+  Future<void> _requestNotificationPermissionOnce() async {
+    if (defaultTargetPlatform != TargetPlatform.android) {
+      return;
+    }
+
+    try {
+      final hasPrompted = await _kvStorage.getBool(
+        ServerPrefsKeys.foregroundNotificationPermissionPrompted,
+      );
+      if (hasPrompted != null) {
+        return;
+      }
+
+      final notificationPermission =
+          await FlutterForegroundTask.checkNotificationPermission();
+      if (notificationPermission == NotificationPermission.granted) {
+        await _kvStorage.setBool(
+          ServerPrefsKeys.foregroundNotificationPermissionPrompted,
+          true,
+        );
+        return;
+      }
+
+      if (notificationPermission != NotificationPermission.denied) {
+        return;
+      }
+
+      await _kvStorage.setBool(
+        ServerPrefsKeys.foregroundNotificationPermissionPrompted,
+        true,
+      );
+      await FlutterForegroundTask.requestNotificationPermission();
+    } catch (_) {
+      // Notification permission is best-effort and must not block server start.
     }
   }
 
