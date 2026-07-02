@@ -37,6 +37,7 @@
 - Use `lib/core/` only for foundational capabilities shared across features.
 - Use `lib/shared/` for reusable UI components and shared presentation utilities.
 - Do not add extra entities unless necessary. Avoid defensive programming and do not design for hypothetical future requirements.
+- Put user-facing strings in ARB localization files. Do not hard-code display text in Dart code.
 
 ## Layering Rules
 
@@ -59,4 +60,5 @@
 - Run `flutter analyze` before submitting changes.
 - Prefer adding unit tests when changing business logic.
 - Add the minimum necessary widget tests when changing page interactions.
+- Do not manually edit generated files, including `*.g.dart` and `lib/l10n/generated/*`.
 - Do not perform unrelated refactors. When touching old code, only bring it closer to the standard within the scope of the current change.
