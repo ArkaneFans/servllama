@@ -39,6 +39,7 @@ class ServerProvider extends ChangeNotifier {
 
   bool _isRunning = false;
   bool _isBusy = false;
+  bool _disposed = false;
   String _host = '127.0.0.1';
   int _port = 8080;
   String? _lastError;
@@ -64,6 +65,9 @@ class ServerProvider extends ChangeNotifier {
 
   void _refreshDisplayHost() {
     NetworkUtils.getLocalIpAddress().then((ip) {
+      if (_disposed) {
+        return;
+      }
       if (ip != null && ip != _pendingDisplayHost) {
         _pendingDisplayHost = ip;
         notifyListeners();
@@ -206,6 +210,7 @@ class ServerProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _runningStateSubscription.cancel();
     super.dispose();
   }

@@ -542,7 +542,7 @@ class _FakeLlamaServerService implements LlamaServerService {
   bool get isRunning => false;
 
   @override
-  Future<bool> copyBinaryFromAssets() async => true;
+  Future<String> loadBundledVersion() async => 'b9830';
 
   @override
   void dispose() {

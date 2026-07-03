@@ -50,11 +50,15 @@ void main() {
           '8',
           '--parallel',
           '4',
+          '--image-max-tokens',
+          '256',
           '--flash-attn',
           'auto',
           '--no-mmap',
           '--api-key',
           'secret',
+          '--log-verbosity',
+          '3',
         ]);
         expect(provider.host, '0.0.0.0');
         expect(provider.port, 11434);
@@ -160,7 +164,7 @@ class FakeLlamaServerService implements LlamaServerService {
   List<String>? startedArgs;
 
   @override
-  Future<bool> copyBinaryFromAssets() async => true;
+  Future<String> loadBundledVersion() async => 'b9830';
 
   @override
   void dispose() {

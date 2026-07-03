@@ -38,6 +38,18 @@ android {
         targetSdk = 28
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        ndk {
+            // llama-server binaries in jniLibs are arm64-only.
+            abiFilters += "arm64-v8a"
+        }
+    }
+
+    packaging {
+        jniLibs {
+            // llama-server is executed as a child process, so the libraries
+            // must exist as real files in nativeLibraryDir.
+            useLegacyPackaging = true
+        }
     }
 
     signingConfigs {
