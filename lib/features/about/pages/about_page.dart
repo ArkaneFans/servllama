@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:servllama/core/services/llama_server_service.dart';
 import 'package:servllama/l10n/l10n.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -80,6 +81,23 @@ class AboutPage extends StatelessWidget {
                           ),
                         );
                       },
+                    );
+                  },
+                ),
+                const SizedBox(height: 6),
+                // Bundled llama.cpp (llama-server) version
+                FutureBuilder<String>(
+                  future: LlamaServerService().loadBundledVersion(),
+                  builder: (context, snapshot) {
+                    final version = snapshot.data;
+                    if (version == null) {
+                      return const SizedBox.shrink();
+                    }
+                    return Text(
+                      l10n.aboutLlamaCppVersion(version),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
                     );
                   },
                 ),

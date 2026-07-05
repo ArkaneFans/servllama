@@ -127,6 +127,14 @@
     }
   },
   "aboutVersionCopied": "版本号已复制",
+  "aboutLlamaCppVersion": "llama.cpp {version}",
+  "@aboutLlamaCppVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
   "aboutStarOnGitHub": "在 GitHub 上点亮 Star",
   "aboutLicense": "开源许可",
   "serverTitle": "服务器",

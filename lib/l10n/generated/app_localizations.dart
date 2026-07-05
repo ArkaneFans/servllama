@@ -632,6 +632,12 @@ abstract class AppLocalizations {
   /// **'Version copied'**
   String get aboutVersionCopied;
 
+  /// No description provided for @aboutLlamaCppVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'llama.cpp {version}'**
+  String aboutLlamaCppVersion(String version);
+
   /// No description provided for @aboutStarOnGitHub.
   ///
   /// In en, this message translates to:
