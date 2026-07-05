@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/core/providers/server_provider.dart';
@@ -5,6 +6,7 @@ import 'package:servllama/features/chat/pages/chat_history_page.dart';
 import 'package:servllama/features/chat/pages/chat_page.dart';
 import 'package:servllama/features/chat/widgets/chat_session_drawer_section.dart';
 import 'package:servllama/features/chat/widgets/chat_session_search_field.dart';
+import 'package:servllama/features/server/pages/debug_page.dart';
 import 'package:servllama/features/server/pages/server_page.dart';
 import 'package:servllama/features/settings/pages/settings_page.dart';
 import 'package:servllama/l10n/l10n.dart';
@@ -129,6 +131,16 @@ class _MainScaffoldState extends State<MainScaffold> {
                         title: l10n.drawerSettings,
                         onTap: () => _pushFromSidebar(const SettingsPage()),
                       ),
+                      if (kDebugMode) ...[
+                        const SizedBox(height: 8),
+                        _DrawerActionBlock(
+                          key: const Key('drawer_debug_action'),
+                          icon: Icons.bug_report_outlined,
+                          // Debug-only entry; intentionally not localized.
+                          title: '调试',
+                          onTap: () => _pushFromSidebar(const DebugPage()),
+                        ),
+                      ],
                     ],
                   ),
                 ),
