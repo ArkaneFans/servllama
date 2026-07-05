@@ -30,6 +30,13 @@
 - If you need to adjust `llama-server` startup arguments, port, model path, context length, thread count, or similar settings, encapsulate them in the service or repository layer first. Do not scatter these details across page-level code.
 - For detailed `llama-server` usage, see `llama-server-README.md`.
 
+### Binary Maintenance
+
+- `llama-server` binaries ship as jniLibs (`android/app/src/main/jniLibs/arm64-v8a/`). The server executable is packaged as `libllama-server.so` and executed from `nativeLibraryDir`, with `LD_LIBRARY_PATH` pointing to the same directory.
+- Every bundled file must be named `lib*.so`, otherwise AGP silently excludes it from the APK.
+- Keep `packaging.jniLibs.useLegacyPackaging = true` in `android/app/build.gradle.kts`. The server runs as a child process and must exist as a real file on disk.
+- When updating llama-server, replace the `.so` files AND sync the version in `assets/bin/llama_server_manifest.json`. The manifest is display-only (About page) and is not validated against the binaries.
+
 ## Development Practices
 
 - Put new business logic under `lib/features/<feature>/` whenever possible.

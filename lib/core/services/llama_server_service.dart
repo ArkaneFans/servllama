@@ -7,8 +7,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/core/services/app_l10n_service.dart';
 import 'package:servllama/core/services/foreground_task_service.dart';
+import 'package:servllama/core/services/native_library_dir_service.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
-import 'package:servllama/core/storage/server_prefs_keys.dart';
 
 class LlamaServerService {
   static final LlamaServerService _instance = LlamaServerService._internal();
@@ -17,20 +17,25 @@ class LlamaServerService {
 
   LlamaServerService._internal();
 
-  static const String _assetDirectoryPath =
-      'assets/bin/android/arm64-v8a';
+  static const String _binaryFileName = 'libllama-server.so';
   static const String _manifestAssetPath =
       'assets/bin/llama_server_manifest.json';
-  static const String _binaryName = 'llama-server';
-  static const String _binaryDirectoryName = 'bin';
+
+  // Leftovers from the removed assets-based installer; kept only for cleanup.
+  static const String _legacyBinaryDirectoryName = 'bin';
+  static const String _legacyInstalledVersionPrefKey =
+      'server.llama_server_installed_version';
 
   final KvStorage _kvStorage = KvStorage.instance;
   final AppLogger _logger = AppLogger.instance;
+  final NativeLibraryDirService _nativeLibraryDirService =
+      NativeLibraryDirService();
   final StreamController<bool> _runningStateController =
       StreamController<bool>.broadcast();
   final AppL10nService _l10nService = AppL10nService.instance;
   final ForegroundTaskService _foregroundTaskService = ForegroundTaskService();
   bool _foregroundTaskInitialized = false;
+  bool _legacyCleanupStarted = false;
 
   Process? _process;
   bool _lastRunningState = false;
@@ -42,38 +47,30 @@ class LlamaServerService {
 
   bool get isRunning => _process != null;
 
+  /// Version of the bundled llama-server build, as declared in the
+  /// manifest asset shipped alongside the jniLibs binaries.
+  Future<String> loadBundledVersion() async {
+    final manifestContent = await rootBundle.loadString(_manifestAssetPath);
+    final decoded = jsonDecode(manifestContent);
+    if (decoded is! Map) {
+      throw const FormatException(
+        'llama-server manifest must be a JSON object',
+      );
+    }
+
+    final version = decoded['version']?.toString().trim() ?? '';
+    if (version.isEmpty) {
+      throw const FormatException(
+        'llama-server manifest is missing a non-empty version',
+      );
+    }
+    return version;
+  }
+
   void initForegroundTask() {
     if (_foregroundTaskInitialized) return;
     _foregroundTaskService.init();
     _foregroundTaskInitialized = true;
-  }
-
-  Future<String> _getBinaryDirectoryPath() async {
-    final directory = await getApplicationSupportDirectory();
-    return '${directory.path}/$_binaryDirectoryName';
-  }
-
-  Future<String> _getBinaryPath() async {
-    final binaryDirectoryPath = await _getBinaryDirectoryPath();
-    return '$binaryDirectoryPath/$_binaryName';
-  }
-
-  Future<bool> copyBinaryFromAssets() async {
-    try {
-      final bundledVersion = await _loadBundledVersion();
-      await _installBundledBinary(
-        bundledVersion: bundledVersion,
-      );
-      return true;
-    } catch (error) {
-      _logger.error(
-        'Failed to install llama-server when copying binary from assets',
-        channel: LogChannel.server,
-        inMemory: true,
-        error: error,
-      );
-      return false;
-    }
   }
 
   Future<bool> startServer({List<String>? args}) async {
@@ -82,9 +79,12 @@ class LlamaServerService {
       return false;
     }
 
+    unawaited(_cleanupLegacyInstall());
+
     try {
-      final binaryPath = await _ensureBinaryReady();
-      final binaryDirectoryPath = await _getBinaryDirectoryPath(); // 获取存放库的目录
+      final nativeLibraryDir =
+          await _nativeLibraryDirService.getNativeLibraryDir();
+      final binaryPath = '$nativeLibraryDir/$_binaryFileName';
       final arguments = args ?? <String>[];
 
       _logger.info('Starting llama-server...', channel: LogChannel.server, inMemory: true);
@@ -99,7 +99,7 @@ class LlamaServerService {
         arguments,
         runInShell: false,
         environment: {
-          'LD_LIBRARY_PATH': binaryDirectoryPath,
+          'LD_LIBRARY_PATH': nativeLibraryDir,
         },
       );
 
@@ -138,145 +138,34 @@ class LlamaServerService {
     }
   }
 
-  Future<String> _ensureBinaryReady() async {
-    final bundledVersion = await _loadBundledVersion();
-    final binaryPath = await _getBinaryPath();
-    final targetFile = File(binaryPath);
-    final installedVersion = await _getInstalledVersion();
-    final hasInstalledBinary = await targetFile.exists();
-
-    if (hasInstalledBinary && installedVersion == bundledVersion) {
-      return binaryPath;
-    }
-
-    if (!hasInstalledBinary) {
-      _logger.info(
-        'Detected that the llama-server is not installed, installing built-in version $bundledVersion...',
-        channel: LogChannel.server,
-        inMemory: true,
-      );
-    } else if (installedVersion == null) {
-      _logger.info(
-        'Detected that the local llama-server is missing version records, overwriting and installing the built-in version $bundledVersion...',
-        channel: LogChannel.server,
-        inMemory: true,
-      );
-    } else {
-      _logger.info(
-        'Detected a change in llama-server version (Installed: $installedVersion, Bundled: $bundledVersion), updating...',
-        channel: LogChannel.server,
-        inMemory: true,
-      );
-    }
-
-    await _installBundledBinary(
-      bundledVersion: bundledVersion,
-    );
-    return binaryPath;
-  }
-
-  Future<String> _loadBundledVersion() async {
-    final manifestContent = await rootBundle.loadString(_manifestAssetPath);
-    final decoded = jsonDecode(manifestContent);
-    if (decoded is! Map) {
-      throw const FormatException(
-        'llama-server manifest must be a JSON object',
-      );
-    }
-
-    final version = decoded['version']?.toString().trim() ?? '';
-    if (version.isEmpty) {
-      throw const FormatException(
-        'llama-server manifest is missing a non-empty version',
-      );
-    }
-    return version;
-  }
-
-  Future<String?> _getInstalledVersion() async {
-    final storedVersion = await _kvStorage.getString(
-      ServerPrefsKeys.llamaServerInstalledVersion,
-    );
-    final normalizedVersion = storedVersion?.trim();
-    if (normalizedVersion == null || normalizedVersion.isEmpty) {
-      return null;
-    }
-    return normalizedVersion;
-  }
-
-  Future<void> _installBundledBinary({
-    required String bundledVersion,
-  }) async {
-    final targetDir = Directory(await _getBinaryDirectoryPath());
-    await targetDir.create(recursive: true);
-
-    final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
-    
-    final assetsToCopy = manifest
-        .listAssets()
-        .where((path) => path.startsWith('$_assetDirectoryPath/'))
-        .toList();
-
-    if (assetsToCopy.isEmpty) {
-      throw Exception('No assets found in $_assetDirectoryPath');
-    }
-
-    for (final assetPath in assetsToCopy) {
-      final fileName = assetPath.split('/').last;
-      final targetFile = File('${targetDir.path}/$fileName');
-      final tempFile = File('${targetFile.path}.tmp');
-
-      try {
-        if (await tempFile.exists()) {
-          await tempFile.delete();
-        }
-
-        final byteData = await rootBundle.load(assetPath);
-        final bytes = byteData.buffer.asUint8List(
-          byteData.offsetInBytes,
-          byteData.lengthInBytes,
-        );
-
-        await tempFile.writeAsBytes(bytes, flush: true);
-        
-        await _markExecutable(tempFile.path);
-
-        if (await targetFile.exists()) {
-          await targetFile.delete();
-        }
-        await tempFile.rename(targetFile.path);
-        
-        _logger.info('Extracted: $fileName', channel: LogChannel.server, inMemory: true);
-      } finally {
-        if (await tempFile.exists()) {
-          await tempFile.delete();
-        }
-      }
-    }
-
-    await _kvStorage.setString(
-      ServerPrefsKeys.llamaServerInstalledVersion,
-      bundledVersion,
-    );
-    _logger.info(
-      'Installed llama-server and dependencies version $bundledVersion',
-      channel: LogChannel.server,
-      inMemory: true,
-    );
-  }
-
-  Future<void> _markExecutable(String binaryPath) async {
-    final result = await Process.run('chmod', <String>['+x', binaryPath]);
-    if (result.exitCode == 0) {
+  Future<void> _cleanupLegacyInstall() async {
+    if (_legacyCleanupStarted) {
       return;
     }
+    _legacyCleanupStarted = true;
 
-    throw ProcessException(
-      'chmod',
-      <String>['+x', binaryPath],
-      '${result.stderr}',
-      result.exitCode,
-    );
+    try {
+      final supportDir = await getApplicationSupportDirectory();
+      final legacyDir = Directory(
+        '${supportDir.path}/$_legacyBinaryDirectoryName',
+      );
+      if (await legacyDir.exists()) {
+        await legacyDir.delete(recursive: true);
+        _logger.info(
+          'Removed legacy llama-server install directory',
+          channel: LogChannel.server,
+          inMemory: true,
+        );
+      }
+      await _kvStorage.remove(_legacyInstalledVersionPrefKey);
+    } catch (error) {
+      _logger.warning(
+        'Failed to clean up legacy llama-server install',
+        channel: LogChannel.server,
+        inMemory: true,
+        error: error,
+      );
+    }
   }
 
   void _handleStdout(String data) {

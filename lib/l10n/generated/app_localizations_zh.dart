@@ -286,6 +286,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aboutVersionCopied => '版本号已复制';
 
   @override
+  String aboutLlamaCppVersion(String version) {
+    return 'llama.cpp $version';
+  }
+
+  @override
   String get aboutStarOnGitHub => '在 GitHub 上点亮 Star';
 
   @override

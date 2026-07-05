@@ -291,6 +291,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutVersionCopied => 'Version copied';
 
   @override
+  String aboutLlamaCppVersion(String version) {
+    return 'llama.cpp $version';
+  }
+
+  @override
   String get aboutStarOnGitHub => 'Star on GitHub';
 
   @override
