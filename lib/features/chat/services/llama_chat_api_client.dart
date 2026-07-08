@@ -227,34 +227,25 @@ class LlamaChatApiClient {
       );
     }
 
-    var pending = '';
+    // A stateful decoder is required: multi-byte UTF-8 sequences can be
+    // split across network chunks. LineSplitter also emits a trailing line
+    // that lacks a final newline when the stream closes.
+    final lines = body.stream
+        .cast<List<int>>()
+        .transform(const Utf8Decoder(allowMalformed: true))
+        .transform(const LineSplitter());
     try {
-      await for (final chunk in body.stream) {
-        pending += utf8.decode(chunk);
-        final lines = pending.split('\n');
-        pending = lines.removeLast();
-        for (final line in lines) {
-          final parsed = _parseSseLine(line);
-          if (parsed == null) {
-            continue;
-          }
-          if (parsed.isDone) {
-            return;
-          }
-          final delta = parsed.delta;
-          if (delta != null && !delta.isEmpty) {
-            yield delta;
-          }
+      await for (final line in lines) {
+        final parsed = _parseSseLine(line);
+        if (parsed == null) {
+          continue;
         }
-      }
-
-      if (pending.trim().isNotEmpty) {
-        final parsed = _parseSseLine(pending);
-        if (parsed != null && !parsed.isDone) {
-          final delta = parsed.delta;
-          if (delta != null && !delta.isEmpty) {
-            yield delta;
-          }
+        if (parsed.isDone) {
+          return;
+        }
+        final delta = parsed.delta;
+        if (delta != null && !delta.isEmpty) {
+          yield delta;
         }
       }
     } on DioException catch (error) {
@@ -293,7 +284,14 @@ class LlamaChatApiClient {
       return const _ParsedSseLine.done();
     }
 
-    final decoded = jsonDecode(payload);
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(payload);
+    } on FormatException {
+      // Tolerate malformed lines (server error text, truncated tail on a
+      // dropped connection) instead of aborting the whole generation.
+      return null;
+    }
     if (decoded is! Map<String, dynamic>) {
       return null;
     }
@@ -479,7 +477,7 @@ class LlamaChatApiClient {
     await for (final chunk in body.stream) {
       chunks.addAll(chunk);
     }
-    return utf8.decode(chunks);
+    return const Utf8Decoder(allowMalformed: true).convert(chunks);
   }
 }
 

@@ -92,6 +92,7 @@ class LocalModelRepository {
         ModelOperationErrorCode.invalidModelName,
       );
     }
+    _validateModelName(modelName);
 
     final models = await listModels();
     final normalizedModelName = _normalizeModelKey(modelName);
@@ -218,6 +219,7 @@ class LocalModelRepository {
         ModelOperationErrorCode.emptyModelName,
       );
     }
+    _validateModelName(trimmed);
 
     final allModels = await listModels();
     final hasDuplicate = allModels.any(
@@ -238,7 +240,8 @@ class LocalModelRepository {
         ModelOperationErrorCode.modelDirectoryExists,
       );
     }
-    if (await oldDir.exists()) {
+    final didRenameDirectory = await oldDir.exists();
+    if (didRenameDirectory) {
       await oldDir.rename(newDir.path);
     }
 
@@ -257,7 +260,16 @@ class LocalModelRepository {
       storedFilePath: newStoredFilePath,
       mmprojFilePath: newMmprojPath,
     );
-    await box.put(descriptor.id, updated);
+    try {
+      await box.put(descriptor.id, updated);
+    } catch (_) {
+      // Roll the directory back so the stale record does not point at a
+      // missing path (listModels would garbage-collect the model otherwise).
+      if (didRenameDirectory) {
+        await Directory(newDir.path).rename(oldDir.path);
+      }
+      rethrow;
+    }
     return updated;
   }
 
@@ -323,6 +335,22 @@ class LocalModelRepository {
   }
 
   String _normalizeModelKey(String modelName) => modelName.toLowerCase();
+
+  // Model names become directory names under models/; anything that could
+  // escape that directory or is invalid as a single path segment is rejected.
+  static final RegExp _invalidModelNameChars = RegExp(
+    r'[\\/\x00-\x1F]',
+  );
+
+  void _validateModelName(String modelName) {
+    if (modelName == '.' ||
+        modelName == '..' ||
+        _invalidModelNameChars.hasMatch(modelName)) {
+      throw const ModelOperationException(
+        ModelOperationErrorCode.invalidModelName,
+      );
+    }
+  }
 
   bool _isGgufFileName(String fileName) =>
       fileName.toLowerCase().endsWith('.gguf');

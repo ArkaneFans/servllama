@@ -39,7 +39,6 @@ class ChatSessionRecord {
     String? id,
     String? title,
     List<String>? messageIds,
-    List<ChatMessageRecord>? messages,
     List<ChatMessageRecord>? legacyMessages,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -47,12 +46,8 @@ class ChatSessionRecord {
     return ChatSessionRecord(
       id: id ?? this.id,
       title: title ?? this.title,
-      messageIds:
-          messageIds ??
-          (messages == null
-              ? this.messageIds
-              : messages.map((message) => message.id).toList(growable: false)),
-      legacyMessages: legacyMessages ?? messages ?? this.legacyMessages,
+      messageIds: messageIds ?? this.messageIds,
+      legacyMessages: legacyMessages ?? this.legacyMessages,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

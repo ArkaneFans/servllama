@@ -208,6 +208,91 @@ void main() {
       ]);
     });
 
+    test('streamChatCompletion decodes multi-byte characters split across chunks', () async {
+      server.chatResponder = (request) async {
+        request.response.statusCode = 200;
+        request.response.headers.contentType = ContentType(
+          'text',
+          'event-stream',
+        );
+        // "你好" split mid-character across two network chunks.
+        final bytes = utf8.encode(
+          'data: {"choices":[{"delta":{"content":"你好"}}]}\n\n',
+        );
+        request.response.add(bytes.sublist(0, 40));
+        await request.response.flush();
+        request.response.add(bytes.sublist(40));
+        request.response.add(utf8.encode('data: [DONE]\n\n'));
+        await request.response.close();
+      };
+
+      final chunks = await client
+          .streamChatCompletion(
+            modelId: 'alpha',
+            messages: const <ChatMessageRecord>[],
+            cancelToken: CancelToken(),
+          )
+          .toList();
+
+      expect(chunks, <ChatStreamDelta>[const ChatStreamDelta(content: '你好')]);
+    });
+
+    test('streamChatCompletion skips malformed SSE data lines', () async {
+      server.chatResponder = (request) async {
+        request.response.statusCode = 200;
+        request.response.headers.contentType = ContentType(
+          'text',
+          'event-stream',
+        );
+        request.response.add(
+          utf8.encode('data: {"choices":[{"delta":{"content":"前"}}]}\n\n'),
+        );
+        request.response.add(utf8.encode('data: not-json at all\n\n'));
+        request.response.add(
+          utf8.encode('data: {"choices":[{"delta":{"content":"后"}}]}\n\n'),
+        );
+        request.response.add(utf8.encode('data: [DONE]\n\n'));
+        await request.response.close();
+      };
+
+      final chunks = await client
+          .streamChatCompletion(
+            modelId: 'alpha',
+            messages: const <ChatMessageRecord>[],
+            cancelToken: CancelToken(),
+          )
+          .toList();
+
+      expect(chunks, <ChatStreamDelta>[
+        const ChatStreamDelta(content: '前'),
+        const ChatStreamDelta(content: '后'),
+      ]);
+    });
+
+    test('streamChatCompletion parses a trailing line without a newline', () async {
+      server.chatResponder = (request) async {
+        request.response.statusCode = 200;
+        request.response.headers.contentType = ContentType(
+          'text',
+          'event-stream',
+        );
+        request.response.add(
+          utf8.encode('data: {"choices":[{"delta":{"content":"尾行"}}]}'),
+        );
+        await request.response.close();
+      };
+
+      final chunks = await client
+          .streamChatCompletion(
+            modelId: 'alpha',
+            messages: const <ChatMessageRecord>[],
+            cancelToken: CancelToken(),
+          )
+          .toList();
+
+      expect(chunks, <ChatStreamDelta>[const ChatStreamDelta(content: '尾行')]);
+    });
+
     test('streamChatCompletion surfaces JSON error responses', () async {
       server.chatResponder = (request) async {
         request.response.statusCode = 401;

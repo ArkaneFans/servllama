@@ -488,19 +488,55 @@ void main() {
         expect(messages.last.modelName, 'alpha');
         expect(messages.last.content, '你好');
         expect(messages.last.reasoningContent, '先思考再补充');
-        final assistantSnapshots = repository.savedMessageSnapshots
-            .where((messages) => messages.length == 2)
-            .map((messages) => messages.last)
+        final assistantWrites = repository.savedSingleMessages
+            .where((message) => message.role == ChatRole.assistant)
             .toList(growable: false);
-        expect(assistantSnapshots.map((message) => message.content), <String>[
+        // Draft is written at stream start, once per delta, and once more
+        // when the stream completes; sibling messages are never rewritten.
+        expect(assistantWrites.map((message) => message.content), <String>[
           '',
           '',
           '你',
           '你好',
+          '你好',
         ]);
         expect(
-          assistantSnapshots.map((message) => message.reasoningContent),
-          <String>['', '先思考', '先思考', '先思考再补充'],
+          assistantWrites.map((message) => message.reasoningContent),
+          <String>['', '先思考', '先思考', '先思考再补充', '先思考再补充'],
+        );
+        expect(
+          repository.savedSingleMessages
+              .where((message) => message.role == ChatRole.user)
+              .map((message) => message.content),
+          <String>['hello'],
+        );
+      },
+    );
+
+    test(
+      'sendMessage detaches streaming notifier entries when the stream ends',
+      () async {
+        apiClient.models = <ChatModelOption>[
+          const ChatModelOption(
+            id: 'alpha',
+            displayName: 'alpha',
+            status: ChatModelStatus.loaded,
+          ),
+        ];
+        apiClient.streamDeltas = <ChatStreamDelta>[
+          const ChatStreamDelta(content: '回答'),
+        ];
+
+        await provider.load();
+        await provider.refreshModels();
+        provider.selectLoadedModel('alpha');
+        await provider.sendMessage('hello');
+
+        final assistantMessage = provider.visibleMessages.last;
+        expect(assistantMessage.content, '回答');
+        expect(
+          provider.streamingMessages.listenableFor(assistantMessage.id),
+          isNull,
         );
       },
     );
@@ -552,11 +588,95 @@ void main() {
         final messages = provider.visibleMessages;
         expect(messages, hasLength(1));
         expect(messages.single.role, ChatRole.user);
+        // Only the initial empty draft write happened before cleanup, and
+        // the draft record is gone from storage afterwards.
         expect(
-          repository.savedMessageSnapshots
-              .where((messages) => messages.length == 2)
-              .map((messages) => messages.last.content),
+          repository.savedSingleMessages
+              .where((message) => message.role == ChatRole.assistant)
+              .map((message) => message.content),
           <String>[''],
+        );
+        expect(
+          repository.messages.values.map((message) => message.role),
+          everyElement(ChatRole.user),
+        );
+      },
+    );
+
+    test(
+      'sendMessage resets sending state when persistence throws',
+      () async {
+        apiClient.models = <ChatModelOption>[
+          const ChatModelOption(
+            id: 'alpha',
+            displayName: 'alpha',
+            status: ChatModelStatus.loaded,
+          ),
+        ];
+
+        await provider.load();
+        await provider.refreshModels();
+        provider.selectLoadedModel('alpha');
+        repository.loadAllMessagesError = StateError('storage failure');
+
+        await expectLater(
+          provider.sendMessage('hello'),
+          throwsA(isA<StateError>()),
+        );
+
+        expect(provider.isSending, isFalse);
+        expect(provider.canSend, isTrue);
+      },
+    );
+
+    test(
+      'regenerate restores the original message when the stream returns nothing',
+      () async {
+        apiClient.models = <ChatModelOption>[
+          const ChatModelOption(
+            id: 'alpha',
+            displayName: 'alpha',
+            status: ChatModelStatus.loaded,
+          ),
+        ];
+        repository.sessions = <ChatSessionRecord>[
+          _session(
+            id: 's1',
+            title: '会话',
+            messages: <ChatMessageRecord>[
+              ChatMessageRecord(
+                id: 'u1',
+                role: ChatRole.user,
+                content: '你好',
+                createdAt: DateTime(2026, 3, 25, 11, 0),
+              ),
+              ChatMessageRecord(
+                id: 'a1',
+                role: ChatRole.assistant,
+                content: '原回答',
+                createdAt: DateTime(2026, 3, 25, 11, 1),
+                modelName: 'alpha',
+              ),
+            ],
+          ),
+        ];
+        apiClient.streamDeltas = const <ChatStreamDelta>[];
+
+        await provider.load();
+        await provider.refreshModels();
+        provider.selectLoadedModel('alpha');
+        await provider.selectSession('s1');
+
+        await provider.regenerateFromMessage('a1');
+
+        // The empty draft dirtied the stored record during streaming setup;
+        // the fallback path must restore the original content.
+        expect(repository.messages['a1']?.content, '原回答');
+        expect(provider.visibleMessages.last.content, '原回答');
+        expect(provider.isSending, isFalse);
+        expect(
+          provider.streamingMessages.listenableFor('a1'),
+          isNull,
         );
       },
     );
@@ -753,7 +873,9 @@ void main() {
             .where((version) => version.messageId == 'a2')
             .map((version) => version.content)
             .toList(growable: false);
-        expect(versionSnapshots, <String>['待替换回答', '', '新', '新回答']);
+        // Original snapshot, streaming start, two deltas, and the final
+        // full save in the completion path.
+        expect(versionSnapshots, <String>['待替换回答', '', '新', '新回答', '新回答']);
         expect(
           apiClient.lastStreamMessages.map((message) => message.content),
           <String>['你好', '旧回答', '继续'],
@@ -989,8 +1111,7 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
   final Map<String, ChatMessageVersionRecord> versions =
       <String, ChatMessageVersionRecord>{};
   final List<ChatSessionRecord> savedSessions = <ChatSessionRecord>[];
-  final List<List<ChatMessageRecord>> savedMessageSnapshots =
-      <List<ChatMessageRecord>>[];
+  final List<ChatMessageRecord> savedSingleMessages = <ChatMessageRecord>[];
   final List<ChatMessageVersionRecord> savedVersions =
       <ChatMessageVersionRecord>[];
   final Map<String, int> initialMessagesLoadCounts = <String, int>{};
@@ -998,6 +1119,7 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
       <String, Completer<void>>{};
   int warmUpMessageStoreCallCount = 0;
   bool returnFixedLengthList = false;
+  Object? loadAllMessagesError;
 
   @override
   Future<List<ChatSessionRecord>> loadSessions() async {
@@ -1026,31 +1148,14 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
   }
 
   @override
-  Future<ChatSessionRecord> saveSessionWithMessages(
-    ChatSessionRecord session,
-    List<ChatMessageRecord> sessionMessages,
-  ) async {
-    final savedMessages = sessionMessages
-        .map((message) => message.copyWith(sessionId: session.id))
-        .toList(growable: false);
-    for (final message in savedMessages) {
-      messages[message.id] = message;
-    }
-    savedMessageSnapshots.add(savedMessages);
-    final cleanSession = session.copyWith(
-      messageIds: savedMessages
-          .map((message) => message.id)
-          .toList(growable: false),
-      legacyMessages: const <ChatMessageRecord>[],
-    );
-    savedSessions.add(cleanSession);
-    final index = sessions.indexWhere((item) => item.id == session.id);
-    if (index >= 0) {
-      sessions[index] = cleanSession;
-    } else {
-      sessions.add(cleanSession);
-    }
-    return cleanSession;
+  Future<void> saveMessage(ChatMessageRecord message) async {
+    messages[message.id] = message;
+    savedSingleMessages.add(message);
+  }
+
+  @override
+  Future<ChatMessageRecord?> loadMessage(String messageId) async {
+    return messages[messageId];
   }
 
   @override
@@ -1155,6 +1260,9 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
   Future<List<ChatMessageRecord>> loadAllMessages(
     ChatSessionRecord session,
   ) async {
+    if (loadAllMessagesError != null) {
+      throw loadAllMessagesError!;
+    }
     return _messagesByIds(session.messageIds);
   }
 

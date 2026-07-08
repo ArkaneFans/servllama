@@ -290,6 +290,39 @@ class ChatConversationController extends ChangeNotifier {
     }
   }
 
+  /// Replaces a single record in the visible window after a precise edit.
+  /// Call after the session record (new updatedAt) has been upserted so the
+  /// refreshed cache signature matches the stored session.
+  void updateVisibleMessage(ChatMessageRecord message, {bool notify = true}) {
+    final index = _visibleMessages.indexWhere(
+      (item) => item.id == message.id,
+    );
+    if (index < 0) {
+      return;
+    }
+    final nextMessages = List<ChatMessageRecord>.from(_visibleMessages);
+    nextMessages[index] = message;
+    _setVisibleMessages(nextMessages);
+    _refreshSelectedSessionCacheFromVisibleMessages();
+    if (notify) {
+      notifyListeners();
+    }
+  }
+
+  /// Removes a single record from the visible window after a precise delete.
+  void removeVisibleMessage(String messageId, {bool notify = true}) {
+    if (!_visibleMessages.any((item) => item.id == messageId)) {
+      return;
+    }
+    _setVisibleMessages(
+      _visibleMessages.where((item) => item.id != messageId),
+    );
+    _refreshSelectedSessionCacheFromVisibleMessages();
+    if (notify) {
+      notifyListeners();
+    }
+  }
+
   void _commitLoadedMessages({
     required String sessionId,
     required int generation,
@@ -324,7 +357,9 @@ class ChatConversationController extends ChangeNotifier {
       return false;
     }
     for (var i = 0; i < left.length; i += 1) {
-      if (!identical(left[i], right[i]) && left[i] != right[i]) {
+      // Records are immutable and never structurally equal unless they are
+      // the same instance, so identity is the correct sameness check here.
+      if (!identical(left[i], right[i])) {
         return false;
       }
     }
@@ -423,22 +458,6 @@ class ChatConversationController extends ChangeNotifier {
             )
           : _visibleMessages,
     );
-  }
-
-  int messageIndex(List<ChatMessageRecord> messages, String messageId) {
-    return messages.indexWhere((message) => message.id == messageId);
-  }
-
-  int nearestUserMessageIndex(
-    List<ChatMessageRecord> messages,
-    int startIndex,
-  ) {
-    for (var index = startIndex; index >= 0; index -= 1) {
-      if (messages[index].role == ChatRole.user) {
-        return index;
-      }
-    }
-    return -1;
   }
 }
 
