@@ -996,6 +996,81 @@ void main() {
       },
     );
 
+    test('regenerateFromMessage preserves pending image attachments', () async {
+      apiClient.models = <ChatModelOption>[
+        const ChatModelOption(
+          id: 'alpha',
+          displayName: 'alpha',
+          status: ChatModelStatus.loaded,
+        ),
+      ];
+      repository.sessions = <ChatSessionRecord>[
+        _session(
+          id: 's1',
+          title: '会话',
+          messages: <ChatMessageRecord>[
+            ChatMessageRecord(
+              id: 'u1',
+              role: ChatRole.user,
+              content: '你好',
+              createdAt: DateTime(2026, 3, 25, 11, 0),
+            ),
+            ChatMessageRecord(
+              id: 'a1',
+              role: ChatRole.assistant,
+              content: '旧回答',
+              createdAt: DateTime(2026, 3, 25, 11, 1),
+              modelName: 'alpha',
+            ),
+          ],
+        ),
+      ];
+      apiClient.streamDeltas = const <ChatStreamDelta>[
+        ChatStreamDelta(content: '新回答'),
+      ];
+
+      await provider.load();
+      await provider.refreshModels();
+      provider.selectLoadedModel('alpha');
+      await provider.selectSession('s1');
+      provider.addImageAttachment('C:\\mock\\pending.png');
+
+      await provider.regenerateFromMessage('a1');
+
+      // Regeneration must not silently drop images staged in the input bar.
+      expect(provider.pendingImageAttachments, <String>[
+        'C:\\mock\\pending.png',
+      ]);
+    });
+
+    test('disposing mid-stream does not touch disposed notifiers', () async {
+      apiClient.models = <ChatModelOption>[
+        const ChatModelOption(
+          id: 'alpha',
+          displayName: 'alpha',
+          status: ChatModelStatus.loaded,
+        ),
+      ];
+      final controller = StreamController<ChatStreamDelta>();
+      apiClient.streamController = controller;
+
+      await provider.load();
+      await provider.refreshModels();
+      provider.selectLoadedModel('alpha');
+
+      final pendingSend = provider.sendMessage('你好');
+      await Future<void>.delayed(Duration.zero);
+      controller.add(const ChatStreamDelta(content: 'a'));
+      await Future<void>.delayed(Duration.zero);
+
+      provider.dispose();
+      controller.add(const ChatStreamDelta(content: 'b'));
+      await controller.close();
+
+      // Must not throw "used after being disposed".
+      await pendingSend;
+    });
+
     test('selectMessageVersion switches visible assistant version', () async {
       apiClient.models = <ChatModelOption>[
         const ChatModelOption(
@@ -1478,6 +1553,7 @@ class _FakeLlamaChatApiClient extends LlamaChatApiClient {
   List<ChatModelOption> models = <ChatModelOption>[];
   Completer<void>? loadCompleter;
   Completer<void>? unloadCompleter;
+  StreamController<ChatStreamDelta>? streamController;
   List<ChatStreamDelta> streamDeltas = const <ChatStreamDelta>[];
   List<ChatMessageRecord> lastStreamMessages = const <ChatMessageRecord>[];
   String? lastBaseUrl;
@@ -1552,6 +1628,10 @@ class _FakeLlamaChatApiClient extends LlamaChatApiClient {
     required CancelToken cancelToken,
   }) {
     lastStreamMessages = List<ChatMessageRecord>.from(messages);
+    final controller = streamController;
+    if (controller != null) {
+      return controller.stream;
+    }
     return Stream<ChatStreamDelta>.fromIterable(streamDeltas);
   }
 }

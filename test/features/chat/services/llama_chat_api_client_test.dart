@@ -271,6 +271,56 @@ void main() {
       ]);
     });
 
+    test('streamChatCompletion inlines image attachments as data URLs',
+        () async {
+      final tempDir = await Directory.systemTemp.createTemp('servllama_test');
+      addTearDown(() => tempDir.delete(recursive: true));
+      final imageFile = File('${tempDir.path}${Platform.pathSeparator}photo.png');
+      const imageBytes = <int>[1, 2, 3, 4];
+      await imageFile.writeAsBytes(imageBytes);
+
+      server.chatResponder = (request) async {
+        request.response.statusCode = 200;
+        request.response.headers.contentType = ContentType(
+          'text',
+          'event-stream',
+        );
+        request.response.add(utf8.encode('data: [DONE]\n\n'));
+        await request.response.close();
+      };
+
+      await client
+          .streamChatCompletion(
+            modelId: 'alpha',
+            messages: <ChatMessageRecord>[
+              ChatMessageRecord(
+                id: 'm1',
+                role: ChatRole.user,
+                content: 'look',
+                createdAt: DateTime(2026, 3, 25),
+                imageFilePaths: <String>[
+                  imageFile.path,
+                  '${tempDir.path}${Platform.pathSeparator}missing.png',
+                ],
+              ),
+            ],
+            cancelToken: CancelToken(),
+          )
+          .toList();
+
+      final messages = server.lastChatRequestBody?['messages'] as List<Object?>;
+      final content = (messages.single as Map)['content'] as List<Object?>;
+      // Text part plus the existing image; the missing file is skipped.
+      expect(content, hasLength(2));
+      expect((content[0] as Map)['type'], 'text');
+      final imagePart = content[1] as Map;
+      expect(imagePart['type'], 'image_url');
+      expect(
+        (imagePart['image_url'] as Map)['url'],
+        'data:image/png;base64,${base64Encode(imageBytes)}',
+      );
+    });
+
     test('streamChatCompletion decodes multi-byte characters split across chunks', () async {
       server.chatResponder = (request) async {
         request.response.statusCode = 200;

@@ -291,6 +291,7 @@ class SettingsPage extends StatelessWidget {
         ),
       ),
     );
+    controller.dispose();
   }
 
   static const List<ThemeMode> _themeModeOptions = <ThemeMode>[

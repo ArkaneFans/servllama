@@ -10,6 +10,18 @@ import 'package:servllama/features/chat/models/chat_model_option.dart';
 import 'package:servllama/features/chat/models/chat_stream_delta.dart';
 import 'package:servllama/features/chat/services/image_attachment_service.dart';
 
+/// Runs on a background isolate via [compute]. Returns null when the file
+/// no longer exists (deleted attachments are skipped silently).
+Future<String?> _encodeImageDataUrl(String filePath) async {
+  final file = File(filePath);
+  if (!await file.exists()) {
+    return null;
+  }
+  final bytes = await file.readAsBytes();
+  final mimeType = ImageAttachmentService.mimeTypeForPath(filePath);
+  return 'data:$mimeType;base64,${base64Encode(bytes)}';
+}
+
 /// Typed causes for model lifecycle failures. UI layers map these to
 /// localized text; the exception message is debug-only for coded errors.
 enum LlamaChatApiErrorCode { modelLoadTimeout, modelLoadFailed, modelUnloadTimeout }
@@ -407,16 +419,15 @@ class LlamaChatApiClient {
     ];
 
     for (final filePath in message.imageFilePaths) {
-      final file = File(filePath);
-      if (!await file.exists()) {
+      // Multi-MB reads and base64 encoding would jank the UI isolate —
+      // every send re-serializes all images in the prompt history.
+      final dataUrl = await compute(_encodeImageDataUrl, filePath);
+      if (dataUrl == null) {
         continue;
       }
-      final bytes = await file.readAsBytes();
-      final base64Data = base64Encode(bytes);
-      final mimeType = ImageAttachmentService.mimeTypeForPath(filePath);
       parts.add({
         'type': 'image_url',
-        'image_url': {'url': 'data:$mimeType;base64,$base64Data'},
+        'image_url': {'url': dataUrl},
       });
     }
 

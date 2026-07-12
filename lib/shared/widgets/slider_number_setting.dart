@@ -33,6 +33,10 @@ class SliderNumberSetting extends StatefulWidget {
 class _SliderNumberSettingState extends State<SliderNumberSetting> {
   late final TextEditingController _controller;
 
+  // Slider position while a drag is in progress. Commits (widget.onChanged,
+  // which persists) happen once on drag end, not per tick.
+  int? _dragValue;
+
   @override
   void initState() {
     super.initState();
@@ -62,7 +66,8 @@ class _SliderNumberSettingState extends State<SliderNumberSetting> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final currentValue = _displayValue(widget.value);
+    final effectiveValue = _dragValue ?? widget.value;
+    final currentValue = _displayValue(effectiveValue);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,8 +126,20 @@ class _SliderNumberSettingState extends State<SliderNumberSetting> {
                   min: widget.min.toDouble(),
                   max: widget.max.toDouble(),
                   divisions: widget.divisions,
-                  value: widget.value.clamp(widget.min, widget.max).toDouble(),
-                  onChanged: (value) => widget.onChanged(value.round()),
+                  value: effectiveValue
+                      .clamp(widget.min, widget.max)
+                      .toDouble(),
+                  onChanged: (value) {
+                    setState(() {
+                      _dragValue = value.round();
+                    });
+                  },
+                  onChangeEnd: (value) {
+                    setState(() {
+                      _dragValue = null;
+                    });
+                    widget.onChanged(value.round());
+                  },
                 ),
               ),
             ),

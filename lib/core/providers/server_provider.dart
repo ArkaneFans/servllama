@@ -18,12 +18,14 @@ class ServerProvider extends ChangeNotifier {
     ServerLaunchArgsBuilder? launchArgsBuilder,
     ModelStoragePaths? modelStoragePaths,
     KvStorage? kvStorage,
+    Future<String?> Function() localIpResolver = NetworkUtils.getLocalIpAddress,
   }) : _serverService = serverService ?? LlamaServerService(),
        _settingsLoader = settingsLoader ?? ServerLaunchSettingsLoader(),
        _launchArgsBuilder =
            launchArgsBuilder ?? const ServerLaunchArgsBuilder(),
        _modelStoragePaths = modelStoragePaths ?? ModelStoragePaths(),
-       _kvStorage = kvStorage ?? KvStorage.instance {
+       _kvStorage = kvStorage ?? KvStorage.instance,
+       _localIpResolver = localIpResolver {
     _isRunning = _serverService.isRunning;
     _runningStateSubscription = _serverService.runningStateStream.listen(
       _handleRunningStateChanged,
@@ -35,6 +37,7 @@ class ServerProvider extends ChangeNotifier {
   final ServerLaunchArgsBuilder _launchArgsBuilder;
   final ModelStoragePaths _modelStoragePaths;
   final KvStorage _kvStorage;
+  final Future<String?> Function() _localIpResolver;
   late final StreamSubscription<bool> _runningStateSubscription;
 
   bool _isRunning = false;
@@ -51,20 +54,28 @@ class ServerProvider extends ChangeNotifier {
   int get port => _port;
   String? get lastError => _lastError;
 
+  /// Address other devices on the LAN can reach when listening on all
+  /// interfaces. Falls back to the raw host until the local IP resolves.
   String get displayAddress {
     if (_host == '0.0.0.0') {
-      _refreshDisplayHost();
       return '${_pendingDisplayHost ?? _host}:$_port';
     }
     return '$_host:$_port';
   }
 
-  String get baseUrl => 'http://$displayAddress';
+  String get displayUrl => 'http://$displayAddress';
+
+  /// The app talks to its own child process — always loopback, regardless
+  /// of which interfaces the server listens on.
+  String get baseUrl => 'http://127.0.0.1:$_port';
 
   AppL10nService get _l10nService => AppL10nService.instance;
 
-  void _refreshDisplayHost() {
-    NetworkUtils.getLocalIpAddress().then((ip) {
+  void _scheduleDisplayHostRefresh() {
+    if (_host != '0.0.0.0') {
+      return;
+    }
+    _localIpResolver().then((ip) {
       if (_disposed) {
         return;
       }
@@ -86,6 +97,7 @@ class ServerProvider extends ChangeNotifier {
       changed = true;
     }
     if (changed) {
+      _scheduleDisplayHostRefresh();
       notifyListeners();
     }
   }
@@ -103,6 +115,7 @@ class ServerProvider extends ChangeNotifier {
       final settings = await _settingsLoader.load();
       setEndpoint(host: settings.host, port: settings.port);
     } catch (_) {}
+    _scheduleDisplayHostRefresh();
   }
 
   Future<void> toggle() async {

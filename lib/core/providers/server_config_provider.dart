@@ -3,65 +3,66 @@ import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/services/app_l10n_service.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
-import 'package:servllama/core/storage/server_prefs_keys.dart';
 
 class ServerConfigProvider extends ChangeNotifier {
   ServerConfigProvider({
     ServerLaunchSettingsLoader? settingsLoader,
     KvStorage? kvStorage,
-  }) : _kvStorage = kvStorage ?? KvStorage.instance,
-       _settingsLoader =
+  }) : _settingsLoader =
            settingsLoader ??
            ServerLaunchSettingsLoader(
              kvStorage: kvStorage ?? KvStorage.instance,
            );
 
-  final KvStorage _kvStorage;
   final ServerLaunchSettingsLoader _settingsLoader;
 
   bool _hasCompletedInitialLoad = false;
   bool _isLoading = false;
+  bool _disposed = false;
   String? _statusMessage;
 
-  ServerListenMode _listenMode = ServerListenMode.localhost;
-  int _port = ServerLaunchSettings.defaultPort;
-  String _apiKey = '';
-  int _contextSize = ServerLaunchSettings.defaultContextSize;
-  int _cpuThreads = ServerLaunchSettings.defaultCpuThreads;
-  int _batchSize = ServerLaunchSettings.defaultBatchSize;
-  int _parallelSlots = ServerLaunchSettings.defaultParallelSlots;
-  int _imageMaxTokens = ServerLaunchSettings.defaultImageMaxTokens;
-  FlashAttentionMode _flashAttentionMode =
-      ServerLaunchSettings.defaultFlashAttentionMode;
-  bool _useMmap = true;
-  bool _logEnabled = true;
-  ServerLogLevel _logLevel = ServerLaunchSettings.defaultLogLevel;
+  ServerLaunchSettings _settings = const ServerLaunchSettings();
 
   bool get hasCompletedInitialLoad => _hasCompletedInitialLoad;
   bool get isLoading => _isLoading;
   String? get statusMessage => _statusMessage;
 
-  ServerListenMode get listenMode => _listenMode;
-  int get port => _port;
-  String get apiKey => _apiKey;
-  int get contextSize => _contextSize;
-  int get cpuThreads => _cpuThreads;
-  int get batchSize => _batchSize;
-  int get parallelSlots => _parallelSlots;
-  int get imageMaxTokens => _imageMaxTokens;
-  FlashAttentionMode get flashAttentionMode => _flashAttentionMode;
-  bool get useMmap => _useMmap;
-  bool get logEnabled => _logEnabled;
-  ServerLogLevel get logLevel => _logLevel;
+  ServerListenMode get listenMode => _settings.listenMode;
+  int get port => _settings.port;
+  String get apiKey => _settings.apiKey;
+  int get contextSize => _settings.contextSize;
+  int get cpuThreads => _settings.cpuThreads;
+  int get batchSize => _settings.batchSize;
+  int get parallelSlots => _settings.parallelSlots;
+  int get imageMaxTokens => _settings.imageMaxTokens;
+  FlashAttentionMode get flashAttentionMode => _settings.flashAttentionMode;
+  bool get useMmap => _settings.useMmap;
+  bool get logEnabled => _settings.logEnabled;
+  ServerLogLevel get logLevel => _settings.logLevel;
 
-  String get host =>
-      _listenMode == ServerListenMode.localhost ? '127.0.0.1' : '0.0.0.0';
+  String get host => _settings.host;
 
   String get statusText {
     if (_statusMessage != null && _statusMessage!.isNotEmpty) {
       return _statusMessage!;
     }
     return AppL10nService.instance.current.serverConfigStatusSaved;
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  // Saves can complete after the config page (and this page-scoped provider)
+  // has been popped; notifying after dispose trips the debug assertion.
+  @override
+  void notifyListeners() {
+    if (_disposed) {
+      return;
+    }
+    super.notifyListeners();
   }
 
   Future<void> load() async {
@@ -74,7 +75,7 @@ class ServerConfigProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _applySettings(await _settingsLoader.load());
+      _settings = await _settingsLoader.load();
       _statusMessage = AppL10nService.instance.current.serverConfigStatusLoaded;
     } catch (error) {
       _statusMessage = AppL10nService.instance.current.serverConfigStatusLoadFailed(
@@ -87,195 +88,119 @@ class ServerConfigProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> resetToDefaults() async {
-    _applySettings(const ServerLaunchSettings());
-    notifyListeners();
-    await _saveAllFields();
+  Future<void> resetToDefaults() {
+    return _apply(const ServerLaunchSettings());
   }
 
-  Future<void> updateListenMode(ServerListenMode value) async {
-    if (_listenMode == value) {
-      return;
-    }
-    _listenMode = value;
-    await _saveString(ServerPrefsKeys.listenMode, _listenMode.name);
+  Future<void> updateListenMode(ServerListenMode value) {
+    return _apply(_settings.copyWith(listenMode: value));
   }
 
-  Future<void> updatePort(int value) async {
-    final nextValue = _clamp(
-      value,
-      ServerLaunchSettings.minPort,
-      ServerLaunchSettings.maxPort,
-    );
-    if (_port == nextValue) {
-      return;
-    }
-    _port = nextValue;
-    await _saveInt(ServerPrefsKeys.port, _port);
-  }
-
-  Future<void> updateApiKey(String value) async {
-    final nextValue = value.trim();
-    if (_apiKey == nextValue) {
-      return;
-    }
-    _apiKey = nextValue;
-    await _saveString(ServerPrefsKeys.apiKey, _apiKey);
-  }
-
-  Future<void> updateContextSize(int value) async {
-    final nextValue = _clamp(
-      value,
-      ServerLaunchSettings.minContextSize,
-      ServerLaunchSettings.maxContextSize,
-    );
-    if (_contextSize == nextValue) {
-      return;
-    }
-    _contextSize = nextValue;
-    await _saveInt(ServerPrefsKeys.contextSize, _contextSize);
-  }
-
-  Future<void> updateCpuThreads(int value) async {
-    final nextValue = _clamp(
-      value,
-      ServerLaunchSettings.minCpuThreads,
-      ServerLaunchSettings.maxCpuThreads,
-    );
-    if (_cpuThreads == nextValue) {
-      return;
-    }
-    _cpuThreads = nextValue;
-    await _saveInt(ServerPrefsKeys.cpuThreads, _cpuThreads);
-  }
-
-  Future<void> updateBatchSize(int value) async {
-    final nextValue = _clamp(
-      value,
-      ServerLaunchSettings.minBatchSize,
-      ServerLaunchSettings.maxBatchSize,
-    );
-    if (_batchSize == nextValue) {
-      return;
-    }
-    _batchSize = nextValue;
-    await _saveInt(ServerPrefsKeys.batchSize, _batchSize);
-  }
-
-  Future<void> updateParallelSlots(int value) async {
-    final nextValue = _clamp(
-      value,
-      ServerLaunchSettings.minParallelSlots,
-      ServerLaunchSettings.maxParallelSlots,
-    );
-    if (_parallelSlots == nextValue) {
-      return;
-    }
-    _parallelSlots = nextValue;
-    await _saveInt(ServerPrefsKeys.parallelSlots, _parallelSlots);
-  }
-
-  Future<void> updateImageMaxTokens(int value) async {
-    final nextValue = _clamp(
-      value,
-      ServerLaunchSettings.minImageMaxTokens,
-      ServerLaunchSettings.maxImageMaxTokens,
-    );
-    if (_imageMaxTokens == nextValue) {
-      return;
-    }
-    _imageMaxTokens = nextValue;
-    await _saveInt(ServerPrefsKeys.imageMaxTokens, _imageMaxTokens);
-  }
-
-  Future<void> updateFlashAttentionMode(FlashAttentionMode value) async {
-    if (_flashAttentionMode == value) {
-      return;
-    }
-    _flashAttentionMode = value;
-    await _saveString(
-      ServerPrefsKeys.flashAttentionMode,
-      _flashAttentionMode.name,
+  Future<void> updatePort(int value) {
+    return _apply(
+      _settings.copyWith(
+        port: _clamp(
+          value,
+          ServerLaunchSettings.minPort,
+          ServerLaunchSettings.maxPort,
+        ),
+      ),
     );
   }
 
-  Future<void> updateUseMmap(bool value) async {
-    if (_useMmap == value) {
+  Future<void> updateApiKey(String value) {
+    return _apply(_settings.copyWith(apiKey: value.trim()));
+  }
+
+  Future<void> updateContextSize(int value) {
+    return _apply(
+      _settings.copyWith(
+        contextSize: _clamp(
+          value,
+          ServerLaunchSettings.minContextSize,
+          ServerLaunchSettings.maxContextSize,
+        ),
+      ),
+    );
+  }
+
+  Future<void> updateCpuThreads(int value) {
+    return _apply(
+      _settings.copyWith(
+        cpuThreads: _clamp(
+          value,
+          ServerLaunchSettings.minCpuThreads,
+          ServerLaunchSettings.maxCpuThreads,
+        ),
+      ),
+    );
+  }
+
+  Future<void> updateBatchSize(int value) {
+    return _apply(
+      _settings.copyWith(
+        batchSize: _clamp(
+          value,
+          ServerLaunchSettings.minBatchSize,
+          ServerLaunchSettings.maxBatchSize,
+        ),
+      ),
+    );
+  }
+
+  Future<void> updateParallelSlots(int value) {
+    return _apply(
+      _settings.copyWith(
+        parallelSlots: _clamp(
+          value,
+          ServerLaunchSettings.minParallelSlots,
+          ServerLaunchSettings.maxParallelSlots,
+        ),
+      ),
+    );
+  }
+
+  Future<void> updateImageMaxTokens(int value) {
+    return _apply(
+      _settings.copyWith(
+        imageMaxTokens: _clamp(
+          value,
+          ServerLaunchSettings.minImageMaxTokens,
+          ServerLaunchSettings.maxImageMaxTokens,
+        ),
+      ),
+    );
+  }
+
+  Future<void> updateFlashAttentionMode(FlashAttentionMode value) {
+    return _apply(_settings.copyWith(flashAttentionMode: value));
+  }
+
+  Future<void> updateUseMmap(bool value) {
+    return _apply(_settings.copyWith(useMmap: value));
+  }
+
+  Future<void> updateLogEnabled(bool value) {
+    return _apply(_settings.copyWith(logEnabled: value));
+  }
+
+  Future<void> updateLogLevel(ServerLogLevel value) {
+    return _apply(_settings.copyWith(logLevel: value));
+  }
+
+  /// Applies and persists a settings change. No-ops when nothing changed so
+  /// text-field rebuilds don't trigger redundant disk writes.
+  Future<void> _apply(ServerLaunchSettings next) async {
+    if (_settingsEqual(_settings, next)) {
       return;
     }
-    _useMmap = value;
-    await _saveBool(ServerPrefsKeys.useMmap, _useMmap);
-  }
+    _settings = next;
 
-  Future<void> updateLogEnabled(bool value) async {
-    if (_logEnabled == value) {
-      return;
-    }
-    _logEnabled = value;
-    await _saveBool(ServerPrefsKeys.logEnabled, _logEnabled);
-  }
-
-  Future<void> updateLogLevel(ServerLogLevel value) async {
-    if (_logLevel == value) {
-      return;
-    }
-    _logLevel = value;
-    await _saveString(ServerPrefsKeys.logLevel, _logLevel.name);
-  }
-
-  void _applySettings(ServerLaunchSettings settings) {
-    _listenMode = settings.listenMode;
-    _port = settings.port;
-    _apiKey = settings.apiKey;
-    _contextSize = settings.contextSize;
-    _cpuThreads = settings.cpuThreads;
-    _batchSize = settings.batchSize;
-    _parallelSlots = settings.parallelSlots;
-    _imageMaxTokens = settings.imageMaxTokens;
-    _flashAttentionMode = settings.flashAttentionMode;
-    _useMmap = settings.useMmap;
-    _logEnabled = settings.logEnabled;
-    _logLevel = settings.logLevel;
-  }
-
-  Future<void> _saveString(String key, String value) {
-    return _runSave(() => _kvStorage.setString(key, value));
-  }
-
-  Future<void> _saveInt(String key, int value) {
-    return _runSave(() => _kvStorage.setInt(key, value));
-  }
-
-  Future<void> _saveBool(String key, bool value) {
-    return _runSave(() => _kvStorage.setBool(key, value));
-  }
-
-  Future<void> _saveAllFields() {
-    return _runSave(() async {
-      await _kvStorage.setString(ServerPrefsKeys.listenMode, _listenMode.name);
-      await _kvStorage.setInt(ServerPrefsKeys.port, _port);
-      await _kvStorage.setString(ServerPrefsKeys.apiKey, _apiKey);
-      await _kvStorage.setInt(ServerPrefsKeys.contextSize, _contextSize);
-      await _kvStorage.setInt(ServerPrefsKeys.cpuThreads, _cpuThreads);
-      await _kvStorage.setInt(ServerPrefsKeys.batchSize, _batchSize);
-      await _kvStorage.setInt(ServerPrefsKeys.parallelSlots, _parallelSlots);
-      await _kvStorage.setInt(ServerPrefsKeys.imageMaxTokens, _imageMaxTokens);
-      await _kvStorage.setString(
-        ServerPrefsKeys.flashAttentionMode,
-        _flashAttentionMode.name,
-      );
-      await _kvStorage.setBool(ServerPrefsKeys.useMmap, _useMmap);
-      await _kvStorage.setBool(ServerPrefsKeys.logEnabled, _logEnabled);
-      await _kvStorage.setString(ServerPrefsKeys.logLevel, _logLevel.name);
-    });
-  }
-
-  Future<void> _runSave(Future<void> Function() operation) async {
     _statusMessage = AppL10nService.instance.current.serverConfigStatusSaving;
     notifyListeners();
 
     try {
-      await operation();
+      await _settingsLoader.save(_settings);
       _statusMessage = AppL10nService.instance.current.serverConfigStatusSaved;
     } catch (error) {
       _statusMessage = AppL10nService.instance.current.serverConfigStatusSaveFailed(
@@ -284,6 +209,21 @@ class ServerConfigProvider extends ChangeNotifier {
     } finally {
       notifyListeners();
     }
+  }
+
+  bool _settingsEqual(ServerLaunchSettings a, ServerLaunchSettings b) {
+    return a.listenMode == b.listenMode &&
+        a.port == b.port &&
+        a.apiKey == b.apiKey &&
+        a.contextSize == b.contextSize &&
+        a.cpuThreads == b.cpuThreads &&
+        a.batchSize == b.batchSize &&
+        a.parallelSlots == b.parallelSlots &&
+        a.imageMaxTokens == b.imageMaxTokens &&
+        a.flashAttentionMode == b.flashAttentionMode &&
+        a.useMmap == b.useMmap &&
+        a.logEnabled == b.logEnabled &&
+        a.logLevel == b.logLevel;
   }
 
   static int _clamp(int value, int min, int max) {

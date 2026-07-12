@@ -124,8 +124,8 @@ class _ServerCard extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             _BaseUrlPanel(
-              baseUrl: provider.baseUrl,
-              onCopy: () => _copyBaseUrl(context, provider.baseUrl),
+              baseUrl: provider.displayUrl,
+              onCopy: () => _copyBaseUrl(context, provider.displayUrl),
             ),
             if (provider.lastError != null) ...[
               const SizedBox(height: 14),

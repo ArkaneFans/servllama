@@ -509,6 +509,12 @@ class ChatGenerationController extends ChangeNotifier {
       changedMessages: <ChatMessageRecord>[draftMessage],
       fullMessages: currentMessages,
     );
+    if (_isDisposed) {
+      // Not yet inside the try/finally below — clean up inline.
+      _draftAssistantMessage = null;
+      _activeCancelToken = null;
+      return;
+    }
     notifyListeners();
 
     try {
@@ -517,6 +523,9 @@ class ChatGenerationController extends ChangeNotifier {
         messages: promptMessages ?? sessionMessages,
         cancelToken: _activeCancelToken!,
       )) {
+        if (_isDisposed) {
+          return;
+        }
         final currentDraft = _draftAssistantMessage;
         if (currentDraft == null) {
           continue;
@@ -545,7 +554,7 @@ class ChatGenerationController extends ChangeNotifier {
     } catch (error) {
       if (error is DioException && CancelToken.isCancel(error)) {
         // User-initiated cancellation leaves any partial draft intact.
-      } else {
+      } else if (!_isDisposed) {
         final draft = _draftAssistantMessage;
         final errorMessage = _chatErrorMessage(error);
         if (draft != null && draft.content.trim().isNotEmpty) {
@@ -641,7 +650,6 @@ class ChatGenerationController extends ChangeNotifier {
 
         _draftAssistantMessage = null;
         _activeCancelToken = null;
-        _pendingImageAttachments = <String>[];
       }
     }
   }

@@ -80,6 +80,29 @@ void main() {
       expect(provider.models.single.modelName, 'model');
     });
 
+    test('does not notify after dispose when an import completes late', () async {
+      final repository = FakeLocalModelRepository();
+      final completer = Completer<ModelDescriptor>();
+      repository.importCompleter = completer;
+      final provider = ModelManagementProvider(
+        repository: repository,
+        filePicker: FakeGgufFilePicker(
+          pickedFile: const PickedGgufFile(
+            path: 'C:\\mock\\model.gguf',
+            fileName: 'model.gguf',
+          ),
+        ),
+        logger: AppLogger(),
+      );
+
+      final pendingImport = provider.importModel();
+      provider.dispose();
+      completer.complete(_descriptor(id: 'm1', modelName: 'model'));
+
+      // Must not throw "used after being disposed".
+      await pendingImport;
+    });
+
     test('deleteModel removes item and clears deleting state', () async {
       final repository = FakeLocalModelRepository(
         initialModels: <ModelDescriptor>[
