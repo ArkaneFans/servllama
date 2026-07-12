@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/core/providers/server_provider.dart';
+import 'package:servllama/features/chat/controllers/chat_model_controller.dart';
 import 'package:servllama/features/chat/controllers/chat_scroll_coordinator.dart';
 import 'package:servllama/features/chat/controllers/streaming_chat_message_notifier.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
@@ -18,6 +19,7 @@ import 'package:servllama/features/chat/widgets/chat_message_list.dart';
 import 'package:servllama/features/chat/widgets/chat_message_sheets.dart';
 import 'package:servllama/features/chat/widgets/chat_model_sheet.dart';
 import 'package:servllama/features/chat/widgets/chat_staged_message_list.dart';
+import 'package:servllama/l10n/generated/app_localizations.dart';
 import 'package:servllama/l10n/l10n.dart';
 
 class ChatPage extends StatelessWidget {
@@ -132,6 +134,7 @@ class _ChatViewState extends State<_ChatView> {
   Future<void> _showModels(BuildContext context) async {
     final provider = context.read<ChatProvider>();
     final l10n = context.l10n;
+    provider.clearModelOperationError();
     unawaited(provider.refreshModels());
 
     await showModalBottomSheet<void>(
@@ -146,6 +149,10 @@ class _ChatViewState extends State<_ChatView> {
               child: ChatModelSheetContent(
                 provider: provider,
                 onRefresh: () => provider.refreshModels(),
+                errorText: _modelOperationErrorText(
+                  l10n,
+                  provider.modelOperationError,
+                ),
                 children: [
                   ChatModelSection(
                     title: l10n.chatLoadedModels,
@@ -191,6 +198,57 @@ class _ChatViewState extends State<_ChatView> {
         ),
       ),
     );
+
+    // The sheet can be dismissed while a load is still in flight; wait for
+    // the operation to settle and surface errors that arrive after the
+    // inline row is gone.
+    if (provider.loadingModelId != null) {
+      final settled = Completer<void>();
+      void onChanged() {
+        if (provider.loadingModelId == null && !settled.isCompleted) {
+          settled.complete();
+        }
+      }
+
+      provider.addListener(onChanged);
+      try {
+        await settled.future;
+      } finally {
+        provider.removeListener(onChanged);
+      }
+    }
+    if (!context.mounted) {
+      return;
+    }
+    final errorText = _modelOperationErrorText(
+      l10n,
+      provider.modelOperationError,
+    );
+    if (errorText != null) {
+      provider.clearModelOperationError();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(errorText)));
+    }
+  }
+
+  String? _modelOperationErrorText(
+    AppLocalizations l10n,
+    ChatModelOperationError? error,
+  ) {
+    if (error == null) {
+      return null;
+    }
+    switch (error.kind) {
+      case ChatModelOperationErrorKind.loadTimeout:
+        return l10n.chatModelLoadTimeout(error.modelName);
+      case ChatModelOperationErrorKind.loadFailed:
+        return l10n.chatModelLoadFailed(error.modelName);
+      case ChatModelOperationErrorKind.unloadTimeout:
+        return l10n.chatModelUnloadTimeout(error.modelName);
+      case ChatModelOperationErrorKind.requestFailed:
+        return l10n.chatModelRequestFailed(error.detail ?? '');
+    }
   }
 
   Future<void> _handleCopyMessage(

@@ -158,6 +158,69 @@ void main() {
       );
     });
 
+    test('model load timeout defaults to 60 seconds', () {
+      expect(
+        LlamaChatApiClient.defaultModelLoadTimeout,
+        const Duration(seconds: 60),
+      );
+    });
+
+    test('loadModel throws a typed timeout when the model never loads', () async {
+      server.models = <Map<String, Object?>>[_modelJson('beta', 'unloaded')];
+      server.loadBehavior = (String modelId) {
+        server.models = <Map<String, Object?>>[_modelJson('beta', 'loading')];
+      };
+
+      await expectLater(
+        client.loadModel('beta'),
+        throwsA(
+          isA<LlamaChatApiException>().having(
+            (error) => error.code,
+            'code',
+            LlamaChatApiErrorCode.modelLoadTimeout,
+          ),
+        ),
+      );
+    });
+
+    test('loadModel throws a typed failure when the server reports failed',
+        () async {
+      server.models = <Map<String, Object?>>[_modelJson('beta', 'unloaded')];
+      server.loadBehavior = (String modelId) {
+        server.models = <Map<String, Object?>>[_modelJson('beta', 'failed')];
+      };
+
+      await expectLater(
+        client.loadModel('beta'),
+        throwsA(
+          isA<LlamaChatApiException>().having(
+            (error) => error.code,
+            'code',
+            LlamaChatApiErrorCode.modelLoadFailed,
+          ),
+        ),
+      );
+    });
+
+    test('unloadModel throws a typed timeout when the model never unloads',
+        () async {
+      server.models = <Map<String, Object?>>[_modelJson('beta', 'loaded')];
+      server.unloadBehavior = (String modelId) {
+        server.models = <Map<String, Object?>>[_modelJson('beta', 'loading')];
+      };
+
+      await expectLater(
+        client.unloadModel('beta'),
+        throwsA(
+          isA<LlamaChatApiException>().having(
+            (error) => error.code,
+            'code',
+            LlamaChatApiErrorCode.modelUnloadTimeout,
+          ),
+        ),
+      );
+    });
+
     test('streamChatCompletion parses content and reasoning SSE chunks', () async {
       server.chatResponder = (request) async {
         request.response.statusCode = 200;

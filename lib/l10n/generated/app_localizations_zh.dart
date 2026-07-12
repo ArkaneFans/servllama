@@ -154,6 +154,26 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatModelStatusFailed => '加载失败';
 
   @override
+  String chatModelLoadTimeout(Object model) {
+    return '模型加载超时：$model，请稍后重试';
+  }
+
+  @override
+  String chatModelLoadFailed(Object model) {
+    return '模型加载失败：$model';
+  }
+
+  @override
+  String chatModelUnloadTimeout(Object model) {
+    return '模型卸载超时：$model';
+  }
+
+  @override
+  String chatModelRequestFailed(Object detail) {
+    return '请求失败：$detail';
+  }
+
+  @override
   String get chatReasoningProcess => '深度思考';
 
   @override

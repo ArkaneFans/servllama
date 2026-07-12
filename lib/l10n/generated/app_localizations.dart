@@ -380,6 +380,30 @@ abstract class AppLocalizations {
   /// **'Load failed'**
   String get chatModelStatusFailed;
 
+  /// No description provided for @chatModelLoadTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Model load timed out: {model}'**
+  String chatModelLoadTimeout(Object model);
+
+  /// No description provided for @chatModelLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load model: {model}'**
+  String chatModelLoadFailed(Object model);
+
+  /// No description provided for @chatModelUnloadTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Model unload timed out: {model}'**
+  String chatModelUnloadTimeout(Object model);
+
+  /// No description provided for @chatModelRequestFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Request failed: {detail}'**
+  String chatModelRequestFailed(Object detail);
+
   /// No description provided for @chatReasoningProcess.
   ///
   /// In en, this message translates to:

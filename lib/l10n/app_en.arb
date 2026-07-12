@@ -61,6 +61,30 @@
   "chatModelStatusLoading": "Loading",
   "chatModelStatusAvailable": "Available",
   "chatModelStatusFailed": "Load failed",
+  "chatModelLoadTimeout": "Model load timed out: {model}",
+  "@chatModelLoadTimeout": {
+    "placeholders": {
+      "model": {}
+    }
+  },
+  "chatModelLoadFailed": "Failed to load model: {model}",
+  "@chatModelLoadFailed": {
+    "placeholders": {
+      "model": {}
+    }
+  },
+  "chatModelUnloadTimeout": "Model unload timed out: {model}",
+  "@chatModelUnloadTimeout": {
+    "placeholders": {
+      "model": {}
+    }
+  },
+  "chatModelRequestFailed": "Request failed: {detail}",
+  "@chatModelRequestFailed": {
+    "placeholders": {
+      "detail": {}
+    }
+  },
   "chatReasoningProcess": "Reasoning",
   "chatCopyMessage": "Copy",
   "chatEditMessage": "Edit",

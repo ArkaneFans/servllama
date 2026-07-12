@@ -10,10 +10,15 @@ import 'package:servllama/features/chat/models/chat_model_option.dart';
 import 'package:servllama/features/chat/models/chat_stream_delta.dart';
 import 'package:servllama/features/chat/services/image_attachment_service.dart';
 
+/// Typed causes for model lifecycle failures. UI layers map these to
+/// localized text; the exception message is debug-only for coded errors.
+enum LlamaChatApiErrorCode { modelLoadTimeout, modelLoadFailed, modelUnloadTimeout }
+
 class LlamaChatApiException implements Exception {
-  const LlamaChatApiException(this.message);
+  const LlamaChatApiException(this.message, {this.code});
 
   final String message;
+  final LlamaChatApiErrorCode? code;
 
   @override
   String toString() => message;
@@ -21,6 +26,7 @@ class LlamaChatApiException implements Exception {
 
 class LlamaChatApiClient {
   static const Duration defaultChatReceiveTimeout = Duration(minutes: 2);
+  static const Duration defaultModelLoadTimeout = Duration(seconds: 60);
 
   LlamaChatApiClient({
     Dio? dio,
@@ -42,7 +48,7 @@ class LlamaChatApiClient {
        _settingsLoader = settingsLoader ?? ServerLaunchSettingsLoader(),
        _modelLoadPollInterval =
            modelLoadPollInterval ?? const Duration(milliseconds: 500),
-       _modelLoadTimeout = modelLoadTimeout ?? const Duration(seconds: 30);
+       _modelLoadTimeout = modelLoadTimeout ?? defaultModelLoadTimeout;
 
   final Dio _dio;
   final ServerLaunchSettingsLoader _settingsLoader;
@@ -143,13 +149,19 @@ class LlamaChatApiClient {
             return;
           }
           if (model.status == ChatModelStatus.failed) {
-            throw LlamaChatApiException('模型加载失败: ${model.displayName}');
+            throw LlamaChatApiException(
+              'Model failed to load: ${model.displayName}',
+              code: LlamaChatApiErrorCode.modelLoadFailed,
+            );
           }
         }
         await Future<void>.delayed(_modelLoadPollInterval);
       }
 
-      throw const LlamaChatApiException('模型加载超时，请稍后重试。');
+      throw const LlamaChatApiException(
+        'Model load timed out.',
+        code: LlamaChatApiErrorCode.modelLoadTimeout,
+      );
     } on DioException catch (error) {
       throw _exceptionFromDio(error);
     }
@@ -186,7 +198,10 @@ class LlamaChatApiClient {
         await Future<void>.delayed(_modelLoadPollInterval);
       }
 
-      throw const LlamaChatApiException('模型卸载超时，请稍后重试。');
+      throw const LlamaChatApiException(
+        'Model unload timed out.',
+        code: LlamaChatApiErrorCode.modelUnloadTimeout,
+      );
     } on DioException catch (error) {
       throw _exceptionFromDio(error);
     }

@@ -2,6 +2,24 @@ import 'package:flutter/foundation.dart';
 import 'package:servllama/features/chat/models/chat_model_option.dart';
 import 'package:servllama/features/chat/services/llama_chat_api_client.dart';
 
+enum ChatModelOperationErrorKind { loadTimeout, loadFailed, unloadTimeout, requestFailed }
+
+/// A failed model load/unload, kept as typed state so the page layer can
+/// map it to localized text (AGENTS.md forbids display text below the UI).
+class ChatModelOperationError {
+  const ChatModelOperationError({
+    required this.kind,
+    required this.modelName,
+    this.detail,
+  });
+
+  final ChatModelOperationErrorKind kind;
+  final String modelName;
+
+  /// Raw server/network message for [ChatModelOperationErrorKind.requestFailed].
+  final String? detail;
+}
+
 class ChatModelController extends ChangeNotifier {
   ChatModelController({required LlamaChatApiClient apiClient})
     : _apiClient = apiClient;
@@ -14,6 +32,7 @@ class ChatModelController extends ChangeNotifier {
   String _baseUrl = 'http://127.0.0.1:8080';
   String? _currentModelId;
   String? _loadingModelId;
+  ChatModelOperationError? _lastOperationError;
 
   List<ChatModelOption> get models =>
       List<ChatModelOption>.unmodifiable(_models);
@@ -21,6 +40,7 @@ class ChatModelController extends ChangeNotifier {
   bool get isServerRunning => _isServerRunning;
   String? get currentModelId => _currentModelId;
   String? get loadingModelId => _loadingModelId;
+  ChatModelOperationError? get lastOperationError => _lastOperationError;
 
   ChatModelOption? get currentModel => findModel(_currentModelId);
 
@@ -133,13 +153,15 @@ class ChatModelController extends ChangeNotifier {
     }
 
     _loadingModelId = modelId;
+    _lastOperationError = null;
     notifyListeners();
 
     try {
       await _apiClient.loadModel(modelId);
       _models = await _apiClient.fetchModels();
       _currentModelId = modelId;
-    } catch (_) {
+    } catch (error) {
+      _lastOperationError = _operationError(error, model.displayName);
       try {
         _models = await _apiClient.fetchModels();
       } catch (_) {}
@@ -164,6 +186,7 @@ class ChatModelController extends ChangeNotifier {
     }
 
     _loadingModelId = modelId;
+    _lastOperationError = null;
     notifyListeners();
 
     try {
@@ -178,7 +201,8 @@ class ChatModelController extends ChangeNotifier {
           _currentModelId = null;
         }
       }
-    } catch (_) {
+    } catch (error) {
+      _lastOperationError = _operationError(error, model.displayName);
       try {
         _models = await _apiClient.fetchModels();
       } catch (_) {}
@@ -186,6 +210,47 @@ class ChatModelController extends ChangeNotifier {
       _loadingModelId = null;
       notifyListeners();
     }
+  }
+
+  void clearOperationError() {
+    if (_lastOperationError == null) {
+      return;
+    }
+    _lastOperationError = null;
+    notifyListeners();
+  }
+
+  ChatModelOperationError _operationError(Object error, String modelName) {
+    if (error is LlamaChatApiException) {
+      switch (error.code) {
+        case LlamaChatApiErrorCode.modelLoadTimeout:
+          return ChatModelOperationError(
+            kind: ChatModelOperationErrorKind.loadTimeout,
+            modelName: modelName,
+          );
+        case LlamaChatApiErrorCode.modelLoadFailed:
+          return ChatModelOperationError(
+            kind: ChatModelOperationErrorKind.loadFailed,
+            modelName: modelName,
+          );
+        case LlamaChatApiErrorCode.modelUnloadTimeout:
+          return ChatModelOperationError(
+            kind: ChatModelOperationErrorKind.unloadTimeout,
+            modelName: modelName,
+          );
+        case null:
+          return ChatModelOperationError(
+            kind: ChatModelOperationErrorKind.requestFailed,
+            modelName: modelName,
+            detail: error.message,
+          );
+      }
+    }
+    return ChatModelOperationError(
+      kind: ChatModelOperationErrorKind.requestFailed,
+      modelName: modelName,
+      detail: error.toString(),
+    );
   }
 
   ChatModelOption? findModel(String? modelId) {

@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
+import 'package:servllama/features/chat/controllers/chat_model_controller.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/models/chat_message_version_record.dart';
 import 'package:servllama/features/chat/models/chat_model_option.dart';
@@ -362,6 +363,118 @@ void main() {
           contains('beta'),
         );
         expect(provider.modelSelectorLabel, 'beta');
+      },
+    );
+
+    test(
+      'loadAndSelectModel exposes a typed error when loading times out',
+      () async {
+        apiClient.models = <ChatModelOption>[
+          const ChatModelOption(
+            id: 'beta',
+            displayName: 'beta',
+            status: ChatModelStatus.unloaded,
+          ),
+        ];
+        apiClient.loadError = const LlamaChatApiException(
+          'Model load timed out.',
+          code: LlamaChatApiErrorCode.modelLoadTimeout,
+        );
+
+        await provider.load();
+        await provider.refreshModels();
+        await provider.loadAndSelectModel('beta');
+
+        expect(provider.loadingModelId, isNull);
+        expect(provider.currentModelId, isNull);
+        final error = provider.modelOperationError;
+        expect(error, isNotNull);
+        expect(error!.kind, ChatModelOperationErrorKind.loadTimeout);
+        expect(error.modelName, 'beta');
+
+        provider.clearModelOperationError();
+        expect(provider.modelOperationError, isNull);
+      },
+    );
+
+    test(
+      'loadAndSelectModel clears a previous error before retrying',
+      () async {
+        apiClient.models = <ChatModelOption>[
+          const ChatModelOption(
+            id: 'beta',
+            displayName: 'beta',
+            status: ChatModelStatus.unloaded,
+          ),
+        ];
+        apiClient.loadError = const LlamaChatApiException(
+          'Model failed to load: beta',
+          code: LlamaChatApiErrorCode.modelLoadFailed,
+        );
+
+        await provider.load();
+        await provider.refreshModels();
+        await provider.loadAndSelectModel('beta');
+        expect(
+          provider.modelOperationError?.kind,
+          ChatModelOperationErrorKind.loadFailed,
+        );
+
+        apiClient.loadError = null;
+        await provider.loadAndSelectModel('beta');
+
+        expect(provider.modelOperationError, isNull);
+        expect(provider.currentModelId, 'beta');
+      },
+    );
+
+    test(
+      'unloadModel exposes a typed error when unloading times out',
+      () async {
+        apiClient.models = <ChatModelOption>[
+          const ChatModelOption(
+            id: 'alpha',
+            displayName: 'alpha',
+            status: ChatModelStatus.loaded,
+          ),
+        ];
+        apiClient.unloadError = const LlamaChatApiException(
+          'Model unload timed out.',
+          code: LlamaChatApiErrorCode.modelUnloadTimeout,
+        );
+
+        await provider.load();
+        await provider.refreshModels();
+        await provider.unloadModel('alpha');
+
+        expect(provider.loadingModelId, isNull);
+        final error = provider.modelOperationError;
+        expect(error, isNotNull);
+        expect(error!.kind, ChatModelOperationErrorKind.unloadTimeout);
+        expect(error.modelName, 'alpha');
+      },
+    );
+
+    test(
+      'load errors without a typed code map to requestFailed with detail',
+      () async {
+        apiClient.models = <ChatModelOption>[
+          const ChatModelOption(
+            id: 'beta',
+            displayName: 'beta',
+            status: ChatModelStatus.unloaded,
+          ),
+        ];
+        apiClient.loadError = const LlamaChatApiException('server exploded');
+
+        await provider.load();
+        await provider.refreshModels();
+        await provider.loadAndSelectModel('beta');
+
+        final error = provider.modelOperationError;
+        expect(error, isNotNull);
+        expect(error!.kind, ChatModelOperationErrorKind.requestFailed);
+        expect(error.detail, 'server exploded');
       },
     );
 
@@ -1370,6 +1483,8 @@ class _FakeLlamaChatApiClient extends LlamaChatApiClient {
   String? lastBaseUrl;
   Duration? lastReceiveTimeout;
   int fetchModelsCallCount = 0;
+  Object? loadError;
+  Object? unloadError;
 
   @override
   void updateBaseUrl(String baseUrl) {
@@ -1393,6 +1508,9 @@ class _FakeLlamaChatApiClient extends LlamaChatApiClient {
     if (loadCompleter != null) {
       await loadCompleter!.future;
     }
+    if (loadError != null) {
+      throw loadError!;
+    }
     models = models
         .map(
           (model) => model.id == modelId
@@ -1410,6 +1528,9 @@ class _FakeLlamaChatApiClient extends LlamaChatApiClient {
   Future<void> unloadModel(String modelId) async {
     if (unloadCompleter != null) {
       await unloadCompleter!.future;
+    }
+    if (unloadError != null) {
+      throw unloadError!;
     }
     models = models
         .map(

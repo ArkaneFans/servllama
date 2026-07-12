@@ -157,6 +157,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatModelStatusFailed => 'Load failed';
 
   @override
+  String chatModelLoadTimeout(Object model) {
+    return 'Model load timed out: $model';
+  }
+
+  @override
+  String chatModelLoadFailed(Object model) {
+    return 'Failed to load model: $model';
+  }
+
+  @override
+  String chatModelUnloadTimeout(Object model) {
+    return 'Model unload timed out: $model';
+  }
+
+  @override
+  String chatModelRequestFailed(Object detail) {
+    return 'Request failed: $detail';
+  }
+
+  @override
   String get chatReasoningProcess => 'Reasoning';
 
   @override

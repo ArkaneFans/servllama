@@ -592,6 +592,57 @@ void main() {
       expect(find.byTooltip('beta'), findsOneWidget);
     });
 
+    testWidgets('shows inline error in model sheet when loading times out', (
+      tester,
+    ) async {
+      final repository = _FakeChatSessionRepository(
+        sessions: <ChatSessionRecord>[_session(id: 's1', title: '会话')],
+      );
+      final apiClient = _FakeLlamaChatApiClient(
+        models: <ChatModelOption>[
+          const ChatModelOption(
+            id: 'beta',
+            displayName: 'beta',
+            status: ChatModelStatus.unloaded,
+          ),
+        ],
+      );
+      apiClient.loadError = const LlamaChatApiException(
+        'Model load timed out.',
+        code: LlamaChatApiErrorCode.modelLoadTimeout,
+      );
+      final provider = ChatProvider(
+        repository: repository,
+        apiClient: apiClient,
+      );
+      provider.updateServerState(
+        baseUrl: 'http://127.0.0.1:8080',
+        isServerRunning: true,
+      );
+      await provider.load();
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider<ChatProvider>.value(
+          value: provider,
+          child: const MaterialApp(home: ChatPage()),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byKey(const Key('chat_model_selector_button')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('chat_model_sheet_error')), findsNothing);
+
+      await tester.tap(find.text('beta'));
+      await tester.pumpAndSettle();
+
+      // The sheet stays open for retry and shows the localized error inline.
+      expect(find.byKey(const Key('chat_model_sheet_error')), findsOneWidget);
+      expect(find.text('模型加载超时：beta，请稍后重试'), findsOneWidget);
+      expect(provider.currentModelId, isNull);
+    });
+
     testWidgets('uses dedicated dark hero button colors', (tester) async {
       final repository = _FakeChatSessionRepository(
         sessions: <ChatSessionRecord>[],
@@ -1938,6 +1989,7 @@ class _FakeLlamaChatApiClient extends LlamaChatApiClient {
   Completer<void>? streamStartedCompleter;
   StreamController<ChatStreamDelta>? streamController;
   List<ChatStreamDelta> streamDeltas = const <ChatStreamDelta>[];
+  Object? loadError;
 
   @override
   Future<List<ChatModelOption>> fetchModels() async {
@@ -1950,6 +2002,9 @@ class _FakeLlamaChatApiClient extends LlamaChatApiClient {
 
   @override
   Future<void> loadModel(String modelId) async {
+    if (loadError != null) {
+      throw loadError!;
+    }
     models = models
         .map(
           (model) => model.id == modelId
