@@ -30,8 +30,12 @@ void main() {
       await gesture.moveBy(const Offset(60, 0));
       await tester.pump();
 
-      // Mid-drag: nothing is committed yet.
+      // Mid-drag: nothing is committed yet, but the text field tracks the
+      // thumb as the single value readout.
       expect(committed, isEmpty);
+      final controller =
+          tester.widget<TextField>(find.byType(TextField)).controller!;
+      expect(controller.text, isNot('0'));
 
       await gesture.moveBy(const Offset(60, 0));
       await tester.pump();

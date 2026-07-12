@@ -67,35 +67,15 @@ class _SliderNumberSettingState extends State<SliderNumberSetting> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final effectiveValue = _dragValue ?? widget.value;
-    final currentValue = _displayValue(effectiveValue);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                widget.label,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest.withAlpha(90),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Text(
-                currentValue,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
+        Text(
+          widget.label,
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
         if (widget.description != null) ...[
           const SizedBox(height: 2),
@@ -130,9 +110,19 @@ class _SliderNumberSettingState extends State<SliderNumberSetting> {
                       .clamp(widget.min, widget.max)
                       .toDouble(),
                   onChanged: (value) {
+                    final next = value.round();
                     setState(() {
-                      _dragValue = value.round();
+                      _dragValue = next;
                     });
+                    // The text field is the only value readout — keep it
+                    // tracking the thumb while dragging.
+                    final display = _displayValue(next);
+                    _controller.value = TextEditingValue(
+                      text: display,
+                      selection: TextSelection.collapsed(
+                        offset: display.length,
+                      ),
+                    );
                   },
                   onChangeEnd: (value) {
                     setState(() {
