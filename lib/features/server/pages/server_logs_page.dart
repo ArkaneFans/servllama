@@ -110,7 +110,10 @@ class _ServerLogsViewState extends State<_ServerLogsView> {
     final l10n = context.l10n;
 
     return Consumer<ServerLogsProvider>(
-      builder: (context, provider, _) => Scaffold(
+      builder: (context, provider, _) {
+        // One snapshot per rebuild — the getter copies the backing list.
+        final logs = provider.logs;
+        return Scaffold(
         appBar: AppBar(
           title: Text(l10n.serverLogsTitle),
           actions: [
@@ -168,10 +171,9 @@ class _ServerLogsViewState extends State<_ServerLogsView> {
                       controller: _scrollController,
                       reverse: true,
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                      itemCount: provider.logs.length,
+                      itemCount: logs.length,
                       itemBuilder: (context, index) {
-                        final entry =
-                            provider.logs[provider.logs.length - 1 - index];
+                        final entry = logs[logs.length - 1 - index];
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: SelectableText(
@@ -188,8 +190,9 @@ class _ServerLogsViewState extends State<_ServerLogsView> {
                     ),
             ),
           ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

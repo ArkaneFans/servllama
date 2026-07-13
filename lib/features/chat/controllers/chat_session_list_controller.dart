@@ -80,10 +80,9 @@ class ChatSessionListController extends ChangeNotifier {
       return false;
     }
 
-    final nextSessions = List<ChatSessionRecord>.from(_sessions);
-    nextSessions.removeWhere((item) => item.id == sessionId);
-    _sessions = nextSessions;
     await _repository.deleteSession(sessionId);
+    _sessions = List<ChatSessionRecord>.from(_sessions)
+      ..removeWhere((item) => item.id == sessionId);
     notifyListeners();
     return true;
   }

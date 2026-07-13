@@ -63,6 +63,38 @@ class ServerLaunchSettingsLoader {
     );
   }
 
+  /// Persists every field. The field-to-key mapping lives only here and in
+  /// [load]; callers hand over a complete settings object.
+  Future<void> save(ServerLaunchSettings settings) async {
+    await _kvStorage.setString(
+      ServerPrefsKeys.listenMode,
+      settings.listenMode.name,
+    );
+    await _kvStorage.setInt(ServerPrefsKeys.port, settings.port);
+    await _kvStorage.setString(ServerPrefsKeys.apiKey, settings.apiKey);
+    await _kvStorage.setInt(ServerPrefsKeys.contextSize, settings.contextSize);
+    await _kvStorage.setInt(ServerPrefsKeys.cpuThreads, settings.cpuThreads);
+    await _kvStorage.setInt(ServerPrefsKeys.batchSize, settings.batchSize);
+    await _kvStorage.setInt(
+      ServerPrefsKeys.parallelSlots,
+      settings.parallelSlots,
+    );
+    await _kvStorage.setInt(
+      ServerPrefsKeys.imageMaxTokens,
+      settings.imageMaxTokens,
+    );
+    await _kvStorage.setString(
+      ServerPrefsKeys.flashAttentionMode,
+      settings.flashAttentionMode.name,
+    );
+    await _kvStorage.setBool(ServerPrefsKeys.useMmap, settings.useMmap);
+    await _kvStorage.setBool(ServerPrefsKeys.logEnabled, settings.logEnabled);
+    await _kvStorage.setString(
+      ServerPrefsKeys.logLevel,
+      settings.logLevel.name,
+    );
+  }
+
   ServerListenMode _readListenMode(String? savedMode) {
     if (savedMode == null) {
       return ServerListenMode.localhost;

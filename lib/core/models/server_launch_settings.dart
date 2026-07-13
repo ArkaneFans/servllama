@@ -63,6 +63,36 @@ class ServerLaunchSettings {
 
   String get host =>
       listenMode == ServerListenMode.localhost ? '127.0.0.1' : '0.0.0.0';
+
+  ServerLaunchSettings copyWith({
+    ServerListenMode? listenMode,
+    int? port,
+    String? apiKey,
+    int? contextSize,
+    int? cpuThreads,
+    int? batchSize,
+    int? parallelSlots,
+    int? imageMaxTokens,
+    FlashAttentionMode? flashAttentionMode,
+    bool? useMmap,
+    bool? logEnabled,
+    ServerLogLevel? logLevel,
+  }) {
+    return ServerLaunchSettings(
+      listenMode: listenMode ?? this.listenMode,
+      port: port ?? this.port,
+      apiKey: apiKey ?? this.apiKey,
+      contextSize: contextSize ?? this.contextSize,
+      cpuThreads: cpuThreads ?? this.cpuThreads,
+      batchSize: batchSize ?? this.batchSize,
+      parallelSlots: parallelSlots ?? this.parallelSlots,
+      imageMaxTokens: imageMaxTokens ?? this.imageMaxTokens,
+      flashAttentionMode: flashAttentionMode ?? this.flashAttentionMode,
+      useMmap: useMmap ?? this.useMmap,
+      logEnabled: logEnabled ?? this.logEnabled,
+      logLevel: logLevel ?? this.logLevel,
+    );
+  }
 }
 
 extension ServerLogLevelX on ServerLogLevel {

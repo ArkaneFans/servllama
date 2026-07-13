@@ -37,7 +37,10 @@ class LlamaServerService {
   bool _foregroundTaskInitialized = false;
   bool _legacyCleanupStarted = false;
 
+  static const Duration _gracefulStopTimeout = Duration(seconds: 3);
+
   Process? _process;
+  bool _isStarting = false;
   bool _lastRunningState = false;
 
   Stream<String> get logStream => _logger
@@ -74,10 +77,11 @@ class LlamaServerService {
   }
 
   Future<bool> startServer({List<String>? args}) async {
-    if (_process != null) {
+    if (_process != null || _isStarting) {
       _logger.warning('Server is already running', channel: LogChannel.server, inMemory: true);
       return false;
     }
+    _isStarting = true;
 
     unawaited(_cleanupLegacyInstall());
 
@@ -118,9 +122,34 @@ class LlamaServerService {
         notificationText: _l10nService.current.serverForegroundNotificationText,
       );
 
-      process.stdout.transform(utf8.decoder).listen(_handleStdout);
-      process.stderr.transform(utf8.decoder).listen(_handleStderr);
+      process.stdout
+          .transform(const Utf8Decoder(allowMalformed: true))
+          .listen(
+            (data) => _handleProcessOutput(data, isError: false),
+            onError: (Object error) => _logger.warning(
+              'Failed to read server stdout',
+              channel: LogChannel.server,
+              inMemory: true,
+              error: error,
+            ),
+          );
+      process.stderr
+          .transform(const Utf8Decoder(allowMalformed: true))
+          .listen(
+            (data) => _handleProcessOutput(data, isError: true),
+            onError: (Object error) => _logger.warning(
+              'Failed to read server stderr',
+              channel: LogChannel.server,
+              inMemory: true,
+              error: error,
+            ),
+          );
       process.exitCode.then((code) async {
+        // A stale handler from a previous run must not touch the state of a
+        // server that was restarted in the meantime.
+        if (_process != process) {
+          return;
+        }
         _logger.info('Server exited with code: $code', channel: LogChannel.server, inMemory: true);
         _process = null;
         _emitRunningState(false);
@@ -142,6 +171,8 @@ class LlamaServerService {
       await _foregroundTaskService.stop();
 
       return false;
+    } finally {
+      _isStarting = false;
     }
   }
 
@@ -175,56 +206,64 @@ class LlamaServerService {
     }
   }
 
-  void _handleStdout(String data) {
+  void _handleProcessOutput(String data, {required bool isError}) {
     final lines = data.split('\n');
     for (final line in lines) {
       final message = line.trim();
-      if (message.isNotEmpty) {
-        _logger.info(message, channel: LogChannel.server, inMemory: true);
+      if (message.isEmpty) {
+        continue;
       }
-    }
-  }
-
-  void _handleStderr(String data) {
-    final lines = data.split('\n');
-    for (final line in lines) {
-      final message = line.trim();
-      if (message.isNotEmpty) {
+      if (isError) {
+        _logger.warning(message, channel: LogChannel.server, inMemory: true);
+      } else {
         _logger.info(message, channel: LogChannel.server, inMemory: true);
       }
     }
   }
 
   Future<bool> stopServer() async {
-    if (_process == null) {
+    final process = _process;
+    if (process == null) {
       _logger.warning('Server is not running', channel: LogChannel.server, inMemory: true);
       return false;
     }
 
+    _logger.info('Stopping service...', channel: LogChannel.server, inMemory: true);
     try {
-      _logger.info('Stopping service...', channel: LogChannel.server, inMemory: true);
-      _process!.kill(ProcessSignal.sigkill);
-      _process = null;
-      _emitRunningState(false);
-
-      await _foregroundTaskService.stop();
-
+      // Ask for a graceful shutdown first; escalate to SIGKILL if the server
+      // does not exit in time. State cleanup (clearing _process, emitting
+      // running=false, stopping the foreground service) is owned by the
+      // guarded exitCode handler registered in startServer.
+      if (!process.kill(ProcessSignal.sigterm)) {
+        _logger.warning(
+          'Failed to signal server process (SIGTERM)',
+          channel: LogChannel.server,
+          inMemory: true,
+        );
+      }
+      try {
+        await process.exitCode.timeout(_gracefulStopTimeout);
+      } on TimeoutException {
+        _logger.warning(
+          'Server did not exit gracefully, sending SIGKILL',
+          channel: LogChannel.server,
+          inMemory: true,
+        );
+        process.kill(ProcessSignal.sigkill);
+        await process.exitCode;
+      }
       return true;
     } catch (error) {
       _logger.error('Failed to stop service', channel: LogChannel.server, inMemory: true, error: error);
-      _process = null;
-      _emitRunningState(false);
-
-      await _foregroundTaskService.stop();
-
+      // The process state is unknown; force-clear so the UI is not stuck on
+      // a phantom "running" state.
+      if (_process == process) {
+        _process = null;
+        _emitRunningState(false);
+        await _foregroundTaskService.stop();
+      }
       return false;
     }
-  }
-
-  void dispose() {
-    stopServer();
-    _runningStateController.close();
-    _foregroundTaskService.dispose();
   }
 
   void _emitRunningState(bool isRunning) {
@@ -233,5 +272,11 @@ class LlamaServerService {
     }
     _lastRunningState = isRunning;
     _runningStateController.add(isRunning);
+  }
+
+  /// Releases the running-state stream. Only meaningful in tests — the
+  /// production instance is an app-lifetime singleton.
+  void dispose() {
+    _runningStateController.close();
   }
 }

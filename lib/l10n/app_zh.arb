@@ -61,6 +61,30 @@
   "chatModelStatusLoading": "加载中",
   "chatModelStatusAvailable": "可加载",
   "chatModelStatusFailed": "加载失败",
+  "chatModelLoadTimeout": "模型加载超时：{model}，请稍后重试",
+  "@chatModelLoadTimeout": {
+    "placeholders": {
+      "model": {}
+    }
+  },
+  "chatModelLoadFailed": "模型加载失败：{model}",
+  "@chatModelLoadFailed": {
+    "placeholders": {
+      "model": {}
+    }
+  },
+  "chatModelUnloadTimeout": "模型卸载超时：{model}",
+  "@chatModelUnloadTimeout": {
+    "placeholders": {
+      "model": {}
+    }
+  },
+  "chatModelRequestFailed": "请求失败：{detail}",
+  "@chatModelRequestFailed": {
+    "placeholders": {
+      "detail": {}
+    }
+  },
   "chatReasoningProcess": "深度思考",
   "chatCopyMessage": "复制",
   "chatEditMessage": "编辑",

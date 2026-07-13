@@ -42,6 +42,17 @@ class StreamingChatMessageNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Detaches a finished streaming entry so the bubble renders from the
+  /// persisted record again. The removed ValueNotifier is intentionally not
+  /// disposed here: a ValueListenableBuilder may still be subscribed until
+  /// the next rebuild, and an unreferenced notifier is simply collected.
+  void remove(String messageId) {
+    if (_notifiers.remove(messageId) == null) {
+      return;
+    }
+    notifyListeners();
+  }
+
   void clear() {
     for (final notifier in _notifiers.values) {
       notifier.dispose();

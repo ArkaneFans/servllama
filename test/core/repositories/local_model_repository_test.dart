@@ -95,7 +95,13 @@ void main() {
         () => repository.importModel(
           PickedGgufFile(path: secondFile.path, fileName: 'DUP.GGUF'),
         ),
-        throwsA(isA<StateError>()),
+        throwsA(
+          isA<ModelOperationException>().having(
+            (error) => error.code,
+            'code',
+            ModelOperationErrorCode.duplicateModelName,
+          ),
+        ),
       );
     });
 
@@ -288,6 +294,40 @@ void main() {
         renamed.mmprojFilePath,
         contains('${Platform.pathSeparator}vision-v2${Platform.pathSeparator}'),
       );
+    });
+
+    test('renameModel rejects names that could escape the models directory', () async {
+      final modelFile = await _createSourceFile(sourceDirectory, 'tiny.gguf');
+      final descriptor = await repository.importModel(
+        PickedGgufFile(path: modelFile.path, fileName: 'tiny.gguf'),
+      );
+
+      const invalidNames = <String>[
+        '../escape',
+        '..',
+        '.',
+        'a/b',
+        'a\\b',
+        'bad\x00name',
+      ];
+      for (final name in invalidNames) {
+        await expectLater(
+          repository.renameModel(descriptor.id, name),
+          throwsA(
+            isA<ModelOperationException>().having(
+              (error) => error.code,
+              'code',
+              ModelOperationErrorCode.invalidModelName,
+            ),
+          ),
+          reason: 'name "$name" should be rejected',
+        );
+      }
+
+      // The model itself must be untouched after rejected renames.
+      final models = await repository.listModels();
+      expect(models.single.modelName, 'tiny');
+      expect(await File(models.single.storedFilePath).exists(), isTrue);
     });
 
     test('listModels clears missing mmproj metadata', () async {

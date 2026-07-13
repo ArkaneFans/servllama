@@ -4,18 +4,28 @@ import 'package:flutter/foundation.dart';
 import 'package:servllama/core/logging/app_logger.dart';
 
 class ServerLogsProvider extends ChangeNotifier {
-  ServerLogsProvider({AppLogger? logger, this.maxEntries = 1000})
-    : _logger = logger ?? AppLogger.instance,
-      _logs = List<AppLogEntry>.from(
-        (logger ?? AppLogger.instance).entriesFor(LogChannel.server),
-      ) {
+  ServerLogsProvider({
+    AppLogger? logger,
+    this.maxEntries = 1000,
+    this.notifyThrottle = const Duration(milliseconds: 100),
+  }) : _logger = logger ?? AppLogger.instance,
+       _logs = List<AppLogEntry>.from(
+         (logger ?? AppLogger.instance).entriesFor(LogChannel.server),
+       ) {
     _subscription = _logger.streamFor(LogChannel.server).listen(_handleEntry);
   }
 
   final AppLogger _logger;
   final int maxEntries;
+
+  /// Server output can burst hundreds of lines per second while a model
+  /// loads; notifications are coalesced so listeners rebuild at most once
+  /// per window instead of once per line.
+  final Duration notifyThrottle;
+
   final List<AppLogEntry> _logs;
   late final StreamSubscription<AppLogEntry> _subscription;
+  Timer? _pendingNotify;
 
   List<AppLogEntry> get logs => List<AppLogEntry>.unmodifiable(_logs);
   int get count => _logs.length;
@@ -27,6 +37,8 @@ class ServerLogsProvider extends ChangeNotifier {
     _logger.clearChannel(LogChannel.server);
     unawaited(_logger.clearPersisted());
     _logs.clear();
+    _pendingNotify?.cancel();
+    _pendingNotify = null;
     notifyListeners();
   }
 
@@ -35,11 +47,16 @@ class ServerLogsProvider extends ChangeNotifier {
     if (_logs.length > maxEntries) {
       _logs.removeRange(0, _logs.length - maxEntries);
     }
-    notifyListeners();
+    _pendingNotify ??= Timer(notifyThrottle, () {
+      _pendingNotify = null;
+      notifyListeners();
+    });
   }
 
   @override
   void dispose() {
+    _pendingNotify?.cancel();
+    _pendingNotify = null;
     _subscription.cancel();
     super.dispose();
   }

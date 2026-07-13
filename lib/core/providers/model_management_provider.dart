@@ -21,6 +21,7 @@ class ModelManagementProvider extends ChangeNotifier {
   final AppLogger _logger;
 
   List<ModelDescriptor> _models = <ModelDescriptor>[];
+  bool _disposed = false;
   bool _isLoading = false;
   bool _isImporting = false;
   bool _isImportingMmproj = false;
@@ -41,6 +42,22 @@ class ModelManagementProvider extends ChangeNotifier {
   bool get isEmpty => _models.isEmpty;
 
   AppL10nService get _l10nService => AppL10nService.instance;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  // Long-running operations (multi-GB model imports) can outlive the page;
+  // notifying after dispose trips ChangeNotifier's debug assertion.
+  @override
+  void notifyListeners() {
+    if (_disposed) {
+      return;
+    }
+    super.notifyListeners();
+  }
 
   Future<void> load() async {
     if (_isLoading) {

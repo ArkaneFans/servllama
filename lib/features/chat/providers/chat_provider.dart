@@ -73,6 +73,7 @@ class ChatProvider extends ChangeNotifier {
   bool get isSending => _generation.isSending;
   String get sessionQuery => _sessionList.query;
   String? get loadingModelId => _models.loadingModelId;
+  ChatModelOperationError? get modelOperationError => _models.lastOperationError;
   String? get currentModelId => _models.currentModelId;
   String? get draftMessageId => _generation.draftMessageId;
   String? get lastErrorMessage => _generation.lastErrorMessage;
@@ -225,6 +226,10 @@ class ChatProvider extends ChangeNotifier {
       return;
     }
     await _models.unloadModel(modelId);
+  }
+
+  void clearModelOperationError() {
+    _models.clearOperationError();
   }
 
   Future<void> sendMessage(

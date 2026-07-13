@@ -44,27 +44,22 @@ class ChatSessionRepository {
     await box.put(cleanSession.id, _withoutLegacyMessages(cleanSession));
   }
 
+  /// Persists a single message without touching its session record or any
+  /// sibling messages. Used on the streaming hot path where only the draft
+  /// assistant message changes per delta.
+  Future<void> saveMessage(ChatMessageRecord message) async {
+    final box = await _messageBox();
+    await box.put(message.id, message);
+  }
+
+  Future<ChatMessageRecord?> loadMessage(String messageId) async {
+    final box = await _messageBox();
+    return box.get(messageId);
+  }
+
   Future<void> warmUpMessageStore() async {
     await _messageBox();
     await _versionBox();
-  }
-
-  Future<ChatSessionRecord> saveSessionWithMessages(
-    ChatSessionRecord session,
-    List<ChatMessageRecord> messages,
-  ) async {
-    final box = await _box();
-    final savedMessages = await _saveMessagesForSession(session.id, messages);
-    final cleanSession = _withoutLegacyMessages(
-      session.copyWith(
-        messageIds: savedMessages
-            .map((message) => message.id)
-            .toList(growable: false),
-        legacyMessages: const <ChatMessageRecord>[],
-      ),
-    );
-    await box.put(cleanSession.id, cleanSession);
-    return cleanSession;
   }
 
   Future<List<ChatMessageRecord>> loadRecentMessages(
@@ -323,9 +318,9 @@ class ChatSessionRepository {
     final savedMessages = messages
         .map((message) => _messageForSession(sessionId, message))
         .toList(growable: false);
-    for (final message in savedMessages) {
-      await box.put(message.id, message);
-    }
+    await box.putAll(<String, ChatMessageRecord>{
+      for (final message in savedMessages) message.id: message,
+    });
     return savedMessages;
   }
 

@@ -10,10 +10,27 @@ import 'package:servllama/features/chat/models/chat_model_option.dart';
 import 'package:servllama/features/chat/models/chat_stream_delta.dart';
 import 'package:servllama/features/chat/services/image_attachment_service.dart';
 
+/// Runs on a background isolate via [compute]. Returns null when the file
+/// no longer exists (deleted attachments are skipped silently).
+Future<String?> _encodeImageDataUrl(String filePath) async {
+  final file = File(filePath);
+  if (!await file.exists()) {
+    return null;
+  }
+  final bytes = await file.readAsBytes();
+  final mimeType = ImageAttachmentService.mimeTypeForPath(filePath);
+  return 'data:$mimeType;base64,${base64Encode(bytes)}';
+}
+
+/// Typed causes for model lifecycle failures. UI layers map these to
+/// localized text; the exception message is debug-only for coded errors.
+enum LlamaChatApiErrorCode { modelLoadTimeout, modelLoadFailed, modelUnloadTimeout }
+
 class LlamaChatApiException implements Exception {
-  const LlamaChatApiException(this.message);
+  const LlamaChatApiException(this.message, {this.code});
 
   final String message;
+  final LlamaChatApiErrorCode? code;
 
   @override
   String toString() => message;
@@ -21,6 +38,7 @@ class LlamaChatApiException implements Exception {
 
 class LlamaChatApiClient {
   static const Duration defaultChatReceiveTimeout = Duration(minutes: 2);
+  static const Duration defaultModelLoadTimeout = Duration(seconds: 60);
 
   LlamaChatApiClient({
     Dio? dio,
@@ -42,7 +60,7 @@ class LlamaChatApiClient {
        _settingsLoader = settingsLoader ?? ServerLaunchSettingsLoader(),
        _modelLoadPollInterval =
            modelLoadPollInterval ?? const Duration(milliseconds: 500),
-       _modelLoadTimeout = modelLoadTimeout ?? const Duration(seconds: 30);
+       _modelLoadTimeout = modelLoadTimeout ?? defaultModelLoadTimeout;
 
   final Dio _dio;
   final ServerLaunchSettingsLoader _settingsLoader;
@@ -143,13 +161,19 @@ class LlamaChatApiClient {
             return;
           }
           if (model.status == ChatModelStatus.failed) {
-            throw LlamaChatApiException('模型加载失败: ${model.displayName}');
+            throw LlamaChatApiException(
+              'Model failed to load: ${model.displayName}',
+              code: LlamaChatApiErrorCode.modelLoadFailed,
+            );
           }
         }
         await Future<void>.delayed(_modelLoadPollInterval);
       }
 
-      throw const LlamaChatApiException('模型加载超时，请稍后重试。');
+      throw const LlamaChatApiException(
+        'Model load timed out.',
+        code: LlamaChatApiErrorCode.modelLoadTimeout,
+      );
     } on DioException catch (error) {
       throw _exceptionFromDio(error);
     }
@@ -186,7 +210,10 @@ class LlamaChatApiClient {
         await Future<void>.delayed(_modelLoadPollInterval);
       }
 
-      throw const LlamaChatApiException('模型卸载超时，请稍后重试。');
+      throw const LlamaChatApiException(
+        'Model unload timed out.',
+        code: LlamaChatApiErrorCode.modelUnloadTimeout,
+      );
     } on DioException catch (error) {
       throw _exceptionFromDio(error);
     }
@@ -227,34 +254,25 @@ class LlamaChatApiClient {
       );
     }
 
-    var pending = '';
+    // A stateful decoder is required: multi-byte UTF-8 sequences can be
+    // split across network chunks. LineSplitter also emits a trailing line
+    // that lacks a final newline when the stream closes.
+    final lines = body.stream
+        .cast<List<int>>()
+        .transform(const Utf8Decoder(allowMalformed: true))
+        .transform(const LineSplitter());
     try {
-      await for (final chunk in body.stream) {
-        pending += utf8.decode(chunk);
-        final lines = pending.split('\n');
-        pending = lines.removeLast();
-        for (final line in lines) {
-          final parsed = _parseSseLine(line);
-          if (parsed == null) {
-            continue;
-          }
-          if (parsed.isDone) {
-            return;
-          }
-          final delta = parsed.delta;
-          if (delta != null && !delta.isEmpty) {
-            yield delta;
-          }
+      await for (final line in lines) {
+        final parsed = _parseSseLine(line);
+        if (parsed == null) {
+          continue;
         }
-      }
-
-      if (pending.trim().isNotEmpty) {
-        final parsed = _parseSseLine(pending);
-        if (parsed != null && !parsed.isDone) {
-          final delta = parsed.delta;
-          if (delta != null && !delta.isEmpty) {
-            yield delta;
-          }
+        if (parsed.isDone) {
+          return;
+        }
+        final delta = parsed.delta;
+        if (delta != null && !delta.isEmpty) {
+          yield delta;
         }
       }
     } on DioException catch (error) {
@@ -293,7 +311,14 @@ class LlamaChatApiClient {
       return const _ParsedSseLine.done();
     }
 
-    final decoded = jsonDecode(payload);
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(payload);
+    } on FormatException {
+      // Tolerate malformed lines (server error text, truncated tail on a
+      // dropped connection) instead of aborting the whole generation.
+      return null;
+    }
     if (decoded is! Map<String, dynamic>) {
       return null;
     }
@@ -394,16 +419,15 @@ class LlamaChatApiClient {
     ];
 
     for (final filePath in message.imageFilePaths) {
-      final file = File(filePath);
-      if (!await file.exists()) {
+      // Multi-MB reads and base64 encoding would jank the UI isolate —
+      // every send re-serializes all images in the prompt history.
+      final dataUrl = await compute(_encodeImageDataUrl, filePath);
+      if (dataUrl == null) {
         continue;
       }
-      final bytes = await file.readAsBytes();
-      final base64Data = base64Encode(bytes);
-      final mimeType = ImageAttachmentService.mimeTypeForPath(filePath);
       parts.add({
         'type': 'image_url',
-        'image_url': {'url': 'data:$mimeType;base64,$base64Data'},
+        'image_url': {'url': dataUrl},
       });
     }
 
@@ -479,7 +503,7 @@ class LlamaChatApiClient {
     await for (final chunk in body.stream) {
       chunks.addAll(chunk);
     }
-    return utf8.decode(chunks);
+    return const Utf8Decoder(allowMalformed: true).convert(chunks);
   }
 }
 

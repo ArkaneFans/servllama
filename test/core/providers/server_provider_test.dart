@@ -80,12 +80,63 @@ void main() {
           ),
         ),
         modelStoragePaths: FixedModelStoragePaths('C:\\app\\models'),
+        localIpResolver: () async => null,
       );
 
       await provider.loadSavedEndpoint();
 
       expect(provider.displayAddress, '0.0.0.0:9000');
-      expect(provider.baseUrl, 'http://0.0.0.0:9000');
+      // The app itself always talks to its child process over loopback.
+      expect(provider.baseUrl, 'http://127.0.0.1:9000');
+      provider.dispose();
+      service.dispose();
+    });
+
+    test('baseUrl stays loopback while displayUrl reflects the LAN IP', () async {
+      final service = FakeLlamaServerService();
+      final provider = ServerProvider(
+        serverService: service,
+        settingsLoader: FixedServerLaunchSettingsLoader(
+          const ServerLaunchSettings(
+            listenMode: ServerListenMode.allInterfaces,
+            port: 9000,
+          ),
+        ),
+        modelStoragePaths: FixedModelStoragePaths('C:\\app\\models'),
+        localIpResolver: () async => '192.168.1.5',
+      );
+
+      await provider.loadSavedEndpoint();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(provider.baseUrl, 'http://127.0.0.1:9000');
+      expect(provider.displayUrl, 'http://192.168.1.5:9000');
+      expect(provider.displayAddress, '192.168.1.5:9000');
+      provider.dispose();
+      service.dispose();
+    });
+
+    test('does not resolve the LAN IP when listening on loopback', () async {
+      final service = FakeLlamaServerService();
+      var resolverCalls = 0;
+      final provider = ServerProvider(
+        serverService: service,
+        settingsLoader: FixedServerLaunchSettingsLoader(
+          const ServerLaunchSettings(),
+        ),
+        modelStoragePaths: FixedModelStoragePaths('C:\\app\\models'),
+        localIpResolver: () async {
+          resolverCalls += 1;
+          return '192.168.1.5';
+        },
+      );
+
+      await provider.loadSavedEndpoint();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(resolverCalls, 0);
+      expect(provider.displayUrl, 'http://127.0.0.1:8080');
+      expect(provider.baseUrl, 'http://127.0.0.1:8080');
       provider.dispose();
       service.dispose();
     });

@@ -9,11 +9,13 @@ class ChatModelSheetContent extends StatelessWidget {
     required this.provider,
     required this.onRefresh,
     required this.children,
+    this.errorText,
   });
 
   final ChatProvider provider;
   final VoidCallback onRefresh;
   final List<Widget> children;
+  final String? errorText;
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +45,30 @@ class ChatModelSheetContent extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
+        if (errorText != null) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: Row(
+              key: const Key('chat_model_sheet_error'),
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    errorText!,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         if (showInitialLoading)
           const SizedBox(
             height: 180,

@@ -30,6 +30,7 @@ void main() {
           const ServerLaunchSettings(),
         ),
         modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+        localIpResolver: () async => null,
       );
       serverProvider.setEndpoint(host: '0.0.0.0', port: 9000);
       addTearDown(() {
@@ -86,6 +87,7 @@ void main() {
           ),
         ),
         modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+        localIpResolver: () async => null,
       );
       addTearDown(() {
         serverProvider.dispose();

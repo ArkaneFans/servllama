@@ -304,6 +304,11 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
   Future<void> warmUpMessageStore() async {}
 
   @override
+  Future<void> saveMessage(ChatMessageRecord message) async {
+    messages[message.id] = message;
+  }
+
+  @override
   Future<void> deleteSession(String sessionId) async {
     sessions.removeWhere((session) => session.id == sessionId);
   }
@@ -401,6 +406,11 @@ class _PendingChatSessionRepository extends ChatSessionRepository {
 
   @override
   Future<void> warmUpMessageStore() async {}
+
+  @override
+  Future<void> saveMessage(ChatMessageRecord message) async {
+    messages[message.id] = message;
+  }
 
   @override
   Future<void> deleteSession(String sessionId) async {

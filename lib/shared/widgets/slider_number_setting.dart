@@ -32,11 +32,23 @@ class SliderNumberSetting extends StatefulWidget {
 
 class _SliderNumberSettingState extends State<SliderNumberSetting> {
   late final TextEditingController _controller;
+  late final FocusNode _focusNode;
+
+  // Slider position while a drag is in progress. Commits (widget.onChanged,
+  // which persists) happen once on drag end, not per tick.
+  int? _dragValue;
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController(text: _displayValue(widget.value));
+    _focusNode = FocusNode()..addListener(_handleFocusChanged);
+  }
+
+  void _handleFocusChanged() {
+    if (!_focusNode.hasFocus) {
+      _handleSubmitted(_controller.text);
+    }
   }
 
   @override
@@ -54,6 +66,7 @@ class _SliderNumberSettingState extends State<SliderNumberSetting> {
 
   @override
   void dispose() {
+    _focusNode.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -62,35 +75,16 @@ class _SliderNumberSettingState extends State<SliderNumberSetting> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final currentValue = _displayValue(widget.value);
+    final effectiveValue = _dragValue ?? widget.value;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                widget.label,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest.withAlpha(90),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Text(
-                currentValue,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
+        Text(
+          widget.label,
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
         if (widget.description != null) ...[
           const SizedBox(height: 2),
@@ -121,8 +115,30 @@ class _SliderNumberSettingState extends State<SliderNumberSetting> {
                   min: widget.min.toDouble(),
                   max: widget.max.toDouble(),
                   divisions: widget.divisions,
-                  value: widget.value.clamp(widget.min, widget.max).toDouble(),
-                  onChanged: (value) => widget.onChanged(value.round()),
+                  value: effectiveValue
+                      .clamp(widget.min, widget.max)
+                      .toDouble(),
+                  onChanged: (value) {
+                    final next = value.round();
+                    setState(() {
+                      _dragValue = next;
+                    });
+                    // The text field is the only value readout — keep it
+                    // tracking the thumb while dragging.
+                    final display = _displayValue(next);
+                    _controller.value = TextEditingValue(
+                      text: display,
+                      selection: TextSelection.collapsed(
+                        offset: display.length,
+                      ),
+                    );
+                  },
+                  onChangeEnd: (value) {
+                    setState(() {
+                      _dragValue = null;
+                    });
+                    widget.onChanged(value.round());
+                  },
                 ),
               ),
             ),
@@ -131,12 +147,14 @@ class _SliderNumberSettingState extends State<SliderNumberSetting> {
               width: 76,
               child: TextField(
                 controller: _controller,
+                focusNode: _focusNode,
                 textAlign: TextAlign.center,
                 keyboardType: widget.specialValue != null
                     ? const TextInputType.numberWithOptions(signed: true)
                     : TextInputType.number,
-                onSubmitted: _handleSubmitted,
-                onEditingComplete: () => _handleSubmitted(_controller.text),
+                // Committing happens on focus loss — the IME done action
+                // unfocuses via the default onEditingComplete, so both paths
+                // converge on _handleFocusChanged.
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: colorScheme.surfaceContainerHighest.withAlpha(90),
@@ -188,6 +206,9 @@ class _SliderNumberSettingState extends State<SliderNumberSetting> {
 
     final nextValue = parsedValue.clamp(widget.min, widget.max);
     widget.onChanged(nextValue);
+    // A clamped input can equal the current value, in which case no rebuild
+    // arrives to correct the text — sync it explicitly.
+    _controller.text = _displayValue(nextValue);
   }
 
   String _displayValue(int value) {

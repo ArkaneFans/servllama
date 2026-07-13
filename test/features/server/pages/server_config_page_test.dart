@@ -193,8 +193,13 @@ void main() {
 
       expect(configProvider.port, 9001);
       expect(await kvStorage.getInt(ServerPrefsKeys.port), 9001);
-      expect(await kvStorage.getString(ServerPrefsKeys.listenMode), isNull);
-      expect(await kvStorage.getString(ServerPrefsKeys.apiKey), isNull);
+      // Saves persist the full settings snapshot; untouched fields hold
+      // their defaults.
+      expect(
+        await kvStorage.getString(ServerPrefsKeys.listenMode),
+        'localhost',
+      );
+      expect(await kvStorage.getString(ServerPrefsKeys.apiKey), isEmpty);
       expect(serverProvider.displayAddress, '127.0.0.1:9001');
     });
 

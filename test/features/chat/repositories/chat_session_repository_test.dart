@@ -137,6 +137,43 @@ void main() {
       ]);
     });
 
+    test('saveMessage persists a single message without touching the session', () async {
+      await repository.saveSession(
+        _session(
+          id: 's1',
+          title: '会话',
+          messages: <ChatMessageRecord>[
+            _message(id: 'm1', role: ChatRole.user, content: '问题'),
+            _message(id: 'm2', role: ChatRole.assistant, content: ''),
+          ],
+        ),
+      );
+      final saved = (await repository.loadSessions()).single;
+
+      await repository.saveMessage(
+        _message(id: 'm2', role: ChatRole.assistant, content: '部分回答'),
+      );
+
+      final messages = await repository.loadAllMessages(saved);
+      expect(messages.map((message) => message.content), <String>[
+        '问题',
+        '部分回答',
+      ]);
+      // The session record itself is unchanged.
+      final session = (await repository.loadSessions()).single;
+      expect(session.messageIds, <String>['m1', 'm2']);
+      expect(session.updatedAt, saved.updatedAt);
+    });
+
+    test('loadMessage returns a stored message or null', () async {
+      await repository.saveMessage(
+        _message(id: 'm1', role: ChatRole.user, content: '问题'),
+      );
+
+      expect((await repository.loadMessage('m1'))?.content, '问题');
+      expect(await repository.loadMessage('missing'), isNull);
+    });
+
     test('deleteSession removes stored session', () async {
       await repository.saveSession(_session(id: 'one', title: '会话一'));
       await repository.saveSession(_session(id: 'two', title: '会话二'));

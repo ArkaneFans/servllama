@@ -158,6 +158,69 @@ void main() {
       );
     });
 
+    test('model load timeout defaults to 60 seconds', () {
+      expect(
+        LlamaChatApiClient.defaultModelLoadTimeout,
+        const Duration(seconds: 60),
+      );
+    });
+
+    test('loadModel throws a typed timeout when the model never loads', () async {
+      server.models = <Map<String, Object?>>[_modelJson('beta', 'unloaded')];
+      server.loadBehavior = (String modelId) {
+        server.models = <Map<String, Object?>>[_modelJson('beta', 'loading')];
+      };
+
+      await expectLater(
+        client.loadModel('beta'),
+        throwsA(
+          isA<LlamaChatApiException>().having(
+            (error) => error.code,
+            'code',
+            LlamaChatApiErrorCode.modelLoadTimeout,
+          ),
+        ),
+      );
+    });
+
+    test('loadModel throws a typed failure when the server reports failed',
+        () async {
+      server.models = <Map<String, Object?>>[_modelJson('beta', 'unloaded')];
+      server.loadBehavior = (String modelId) {
+        server.models = <Map<String, Object?>>[_modelJson('beta', 'failed')];
+      };
+
+      await expectLater(
+        client.loadModel('beta'),
+        throwsA(
+          isA<LlamaChatApiException>().having(
+            (error) => error.code,
+            'code',
+            LlamaChatApiErrorCode.modelLoadFailed,
+          ),
+        ),
+      );
+    });
+
+    test('unloadModel throws a typed timeout when the model never unloads',
+        () async {
+      server.models = <Map<String, Object?>>[_modelJson('beta', 'loaded')];
+      server.unloadBehavior = (String modelId) {
+        server.models = <Map<String, Object?>>[_modelJson('beta', 'loading')];
+      };
+
+      await expectLater(
+        client.unloadModel('beta'),
+        throwsA(
+          isA<LlamaChatApiException>().having(
+            (error) => error.code,
+            'code',
+            LlamaChatApiErrorCode.modelUnloadTimeout,
+          ),
+        ),
+      );
+    });
+
     test('streamChatCompletion parses content and reasoning SSE chunks', () async {
       server.chatResponder = (request) async {
         request.response.statusCode = 200;
@@ -206,6 +269,141 @@ void main() {
       expect(server.lastChatRequestBody?['messages'], <Map<String, Object?>>[
         <String, Object?>{'role': 'user', 'content': 'hello'},
       ]);
+    });
+
+    test('streamChatCompletion inlines image attachments as data URLs',
+        () async {
+      final tempDir = await Directory.systemTemp.createTemp('servllama_test');
+      addTearDown(() => tempDir.delete(recursive: true));
+      final imageFile = File('${tempDir.path}${Platform.pathSeparator}photo.png');
+      const imageBytes = <int>[1, 2, 3, 4];
+      await imageFile.writeAsBytes(imageBytes);
+
+      server.chatResponder = (request) async {
+        request.response.statusCode = 200;
+        request.response.headers.contentType = ContentType(
+          'text',
+          'event-stream',
+        );
+        request.response.add(utf8.encode('data: [DONE]\n\n'));
+        await request.response.close();
+      };
+
+      await client
+          .streamChatCompletion(
+            modelId: 'alpha',
+            messages: <ChatMessageRecord>[
+              ChatMessageRecord(
+                id: 'm1',
+                role: ChatRole.user,
+                content: 'look',
+                createdAt: DateTime(2026, 3, 25),
+                imageFilePaths: <String>[
+                  imageFile.path,
+                  '${tempDir.path}${Platform.pathSeparator}missing.png',
+                ],
+              ),
+            ],
+            cancelToken: CancelToken(),
+          )
+          .toList();
+
+      final messages = server.lastChatRequestBody?['messages'] as List<Object?>;
+      final content = (messages.single as Map)['content'] as List<Object?>;
+      // Text part plus the existing image; the missing file is skipped.
+      expect(content, hasLength(2));
+      expect((content[0] as Map)['type'], 'text');
+      final imagePart = content[1] as Map;
+      expect(imagePart['type'], 'image_url');
+      expect(
+        (imagePart['image_url'] as Map)['url'],
+        'data:image/png;base64,${base64Encode(imageBytes)}',
+      );
+    });
+
+    test('streamChatCompletion decodes multi-byte characters split across chunks', () async {
+      server.chatResponder = (request) async {
+        request.response.statusCode = 200;
+        request.response.headers.contentType = ContentType(
+          'text',
+          'event-stream',
+        );
+        // "你好" split mid-character across two network chunks.
+        final bytes = utf8.encode(
+          'data: {"choices":[{"delta":{"content":"你好"}}]}\n\n',
+        );
+        request.response.add(bytes.sublist(0, 40));
+        await request.response.flush();
+        request.response.add(bytes.sublist(40));
+        request.response.add(utf8.encode('data: [DONE]\n\n'));
+        await request.response.close();
+      };
+
+      final chunks = await client
+          .streamChatCompletion(
+            modelId: 'alpha',
+            messages: const <ChatMessageRecord>[],
+            cancelToken: CancelToken(),
+          )
+          .toList();
+
+      expect(chunks, <ChatStreamDelta>[const ChatStreamDelta(content: '你好')]);
+    });
+
+    test('streamChatCompletion skips malformed SSE data lines', () async {
+      server.chatResponder = (request) async {
+        request.response.statusCode = 200;
+        request.response.headers.contentType = ContentType(
+          'text',
+          'event-stream',
+        );
+        request.response.add(
+          utf8.encode('data: {"choices":[{"delta":{"content":"前"}}]}\n\n'),
+        );
+        request.response.add(utf8.encode('data: not-json at all\n\n'));
+        request.response.add(
+          utf8.encode('data: {"choices":[{"delta":{"content":"后"}}]}\n\n'),
+        );
+        request.response.add(utf8.encode('data: [DONE]\n\n'));
+        await request.response.close();
+      };
+
+      final chunks = await client
+          .streamChatCompletion(
+            modelId: 'alpha',
+            messages: const <ChatMessageRecord>[],
+            cancelToken: CancelToken(),
+          )
+          .toList();
+
+      expect(chunks, <ChatStreamDelta>[
+        const ChatStreamDelta(content: '前'),
+        const ChatStreamDelta(content: '后'),
+      ]);
+    });
+
+    test('streamChatCompletion parses a trailing line without a newline', () async {
+      server.chatResponder = (request) async {
+        request.response.statusCode = 200;
+        request.response.headers.contentType = ContentType(
+          'text',
+          'event-stream',
+        );
+        request.response.add(
+          utf8.encode('data: {"choices":[{"delta":{"content":"尾行"}}]}'),
+        );
+        await request.response.close();
+      };
+
+      final chunks = await client
+          .streamChatCompletion(
+            modelId: 'alpha',
+            messages: const <ChatMessageRecord>[],
+            cancelToken: CancelToken(),
+          )
+          .toList();
+
+      expect(chunks, <ChatStreamDelta>[const ChatStreamDelta(content: '尾行')]);
     });
 
     test('streamChatCompletion surfaces JSON error responses', () async {

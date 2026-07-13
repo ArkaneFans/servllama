@@ -76,5 +76,52 @@ void main() {
       expect(logger.entriesFor(LogChannel.model), hasLength(1));
       provider.dispose();
     });
+
+    test('coalesces a burst of entries into one notification', () async {
+      final logger = AppLogger();
+      final provider = ServerLogsProvider(
+        logger: logger,
+        notifyThrottle: const Duration(milliseconds: 20),
+      );
+      var notifications = 0;
+      provider.addListener(() => notifications += 1);
+
+      for (var i = 0; i < 50; i++) {
+        logger.info('line $i', channel: LogChannel.server, inMemory: true);
+      }
+
+      // Entries are stored immediately; the notification waits for the
+      // throttle window.
+      expect(provider.count, 50);
+      expect(notifications, 0);
+
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+
+      expect(notifications, 1);
+      provider.dispose();
+    });
+
+    test('clear notifies immediately and cancels the pending notification',
+        () async {
+      final logger = AppLogger();
+      final provider = ServerLogsProvider(
+        logger: logger,
+        notifyThrottle: const Duration(milliseconds: 20),
+      );
+      var notifications = 0;
+      provider.addListener(() => notifications += 1);
+
+      logger.info('line', channel: LogChannel.server, inMemory: true);
+      provider.clear();
+
+      expect(provider.isEmpty, isTrue);
+      expect(notifications, 1);
+
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+
+      // The throttled notification was cancelled — no second callback.
+      expect(notifications, 1);
+      provider.dispose();
+    });
   });
 }

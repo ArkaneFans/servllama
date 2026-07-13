@@ -391,33 +391,17 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
   }
 
   @override
-  Future<ChatSessionRecord> saveSessionWithMessages(
-    ChatSessionRecord session,
-    List<ChatMessageRecord> sessionMessages,
-  ) async {
-    final savedMessages = sessionMessages
-        .map((message) => message.copyWith(sessionId: session.id))
-        .toList(growable: false);
-    for (final message in savedMessages) {
-      messages[message.id] = message;
-    }
-    final cleanSession = session.copyWith(
-      messageIds: savedMessages
-          .map((message) => message.id)
-          .toList(growable: false),
-      legacyMessages: const <ChatMessageRecord>[],
-    );
-    final index = sessions.indexWhere((item) => item.id == session.id);
-    if (index >= 0) {
-      sessions[index] = cleanSession;
-    } else {
-      sessions.add(cleanSession);
-    }
-    return cleanSession;
+  Future<void> warmUpMessageStore() async {}
+
+  @override
+  Future<void> saveMessage(ChatMessageRecord message) async {
+    messages[message.id] = message;
   }
 
   @override
-  Future<void> warmUpMessageStore() async {}
+  Future<ChatMessageRecord?> loadMessage(String messageId) async {
+    return messages[messageId];
+  }
 
   @override
   Future<void> deleteSession(String sessionId) async {
