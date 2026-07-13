@@ -67,5 +67,54 @@ void main() {
 
       expect(committed, contains(6));
     });
+
+    testWidgets('commits when the field loses focus without the IME action', (
+      tester,
+    ) async {
+      final committed = <int>[];
+      await tester.pumpWidget(
+        wrap(
+          SliderNumberSetting(
+            label: 'Threads',
+            value: 2,
+            min: 1,
+            max: 8,
+            onChanged: committed.add,
+          ),
+        ),
+      );
+
+      await tester.enterText(find.byType(TextField), '6');
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pump();
+
+      expect(committed, <int>[6]);
+    });
+
+    testWidgets('clamps out-of-range input and corrects the text on blur', (
+      tester,
+    ) async {
+      final committed = <int>[];
+      await tester.pumpWidget(
+        wrap(
+          SliderNumberSetting(
+            label: 'Threads',
+            value: 2,
+            min: 1,
+            max: 8,
+            onChanged: committed.add,
+          ),
+        ),
+      );
+
+      await tester.enterText(find.byType(TextField), '99');
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pump();
+
+      expect(committed, <int>[8]);
+      final controller =
+          tester.widget<TextField>(find.byType(TextField)).controller!;
+      expect(controller.text, '8');
+    });
   });
 }

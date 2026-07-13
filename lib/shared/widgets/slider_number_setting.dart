@@ -32,6 +32,7 @@ class SliderNumberSetting extends StatefulWidget {
 
 class _SliderNumberSettingState extends State<SliderNumberSetting> {
   late final TextEditingController _controller;
+  late final FocusNode _focusNode;
 
   // Slider position while a drag is in progress. Commits (widget.onChanged,
   // which persists) happen once on drag end, not per tick.
@@ -41,6 +42,13 @@ class _SliderNumberSettingState extends State<SliderNumberSetting> {
   void initState() {
     super.initState();
     _controller = TextEditingController(text: _displayValue(widget.value));
+    _focusNode = FocusNode()..addListener(_handleFocusChanged);
+  }
+
+  void _handleFocusChanged() {
+    if (!_focusNode.hasFocus) {
+      _handleSubmitted(_controller.text);
+    }
   }
 
   @override
@@ -58,6 +66,7 @@ class _SliderNumberSettingState extends State<SliderNumberSetting> {
 
   @override
   void dispose() {
+    _focusNode.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -138,12 +147,14 @@ class _SliderNumberSettingState extends State<SliderNumberSetting> {
               width: 76,
               child: TextField(
                 controller: _controller,
+                focusNode: _focusNode,
                 textAlign: TextAlign.center,
                 keyboardType: widget.specialValue != null
                     ? const TextInputType.numberWithOptions(signed: true)
                     : TextInputType.number,
-                onSubmitted: _handleSubmitted,
-                onEditingComplete: () => _handleSubmitted(_controller.text),
+                // Committing happens on focus loss — the IME done action
+                // unfocuses via the default onEditingComplete, so both paths
+                // converge on _handleFocusChanged.
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: colorScheme.surfaceContainerHighest.withAlpha(90),
@@ -195,6 +206,9 @@ class _SliderNumberSettingState extends State<SliderNumberSetting> {
 
     final nextValue = parsedValue.clamp(widget.min, widget.max);
     widget.onChanged(nextValue);
+    // A clamped input can equal the current value, in which case no rebuild
+    // arrives to correct the text — sync it explicitly.
+    _controller.text = _displayValue(nextValue);
   }
 
   String _displayValue(int value) {
