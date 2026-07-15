@@ -23,6 +23,9 @@ void main() {
       expect(settings.host, '127.0.0.1');
       expect(settings.port, ServerLaunchSettings.defaultPort);
       expect(settings.apiKey, isEmpty);
+      expect(settings.device, ServerLaunchSettings.defaultDevice);
+      expect(settings.isCpuDevice, isTrue);
+      expect(settings.gpuLayers, ServerLaunchSettings.autoGpuLayers);
       expect(settings.contextSize, ServerLaunchSettings.defaultContextSize);
       expect(settings.cpuThreads, ServerLaunchSettings.defaultCpuThreads);
       expect(settings.batchSize, ServerLaunchSettings.defaultBatchSize);
@@ -45,6 +48,8 @@ void main() {
         ServerPrefsKeys.listenMode: ServerListenMode.allInterfaces.name,
         ServerPrefsKeys.port: 70000,
         ServerPrefsKeys.apiKey: '  secret  ',
+        ServerPrefsKeys.device: '  GPUOpenCL  ',
+        ServerPrefsKeys.gpuLayers: 500,
         ServerPrefsKeys.contextSize: 128,
         ServerPrefsKeys.cpuThreads: 128,
         ServerPrefsKeys.batchSize: 5000,
@@ -64,6 +69,9 @@ void main() {
       expect(settings.host, '0.0.0.0');
       expect(settings.port, ServerLaunchSettings.maxPort);
       expect(settings.apiKey, 'secret');
+      expect(settings.device, 'GPUOpenCL');
+      expect(settings.isCpuDevice, isFalse);
+      expect(settings.gpuLayers, ServerLaunchSettings.maxGpuLayers);
       expect(settings.contextSize, ServerLaunchSettings.minContextSize);
       expect(settings.cpuThreads, ServerLaunchSettings.maxCpuThreads);
       expect(settings.batchSize, ServerLaunchSettings.maxBatchSize);
@@ -90,6 +98,18 @@ void main() {
 
       expect(settings.cpuThreads, ServerLaunchSettings.defaultCpuThreads);
       expect(settings.parallelSlots, ServerLaunchSettings.defaultParallelSlots);
+    });
+
+    test('collapses any negative stored gpu layers to the auto sentinel', () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        ServerPrefsKeys.gpuLayers: -5,
+      });
+      kvStorage = KvStorage();
+      loader = ServerLaunchSettingsLoader(kvStorage: kvStorage);
+
+      final settings = await loader.load();
+
+      expect(settings.gpuLayers, ServerLaunchSettings.autoGpuLayers);
     });
 
     test('falls back to defaults for invalid enum names', () async {

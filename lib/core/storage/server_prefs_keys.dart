@@ -4,6 +4,8 @@ class ServerPrefsKeys {
   static const String listenMode = 'server.listen_mode';
   static const String port = 'server.port';
   static const String apiKey = 'server.api_key';
+  static const String device = 'server.device';
+  static const String gpuLayers = 'server.gpu_layers';
   static const String contextSize = 'server.context_size';
   static const String cpuThreads = 'server.cpu_threads';
   static const String batchSize = 'server.batch_size';

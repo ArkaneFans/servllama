@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/core/services/app_l10n_service.dart';
 import 'package:servllama/core/services/foreground_task_service.dart';
+import 'package:servllama/core/services/llama_device_list_parser.dart';
 import 'package:servllama/core/services/native_library_dir_service.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
 
@@ -38,6 +39,7 @@ class LlamaServerService {
   bool _legacyCleanupStarted = false;
 
   static const Duration _gracefulStopTimeout = Duration(seconds: 3);
+  static const Duration _listDevicesTimeout = Duration(seconds: 10);
 
   Process? _process;
   bool _isStarting = false;
@@ -76,6 +78,94 @@ class LlamaServerService {
     _foregroundTaskInitialized = true;
   }
 
+  Map<String, String> _processEnvironment(String nativeLibraryDir) {
+    return {
+      // Vendor dirs are appended so the backends can dlopen Qualcomm
+      // public libraries (libcdsprpc.so for Hexagon, libOpenCL.so for
+      // OpenCL) — the spawned process does not inherit the app
+      // classloader namespace that normally exposes them.
+      'LD_LIBRARY_PATH': '$nativeLibraryDir:/vendor/lib64:/odm/lib64',
+      // Required by FastRPC to locate the libggml-htp-vNN.so NPU-side
+      // libraries when the Hexagon backend is used.
+      'ADSP_LIBRARY_PATH': nativeLibraryDir,
+    };
+  }
+
+  /// Enumerates offload-capable devices (`--list-devices`) in a standalone
+  /// short-lived process, using the same binary and environment as
+  /// [startServer] so the result matches what a real launch would see.
+  /// Returns an empty list on any failure; callers treat that as CPU-only.
+  Future<List<String>> listDevices() async {
+    try {
+      final nativeLibraryDir =
+          await _nativeLibraryDirService.getNativeLibraryDir();
+      final binaryPath = '$nativeLibraryDir/$_binaryFileName';
+      final process = await Process.start(
+        binaryPath,
+        const ['--list-devices'],
+        runInShell: false,
+        environment: _processEnvironment(nativeLibraryDir),
+      );
+      final stdoutFuture = process.stdout
+          .transform(const Utf8Decoder(allowMalformed: true))
+          .join();
+      final stderrFuture = process.stderr
+          .transform(const Utf8Decoder(allowMalformed: true))
+          .join();
+
+      final int exitCode;
+      try {
+        exitCode = await process.exitCode.timeout(_listDevicesTimeout);
+      } on TimeoutException {
+        process.kill(ProcessSignal.sigkill);
+        await process.exitCode;
+        _logger.warning(
+          'Device detection timed out',
+          channel: LogChannel.server,
+          inMemory: true,
+        );
+        return const <String>[];
+      }
+
+      final stdoutText = await stdoutFuture;
+      await stderrFuture;
+      if (exitCode != 0) {
+        _logger.warning(
+          'Device detection exited with code $exitCode',
+          channel: LogChannel.server,
+          inMemory: true,
+        );
+        return const <String>[];
+      }
+
+      final devices = LlamaDeviceListParser.parse(stdoutText);
+      if (devices.isEmpty) {
+        // Keep the raw output around: an unexpected format change would
+        // otherwise be indistinguishable from "no devices".
+        _logger.info(
+          'No offload devices detected. Output: ${stdoutText.trim()}',
+          channel: LogChannel.server,
+          inMemory: true,
+        );
+      } else {
+        _logger.info(
+          'Detected offload devices: ${devices.join(', ')}',
+          channel: LogChannel.server,
+          inMemory: true,
+        );
+      }
+      return devices;
+    } catch (error) {
+      _logger.warning(
+        'Device detection failed',
+        channel: LogChannel.server,
+        inMemory: true,
+        error: error,
+      );
+      return const <String>[];
+    }
+  }
+
   Future<bool> startServer({List<String>? args}) async {
     if (_process != null || _isStarting) {
       _logger.warning('Server is already running', channel: LogChannel.server, inMemory: true);
@@ -102,16 +192,7 @@ class LlamaServerService {
         binaryPath,
         arguments,
         runInShell: false,
-        environment: {
-          // Vendor dirs are appended so the backends can dlopen Qualcomm
-          // public libraries (libcdsprpc.so for Hexagon, libOpenCL.so for
-          // OpenCL) — the spawned process does not inherit the app
-          // classloader namespace that normally exposes them.
-          'LD_LIBRARY_PATH': '$nativeLibraryDir:/vendor/lib64:/odm/lib64',
-          // Required by FastRPC to locate the libggml-htp-vNN.so NPU-side
-          // libraries when the Hexagon backend is used.
-          'ADSP_LIBRARY_PATH': nativeLibraryDir,
-        },
+        environment: _processEnvironment(nativeLibraryDir),
       );
 
       _process = process;

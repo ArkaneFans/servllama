@@ -42,6 +42,8 @@ void main() {
           '11434',
           '--models-dir',
           'C:\\app\\models',
+          '--device',
+          'none',
           '--ctx-size',
           '8192',
           '--batch-size',
@@ -201,6 +203,9 @@ class FixedServerLaunchSettingsLoader extends ServerLaunchSettingsLoader {
 class FakeLlamaServerService implements LlamaServerService {
   final StreamController<bool> _runningStateController =
       StreamController<bool>.broadcast();
+
+  @override
+  Future<List<String>> listDevices() async => const <String>[];
 
   @override
   Stream<String> get logStream => const Stream<String>.empty();

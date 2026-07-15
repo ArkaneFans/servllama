@@ -110,6 +110,12 @@ abstract class AppLocalizations {
   /// **'Auto'**
   String get commonAuto;
 
+  /// No description provided for @commonCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get commonCustom;
+
   /// No description provided for @commonOptional.
   ///
   /// In en, this message translates to:
@@ -865,6 +871,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Leave empty to disable verification'**
   String get serverConfigApiKeyDescription;
+
+  /// No description provided for @serverConfigSectionComputeDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Compute device'**
+  String get serverConfigSectionComputeDevice;
+
+  /// No description provided for @serverConfigDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Device'**
+  String get serverConfigDevice;
+
+  /// No description provided for @serverConfigDeviceDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Where inference runs. CPU disables accelerator offloading.'**
+  String get serverConfigDeviceDescription;
+
+  /// No description provided for @serverConfigDeviceCpu.
+  ///
+  /// In en, this message translates to:
+  /// **'CPU'**
+  String get serverConfigDeviceCpu;
+
+  /// No description provided for @serverConfigDeviceDetecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Detecting available devices...'**
+  String get serverConfigDeviceDetecting;
+
+  /// No description provided for @serverConfigDeviceNoneFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No accelerator devices detected'**
+  String get serverConfigDeviceNoneFound;
+
+  /// No description provided for @serverConfigGpuLayers.
+  ///
+  /// In en, this message translates to:
+  /// **'GPU offload layers'**
+  String get serverConfigGpuLayers;
+
+  /// No description provided for @serverConfigGpuLayersDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'How many model layers are offloaded to the selected device. Auto offloads as many as possible.'**
+  String get serverConfigGpuLayersDescription;
+
+  /// No description provided for @serverConfigGpuLayersCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Layers'**
+  String get serverConfigGpuLayersCount;
 
   /// No description provided for @serverConfigSectionInference.
   ///

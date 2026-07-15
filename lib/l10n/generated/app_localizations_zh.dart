@@ -15,6 +15,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get commonAuto => '自动';
 
   @override
+  String get commonCustom => '自定义';
+
+  @override
   String get commonOptional => '可选';
 
   @override
@@ -419,6 +422,33 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get serverConfigApiKeyDescription => '留空则不启用校验';
+
+  @override
+  String get serverConfigSectionComputeDevice => '计算设备';
+
+  @override
+  String get serverConfigDevice => '设备';
+
+  @override
+  String get serverConfigDeviceDescription => '推理运行的设备，CPU 表示不卸载到加速设备';
+
+  @override
+  String get serverConfigDeviceCpu => 'CPU';
+
+  @override
+  String get serverConfigDeviceDetecting => '正在检测可用设备…';
+
+  @override
+  String get serverConfigDeviceNoneFound => '未检测到可用的加速设备';
+
+  @override
+  String get serverConfigGpuLayers => 'GPU 卸载层数';
+
+  @override
+  String get serverConfigGpuLayersDescription => '卸载到所选设备的模型层数，自动会尽可能全部卸载';
+
+  @override
+  String get serverConfigGpuLayersCount => '层数';
 
   @override
   String get serverConfigSectionInference => '推理参数';

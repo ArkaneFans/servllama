@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/core/providers/server_config_provider.dart';
 import 'package:servllama/core/providers/server_provider.dart';
+import 'package:servllama/shared/widgets/choice_list_setting.dart';
 import 'package:servllama/shared/widgets/outlined_text_setting.dart';
 import 'package:servllama/shared/widgets/segmented_setting.dart';
 import 'package:servllama/shared/widgets/settings_section.dart';
@@ -56,6 +59,8 @@ class _ServerConfigViewState extends State<_ServerConfigView> {
         host: configProvider.host,
         port: configProvider.port,
       );
+      // Runs after load so reconciliation sees the persisted device.
+      unawaited(configProvider.detectDevices());
     });
   }
 
@@ -130,6 +135,55 @@ class _ServerConfigViewState extends State<_ServerConfigView> {
                                   value: provider.apiKey,
                                   onChanged: provider.updateApiKey,
                                 ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          SettingsSection(
+                            title: l10n.serverConfigSectionComputeDevice,
+                            child: _SectionItems(
+                              children: [
+                                _ComputeDeviceSelector(provider: provider),
+                                if (provider.device.isNotEmpty)
+                                  SegmentedSetting<bool>(
+                                    label: l10n.serverConfigGpuLayers,
+                                    description:
+                                        l10n.serverConfigGpuLayersDescription,
+                                    value:
+                                        provider.gpuLayers ==
+                                        ServerLaunchSettings.autoGpuLayers,
+                                    options: [
+                                      SegmentedSettingOption(
+                                        value: true,
+                                        label: l10n.commonAuto,
+                                      ),
+                                      SegmentedSettingOption(
+                                        value: false,
+                                        label: l10n.commonCustom,
+                                      ),
+                                    ],
+                                    onChanged: (isAuto) =>
+                                        provider.updateGpuLayers(
+                                          isAuto
+                                              ? ServerLaunchSettings
+                                                    .autoGpuLayers
+                                              : ServerLaunchSettings
+                                                    .maxGpuLayers,
+                                        ),
+                                  ),
+                                if (provider.device.isNotEmpty &&
+                                    provider.gpuLayers !=
+                                        ServerLaunchSettings.autoGpuLayers)
+                                  SliderNumberSetting(
+                                    label: l10n.serverConfigGpuLayersCount,
+                                    value: provider.gpuLayers,
+                                    min: ServerLaunchSettings.minGpuLayers,
+                                    max: ServerLaunchSettings.maxGpuLayers,
+                                    divisions:
+                                        ServerLaunchSettings.maxGpuLayers -
+                                        ServerLaunchSettings.minGpuLayers,
+                                    onChanged: provider.updateGpuLayers,
+                                  ),
                               ],
                             ),
                           ),
@@ -351,6 +405,66 @@ class _ServerConfigViewState extends State<_ServerConfigView> {
   static int _roundToStep(int value, int step) {
     final roundedValue = (value / step).round() * step;
     return roundedValue < step ? step : roundedValue;
+  }
+}
+
+class _ComputeDeviceSelector extends StatelessWidget {
+  const _ComputeDeviceSelector({required this.provider});
+
+  final ServerConfigProvider provider;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final l10n = context.l10n;
+    final hintStyle = theme.textTheme.bodySmall?.copyWith(
+      color: colorScheme.onSurfaceVariant,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ChoiceListSetting<String>(
+          label: l10n.serverConfigDevice,
+          description: l10n.serverConfigDeviceDescription,
+          value: provider.device,
+          enabled:
+              !provider.isDetectingDevices &&
+              provider.deviceOptions.isNotEmpty,
+          options: [
+            ChoiceListOption(
+              value: ServerLaunchSettings.defaultDevice,
+              label: l10n.serverConfigDeviceCpu,
+            ),
+            for (final deviceId in provider.deviceOptions)
+              ChoiceListOption(value: deviceId, label: deviceId),
+          ],
+          onChanged: provider.updateDevice,
+        ),
+        if (provider.isDetectingDevices)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Row(
+              children: [
+                const SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                const SizedBox(width: 8),
+                Text(l10n.serverConfigDeviceDetecting, style: hintStyle),
+              ],
+            ),
+          )
+        else if (provider.hasCompletedDeviceDetection &&
+            provider.availableDevices.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(l10n.serverConfigDeviceNoneFound, style: hintStyle),
+          ),
+      ],
+    );
   }
 }
 

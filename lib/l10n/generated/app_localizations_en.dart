@@ -15,6 +15,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonAuto => 'Auto';
 
   @override
+  String get commonCustom => 'Custom';
+
+  @override
   String get commonOptional => 'Optional';
 
   @override
@@ -428,6 +431,35 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get serverConfigApiKeyDescription =>
       'Leave empty to disable verification';
+
+  @override
+  String get serverConfigSectionComputeDevice => 'Compute device';
+
+  @override
+  String get serverConfigDevice => 'Device';
+
+  @override
+  String get serverConfigDeviceDescription =>
+      'Where inference runs. CPU disables accelerator offloading.';
+
+  @override
+  String get serverConfigDeviceCpu => 'CPU';
+
+  @override
+  String get serverConfigDeviceDetecting => 'Detecting available devices...';
+
+  @override
+  String get serverConfigDeviceNoneFound => 'No accelerator devices detected';
+
+  @override
+  String get serverConfigGpuLayers => 'GPU offload layers';
+
+  @override
+  String get serverConfigGpuLayersDescription =>
+      'How many model layers are offloaded to the selected device. Auto offloads as many as possible.';
+
+  @override
+  String get serverConfigGpuLayersCount => 'Layers';
 
   @override
   String get serverConfigSectionInference => 'Inference';

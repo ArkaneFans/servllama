@@ -9,6 +9,8 @@ class ServerLaunchSettings {
     this.listenMode = ServerListenMode.localhost,
     this.port = defaultPort,
     this.apiKey = '',
+    this.device = defaultDevice,
+    this.gpuLayers = defaultGpuLayers,
     this.contextSize = defaultContextSize,
     this.cpuThreads = defaultCpuThreads,
     this.batchSize = defaultBatchSize,
@@ -23,6 +25,15 @@ class ServerLaunchSettings {
   static const int defaultPort = 8080;
   static const int minPort = 1;
   static const int maxPort = 65535;
+
+  /// Empty string means CPU-only inference (`--device none`).
+  static const String defaultDevice = '';
+
+  /// -1 lets llama-server decide how many layers to offload.
+  static const int autoGpuLayers = -1;
+  static const int defaultGpuLayers = autoGpuLayers;
+  static const int minGpuLayers = 0;
+  static const int maxGpuLayers = 99;
 
   static const int defaultContextSize = 4096;
   static const int minContextSize = 512;
@@ -51,6 +62,8 @@ class ServerLaunchSettings {
   final ServerListenMode listenMode;
   final int port;
   final String apiKey;
+  final String device;
+  final int gpuLayers;
   final int contextSize;
   final int cpuThreads;
   final int batchSize;
@@ -61,6 +74,8 @@ class ServerLaunchSettings {
   final bool logEnabled;
   final ServerLogLevel logLevel;
 
+  bool get isCpuDevice => device.isEmpty;
+
   String get host =>
       listenMode == ServerListenMode.localhost ? '127.0.0.1' : '0.0.0.0';
 
@@ -68,6 +83,8 @@ class ServerLaunchSettings {
     ServerListenMode? listenMode,
     int? port,
     String? apiKey,
+    String? device,
+    int? gpuLayers,
     int? contextSize,
     int? cpuThreads,
     int? batchSize,
@@ -82,6 +99,8 @@ class ServerLaunchSettings {
       listenMode: listenMode ?? this.listenMode,
       port: port ?? this.port,
       apiKey: apiKey ?? this.apiKey,
+      device: device ?? this.device,
+      gpuLayers: gpuLayers ?? this.gpuLayers,
       contextSize: contextSize ?? this.contextSize,
       cpuThreads: cpuThreads ?? this.cpuThreads,
       batchSize: batchSize ?? this.batchSize,

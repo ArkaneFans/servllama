@@ -30,6 +30,7 @@ void main() {
       final configProvider = ServerConfigProvider(
         kvStorage: kvStorage,
         settingsLoader: loader,
+        deviceLister: () async => const <String>[],
       );
       final serverService = _FakeLlamaServerService();
       final serverProvider = ServerProvider(
@@ -60,6 +61,9 @@ void main() {
         const ServerLaunchSettings(contextSize: 8192, batchSize: 1024),
       );
       await tester.pumpAndSettle();
+      // The compute device section sits above; bring inference into view.
+      await tester.drag(find.byType(ListView), const Offset(0, -400));
+      await tester.pumpAndSettle();
 
       expect(find.text('推理参数'), findsOneWidget);
       expect(find.text('上下文长度'), findsOneWidget);
@@ -76,7 +80,10 @@ void main() {
       tester,
     ) async {
       final kvStorage = KvStorage();
-      final configProvider = ServerConfigProvider(kvStorage: kvStorage);
+      final configProvider = ServerConfigProvider(
+        kvStorage: kvStorage,
+        deviceLister: () async => const <String>[],
+      );
       final serverService = _FakeLlamaServerService();
       final serverProvider = ServerProvider(
         serverService: serverService,
@@ -124,7 +131,10 @@ void main() {
       tester,
     ) async {
       final kvStorage = KvStorage();
-      final configProvider = ServerConfigProvider(kvStorage: kvStorage);
+      final configProvider = ServerConfigProvider(
+        kvStorage: kvStorage,
+        deviceLister: () async => const <String>[],
+      );
       final serverService = _FakeLlamaServerService();
       final serverProvider = ServerProvider(
         serverService: serverService,
@@ -146,7 +156,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.drag(find.byType(ListView), const Offset(0, -900));
+      await tester.drag(find.byType(ListView), const Offset(0, -1200));
       await tester.pumpAndSettle();
 
       expect(find.text('日志'), findsOneWidget);
@@ -157,11 +167,110 @@ void main() {
       expect(configProvider.logLevel, ServerLogLevel.info);
     });
 
+    testWidgets('lists detected devices and reveals gpu layer controls', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(800, 1400));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final kvStorage = KvStorage();
+      final configProvider = ServerConfigProvider(
+        kvStorage: kvStorage,
+        deviceLister: () async => const <String>['GPUOpenCL', 'HTP0'],
+      );
+      final serverService = _FakeLlamaServerService();
+      final serverProvider = ServerProvider(
+        serverService: serverService,
+        settingsLoader: _FixedServerLaunchSettingsLoader(
+          const ServerLaunchSettings(),
+        ),
+        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+      );
+      addTearDown(() {
+        configProvider.dispose();
+        serverProvider.dispose();
+        serverService.dispose();
+      });
+
+      await tester.pumpWidget(
+        _TestApp(
+          serverProvider: serverProvider,
+          child: ServerConfigPage(provider: configProvider),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('计算设备'), findsOneWidget);
+      expect(find.text('CPU'), findsOneWidget);
+      expect(find.text('GPUOpenCL'), findsOneWidget);
+      expect(find.text('HTP0'), findsOneWidget);
+      // CPU is selected — no offload controls.
+      expect(find.text('GPU 卸载层数'), findsNothing);
+
+      await tester.tap(find.text('GPUOpenCL'));
+      await tester.pumpAndSettle();
+
+      expect(configProvider.device, 'GPUOpenCL');
+      expect(await kvStorage.getString(ServerPrefsKeys.device), 'GPUOpenCL');
+      expect(find.text('GPU 卸载层数'), findsOneWidget);
+      expect(configProvider.gpuLayers, ServerLaunchSettings.autoGpuLayers);
+      expect(find.text('层数'), findsNothing);
+
+      await tester.tap(find.text('自定义'));
+      await tester.pumpAndSettle();
+
+      expect(configProvider.gpuLayers, ServerLaunchSettings.maxGpuLayers);
+      expect(
+        await kvStorage.getInt(ServerPrefsKeys.gpuLayers),
+        ServerLaunchSettings.maxGpuLayers,
+      );
+      expect(find.text('层数'), findsOneWidget);
+    });
+
+    testWidgets('locks the selector to CPU when no devices are detected', (
+      tester,
+    ) async {
+      final kvStorage = KvStorage();
+      final configProvider = ServerConfigProvider(
+        kvStorage: kvStorage,
+        deviceLister: () async => const <String>[],
+      );
+      final serverService = _FakeLlamaServerService();
+      final serverProvider = ServerProvider(
+        serverService: serverService,
+        settingsLoader: _FixedServerLaunchSettingsLoader(
+          const ServerLaunchSettings(),
+        ),
+        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+      );
+      addTearDown(() {
+        configProvider.dispose();
+        serverProvider.dispose();
+        serverService.dispose();
+      });
+
+      await tester.pumpWidget(
+        _TestApp(
+          serverProvider: serverProvider,
+          child: ServerConfigPage(provider: configProvider),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('CPU'), findsOneWidget);
+      expect(find.text('未检测到可用的加速设备'), findsOneWidget);
+      expect(find.text('GPU 卸载层数'), findsNothing);
+      expect(configProvider.device, ServerLaunchSettings.defaultDevice);
+    });
+
     testWidgets('removes fixed action bar and saves port changes immediately', (
       tester,
     ) async {
       final kvStorage = KvStorage();
-      final configProvider = ServerConfigProvider(kvStorage: kvStorage);
+      final configProvider = ServerConfigProvider(
+        kvStorage: kvStorage,
+        deviceLister: () async => const <String>[],
+      );
       final serverService = _FakeLlamaServerService();
       final serverProvider = ServerProvider(
         serverService: serverService,
@@ -211,7 +320,10 @@ void main() {
       });
 
       final kvStorage = KvStorage();
-      final configProvider = ServerConfigProvider(kvStorage: kvStorage);
+      final configProvider = ServerConfigProvider(
+        kvStorage: kvStorage,
+        deviceLister: () async => const <String>[],
+      );
       final serverService = _FakeLlamaServerService();
       final serverProvider = ServerProvider(
         serverService: serverService,
@@ -238,7 +350,7 @@ void main() {
       expect(configProvider.port, 9000);
       expect(serverProvider.displayAddress, '0.0.0.0:9000');
 
-      await tester.drag(find.byType(ListView), const Offset(0, -1200));
+      await tester.drag(find.byType(ListView), const Offset(0, -1500));
       await tester.pumpAndSettle();
       final restoreDefaultTile = find.widgetWithText(ListTile, '恢复默认配置');
       expect(restoreDefaultTile, findsOneWidget);
@@ -246,7 +358,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('恢复默认配置'), findsNWidgets(2));
-      expect(find.text('所有配置项将恢复默认值并立即保存，确定继续吗？'), findsOneWidget);
+      expect(find.text('所有配置项将恢复默认值，确定继续吗？'), findsOneWidget);
 
       await tester.tap(find.text('取消'));
       await tester.pumpAndSettle();
@@ -332,6 +444,9 @@ class _CompleterServerLaunchSettingsLoader extends ServerLaunchSettingsLoader {
 class _FakeLlamaServerService implements LlamaServerService {
   final StreamController<bool> _runningStateController =
       StreamController<bool>.broadcast();
+
+  @override
+  Future<List<String>> listDevices() async => const <String>[];
 
   @override
   Stream<String> get logStream => const Stream<String>.empty();

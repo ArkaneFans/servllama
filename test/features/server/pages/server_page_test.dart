@@ -281,6 +281,9 @@ class _ControllableLlamaServerService implements LlamaServerService {
   bool _isRunning;
 
   @override
+  Future<List<String>> listDevices() async => const <String>[];
+
+  @override
   Stream<String> get logStream => const Stream<String>.empty();
 
   @override

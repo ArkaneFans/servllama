@@ -190,6 +190,9 @@ class FakeLlamaServerService implements LlamaServerService {
       StreamController<bool>.broadcast();
 
   @override
+  Future<List<String>> listDevices() async => const <String>[];
+
+  @override
   Stream<String> get logStream => const Stream<String>.empty();
 
   @override

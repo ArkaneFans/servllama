@@ -20,6 +20,10 @@ class ServerLaunchSettingsLoader {
         ServerLaunchSettings.maxPort,
       ),
       apiKey: (await _kvStorage.getString(ServerPrefsKeys.apiKey) ?? '').trim(),
+      device: (await _kvStorage.getString(ServerPrefsKeys.device) ?? '').trim(),
+      gpuLayers: _readGpuLayers(
+        await _kvStorage.getInt(ServerPrefsKeys.gpuLayers),
+      ),
       contextSize: _clamp(
         await _kvStorage.getInt(ServerPrefsKeys.contextSize) ??
             ServerLaunchSettings.defaultContextSize,
@@ -72,6 +76,8 @@ class ServerLaunchSettingsLoader {
     );
     await _kvStorage.setInt(ServerPrefsKeys.port, settings.port);
     await _kvStorage.setString(ServerPrefsKeys.apiKey, settings.apiKey);
+    await _kvStorage.setString(ServerPrefsKeys.device, settings.device);
+    await _kvStorage.setInt(ServerPrefsKeys.gpuLayers, settings.gpuLayers);
     await _kvStorage.setInt(ServerPrefsKeys.contextSize, settings.contextSize);
     await _kvStorage.setInt(ServerPrefsKeys.cpuThreads, settings.cpuThreads);
     await _kvStorage.setInt(ServerPrefsKeys.batchSize, settings.batchSize);
@@ -129,6 +135,19 @@ class ServerLaunchSettingsLoader {
     } catch (_) {
       return ServerLaunchSettings.defaultLogLevel;
     }
+  }
+
+  /// Any negative stored value collapses to the auto sentinel; positive
+  /// values clamp into the custom range.
+  int _readGpuLayers(int? savedLayers) {
+    if (savedLayers == null || savedLayers < ServerLaunchSettings.minGpuLayers) {
+      return ServerLaunchSettings.autoGpuLayers;
+    }
+    return _clamp(
+      savedLayers,
+      ServerLaunchSettings.minGpuLayers,
+      ServerLaunchSettings.maxGpuLayers,
+    );
   }
 
   int _clamp(int value, int min, int max) {

@@ -14,6 +14,11 @@ class ServerLaunchArgsBuilder {
       '${settings.port}',
       '--models-dir',
       modelsDirectoryPath,
+      // Accelerator backends are dlopen'd automatically and -ngl defaults to
+      // auto-offload, so CPU-only inference must be pinned explicitly with
+      // "none".
+      '--device',
+      settings.isCpuDevice ? 'none' : settings.device,
       '--ctx-size',
       '${settings.contextSize}',
       '--batch-size',
@@ -27,6 +32,12 @@ class ServerLaunchArgsBuilder {
       '--flash-attn',
       settings.flashAttentionMode.cliValue,
     ];
+    if (!settings.isCpuDevice &&
+        settings.gpuLayers != ServerLaunchSettings.autoGpuLayers) {
+      args
+        ..add('--gpu-layers')
+        ..add('${settings.gpuLayers}');
+    }
     if (!settings.useMmap) {
       args.add('--no-mmap');
     }

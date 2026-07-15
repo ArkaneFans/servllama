@@ -20,6 +20,8 @@ void main() {
           '8080',
           '--models-dir',
           modelsDirectoryPath,
+          '--device',
+          'none',
           '--ctx-size',
           '4096',
           '--batch-size',
@@ -62,6 +64,8 @@ void main() {
           '11434',
           '--models-dir',
           modelsDirectoryPath,
+          '--device',
+          'none',
           '--ctx-size',
           '8192',
           '--batch-size',
@@ -83,6 +87,36 @@ void main() {
       );
     });
 
+    test('passes the selected device and omits gpu layers in auto mode', () {
+      const settings = ServerLaunchSettings(device: 'GPUOpenCL');
+
+      final args = builder.build(
+        settings,
+        modelsDirectoryPath: modelsDirectoryPath,
+      );
+
+      expect(args, containsAllInOrder(<String>['--device', 'GPUOpenCL']));
+      expect(args, isNot(contains('--gpu-layers')));
+    });
+
+    test('passes custom gpu layers only for a non-CPU device', () {
+      const settings = ServerLaunchSettings(device: 'HTP0', gpuLayers: 32);
+
+      final args = builder.build(
+        settings,
+        modelsDirectoryPath: modelsDirectoryPath,
+      );
+
+      expect(args, containsAllInOrder(<String>['--device', 'HTP0']));
+      expect(args, containsAllInOrder(<String>['--gpu-layers', '32']));
+
+      const cpuSettings = ServerLaunchSettings(gpuLayers: 32);
+      expect(
+        builder.build(cpuSettings, modelsDirectoryPath: modelsDirectoryPath),
+        isNot(contains('--gpu-layers')),
+      );
+    });
+
     test('disables llama-server logs without passing a verbosity threshold', () {
       const settings = ServerLaunchSettings(logEnabled: false);
 
@@ -95,6 +129,8 @@ void main() {
           '8080',
           '--models-dir',
           modelsDirectoryPath,
+          '--device',
+          'none',
           '--ctx-size',
           '4096',
           '--batch-size',

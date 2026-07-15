@@ -101,6 +101,8 @@ void main() {
       await provider.updateListenMode(ServerListenMode.allInterfaces);
       await provider.updatePort(9001);
       await provider.updateApiKey('secret');
+      await provider.updateDevice('Vulkan0');
+      await provider.updateGpuLayers(32);
       await provider.updateContextSize(8192);
       await provider.updateCpuThreads(8);
       await provider.updateBatchSize(1024);
@@ -115,6 +117,8 @@ void main() {
       expect(provider.listenMode, ServerListenMode.localhost);
       expect(provider.port, ServerLaunchSettings.defaultPort);
       expect(provider.apiKey, isEmpty);
+      expect(provider.device, ServerLaunchSettings.defaultDevice);
+      expect(provider.gpuLayers, ServerLaunchSettings.autoGpuLayers);
       expect(provider.contextSize, ServerLaunchSettings.defaultContextSize);
       expect(provider.cpuThreads, ServerLaunchSettings.defaultCpuThreads);
       expect(provider.batchSize, ServerLaunchSettings.defaultBatchSize);
@@ -181,6 +185,64 @@ void main() {
         await kvStorage.getInt(ServerPrefsKeys.parallelSlots),
         ServerLaunchSettings.maxParallelSlots,
       );
+    });
+
+    test('detectDevices keeps a still-listed device selected', () async {
+      final kvStorage = KvStorage();
+      final provider = ServerConfigProvider(
+        kvStorage: kvStorage,
+        deviceLister: () async => <String>['GPUOpenCL', 'HTP0'],
+      );
+      await provider.updateDevice('HTP0');
+
+      expect(provider.hasCompletedDeviceDetection, isFalse);
+
+      await provider.detectDevices();
+
+      expect(provider.availableDevices, <String>['GPUOpenCL', 'HTP0']);
+      expect(provider.hasCompletedDeviceDetection, isTrue);
+      expect(provider.isDetectingDevices, isFalse);
+      expect(provider.device, 'HTP0');
+      expect(provider.deviceOptions, <String>['GPUOpenCL', 'HTP0']);
+      expect(await kvStorage.getString(ServerPrefsKeys.device), 'HTP0');
+    });
+
+    test('detectDevices resets a vanished device to CPU and persists it', () async {
+      final kvStorage = KvStorage();
+      final provider = ServerConfigProvider(
+        kvStorage: kvStorage,
+        deviceLister: () async => const <String>[],
+      );
+      await provider.updateDevice('Vulkan0');
+
+      await provider.detectDevices();
+
+      expect(provider.availableDevices, isEmpty);
+      expect(provider.device, ServerLaunchSettings.defaultDevice);
+      expect(provider.deviceOptions, isEmpty);
+      expect(await kvStorage.getString(ServerPrefsKeys.device), isEmpty);
+    });
+
+    test('deviceOptions keeps the persisted device visible before detection', () async {
+      final provider = ServerConfigProvider(
+        settingsLoader: _FixedServerLaunchSettingsLoader(
+          const ServerLaunchSettings(device: 'HTP0'),
+        ),
+      );
+
+      await provider.load();
+
+      expect(provider.deviceOptions, <String>['HTP0']);
+    });
+
+    test('updateGpuLayers clamps custom values and collapses negatives to auto', () async {
+      final provider = ServerConfigProvider(kvStorage: KvStorage());
+
+      await provider.updateGpuLayers(500);
+      expect(provider.gpuLayers, ServerLaunchSettings.maxGpuLayers);
+
+      await provider.updateGpuLayers(-7);
+      expect(provider.gpuLayers, ServerLaunchSettings.autoGpuLayers);
     });
 
     test('does not notify after dispose when a save completes late', () async {
