@@ -50,6 +50,15 @@ android {
             // must exist as real files in nativeLibraryDir.
             useLegacyPackaging = true
         }
+        resources {
+            excludes += setOf(
+                "META-INF/INDEX.LIST",
+                "META-INF/io.netty.versions.properties",
+                "META-INF/DEPENDENCIES",
+                "META-INF/LICENSE",
+                "META-INF/MANIFEST.MF",
+            )
+        }
     }
 
     signingConfigs {

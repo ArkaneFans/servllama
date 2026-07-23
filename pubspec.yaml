@@ -49,6 +49,8 @@ dependencies:
   package_info_plus: ^9.0.1
   url_launcher: ^6.3.2
   flutter_foreground_task: ^9.2.2
+  mnn_engine:
+    path: ../mnn_engine
 
 dev_dependencies:
   flutter_test:

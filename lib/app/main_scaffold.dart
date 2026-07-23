@@ -6,6 +6,7 @@ import 'package:servllama/features/chat/pages/chat_history_page.dart';
 import 'package:servllama/features/chat/pages/chat_page.dart';
 import 'package:servllama/features/chat/widgets/chat_session_drawer_section.dart';
 import 'package:servllama/features/chat/widgets/chat_session_search_field.dart';
+import 'package:servllama/features/mnn_test/pages/mnn_test_page.dart';
 import 'package:servllama/features/server/pages/debug_page.dart';
 import 'package:servllama/features/server/pages/server_page.dart';
 import 'package:servllama/features/settings/pages/settings_page.dart';
@@ -132,6 +133,14 @@ class _MainScaffoldState extends State<MainScaffold> {
                         onTap: () => _pushFromSidebar(const SettingsPage()),
                       ),
                       if (kDebugMode) ...[
+                        const SizedBox(height: 8),
+                        _DrawerActionBlock(
+                          key: const Key('drawer_mnn_test_action'),
+                          icon: Icons.memory_outlined,
+                          // Debug-only entry; intentionally not localized.
+                          title: 'MNN 测试',
+                          onTap: () => _pushFromSidebar(const MnnTestPage()),
+                        ),
                         const SizedBox(height: 8),
                         _DrawerActionBlock(
                           key: const Key('drawer_debug_action'),
