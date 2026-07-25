@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:mnn_engine/mnn_engine.dart';
 import 'package:servllama/features/mnn_test/models/mnn_api_test_result.dart';
 import 'package:servllama/features/mnn_test/services/mnn_api_test_client.dart';
@@ -26,6 +28,25 @@ class MnnTestController extends ChangeNotifier {
   bool operationRunning = false;
   bool streamRunning = false;
   MnnPortCheckResult? portCheck;
+  MnnServerBindMode bindMode = MnnServerBindMode.loopback;
+
+  void setBindMode(MnnServerBindMode value) {
+    if (snapshot?.server?.running == true || bindMode == value) return;
+    bindMode = value;
+    portCheck = null;
+    notifyListeners();
+  }
+
+  String generateApiKey() {
+    final random = Random.secure();
+    const alphabet =
+        'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    return List<String>.generate(
+      32,
+      (_) => alphabet[random.nextInt(alphabet.length)],
+      growable: false,
+    ).join();
+  }
 
   Future<void> initialize() async {
     _eventSubscription ??= _engine.events.listen(
@@ -84,22 +105,23 @@ class MnnTestController extends ChangeNotifier {
   });
 
   Future<void> checkPort(int port) => _run(() async {
-    portCheck = await _engine.checkPort(port: port);
+    portCheck = await _engine.checkPort(bindMode: bindMode, port: port);
   });
 
-  Future<void> startServer({required int port, String? apiKey}) =>
-      _run(() async {
-        await _engine.startServer(port: port, apiKey: apiKey);
-        snapshot = await _engine.getSnapshot();
-        final server = snapshot?.server;
-        if (server != null) {
-          apiResult = await _apiClient.getJson(
-            baseUrl: server.baseUrl,
-            path: '/health',
-            apiKey: apiKey,
-          );
-        }
-      });
+  Future<void> startServer({required int port, String? apiKey}) => _run(
+    () async {
+      await _engine.startServer(bindMode: bindMode, port: port, apiKey: apiKey);
+      snapshot = await _engine.getSnapshot();
+      final server = snapshot?.server;
+      if (server != null) {
+        apiResult = await _apiClient.getJson(
+          baseUrl: server.localBaseUrl,
+          path: '/health',
+          apiKey: apiKey,
+        );
+      }
+    },
+  );
 
   Future<void> stopServer() => _run(() async {
     await _engine.stopServer();
@@ -121,7 +143,7 @@ class MnnTestController extends ChangeNotifier {
     if (server == null) return _setError('MNN Server is not running.');
     await _run(() async {
       apiResult = await _apiClient.chat(
-        baseUrl: server.baseUrl,
+        baseUrl: server.localBaseUrl,
         prompt: prompt,
         model: snapshot?.activeModel?.modelId,
         apiKey: apiKey,
@@ -151,7 +173,7 @@ class MnnTestController extends ChangeNotifier {
     notifyListeners();
     try {
       apiResult = await _apiClient.streamChat(
-        baseUrl: server.baseUrl,
+        baseUrl: server.localBaseUrl,
         prompt: prompt,
         model: snapshot?.activeModel?.modelId,
         apiKey: apiKey,
@@ -172,6 +194,50 @@ class MnnTestController extends ChangeNotifier {
     }
   }
 
+  Future<void> testToolCall({String? apiKey, int maxTokens = 512}) async {
+    final server = snapshot?.server;
+    if (server == null) return _setError('MNN Server is not running.');
+    await _run(() async {
+      apiResult = await _apiClient.toolCall(
+        baseUrl: server.localBaseUrl,
+        model: snapshot?.activeModel?.modelId,
+        apiKey: apiKey,
+        maxTokens: maxTokens,
+      );
+    });
+  }
+
+  Future<void> testToolRoundTrip({String? apiKey, int maxTokens = 512}) async {
+    final server = snapshot?.server;
+    if (server == null) return _setError('MNN Server is not running.');
+    await _run(() async {
+      apiResult = await _apiClient.toolRoundTrip(
+        baseUrl: server.localBaseUrl,
+        model: snapshot?.activeModel?.modelId,
+        apiKey: apiKey,
+        maxTokens: maxTokens,
+      );
+    });
+  }
+
+  Future<void> testMultimodal({String? apiKey, int maxTokens = 512}) async {
+    final server = snapshot?.server;
+    if (server == null) return _setError('MNN Server is not running.');
+    await _run(() async {
+      final data = await rootBundle.load('assets/mnn_test/apple.jpg');
+      apiResult = await _apiClient.multimodal(
+        baseUrl: server.localBaseUrl,
+        imageBytes: data.buffer.asUint8List(
+          data.offsetInBytes,
+          data.lengthInBytes,
+        ),
+        model: snapshot?.activeModel?.modelId,
+        apiKey: apiKey,
+        maxTokens: maxTokens,
+      );
+    });
+  }
+
   Future<void> cancelStream() async {
     _apiClient.cancelStream();
     await _engine.cancelGeneration();
@@ -190,7 +256,7 @@ class MnnTestController extends ChangeNotifier {
     if (server == null) return _setError('MNN Server is not running.');
     await _run(() async {
       apiResult = await _apiClient.getJson(
-        baseUrl: server.baseUrl,
+        baseUrl: server.localBaseUrl,
         path: path,
         apiKey: apiKey,
       );

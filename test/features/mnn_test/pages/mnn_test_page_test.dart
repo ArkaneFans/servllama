@@ -309,8 +309,11 @@ MnnRuntimeSnapshot _snapshot({
       ? const MnnServerInfo(
           running: true,
           host: '127.0.0.1',
+          bindMode: MnnServerBindMode.loopback,
+          bindAddress: '127.0.0.1',
           port: 8081,
           baseUrl: 'http://127.0.0.1:8081',
+          localBaseUrl: 'http://127.0.0.1:8081',
         )
       : null,
 );

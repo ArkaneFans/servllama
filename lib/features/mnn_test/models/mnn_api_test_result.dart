@@ -9,6 +9,9 @@ class MnnApiTestResult {
     this.promptTokens,
     this.completionTokens,
     this.totalTokens,
+    this.toolCallId,
+    this.toolName,
+    this.toolArguments,
   });
 
   final String label;
@@ -20,4 +23,7 @@ class MnnApiTestResult {
   final int? promptTokens;
   final int? completionTokens;
   final int? totalTokens;
+  final String? toolCallId;
+  final String? toolName;
+  final String? toolArguments;
 }

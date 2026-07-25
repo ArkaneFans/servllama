@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:mnn_engine/mnn_engine.dart' show MnnLogEntry;
+import 'package:mnn_engine/mnn_engine.dart' show MnnLogEntry, MnnServerBindMode;
 import 'package:provider/provider.dart';
 import 'package:servllama/features/mnn_test/controllers/mnn_test_controller.dart';
 
@@ -30,6 +30,7 @@ class _MnnTestPageState extends State<MnnTestPage> {
     super.initState();
     _controller = widget.controller ?? MnnTestController();
     _portController.addListener(_handleInputChanged);
+    _apiKeyController.addListener(_handleInputChanged);
     _promptController.addListener(_handleInputChanged);
     _temperatureController.addListener(_handleInputChanged);
     _topPController.addListener(_handleInputChanged);
@@ -113,6 +114,7 @@ class _MnnTestPageState extends State<MnnTestPage> {
                   portController: _portController,
                   apiKeyController: _apiKeyController,
                   portValid: _portValid,
+                  apiKey: _apiKey,
                   onCheckPort: () {
                     final port = _port;
                     if (port != null) controller.checkPort(port);
@@ -122,6 +124,9 @@ class _MnnTestPageState extends State<MnnTestPage> {
                     if (port != null) {
                       controller.startServer(port: port, apiKey: _apiKey);
                     }
+                  },
+                  onGenerateApiKey: () {
+                    _apiKeyController.text = controller.generateApiKey();
                   },
                 ),
                 const SizedBox(height: 12),
@@ -233,6 +238,9 @@ class _ModelCard extends StatelessWidget {
                       title: Text(model.displayName),
                       subtitle: Text(
                         '${model.modelId}\n${_formatBytes(model.sizeBytes)}'
+                        '\nCapabilities: text'
+                        '${model.supportsVision ? ' · vision' : ''}'
+                        '${model.supportsToolCalling ? ' · tools' : ''}'
                         '${model.loadDurationMs == null ? '' : '\nLoad: ${model.loadDurationMs} ms'}'
                         '${model.validationWarnings.isEmpty ? '' : '\n${model.validationWarnings.join('；')}'}',
                       ),
@@ -279,16 +287,20 @@ class _ServerCard extends StatelessWidget {
     required this.portController,
     required this.apiKeyController,
     required this.portValid,
+    required this.apiKey,
     required this.onCheckPort,
     required this.onStart,
+    required this.onGenerateApiKey,
   });
 
   final MnnTestController controller;
   final TextEditingController portController;
   final TextEditingController apiKeyController;
   final bool portValid;
+  final String? apiKey;
   final VoidCallback onCheckPort;
   final VoidCallback onStart;
+  final VoidCallback onGenerateApiKey;
 
   @override
   Widget build(BuildContext context) {
@@ -296,19 +308,50 @@ class _ServerCard extends StatelessWidget {
     final running = server?.running == true;
     final serverState = controller.snapshot?.serverState;
     final generating = controller.snapshot?.generationState == 'generating';
+    final lanMode = controller.bindMode == MnnServerBindMode.allInterfaces;
+    final apiKeyValid = !lanMode || (apiKey?.length ?? 0) >= 16;
     final canStart =
         !controller.operationRunning &&
         serverState == 'stopped' &&
         controller.snapshot?.modelState == 'loaded' &&
         controller.snapshot?.activeModel != null &&
         !generating &&
-        portValid;
+        portValid &&
+        apiKeyValid;
     return _SectionCard(
       title: 'API Server',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SelectableText('Host: 127.0.0.1（loopback only）'),
+          SegmentedButton<MnnServerBindMode>(
+            segments: const [
+              ButtonSegment(
+                value: MnnServerBindMode.loopback,
+                icon: Icon(Icons.smartphone),
+                label: Text('仅本机'),
+              ),
+              ButtonSegment(
+                value: MnnServerBindMode.allInterfaces,
+                icon: Icon(Icons.lan_outlined),
+                label: Text('所有接口'),
+              ),
+            ],
+            selected: <MnnServerBindMode>{controller.bindMode},
+            onSelectionChanged: serverState == 'stopped'
+                ? (selection) => controller.setBindMode(selection.first)
+                : null,
+          ),
+          const SizedBox(height: 8),
+          SelectableText(
+            lanMode ? 'Bind: 0.0.0.0（所有 IPv4 网络接口）' : 'Bind: 127.0.0.1（仅设备本机）',
+          ),
+          if (lanMode) ...[
+            const SizedBox(height: 8),
+            Text(
+              '所有接口模式会向当前 Wi-Fi、热点、VPN 等 IPv4 网络暴露服务，API Key 至少需要 16 个字符。',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ],
           const SizedBox(height: 8),
           TextField(
             controller: portController,
@@ -324,7 +367,15 @@ class _ServerCard extends StatelessWidget {
             controller: apiKeyController,
             enabled: serverState == 'stopped',
             obscureText: true,
-            decoration: const InputDecoration(labelText: 'API Key（留空关闭认证）'),
+            decoration: InputDecoration(
+              labelText: lanMode ? 'API Key（必填，至少 16 字符）' : 'API Key（留空关闭认证）',
+            ),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: serverState == 'stopped' ? onGenerateApiKey : null,
+            icon: const Icon(Icons.key),
+            label: const Text('生成随机 Key'),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -381,6 +432,22 @@ class _ServerCard extends StatelessWidget {
             ),
             if (server.startDurationMs != null)
               Text('Start duration: ${server.startDurationMs} ms'),
+            if (server.advertisedUrls.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              ...server.advertisedUrls.map(
+                (url) => Row(
+                  children: [
+                    Expanded(child: SelectableText('LAN: $url')),
+                    IconButton(
+                      onPressed: () =>
+                          Clipboard.setData(ClipboardData(text: url)),
+                      tooltip: '复制 LAN URL',
+                      icon: const Icon(Icons.copy),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ],
       ),
@@ -423,6 +490,8 @@ class _ApiCard extends StatelessWidget {
         controller.operationRunning || controller.streamRunning || generating;
     final promptReady = promptController.text.trim().isNotEmpty;
     final canSend = running && !requestBusy && promptReady && parametersValid;
+    final canCapabilityTest = running && !requestBusy && parametersValid;
+    final activeModel = controller.snapshot?.activeModel;
     final canQuery = running && !controller.operationRunning;
     return _SectionCard(
       title: 'API Test',
@@ -530,6 +599,41 @@ class _ApiCard extends StatelessWidget {
                     ? controller.cancelStream
                     : null,
                 child: const Text('取消生成'),
+              ),
+              FilledButton.tonalIcon(
+                onPressed:
+                    canCapabilityTest &&
+                        activeModel?.supportsToolCalling == true
+                    ? () => controller.testToolCall(
+                        apiKey: apiKey,
+                        maxTokens: maxTokens!,
+                      )
+                    : null,
+                icon: const Icon(Icons.build_outlined),
+                label: const Text('工具调用'),
+              ),
+              FilledButton.tonalIcon(
+                onPressed:
+                    canCapabilityTest &&
+                        activeModel?.supportsToolCalling == true
+                    ? () => controller.testToolRoundTrip(
+                        apiKey: apiKey,
+                        maxTokens: maxTokens!,
+                      )
+                    : null,
+                icon: const Icon(Icons.sync_alt),
+                label: const Text('工具结果续答'),
+              ),
+              FilledButton.tonalIcon(
+                onPressed:
+                    canCapabilityTest && activeModel?.supportsVision == true
+                    ? () => controller.testMultimodal(
+                        apiKey: apiKey,
+                        maxTokens: maxTokens!,
+                      )
+                    : null,
+                icon: const Icon(Icons.image_outlined),
+                label: const Text('apple.jpg 图片问答'),
               ),
             ],
           ),

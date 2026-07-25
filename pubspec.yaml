@@ -82,6 +82,7 @@ flutter:
   assets:
     - assets/bin/llama_server_manifest.json
     - assets/app_icon.svg
+    - assets/mnn_test/apple.jpg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
