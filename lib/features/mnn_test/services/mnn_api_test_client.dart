@@ -7,29 +7,137 @@ import 'package:servllama/features/mnn_test/models/mnn_api_test_result.dart';
 class MnnApiTestClient {
   MnnApiTestClient({Dio? dio}) : _dio = dio ?? Dio();
 
+  static const String toolPrompt = '请查询上海现在的时间，并使用可用工具完成回答。';
+  static const String multimodalPrompt = '请仔细观察这张图片，用中文说明图片中的主要物体、颜色和场景。';
+  static const String toolName = 'get_current_time';
+
+  static const Map<String, Object?> timeTool = <String, Object?>{
+    'type': 'function',
+    'function': <String, Object?>{
+      'name': toolName,
+      'description': '查询指定城市的当前时间',
+      'parameters': <String, Object?>{
+        'type': 'object',
+        'properties': <String, Object?>{
+          'city': <String, Object?>{
+            'type': 'string',
+            'description': '城市名称，例如上海',
+          },
+        },
+        'required': <String>['city'],
+        'additionalProperties': false,
+      },
+    },
+  };
+
+  static const int maxDisplayedSseEvents = 256;
+  static const int maxDisplayedSseBytes = 512 * 1024;
+
   final Dio _dio;
   CancelToken? _streamCancelToken;
+
+  Future<MnnApiCallResult> getJsonCall({
+    required String baseUrl,
+    required String path,
+    String? apiKey,
+  }) async {
+    final url = '$baseUrl$path';
+    final headers = _headers(apiKey);
+    final requestDisplay = displayRequest(
+      method: 'GET',
+      url: url,
+      headers: headers,
+      body: null,
+    );
+    final stopwatch = Stopwatch()..start();
+    try {
+      final response = await _dio.get<Object?>(
+        url,
+        options: Options(headers: headers),
+      );
+      return MnnApiCallResult(
+        exchange: MnnApiExchange(
+          method: 'GET',
+          url: url,
+          requestDisplay: requestDisplay,
+          responseDisplay: pretty(response.data),
+          responseData: response.data,
+          succeeded: response.statusCode == 200,
+          elapsedMs: stopwatch.elapsedMilliseconds,
+          statusCode: response.statusCode,
+          contentType: response.headers.value('content-type'),
+        ),
+      );
+    } on DioException catch (error) {
+      return MnnApiCallResult(
+        exchange: _errorExchange(
+          method: 'GET',
+          url: url,
+          requestDisplay: requestDisplay,
+          error: error,
+          elapsedMs: stopwatch.elapsedMilliseconds,
+        ),
+      );
+    }
+  }
 
   Future<MnnApiTestResult> getJson({
     required String baseUrl,
     required String path,
     String? apiKey,
   }) async {
+    final call = await getJsonCall(
+      baseUrl: baseUrl,
+      path: path,
+      apiKey: apiKey,
+    );
+    return _resultFromCall('GET $path', call);
+  }
+
+  Future<MnnApiCallResult> postJson({
+    required String baseUrl,
+    required String path,
+    required Object? body,
+    String? apiKey,
+  }) async {
+    final url = '$baseUrl$path';
+    final headers = _headers(apiKey);
+    final requestDisplay = displayRequest(
+      method: 'POST',
+      url: url,
+      headers: headers,
+      body: body,
+    );
     final stopwatch = Stopwatch()..start();
     try {
-      final response = await _dio.get<Object?>(
-        '$baseUrl$path',
-        options: Options(headers: _headers(apiKey)),
+      final response = await _dio.post<Object?>(
+        url,
+        data: body,
+        options: Options(headers: headers),
       );
-      return MnnApiTestResult(
-        label: 'GET $path',
-        output: _pretty(response.data),
-        succeeded: response.statusCode == 200,
-        elapsedMs: stopwatch.elapsedMilliseconds,
-        statusCode: response.statusCode,
+      return MnnApiCallResult(
+        exchange: MnnApiExchange(
+          method: 'POST',
+          url: url,
+          requestDisplay: requestDisplay,
+          responseDisplay: pretty(response.data),
+          responseData: response.data,
+          succeeded: response.statusCode == 200,
+          elapsedMs: stopwatch.elapsedMilliseconds,
+          statusCode: response.statusCode,
+          contentType: response.headers.value('content-type'),
+        ),
       );
     } on DioException catch (error) {
-      return _dioError('GET $path', error, stopwatch.elapsedMilliseconds);
+      return MnnApiCallResult(
+        exchange: _errorExchange(
+          method: 'POST',
+          url: url,
+          requestDisplay: requestDisplay,
+          error: error,
+          elapsedMs: stopwatch.elapsedMilliseconds,
+        ),
+      );
     }
   }
 
@@ -43,175 +151,32 @@ class MnnApiTestClient {
     double? topP,
     int maxTokens = 512,
   }) async {
-    final stopwatch = Stopwatch()..start();
-    try {
-      final response = await _dio.post<Object?>(
-        '$baseUrl/v1/chat/completions',
-        data: <String, Object?>{
-          'model': model,
-          'messages': <Map<String, String>>[
-            if (systemPrompt != null && systemPrompt.trim().isNotEmpty)
-              <String, String>{
-                'role': 'system',
-                'content': systemPrompt.trim(),
-              },
-            <String, String>{'role': 'user', 'content': prompt},
-          ],
-          'stream': false,
-          if (temperature != null) 'temperature': temperature,
-          if (topP != null) 'top_p': topP,
-          'max_tokens': maxTokens,
-        },
-        options: Options(headers: _headers(apiKey)),
-      );
-      final usage = _usage(response.data);
-      return MnnApiTestResult(
-        label: 'POST /v1/chat/completions',
-        output: _pretty(response.data),
-        succeeded: response.statusCode == 200,
-        elapsedMs: stopwatch.elapsedMilliseconds,
-        statusCode: response.statusCode,
-        promptTokens: usage.$1,
-        completionTokens: usage.$2,
-        totalTokens: usage.$3,
-      );
-    } on DioException catch (error) {
-      return _dioError(
-        'POST /v1/chat/completions',
-        error,
-        stopwatch.elapsedMilliseconds,
-      );
-    }
-  }
-
-  Future<MnnApiTestResult> toolCall({
-    required String baseUrl,
-    String? model,
-    String? apiKey,
-    int maxTokens = 512,
-  }) async {
-    final stopwatch = Stopwatch()..start();
-    try {
-      final response = await _dio.post<Object?>(
-        '$baseUrl/v1/chat/completions',
-        data: <String, Object?>{
-          'model': model,
-          'messages': const <Map<String, Object?>>[
-            <String, Object?>{
-              'role': 'user',
-              'content': 'What time is it in Shanghai? Use the available tool.',
-            },
-          ],
-          'tools': <Map<String, Object?>>[_timeTool],
-          'tool_choice': <String, Object?>{
-            'type': 'function',
-            'function': const <String, Object?>{'name': 'get_current_time'},
-          },
-          'parallel_tool_calls': false,
-          'stream': false,
-          'max_tokens': maxTokens,
-        },
-        options: Options(headers: _headers(apiKey)),
-      );
-      final call = _firstToolCall(response.data);
-      return MnnApiTestResult(
-        label: 'Tool call /v1/chat/completions',
-        output: _pretty(response.data),
-        succeeded: response.statusCode == 200 && call != null,
-        elapsedMs: stopwatch.elapsedMilliseconds,
-        statusCode: response.statusCode,
-        toolCallId: call?.$1,
-        toolName: call?.$2,
-        toolArguments: call?.$3,
-      );
-    } on DioException catch (error) {
-      return _dioError(
-        'Tool call /v1/chat/completions',
-        error,
-        stopwatch.elapsedMilliseconds,
-      );
-    }
-  }
-
-  Future<MnnApiTestResult> toolRoundTrip({
-    required String baseUrl,
-    String? model,
-    String? apiKey,
-    int maxTokens = 512,
-  }) async {
-    final stopwatch = Stopwatch()..start();
-    try {
-      final first = await _dio.post<Object?>(
-        '$baseUrl/v1/chat/completions',
-        data: <String, Object?>{
-          'model': model,
-          'messages': const <Map<String, Object?>>[
-            <String, Object?>{
-              'role': 'user',
-              'content': 'What time is it in Shanghai? Use the available tool.',
-            },
-          ],
-          'tools': <Map<String, Object?>>[_timeTool],
-          'tool_choice': 'required',
-          'parallel_tool_calls': false,
-          'stream': false,
-          'max_tokens': maxTokens,
-        },
-        options: Options(headers: _headers(apiKey)),
-      );
-      final firstMap = _jsonMap(first.data);
-      final call = _firstToolCall(firstMap);
-      if (call == null) {
-        return MnnApiTestResult(
-          label: 'Tool history round trip',
-          output: _pretty(first.data),
-          succeeded: false,
-          elapsedMs: stopwatch.elapsedMilliseconds,
-          statusCode: first.statusCode,
-        );
-      }
-      final assistant =
-          ((firstMap?['choices'] as List?)?.first as Map?)?['message'];
-      final second = await _dio.post<Object?>(
-        '$baseUrl/v1/chat/completions',
-        data: <String, Object?>{
-          'model': model,
-          'messages': <Map<String, Object?>>[
-            const <String, Object?>{
-              'role': 'user',
-              'content': 'What time is it in Shanghai? Use the available tool.',
-            },
-            Map<String, Object?>.from(assistant! as Map),
-            <String, Object?>{
-              'role': 'tool',
-              'tool_call_id': call.$1,
-              'content':
-                  '{"city":"Shanghai","time":"10:30","timezone":"Asia/Shanghai"}',
-            },
-          ],
-          'stream': false,
-          'max_tokens': maxTokens,
-        },
-        options: Options(headers: _headers(apiKey)),
-      );
-      return MnnApiTestResult(
-        label: 'Tool history round trip',
-        output:
-            'Tool call:\n${_pretty(first.data)}\n\nFinal response:\n${_pretty(second.data)}',
-        succeeded: first.statusCode == 200 && second.statusCode == 200,
-        elapsedMs: stopwatch.elapsedMilliseconds,
-        statusCode: second.statusCode,
-        toolCallId: call.$1,
-        toolName: call.$2,
-        toolArguments: call.$3,
-      );
-    } on DioException catch (error) {
-      return _dioError(
-        'Tool history round trip',
-        error,
-        stopwatch.elapsedMilliseconds,
-      );
-    }
+    final body = <String, Object?>{
+      'model': model,
+      'messages': <Map<String, Object?>>[
+        if (systemPrompt != null && systemPrompt.trim().isNotEmpty)
+          <String, Object?>{'role': 'system', 'content': systemPrompt.trim()},
+        <String, Object?>{'role': 'user', 'content': prompt},
+      ],
+      'stream': false,
+      if (temperature != null) 'temperature': temperature,
+      if (topP != null) 'top_p': topP,
+      'max_tokens': maxTokens,
+    };
+    final call = await postJson(
+      baseUrl: baseUrl,
+      path: '/v1/chat/completions',
+      body: body,
+      apiKey: apiKey,
+    );
+    final usage = _usage(call.responseData);
+    return _resultFromCall(
+      'POST /v1/chat/completions',
+      call,
+      promptTokens: usage.$1,
+      completionTokens: usage.$2,
+      totalTokens: usage.$3,
+    );
   }
 
   Future<MnnApiTestResult> multimodal({
@@ -221,53 +186,25 @@ class MnnApiTestClient {
     String? apiKey,
     int maxTokens = 512,
   }) async {
-    final stopwatch = Stopwatch()..start();
-    try {
-      final response = await _dio.post<Object?>(
-        '$baseUrl/v1/chat/completions',
-        data: <String, Object?>{
-          'model': model,
-          'messages': <Map<String, Object?>>[
-            <String, Object?>{
-              'role': 'user',
-              'content': <Map<String, Object?>>[
-                const <String, Object?>{
-                  'type': 'text',
-                  'text': 'Describe the main object in this image.',
-                },
-                <String, Object?>{
-                  'type': 'image_url',
-                  'image_url': <String, Object?>{
-                    'url': 'data:image/jpeg;base64,${base64Encode(imageBytes)}',
-                    'detail': 'auto',
-                  },
-                },
-              ],
-            },
-          ],
-          'stream': false,
-          'max_tokens': maxTokens,
-        },
-        options: Options(headers: _headers(apiKey)),
-      );
-      final usage = _usage(response.data);
-      return MnnApiTestResult(
-        label: 'Multimodal apple.jpg',
-        output: _pretty(response.data),
-        succeeded: response.statusCode == 200,
-        elapsedMs: stopwatch.elapsedMilliseconds,
-        statusCode: response.statusCode,
-        promptTokens: usage.$1,
-        completionTokens: usage.$2,
-        totalTokens: usage.$3,
-      );
-    } on DioException catch (error) {
-      return _dioError(
-        'Multimodal apple.jpg',
-        error,
-        stopwatch.elapsedMilliseconds,
-      );
-    }
+    final call = await postJson(
+      baseUrl: baseUrl,
+      path: '/v1/chat/completions',
+      body: _multimodalBody(
+        model: model,
+        imageBytes: imageBytes,
+        stream: false,
+        maxTokens: maxTokens,
+      ),
+      apiKey: apiKey,
+    );
+    final usage = _usage(call.responseData);
+    return _resultFromCall(
+      'Multimodal apple.jpg',
+      call,
+      promptTokens: usage.$1,
+      completionTokens: usage.$2,
+      totalTokens: usage.$3,
+    );
   }
 
   Future<MnnApiTestResult> streamChat({
@@ -280,65 +217,131 @@ class MnnApiTestClient {
     double? temperature,
     double? topP,
     int maxTokens = 512,
+  }) {
+    final body = <String, Object?>{
+      'model': model,
+      'messages': <Map<String, Object?>>[
+        if (systemPrompt != null && systemPrompt.trim().isNotEmpty)
+          <String, Object?>{'role': 'system', 'content': systemPrompt.trim()},
+        <String, Object?>{'role': 'user', 'content': prompt},
+      ],
+      'stream': true,
+      if (temperature != null) 'temperature': temperature,
+      if (topP != null) 'top_p': topP,
+      'max_tokens': maxTokens,
+    };
+    return _streamMessages(
+      baseUrl: baseUrl,
+      body: body,
+      apiKey: apiKey,
+      label: 'SSE /v1/chat/completions',
+      onChunk: onChunk,
+    );
+  }
+
+  Future<MnnApiTestResult> streamMultimodal({
+    required String baseUrl,
+    required Uint8List imageBytes,
+    required void Function(String text) onChunk,
+    String? model,
+    String? apiKey,
+    int maxTokens = 512,
+  }) {
+    return _streamMessages(
+      baseUrl: baseUrl,
+      body: _multimodalBody(
+        model: model,
+        imageBytes: imageBytes,
+        stream: true,
+        maxTokens: maxTokens,
+      ),
+      apiKey: apiKey,
+      label: 'SSE Multimodal apple.jpg',
+      onChunk: onChunk,
+    );
+  }
+
+  Future<MnnApiTestResult> _streamMessages({
+    required String baseUrl,
+    required Map<String, Object?> body,
+    required String? apiKey,
+    required String label,
+    required void Function(String text) onChunk,
   }) async {
     _streamCancelToken?.cancel('Superseded by a new stream request.');
     final cancelToken = CancelToken();
     _streamCancelToken = cancelToken;
+    final url = '$baseUrl/v1/chat/completions';
+    final headers = _headers(apiKey);
+    final requestDisplay = displayRequest(
+      method: 'POST',
+      url: url,
+      headers: headers,
+      body: body,
+    );
     final collected = StringBuffer();
+    final events = <Object?>[];
+    var omittedEvents = 0;
+    var displayedEventBytes = 0;
     final stopwatch = Stopwatch()..start();
     int? firstTokenMs;
+    var completed = false;
     try {
       final response = await _dio.post<ResponseBody>(
-        '$baseUrl/v1/chat/completions',
-        data: <String, Object?>{
-          'model': model,
-          'messages': <Map<String, String>>[
-            if (systemPrompt != null && systemPrompt.trim().isNotEmpty)
-              <String, String>{
-                'role': 'system',
-                'content': systemPrompt.trim(),
-              },
-            <String, String>{'role': 'user', 'content': prompt},
-          ],
-          'stream': true,
-          if (temperature != null) 'temperature': temperature,
-          if (topP != null) 'top_p': topP,
-          'max_tokens': maxTokens,
-        },
-        options: Options(
-          headers: _headers(apiKey),
-          responseType: ResponseType.stream,
-        ),
+        url,
+        data: body,
+        options: Options(headers: headers, responseType: ResponseType.stream),
         cancelToken: cancelToken,
       );
-      final body = response.data;
-      if (body == null) throw StateError('SSE response body is empty.');
+      final responseBody = response.data;
+      if (responseBody == null) {
+        throw StateError('SSE response body is empty.');
+      }
       await for (final line
-          in body.stream
+          in responseBody.stream
               .cast<List<int>>()
               .transform(utf8.decoder)
               .transform(const LineSplitter())) {
-        if (!line.startsWith('data: ')) continue;
-        final data = line.substring(6);
-        if (data == '[DONE]') break;
+        final trimmed = line.trimLeft();
+        if (!trimmed.startsWith('data:')) continue;
+        final data = trimmed.substring(5).trimLeft();
+        if (data == '[DONE]') {
+          completed = true;
+          break;
+        }
         final decoded = _decodeJsonOrNull(data);
+        if (decoded == null) continue;
+        final eventSize = utf8.encode(data).length;
+        if (events.length < maxDisplayedSseEvents &&
+            displayedEventBytes + eventSize <= maxDisplayedSseBytes) {
+          events.add(decoded);
+          displayedEventBytes += eventSize;
+        } else {
+          omittedEvents++;
+        }
         if (decoded is! Map<String, dynamic>) continue;
         if (decoded['error'] is Map) {
-          return MnnApiTestResult(
-            label: 'SSE /v1/chat/completions',
-            output: _pretty(decoded),
-            succeeded: false,
+          final exchange = _streamExchange(
+            url: url,
+            requestDisplay: requestDisplay,
+            response: response,
+            events: events,
+            omittedEvents: omittedEvents,
+            collected: collected.toString(),
             elapsedMs: stopwatch.elapsedMilliseconds,
-            statusCode: response.statusCode,
             firstTokenMs: firstTokenMs,
+            completed: false,
+            succeeded: false,
+            errorMessage: MnnApiTestClient.pretty(decoded['error']),
           );
+          return _streamResult(label, exchange, collected.toString());
         }
         final choices = decoded['choices'];
         if (choices is! List || choices.isEmpty) continue;
         final choice = choices.first;
-        if (choice is! Map<String, dynamic>) continue;
+        if (choice is! Map) continue;
         final delta = choice['delta'];
-        if (delta is! Map<String, dynamic>) continue;
+        if (delta is! Map) continue;
         final content = delta['content'];
         if (content is String && content.isNotEmpty) {
           firstTokenMs ??= stopwatch.elapsedMilliseconds;
@@ -346,32 +349,66 @@ class MnnApiTestClient {
           onChunk(content);
         }
       }
-      return MnnApiTestResult(
-        label: 'SSE /v1/chat/completions',
-        output: collected.toString(),
-        succeeded: true,
+      final exchange = _streamExchange(
+        url: url,
+        requestDisplay: requestDisplay,
+        response: response,
+        events: events,
+        omittedEvents: omittedEvents,
+        collected: collected.toString(),
         elapsedMs: stopwatch.elapsedMilliseconds,
-        statusCode: response.statusCode,
         firstTokenMs: firstTokenMs,
+        completed: completed,
+        succeeded: completed && response.statusCode == 200,
+        errorMessage: completed ? null : 'SSE stream ended before [DONE].',
       );
+      return _streamResult(label, exchange, collected.toString());
     } on DioException catch (error) {
-      if (CancelToken.isCancel(error)) {
-        return MnnApiTestResult(
-          label: 'SSE /v1/chat/completions',
-          output: '${collected.toString()}\n[cancelled]',
-          succeeded: false,
-          elapsedMs: stopwatch.elapsedMilliseconds,
-          firstTokenMs: firstTokenMs,
-        );
-      }
-      return _dioError(
-        'SSE /v1/chat/completions',
-        error,
-        stopwatch.elapsedMilliseconds,
+      final cancelled = CancelToken.isCancel(error);
+      final exchange = _errorExchange(
+        method: 'POST',
+        url: url,
+        requestDisplay: requestDisplay,
+        error: error,
+        elapsedMs: stopwatch.elapsedMilliseconds,
         firstTokenMs: firstTokenMs,
+        sseEvents: events,
+        sseCompleted: completed,
+        cancelled: cancelled,
+        responseDisplayOverride: MnnApiTestClient.pretty(<String, Object?>{
+          'text': collected.toString(),
+          'events': events,
+          'omitted_events': omittedEvents,
+          'done': completed,
+          'cancelled': cancelled,
+        }),
       );
+      return _streamResult(label, exchange, collected.toString());
+    } catch (error) {
+      final exchange = MnnApiExchange(
+        method: 'POST',
+        url: url,
+        requestDisplay: requestDisplay,
+        responseDisplay: MnnApiTestClient.pretty(<String, Object?>{
+          'text': collected.toString(),
+          'events': events,
+          'omitted_events': omittedEvents,
+          'done': completed,
+          'cancelled': false,
+        }),
+        succeeded: false,
+        elapsedMs: stopwatch.elapsedMilliseconds,
+        firstTokenMs: firstTokenMs,
+        sseEventCount: events.length + omittedEvents,
+        sseCompleted: completed,
+        sseEvents: List<Object?>.unmodifiable(events),
+        errorMessage: error.toString(),
+      );
+      return _streamResult(label, exchange, collected.toString());
     } finally {
-      if (identical(_streamCancelToken, cancelToken)) _streamCancelToken = null;
+      if (identical(_streamCancelToken, cancelToken)) {
+        _streamCancelToken = null;
+      }
     }
   }
 
@@ -390,32 +427,142 @@ class MnnApiTestClient {
     if (apiKey != null && apiKey.isNotEmpty) 'Authorization': 'Bearer $apiKey',
   };
 
-  MnnApiTestResult _dioError(
+  MnnApiTestResult _resultFromCall(
     String label,
-    DioException error,
-    int elapsedMs, {
-    int? firstTokenMs,
+    MnnApiCallResult call, {
+    int? promptTokens,
+    int? completionTokens,
+    int? totalTokens,
   }) {
-    final response = error.response;
+    final exchange = call.exchange;
     return MnnApiTestResult(
       label: label,
-      output: response == null
-          ? error.message ?? error.toString()
-          : '${response.statusCode}\n${_pretty(response.data)}',
-      succeeded: false,
-      elapsedMs: elapsedMs,
-      statusCode: response?.statusCode,
-      firstTokenMs: firstTokenMs,
+      output: exchange.responseDisplay,
+      succeeded: exchange.succeeded,
+      elapsedMs: exchange.elapsedMs,
+      statusCode: exchange.statusCode,
+      firstTokenMs: exchange.firstTokenMs,
+      promptTokens: promptTokens,
+      completionTokens: completionTokens,
+      totalTokens: totalTokens,
+      exchanges: <MnnApiExchange>[exchange],
+      errorMessage: exchange.errorMessage,
     );
   }
 
-  (int?, int?, int?) _usage(Object? value) {
-    Object? decoded = value;
-    if (decoded is String) {
-      decoded = _decodeJsonOrNull(decoded);
+  MnnApiTestResult _streamResult(
+    String label,
+    MnnApiExchange exchange,
+    String text,
+  ) {
+    final output = text.isNotEmpty
+        ? text
+        : exchange.errorMessage ?? exchange.responseDisplay;
+    return MnnApiTestResult(
+      label: label,
+      output: output,
+      streamingText: text,
+      succeeded: exchange.succeeded,
+      elapsedMs: exchange.elapsedMs,
+      statusCode: exchange.statusCode,
+      firstTokenMs: exchange.firstTokenMs,
+      cancelled: exchange.cancelled,
+      exchanges: <MnnApiExchange>[exchange],
+      errorMessage: exchange.errorMessage,
+    );
+  }
+
+  MnnApiExchange _streamExchange({
+    required String url,
+    required String requestDisplay,
+    required Response<ResponseBody> response,
+    required List<Object?> events,
+    required int omittedEvents,
+    required String collected,
+    required int elapsedMs,
+    required int? firstTokenMs,
+    required bool completed,
+    required bool succeeded,
+    required String? errorMessage,
+  }) {
+    return MnnApiExchange(
+      method: 'POST',
+      url: url,
+      requestDisplay: requestDisplay,
+      responseDisplay: MnnApiTestClient.pretty(<String, Object?>{
+        'text': collected,
+        'events': events,
+        'omitted_events': omittedEvents,
+        'done': completed,
+      }),
+      succeeded: succeeded,
+      elapsedMs: elapsedMs,
+      statusCode: response.statusCode,
+      contentType: response.headers.value('content-type'),
+      firstTokenMs: firstTokenMs,
+      sseEventCount: events.length + omittedEvents,
+      sseCompleted: completed,
+      sseEvents: List<Object?>.unmodifiable(events),
+      errorMessage: errorMessage,
+    );
+  }
+
+  MnnApiExchange _errorExchange({
+    required String method,
+    required String url,
+    required String requestDisplay,
+    required DioException error,
+    required int elapsedMs,
+    int? firstTokenMs,
+    List<Object?> sseEvents = const <Object?>[],
+    bool sseCompleted = false,
+    bool cancelled = false,
+    String? responseDisplayOverride,
+  }) {
+    final response = error.response;
+    final responseData = response?.data;
+    final errorMessage = _errorMessage(error, cancelled: cancelled);
+    return MnnApiExchange(
+      method: method,
+      url: url,
+      requestDisplay: requestDisplay,
+      responseDisplay:
+          responseDisplayOverride ??
+          (response == null
+              ? error.message ?? error.toString()
+              : '${response.statusCode}\n${pretty(responseData)}'),
+      responseData: responseData,
+      succeeded: false,
+      elapsedMs: elapsedMs,
+      statusCode: response?.statusCode,
+      contentType: response?.headers.value('content-type'),
+      firstTokenMs: firstTokenMs,
+      sseEventCount: sseEvents.length,
+      sseCompleted: sseCompleted,
+      cancelled: cancelled,
+      sseEvents: List<Object?>.unmodifiable(sseEvents),
+      errorMessage: errorMessage,
+    );
+  }
+
+  String _errorMessage(DioException error, {required bool cancelled}) {
+    if (cancelled) {
+      return '已取消：${error.message ?? error.toString()}';
     }
-    if (decoded is! Map) return (null, null, null);
-    final usage = decoded['usage'];
+    final responseMap = asJsonMap(error.response?.data);
+    final nestedError = responseMap?['error'];
+    if (nestedError is Map && nestedError['message'] is String) {
+      return nestedError['message'] as String;
+    }
+    if (responseMap?['message'] is String) {
+      return responseMap!['message'] as String;
+    }
+    return error.message ?? error.toString();
+  }
+
+  (int?, int?, int?) _usage(Object? value) {
+    final decoded = asJsonMap(value);
+    final usage = decoded?['usage'];
     if (usage is! Map) return (null, null, null);
     return (
       (usage['prompt_tokens'] as num?)?.toInt(),
@@ -424,63 +571,74 @@ class MnnApiTestClient {
     );
   }
 
-  (String, String, String)? _firstToolCall(Object? value) {
-    final decoded = _jsonMap(value);
-    final choices = decoded?['choices'];
-    if (choices is! List || choices.isEmpty) return null;
-    final message = (choices.first as Map?)?['message'];
-    final calls = (message as Map?)?['tool_calls'];
-    if (calls is! List || calls.isEmpty) return null;
-    final call = calls.first as Map?;
-    final function = call?['function'] as Map?;
-    final id = call?['id'];
-    final name = function?['name'];
-    final arguments = function?['arguments'];
-    if (id is! String || name is! String || arguments is! String) return null;
-    return (id, name, arguments);
+  Map<String, Object?> _multimodalBody({
+    required String? model,
+    required Uint8List imageBytes,
+    required bool stream,
+    required int maxTokens,
+  }) {
+    return <String, Object?>{
+      'model': model,
+      'messages': <Map<String, Object?>>[
+        <String, Object?>{
+          'role': 'user',
+          'content': <Map<String, Object?>>[
+            <String, Object?>{'type': 'text', 'text': multimodalPrompt},
+            <String, Object?>{
+              'type': 'image_url',
+              'image_url': <String, Object?>{
+                'url': 'data:image/jpeg;base64,${base64Encode(imageBytes)}',
+                'detail': 'auto',
+              },
+            },
+          ],
+        },
+      ],
+      'stream': stream,
+      'max_tokens': maxTokens,
+    };
   }
 
-  Map<String, dynamic>? _jsonMap(Object? value) {
+  String displayRequest({
+    required String method,
+    required String url,
+    required Map<String, String> headers,
+    required Object? body,
+  }) {
+    return pretty(<String, Object?>{
+      'method': method,
+      'url': url,
+      'headers': headers,
+      'body': body ?? '<empty>',
+    });
+  }
+
+  static Map<String, dynamic>? asJsonMap(Object? value) {
     Object? decoded = value;
     if (decoded is String) decoded = _decodeJsonOrNull(decoded);
-    return decoded is Map ? Map<String, dynamic>.from(decoded) : null;
+    if (decoded is! Map) return null;
+    return Map<String, dynamic>.from(decoded);
   }
 
-  Object? _decodeJsonOrNull(String value) {
+  static String pretty(Object? value) {
+    if (value is String) {
+      final decoded = _decodeJsonOrNull(value);
+      if (decoded != null) {
+        value = decoded;
+      }
+    }
+    try {
+      return const JsonEncoder.withIndent('  ').convert(value);
+    } catch (_) {
+      return value?.toString() ?? 'null';
+    }
+  }
+
+  static Object? _decodeJsonOrNull(String value) {
     try {
       return jsonDecode(value);
     } catch (_) {
       return null;
     }
   }
-
-  String _pretty(Object? value) {
-    if (value is String) {
-      try {
-        return const JsonEncoder.withIndent('  ').convert(jsonDecode(value));
-      } catch (_) {
-        return value;
-      }
-    }
-    return const JsonEncoder.withIndent('  ').convert(value);
-  }
-
-  static const Map<String, Object?> _timeTool = <String, Object?>{
-    'type': 'function',
-    'function': <String, Object?>{
-      'name': 'get_current_time',
-      'description': 'Get the current local time for a city.',
-      'parameters': <String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'city': <String, Object?>{
-            'type': 'string',
-            'description': 'City name.',
-          },
-        },
-        'required': <String>['city'],
-        'additionalProperties': false,
-      },
-    },
-  };
 }

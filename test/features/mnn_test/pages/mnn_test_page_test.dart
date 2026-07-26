@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mnn_engine/mnn_engine.dart';
 import 'package:servllama/features/mnn_test/controllers/mnn_test_controller.dart';
+import 'package:servllama/features/mnn_test/models/mnn_api_test_result.dart';
 import 'package:servllama/features/mnn_test/pages/mnn_test_page.dart';
 
 void main() {
@@ -24,8 +25,110 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     expect(find.text('SSE Chat'), findsOneWidget);
+    expect(find.text('工具调用全流程'), findsOneWidget);
+    expect(find.text('apple.jpg 图片问答（SSE）'), findsOneWidget);
     expect(find.text('System Prompt（可选）'), findsOneWidget);
     expect(find.text('max_tokens'), findsOneWidget);
+  });
+
+  testWidgets('renders tool-flow statuses, checks, and API exchanges', (
+    tester,
+  ) async {
+    final controller = _FakeMnnTestController(
+      initialSnapshot: _snapshot(serverRunning: true),
+      initialModels: const <MnnModelInfo>[_model],
+    );
+    controller.toolFlowSteps = const <MnnApiTestStep>[
+      MnnApiTestStep(
+        id: 'prepare_initial_request',
+        title: '构建首次请求',
+        status: MnnApiTestStepStatus.succeeded,
+        checks: <MnnApiValidationCheck>[
+          MnnApiValidationCheck(
+            id: 'prompt',
+            label: '中文 Prompt 非空',
+            succeeded: true,
+          ),
+        ],
+        input: '{"messages":[]}',
+      ),
+      MnnApiTestStep(
+        id: 'request_tool_call',
+        title: '请求 LLM 工具调用',
+        status: MnnApiTestStepStatus.running,
+      ),
+      MnnApiTestStep(
+        id: 'validate_tool_call',
+        title: '校验工具调用格式',
+        status: MnnApiTestStepStatus.pending,
+      ),
+    ];
+    controller.apiResult = const MnnApiTestResult(
+      label: 'GET /health',
+      output: '{"status":"ready"}',
+      succeeded: true,
+      elapsedMs: 2,
+      exchanges: <MnnApiExchange>[
+        MnnApiExchange(
+          method: 'GET',
+          url: 'http://127.0.0.1:8081/health',
+          requestDisplay: '{"method":"GET"}',
+          responseDisplay: '{"status":"ready"}',
+          succeeded: true,
+          elapsedMs: 2,
+          statusCode: 200,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(home: MnnTestPage(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('工具调用全流程'),
+      500,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.ancestor(
+              of: find.text('工具调用全流程'),
+              matching: find.byWidgetPredicate(
+                (widget) => widget is FilledButton,
+              ),
+            ),
+          )
+          .onPressed,
+      isNotNull,
+    );
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.ancestor(
+              of: find.text('apple.jpg 图片问答（SSE）'),
+              matching: find.byWidgetPredicate(
+                (widget) => widget is FilledButton,
+              ),
+            ),
+          )
+          .onPressed,
+      isNotNull,
+    );
+    await tester.scrollUntilVisible(
+      find.text('工具调用全流程（每步状态）'),
+      600,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    expect(find.textContaining('构建首次请求 · 成功'), findsOneWidget);
+    expect(find.textContaining('请求 LLM 工具调用 · 执行中'), findsOneWidget);
+    expect(find.textContaining('校验工具调用格式 · 待执行'), findsOneWidget);
+    expect(find.text('格式检查'), findsOneWidget);
+    expect(find.text('API 请求与响应'), findsOneWidget);
+    expect(find.text('响应结构'), findsOneWidget);
+    expect(find.byTooltip('复制内容'), findsWidgets);
   });
 
   testWidgets('locks model operations while the server is running', (
@@ -293,6 +396,8 @@ const _model = MnnModelInfo(
   sizeBytes: 454473462,
   importedAt: 1,
   isActive: true,
+  supportsVision: true,
+  supportsToolCalling: true,
 );
 
 MnnRuntimeSnapshot _snapshot({

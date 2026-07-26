@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/features/mnn_test/services/mnn_api_test_client.dart';
@@ -74,6 +76,23 @@ void main() {
     expect(result.elapsedMs, greaterThanOrEqualTo(0));
   });
 
+  test(
+    'records complete request and response exchanges in debug mode',
+    () async {
+      final result = await client.chat(
+        baseUrl: 'http://127.0.0.1:${server.port}',
+        prompt: 'hello',
+        apiKey: 'secret-api-key',
+      );
+
+      final exchange = result.exchanges.single;
+      expect(exchange.requestDisplay, contains('Bearer secret-api-key'));
+      expect(exchange.requestDisplay, isNot(contains('Bearer ********')));
+      expect(exchange.requestDisplay, contains('hello'));
+      expect(exchange.responseDisplay, contains('Hello MNN'));
+    },
+  );
+
   test('sends chat parameters and decodes usage', () async {
     final result = await client.chat(
       baseUrl: 'http://127.0.0.1:${server.port}',
@@ -122,5 +141,69 @@ void main() {
 
     expect(result.succeeded, isFalse);
     expect(result.output, contains('generation_failed'));
+  });
+
+  test('builds a Chinese multimodal content array and streams it', () async {
+    final chunks = <String>[];
+    final result = await client.streamMultimodal(
+      baseUrl: 'http://127.0.0.1:${server.port}',
+      imageBytes: Uint8List.fromList(<int>[1, 2, 3, 4]),
+      model: 'local/vision-test',
+      apiKey: 'secret-api-key',
+      onChunk: chunks.add,
+    );
+
+    expect(result.succeeded, isTrue);
+    expect(chunks, <String>['Hello', ' MNN']);
+    expect(receivedChatBody?['stream'], isTrue);
+    final messages = receivedChatBody?['messages'] as List<dynamic>;
+    final content =
+        (messages.first as Map<String, dynamic>)['content'] as List<dynamic>;
+    expect((content.first as Map<String, dynamic>)['text'], contains('中文'));
+    final image = content.last as Map<String, dynamic>;
+    final imageUrl =
+        (image['image_url'] as Map<String, dynamic>)['url'] as String;
+    expect(imageUrl, startsWith('data:image/jpeg;base64,'));
+    expect(result.exchanges.single.requestDisplay, contains('AQIDBA=='));
+    expect(result.exchanges.single.requestDisplay, isNot(contains('[已省略')));
+  });
+
+  test('marks an SSE request as cancelled', () async {
+    final slowServer = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final started = Completer<void>();
+    slowServer.listen((request) async {
+      await utf8.decoder.bind(request).join();
+      request.response.headers.contentType = ContentType(
+        'text',
+        'event-stream',
+      );
+      request.response.add(
+        utf8.encode('data: {"choices":[{"delta":{"content":"已收到"}}]}\n\n'),
+      );
+      await request.response.flush();
+      if (!started.isCompleted) started.complete();
+      await Future<void>.delayed(const Duration(seconds: 2));
+      try {
+        await request.response.close();
+      } catch (_) {
+        // The client is expected to close the connection when cancelling.
+      }
+    });
+
+    try {
+      final pending = client.streamChat(
+        baseUrl: 'http://127.0.0.1:${slowServer.port}',
+        prompt: 'cancel',
+        onChunk: (_) {},
+      );
+      await started.future.timeout(const Duration(seconds: 1));
+      client.cancelStream();
+      final result = await pending;
+
+      expect(result.cancelled, isTrue);
+      expect(result.exchanges.single.cancelled, isTrue);
+    } finally {
+      await slowServer.close(force: true);
+    }
   });
 }

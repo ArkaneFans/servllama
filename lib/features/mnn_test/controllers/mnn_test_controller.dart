@@ -6,14 +6,18 @@ import 'package:flutter/services.dart';
 import 'package:mnn_engine/mnn_engine.dart';
 import 'package:servllama/features/mnn_test/models/mnn_api_test_result.dart';
 import 'package:servllama/features/mnn_test/services/mnn_api_test_client.dart';
+import 'package:servllama/features/mnn_test/services/mnn_tool_test_flow_runner.dart';
 
 class MnnTestController extends ChangeNotifier {
   MnnTestController({MnnEngine? engine, MnnApiTestClient? apiClient})
     : _engine = engine ?? MnnEngine.instance,
-      _apiClient = apiClient ?? MnnApiTestClient();
+      _apiClient = apiClient ?? MnnApiTestClient() {
+    _toolFlowRunner = MnnToolTestFlowRunner(apiClient: _apiClient);
+  }
 
   final MnnEngine _engine;
   final MnnApiTestClient _apiClient;
+  late final MnnToolTestFlowRunner _toolFlowRunner;
   StreamSubscription<MnnRuntimeEvent>? _eventSubscription;
   StreamSubscription<MnnLogEntry>? _logSubscription;
 
@@ -22,11 +26,13 @@ class MnnTestController extends ChangeNotifier {
   List<MnnModelInfo> models = const <MnnModelInfo>[];
   final List<MnnLogEntry> logs = <MnnLogEntry>[];
   MnnApiTestResult? apiResult;
+  List<MnnApiTestStep> toolFlowSteps = const <MnnApiTestStep>[];
   String streamingOutput = '';
   String? error;
   bool initializing = true;
   bool operationRunning = false;
   bool streamRunning = false;
+  bool toolFlowRunning = false;
   MnnPortCheckResult? portCheck;
   MnnServerBindMode bindMode = MnnServerBindMode.loopback;
 
@@ -194,48 +200,65 @@ class MnnTestController extends ChangeNotifier {
     }
   }
 
-  Future<void> testToolCall({String? apiKey, int maxTokens = 512}) async {
+  Future<void> testToolFlow({String? apiKey, int maxTokens = 512}) async {
     final server = snapshot?.server;
     if (server == null) return _setError('MNN Server is not running.');
-    await _run(() async {
-      apiResult = await _apiClient.toolCall(
-        baseUrl: server.localBaseUrl,
-        model: snapshot?.activeModel?.modelId,
-        apiKey: apiKey,
-        maxTokens: maxTokens,
-      );
-    });
-  }
-
-  Future<void> testToolRoundTrip({String? apiKey, int maxTokens = 512}) async {
-    final server = snapshot?.server;
-    if (server == null) return _setError('MNN Server is not running.');
-    await _run(() async {
-      apiResult = await _apiClient.toolRoundTrip(
-        baseUrl: server.localBaseUrl,
-        model: snapshot?.activeModel?.modelId,
-        apiKey: apiKey,
-        maxTokens: maxTokens,
-      );
-    });
+    if (toolFlowRunning || operationRunning) return;
+    toolFlowRunning = true;
+    toolFlowSteps = const <MnnApiTestStep>[];
+    apiResult = null;
+    error = null;
+    notifyListeners();
+    try {
+      await _run(() async {
+        apiResult = await _toolFlowRunner.run(
+          baseUrl: server.localBaseUrl,
+          model: snapshot?.activeModel?.modelId,
+          apiKey: apiKey,
+          maxTokens: maxTokens,
+          onProgress: (steps) {
+            toolFlowSteps = steps;
+            notifyListeners();
+          },
+        );
+      });
+    } finally {
+      toolFlowRunning = false;
+      notifyListeners();
+    }
   }
 
   Future<void> testMultimodal({String? apiKey, int maxTokens = 512}) async {
     final server = snapshot?.server;
     if (server == null) return _setError('MNN Server is not running.');
-    await _run(() async {
-      final data = await rootBundle.load('assets/mnn_test/apple.jpg');
-      apiResult = await _apiClient.multimodal(
-        baseUrl: server.localBaseUrl,
-        imageBytes: data.buffer.asUint8List(
-          data.offsetInBytes,
-          data.lengthInBytes,
-        ),
-        model: snapshot?.activeModel?.modelId,
-        apiKey: apiKey,
-        maxTokens: maxTokens,
-      );
-    });
+    if (streamRunning || operationRunning) return;
+    streamRunning = true;
+    streamingOutput = '';
+    apiResult = null;
+    error = null;
+    notifyListeners();
+    try {
+      await _run(() async {
+        final data = await rootBundle.load('assets/mnn_test/apple.jpg');
+        apiResult = await _apiClient.streamMultimodal(
+          baseUrl: server.localBaseUrl,
+          imageBytes: data.buffer.asUint8List(
+            data.offsetInBytes,
+            data.lengthInBytes,
+          ),
+          model: snapshot?.activeModel?.modelId,
+          apiKey: apiKey,
+          maxTokens: maxTokens,
+          onChunk: (chunk) {
+            streamingOutput += chunk;
+            notifyListeners();
+          },
+        );
+      });
+    } finally {
+      streamRunning = false;
+      notifyListeners();
+    }
   }
 
   Future<void> cancelStream() async {

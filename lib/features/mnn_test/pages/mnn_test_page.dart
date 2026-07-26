@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:mnn_engine/mnn_engine.dart' show MnnLogEntry, MnnServerBindMode;
 import 'package:provider/provider.dart';
 import 'package:servllama/features/mnn_test/controllers/mnn_test_controller.dart';
+import 'package:servllama/features/mnn_test/models/mnn_api_test_result.dart';
 
 class MnnTestPage extends StatefulWidget {
   const MnnTestPage({super.key, this.controller});
@@ -18,9 +19,7 @@ class _MnnTestPageState extends State<MnnTestPage> {
   final _portController = TextEditingController(text: '8081');
   final _apiKeyController = TextEditingController();
   final _systemPromptController = TextEditingController();
-  final _promptController = TextEditingController(
-    text: 'Hello! Briefly introduce yourself.',
-  );
+  final _promptController = TextEditingController(text: '你好，请用中文简要介绍一下你自己。');
   final _temperatureController = TextEditingController(text: '0.7');
   final _topPController = TextEditingController(text: '0.9');
   final _maxTokensController = TextEditingController(text: '512');
@@ -31,6 +30,7 @@ class _MnnTestPageState extends State<MnnTestPage> {
     _controller = widget.controller ?? MnnTestController();
     _portController.addListener(_handleInputChanged);
     _apiKeyController.addListener(_handleInputChanged);
+    _systemPromptController.addListener(_handleInputChanged);
     _promptController.addListener(_handleInputChanged);
     _temperatureController.addListener(_handleInputChanged);
     _topPController.addListener(_handleInputChanged);
@@ -487,12 +487,20 @@ class _ApiCard extends StatelessWidget {
     final running = controller.snapshot?.server?.running == true;
     final generating = controller.snapshot?.generationState == 'generating';
     final requestBusy =
-        controller.operationRunning || controller.streamRunning || generating;
+        controller.operationRunning ||
+        controller.streamRunning ||
+        controller.toolFlowRunning ||
+        generating;
     final promptReady = promptController.text.trim().isNotEmpty;
     final canSend = running && !requestBusy && promptReady && parametersValid;
-    final canCapabilityTest = running && !requestBusy && parametersValid;
+    final maxTokensReady =
+        maxTokens != null && maxTokens! >= 1 && maxTokens! <= 8192;
+    final canCapabilityTest = running && !requestBusy && maxTokensReady;
     final activeModel = controller.snapshot?.activeModel;
-    final canQuery = running && !controller.operationRunning;
+    final canQuery = running && !requestBusy;
+    final displayedToolSteps = controller.apiResult?.steps.isNotEmpty == true
+        ? controller.apiResult!.steps
+        : controller.toolFlowSteps;
     return _SectionCard(
       title: 'API Test',
       child: Column(
@@ -604,25 +612,13 @@ class _ApiCard extends StatelessWidget {
                 onPressed:
                     canCapabilityTest &&
                         activeModel?.supportsToolCalling == true
-                    ? () => controller.testToolCall(
+                    ? () => controller.testToolFlow(
                         apiKey: apiKey,
                         maxTokens: maxTokens!,
                       )
                     : null,
                 icon: const Icon(Icons.build_outlined),
-                label: const Text('工具调用'),
-              ),
-              FilledButton.tonalIcon(
-                onPressed:
-                    canCapabilityTest &&
-                        activeModel?.supportsToolCalling == true
-                    ? () => controller.testToolRoundTrip(
-                        apiKey: apiKey,
-                        maxTokens: maxTokens!,
-                      )
-                    : null,
-                icon: const Icon(Icons.sync_alt),
-                label: const Text('工具结果续答'),
+                label: const Text('工具调用全流程'),
               ),
               FilledButton.tonalIcon(
                 onPressed:
@@ -633,35 +629,379 @@ class _ApiCard extends StatelessWidget {
                       )
                     : null,
                 icon: const Icon(Icons.image_outlined),
-                label: const Text('apple.jpg 图片问答'),
+                label: const Text('apple.jpg 图片问答（SSE）'),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          if (controller.streamingOutput.isNotEmpty)
-            SelectableText(controller.streamingOutput),
-          if (controller.apiResult != null) ...[
-            Text(
-              '${controller.apiResult!.label} · '
-              '${controller.apiResult!.succeeded ? 'success' : 'failed'}',
+          if (controller.streamingOutput.isNotEmpty) ...[
+            Row(
+              children: [
+                Text(
+                  controller.streamRunning ? '流式输出（生成中）' : '流式输出',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                if (controller.streamRunning) ...[
+                  const SizedBox(width: 8),
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ],
+              ],
             ),
-            Text(
-              'HTTP ${controller.apiResult!.statusCode?.toString() ?? '-'} · '
-              'Total ${controller.apiResult!.elapsedMs} ms'
-              '${controller.apiResult!.firstTokenMs == null ? '' : ' · TTFT ${controller.apiResult!.firstTokenMs} ms'}',
-            ),
-            if (controller.apiResult!.totalTokens != null)
-              Text(
-                'Usage: prompt ${controller.apiResult!.promptTokens ?? '-'} · '
-                'completion ${controller.apiResult!.completionTokens ?? '-'} · '
-                'total ${controller.apiResult!.totalTokens}',
-              ),
             const SizedBox(height: 4),
-            SelectableText(controller.apiResult!.output),
+            _OutputBox(text: controller.streamingOutput),
+            const SizedBox(height: 12),
+          ],
+          if (displayedToolSteps.isNotEmpty) ...[
+            _ToolFlowPanel(steps: displayedToolSteps),
+            const SizedBox(height: 12),
+          ],
+          if (controller.apiResult != null) ...[
+            _ApiResultPanel(result: controller.apiResult!),
           ],
         ],
       ),
     );
+  }
+}
+
+class _ApiResultPanel extends StatelessWidget {
+  const _ApiResultPanel({required this.result});
+
+  final MnnApiTestResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = result.cancelled
+        ? Theme.of(context).colorScheme.outline
+        : result.succeeded
+        ? Colors.green.shade700
+        : Theme.of(context).colorScheme.error;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              result.cancelled
+                  ? Icons.cancel
+                  : result.succeeded
+                  ? Icons.check_circle
+                  : Icons.error,
+              color: statusColor,
+              size: 20,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                '${result.label} · ${result.cancelled
+                    ? '已取消'
+                    : result.succeeded
+                    ? '成功'
+                    : '失败'}',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'HTTP ${result.statusCode?.toString() ?? '-'} · 总耗时 ${result.elapsedMs} ms'
+          '${result.firstTokenMs == null ? '' : ' · 首 token ${result.firstTokenMs} ms'}',
+        ),
+        if (result.totalTokens != null)
+          Text(
+            'Usage：prompt ${result.promptTokens ?? '-'} · '
+            'completion ${result.completionTokens ?? '-'} · '
+            'total ${result.totalTokens}',
+          ),
+        if (result.toolName != null || result.toolCallId != null) ...[
+          const SizedBox(height: 4),
+          SelectableText(
+            '工具：${result.toolName ?? '-'} · call id：${result.toolCallId ?? '-'}\n'
+            'arguments：${result.toolArguments ?? '-'}',
+          ),
+        ],
+        if (result.errorMessage != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            result.errorMessage!,
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        ],
+        if (result.output.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _OutputBox(text: result.output),
+        ],
+        if (result.exchanges.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Text('API 请求与响应', style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 4),
+          ...result.exchanges.asMap().entries.map(
+            (entry) =>
+                _ExchangeTile(index: entry.key + 1, exchange: entry.value),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _ToolFlowPanel extends StatelessWidget {
+  const _ToolFlowPanel({required this.steps});
+
+  final List<MnnApiTestStep> steps;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('工具调用全流程（每步状态）', style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: 4),
+        ...steps.asMap().entries.map(
+          (entry) => _ToolStepTile(index: entry.key + 1, step: entry.value),
+        ),
+      ],
+    );
+  }
+}
+
+class _ToolStepTile extends StatelessWidget {
+  const _ToolStepTile({required this.index, required this.step});
+
+  final int index;
+  final MnnApiTestStep step;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _stepStatusColor(context, step.status);
+    final hasDetails =
+        step.checks.isNotEmpty ||
+        step.exchange != null ||
+        step.input != null ||
+        step.output != null ||
+        step.error != null;
+    final title = '$index. ${step.title} · ${step.status.label}';
+    final header = Row(
+      children: [
+        Icon(_stepStatusIcon(step.status), color: color, size: 20),
+        const SizedBox(width: 8),
+        Expanded(child: Text(title)),
+        if (step.elapsedMs != null) Text('${step.elapsedMs} ms'),
+      ],
+    );
+    if (!hasDetails) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: header,
+      );
+    }
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 3),
+      child: ExpansionTile(
+        initiallyExpanded: true,
+        tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+        title: header,
+        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        children: [
+          if (step.error != null)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                step.error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+          if (step.checks.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '格式检查',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+            ),
+            ...step.checks.map((check) => _ValidationRow(check: check)),
+          ],
+          if (step.input != null) ...[
+            const SizedBox(height: 6),
+            _LabeledOutput(label: '输入 / 请求入参', text: step.input!),
+          ],
+          if (step.output != null && step.exchange == null) ...[
+            const SizedBox(height: 6),
+            _LabeledOutput(label: '输出 / 检查结果', text: step.output!),
+          ],
+          if (step.exchange != null) ...[
+            const SizedBox(height: 6),
+            _ExchangeTile(index: null, exchange: step.exchange!),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ValidationRow extends StatelessWidget {
+  const _ValidationRow({required this.check});
+
+  final MnnApiValidationCheck check;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = check.succeeded
+        ? Colors.green.shade700
+        : Theme.of(context).colorScheme.error;
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            check.succeeded ? Icons.check : Icons.close,
+            color: color,
+            size: 17,
+          ),
+          const SizedBox(width: 5),
+          Expanded(
+            child: Text(
+              '${check.label}${check.detail == null ? '' : '（${check.detail}）'}',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ExchangeTile extends StatelessWidget {
+  const _ExchangeTile({required this.index, required this.exchange});
+
+  final int? index;
+  final MnnApiExchange exchange;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = index == null
+        ? '${exchange.method} ${exchange.url}'
+        : '请求 $index：${exchange.method} ${exchange.url}';
+    final status = exchange.cancelled
+        ? '已取消'
+        : exchange.succeeded
+        ? '成功'
+        : '失败';
+    return Card(
+      margin: const EdgeInsets.only(top: 4),
+      child: ExpansionTile(
+        initiallyExpanded: true,
+        title: Text(title),
+        subtitle: Text(
+          '$status · HTTP ${exchange.statusCode?.toString() ?? '-'} · '
+          '${exchange.elapsedMs} ms'
+          '${exchange.sseEventCount == 0 ? '' : ' · SSE ${exchange.sseEventCount} events'}',
+        ),
+        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        children: [
+          _LabeledOutput(label: '请求入参', text: exchange.requestDisplay),
+          const SizedBox(height: 8),
+          _LabeledOutput(label: '响应结构', text: exchange.responseDisplay),
+          if (exchange.errorMessage != null) ...[
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                exchange.errorMessage!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _LabeledOutput extends StatelessWidget {
+  const _LabeledOutput({required this.label, required this.text});
+
+  final String label;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(label, style: Theme.of(context).textTheme.labelLarge),
+            ),
+            IconButton(
+              onPressed: () => Clipboard.setData(ClipboardData(text: text)),
+              tooltip: '复制内容',
+              icon: const Icon(Icons.copy, size: 18),
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
+        ),
+        const SizedBox(height: 3),
+        _OutputBox(text: text),
+      ],
+    );
+  }
+}
+
+class _OutputBox extends StatelessWidget {
+  const _OutputBox({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(maxHeight: 260),
+      padding: const EdgeInsets.all(10),
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: SelectionArea(
+        child: SingleChildScrollView(
+          child: Text(text, style: const TextStyle(fontFamily: 'monospace')),
+        ),
+      ),
+    );
+  }
+}
+
+Color _stepStatusColor(BuildContext context, MnnApiTestStepStatus status) {
+  switch (status) {
+    case MnnApiTestStepStatus.succeeded:
+      return Colors.green.shade700;
+    case MnnApiTestStepStatus.failed:
+      return Theme.of(context).colorScheme.error;
+    case MnnApiTestStepStatus.running:
+      return Theme.of(context).colorScheme.primary;
+    case MnnApiTestStepStatus.pending:
+    case MnnApiTestStepStatus.skipped:
+      return Theme.of(context).colorScheme.outline;
+  }
+}
+
+IconData _stepStatusIcon(MnnApiTestStepStatus status) {
+  switch (status) {
+    case MnnApiTestStepStatus.pending:
+      return Icons.hourglass_empty;
+    case MnnApiTestStepStatus.running:
+      return Icons.timelapse;
+    case MnnApiTestStepStatus.succeeded:
+      return Icons.check_circle;
+    case MnnApiTestStepStatus.failed:
+      return Icons.error;
+    case MnnApiTestStepStatus.skipped:
+      return Icons.skip_next;
   }
 }
 
