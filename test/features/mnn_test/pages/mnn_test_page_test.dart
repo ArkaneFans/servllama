@@ -263,6 +263,36 @@ void main() {
     );
   });
 
+  testWidgets('allows unauthenticated all-interface server with a warning', (
+    tester,
+  ) async {
+    final controller = _FakeMnnTestController(
+      initialSnapshot: _snapshot(),
+      initialModels: const <MnnModelInfo>[_model],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(home: MnnTestPage(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+    controller.setBindMode(MnnServerBindMode.allInterfaces);
+    await tester.pump();
+    await tester.scrollUntilVisible(
+      find.text('启动 Server'),
+      400,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    expect(find.textContaining('API Key 留空时，任何能够访问设备端口的客户端'), findsOneWidget);
+    expect(find.text('API Key（可选，留空关闭认证）'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, '启动 Server'))
+          .onPressed,
+      isNotNull,
+    );
+  });
+
   testWidgets('requires a non-empty prompt before sending chat', (
     tester,
   ) async {

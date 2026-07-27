@@ -114,7 +114,6 @@ class _MnnTestPageState extends State<MnnTestPage> {
                   portController: _portController,
                   apiKeyController: _apiKeyController,
                   portValid: _portValid,
-                  apiKey: _apiKey,
                   onCheckPort: () {
                     final port = _port;
                     if (port != null) controller.checkPort(port);
@@ -287,7 +286,6 @@ class _ServerCard extends StatelessWidget {
     required this.portController,
     required this.apiKeyController,
     required this.portValid,
-    required this.apiKey,
     required this.onCheckPort,
     required this.onStart,
     required this.onGenerateApiKey,
@@ -297,7 +295,6 @@ class _ServerCard extends StatelessWidget {
   final TextEditingController portController;
   final TextEditingController apiKeyController;
   final bool portValid;
-  final String? apiKey;
   final VoidCallback onCheckPort;
   final VoidCallback onStart;
   final VoidCallback onGenerateApiKey;
@@ -309,15 +306,13 @@ class _ServerCard extends StatelessWidget {
     final serverState = controller.snapshot?.serverState;
     final generating = controller.snapshot?.generationState == 'generating';
     final lanMode = controller.bindMode == MnnServerBindMode.allInterfaces;
-    final apiKeyValid = !lanMode || (apiKey?.length ?? 0) >= 16;
     final canStart =
         !controller.operationRunning &&
         serverState == 'stopped' &&
         controller.snapshot?.modelState == 'loaded' &&
         controller.snapshot?.activeModel != null &&
         !generating &&
-        portValid &&
-        apiKeyValid;
+        portValid;
     return _SectionCard(
       title: 'API Server',
       child: Column(
@@ -348,7 +343,7 @@ class _ServerCard extends StatelessWidget {
           if (lanMode) ...[
             const SizedBox(height: 8),
             Text(
-              '所有接口模式会向当前 Wi-Fi、热点、VPN 等 IPv4 网络暴露服务，API Key 至少需要 16 个字符。',
+              '警告：所有接口模式会向当前 Wi-Fi、热点、VPN 等 IPv4 网络暴露服务。API Key 留空时，任何能够访问设备端口的客户端都可以直接调用模型，请仅在可信网络中使用。',
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           ],
@@ -368,7 +363,7 @@ class _ServerCard extends StatelessWidget {
             enabled: serverState == 'stopped',
             obscureText: true,
             decoration: InputDecoration(
-              labelText: lanMode ? 'API Key（必填，至少 16 字符）' : 'API Key（留空关闭认证）',
+              labelText: lanMode ? 'API Key（可选，留空关闭认证）' : 'API Key（留空关闭认证）',
             ),
           ),
           const SizedBox(height: 8),
