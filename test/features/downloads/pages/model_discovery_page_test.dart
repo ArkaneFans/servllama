@@ -48,6 +48,10 @@ void main() {
     expect(find.text('GGUF'), findsOneWidget);
     expect(find.text('MNN'), findsNothing);
     expect(find.text('共 20 个结果'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('Hugging Face')).dx,
+      moreOrLessEquals(tester.getTopLeft(find.text('下载量')).dx),
+    );
 
     await tester.fling(
       find.byType(ListView).last,
