@@ -35,10 +35,42 @@ enum ModelHubSource {
   }
 }
 
+/// Model package layout requested from a hub search endpoint.
+///
+/// Search results carry this value explicitly. Repository names are not a
+/// reliable signal: a regular Safetensors repository may contain neither
+/// format, while some official MNN repositories do not have `mnn` in every
+/// piece of metadata returned by a hub.
+enum HubModelFormat {
+  gguf,
+  mnn;
+
+  String get libraryTag => name;
+
+  InferenceEngine get engine {
+    switch (this) {
+      case HubModelFormat.gguf:
+        return InferenceEngine.llamaCpp;
+      case HubModelFormat.mnn:
+        return InferenceEngine.mnn;
+    }
+  }
+
+  static HubModelFormat fromEngine(InferenceEngine engine) {
+    switch (engine) {
+      case InferenceEngine.llamaCpp:
+        return HubModelFormat.gguf;
+      case InferenceEngine.mnn:
+        return HubModelFormat.mnn;
+    }
+  }
+}
+
 /// A repository as it appears in search results.
 class HubRepoSummary {
   const HubRepoSummary({
     required this.source,
+    required this.format,
     required this.repoId,
     required this.owner,
     required this.name,
@@ -50,6 +82,7 @@ class HubRepoSummary {
   });
 
   final ModelHubSource source;
+  final HubModelFormat format;
 
   /// `owner/name`, the form both hubs use in their file and download APIs.
   final String repoId;
@@ -61,14 +94,21 @@ class HubRepoSummary {
   final int? fileCount;
   final List<String> tags;
 
-  /// Repos whose files are MNN model directories rather than GGUF blobs.
-  bool get looksLikeMnn {
-    final haystack = '$repoId ${tags.join(' ')}'.toLowerCase();
-    return haystack.contains('mnn');
-  }
+  InferenceEngine get likelyEngine => format.engine;
+}
 
-  InferenceEngine get likelyEngine =>
-      looksLikeMnn ? InferenceEngine.mnn : InferenceEngine.llamaCpp;
+/// One page returned by a model hub search endpoint.
+///
+/// [nextPageToken] is opaque to the provider: Hugging Face stores its cursor
+/// here, while ModelScope stores the next page number. The originating client
+/// is responsible for interpreting it on the next request.
+class HubSearchPage {
+  const HubSearchPage({required this.items, this.nextPageToken});
+
+  final List<HubRepoSummary> items;
+  final String? nextPageToken;
+
+  bool get hasMore => nextPageToken != null;
 }
 
 /// One downloadable file inside a repository.
@@ -82,6 +122,8 @@ class HubRepoFile {
   String get fileName => path.split('/').last;
 
   bool get isGguf => fileName.toLowerCase().endsWith('.gguf');
+
+  bool get isMnnModel => fileName.toLowerCase().endsWith('.mnn');
 
   bool get isMmproj {
     final normalized = fileName.toLowerCase();
@@ -114,6 +156,8 @@ class HubRepoDetail {
   List<HubRepoFile> get ggufFiles => files
       .where((file) => file.isGguf && !file.isMmproj)
       .toList(growable: false);
+
+  bool get hasMnnModelFiles => files.any((file) => file.isMnnModel);
 
   HubRepoFile? get mmprojFile {
     for (final file in files) {

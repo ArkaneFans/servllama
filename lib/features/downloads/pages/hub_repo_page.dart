@@ -41,6 +41,7 @@ class _HubRepoPageState extends State<HubRepoPage> {
         context.read<ModelDiscoveryProvider>().openRepo(
           widget.repoId,
           source: widget.source,
+          engine: widget.engine,
         );
       }
     });
@@ -238,6 +239,15 @@ class _MnnBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    if (!detail.hasMnnModelFiles) {
+      return Padding(
+        padding: const EdgeInsets.all(20),
+        child: NoticeBanner(
+          tone: StatusTone.warning,
+          message: l10n.repoNoMnnFiles,
+        ),
+      );
+    }
     final totalBytes = detail.files.fold(
       0,
       (sum, file) => sum + file.sizeBytes,

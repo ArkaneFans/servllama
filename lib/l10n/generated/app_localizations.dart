@@ -1814,12 +1814,6 @@ abstract class AppLocalizations {
   /// **'View device-verified picks'**
   String get discoverBackToFeatured;
 
-  /// No description provided for @discoverSourceAll.
-  ///
-  /// In en, this message translates to:
-  /// **'All sources'**
-  String get discoverSourceAll;
-
   /// No description provided for @discoverSortDownloads.
   ///
   /// In en, this message translates to:
@@ -1945,6 +1939,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This repository has no GGUF files.'**
   String get repoNoGgufFiles;
+
+  /// No description provided for @repoNoMnnFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'This repository has no MNN model files.'**
+  String get repoNoMnnFiles;
 
   /// No description provided for @repoMnnWholeDirectory.
   ///

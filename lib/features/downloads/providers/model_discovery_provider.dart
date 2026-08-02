@@ -52,13 +52,15 @@ class ModelDiscoveryProvider extends ChangeNotifier {
   bool _disposed = false;
   bool _isLoadingCatalog = false;
   bool _isSearching = false;
+  bool _isLoadingMore = false;
   bool _isLoadingRepo = false;
   String _query = '';
   ModelHubSource _activeSource = ModelHubSource.huggingFace;
-  bool _searchAllSources = true;
   HubSearchSort _searchSort = HubSearchSort.downloads;
   HubFormatFilter _formatFilter = HubFormatFilter.all;
   ModelHubErrorKind? _lastError;
+  ModelHubErrorKind? _loadMoreError;
+  Map<HubModelFormat, String> _nextPageTokens = <HubModelFormat, String>{};
   int _searchEpoch = 0;
 
   List<CatalogEntry> get catalog => List<CatalogEntry>.unmodifiable(_catalog);
@@ -69,13 +71,24 @@ class ModelDiscoveryProvider extends ChangeNotifier {
   DownloadSettings get settings => _settings;
   bool get isLoadingCatalog => _isLoadingCatalog;
   bool get isSearching => _isSearching;
+  bool get isLoadingMore => _isLoadingMore;
   bool get isLoadingRepo => _isLoadingRepo;
   String get query => _query;
   ModelHubSource get activeSource => _activeSource;
-  bool get searchAllSources => _searchAllSources;
   HubSearchSort get searchSort => _searchSort;
   HubFormatFilter get formatFilter => _formatFilter;
   ModelHubErrorKind? get lastError => _lastError;
+  ModelHubErrorKind? get loadMoreError => _loadMoreError;
+  bool get hasMore => _nextPageTokens.isNotEmpty;
+
+  List<HubFormatFilter> get availableFormatFilters {
+    final formats = _searchableFormatsFor(_activeSource);
+    return <HubFormatFilter>[
+      HubFormatFilter.all,
+      if (formats.contains(HubModelFormat.gguf)) HubFormatFilter.gguf,
+      if (formats.contains(HubModelFormat.mnn)) HubFormatFilter.mnn,
+    ];
+  }
 
   List<HubRepoSummary> get displayedSearchResults {
     final results = _searchResults
@@ -131,30 +144,22 @@ class ModelDiscoveryProvider extends ChangeNotifier {
       _isLoadingCatalog = false;
       notifyListeners();
     }
+    if (!_disposed) {
+      await search(_query);
+    }
   }
 
   Future<void> setSource(ModelHubSource source) async {
-    if (_activeSource == source && !_searchAllSources) {
+    if (_activeSource == source) {
       return;
     }
     _activeSource = source;
-    _searchAllSources = false;
+    if (!availableFormatFilters.contains(_formatFilter)) {
+      _formatFilter = HubFormatFilter.all;
+    }
     await _settingsStore.savePreferredSource(source);
     notifyListeners();
-    if (_query.trim().isNotEmpty) {
-      await search(_query);
-    }
-  }
-
-  Future<void> setSearchAllSources() async {
-    if (_searchAllSources) {
-      return;
-    }
-    _searchAllSources = true;
-    notifyListeners();
-    if (_query.trim().isNotEmpty) {
-      await search(_query);
-    }
+    await search(_query);
   }
 
   void setSearchSort(HubSearchSort value) {
@@ -165,48 +170,40 @@ class ModelDiscoveryProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setFormatFilter(HubFormatFilter value) {
-    if (_formatFilter == value) {
+  Future<void> setFormatFilter(HubFormatFilter value) async {
+    if (_formatFilter == value || !availableFormatFilters.contains(value)) {
       return;
     }
     _formatFilter = value;
     notifyListeners();
+    await search(_query);
   }
 
   Future<void> search(String query) async {
     _query = query;
     final searchEpoch = ++_searchEpoch;
     final trimmed = query.trim();
-    if (trimmed.isEmpty) {
-      _searchResults = <HubRepoSummary>[];
-      _lastError = null;
-      _isSearching = false;
-      notifyListeners();
-      return;
-    }
 
     _isSearching = true;
+    _isLoadingMore = false;
     _lastError = null;
+    _loadMoreError = null;
+    _nextPageTokens = <HubModelFormat, String>{};
     notifyListeners();
 
     try {
-      if (_searchAllSources) {
-        final results = await Future.wait<List<HubRepoSummary>>(
-          ModelHubSource.values.map((source) => _searchSource(source, trimmed)),
-        );
-        if (!_isCurrentSearch(searchEpoch)) {
-          return;
-        }
-        _searchResults = results
-            .expand((items) => items)
-            .toList(growable: false);
-      } else {
-        final results = await (await _clientFor(_activeSource)).search(trimmed);
-        if (!_isCurrentSearch(searchEpoch)) {
-          return;
-        }
-        _searchResults = results;
+      final pages = await _searchPages(
+        source: _activeSource,
+        query: trimmed,
+        formats: _formatsForSearch(_activeSource),
+      );
+      if (!_isCurrentSearch(searchEpoch)) {
+        return;
       }
+      _searchResults = _deduplicate(
+        pages.expand((result) => result.page.items),
+      );
+      _nextPageTokens = _nextTokens(pages);
     } on ModelHubException catch (error) {
       if (!_isCurrentSearch(searchEpoch)) {
         return;
@@ -230,25 +227,121 @@ class ModelDiscoveryProvider extends ChangeNotifier {
 
   bool _isCurrentSearch(int epoch) => !_disposed && epoch == _searchEpoch;
 
-  Future<List<HubRepoSummary>> _searchSource(
-    ModelHubSource source,
-    String query,
-  ) async {
-    try {
-      return await (await _clientFor(source)).search(query);
-    } catch (error) {
-      _logger.warning(
-        '${source.displayName} 搜索失败: $error',
-        channel: LogChannel.model,
-      );
-      return const <HubRepoSummary>[];
+  Future<void> loadMore() async {
+    if (_isSearching || _isLoadingMore || _nextPageTokens.isEmpty) {
+      return;
     }
+    final searchEpoch = _searchEpoch;
+    final requestedTokens = Map<HubModelFormat, String>.from(_nextPageTokens);
+    _isLoadingMore = true;
+    _loadMoreError = null;
+    notifyListeners();
+
+    try {
+      final pages = await _searchPages(
+        source: _activeSource,
+        query: _query.trim(),
+        formats: requestedTokens.keys,
+        pageTokens: requestedTokens,
+      );
+      if (!_isCurrentSearch(searchEpoch)) {
+        return;
+      }
+      _searchResults = _deduplicate(<HubRepoSummary>[
+        ..._searchResults,
+        ...pages.expand((result) => result.page.items),
+      ]);
+      for (final format in requestedTokens.keys) {
+        _nextPageTokens.remove(format);
+      }
+      _nextPageTokens.addAll(_nextTokens(pages));
+    } on ModelHubException catch (error) {
+      if (_isCurrentSearch(searchEpoch)) {
+        _loadMoreError = error.kind;
+      }
+    } catch (error) {
+      if (_isCurrentSearch(searchEpoch)) {
+        _loadMoreError = ModelHubErrorKind.network;
+        _logger.warning('加载更多模型失败: $error', channel: LogChannel.model);
+      }
+    } finally {
+      if (_isCurrentSearch(searchEpoch)) {
+        _isLoadingMore = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<List<_FormatSearchPage>> _searchPages({
+    required ModelHubSource source,
+    required String query,
+    required Iterable<HubModelFormat> formats,
+    Map<HubModelFormat, String> pageTokens = const <HubModelFormat, String>{},
+  }) async {
+    final client = await _clientFor(source);
+    return Future.wait<_FormatSearchPage>(
+      formats.map((format) async {
+        final page = await client.search(
+          query,
+          format: format,
+          pageToken: pageTokens[format],
+        );
+        return _FormatSearchPage(format: format, page: page);
+      }),
+    );
+  }
+
+  Map<HubModelFormat, String> _nextTokens(Iterable<_FormatSearchPage> pages) =>
+      <HubModelFormat, String>{
+        for (final result in pages)
+          if (result.page.nextPageToken != null)
+            result.format: result.page.nextPageToken!,
+      };
+
+  Set<HubModelFormat> _searchableFormatsFor(ModelHubSource source) {
+    switch (source) {
+      case ModelHubSource.huggingFace:
+        return _huggingFaceClient.searchableFormats;
+      case ModelHubSource.modelScope:
+        return _modelScopeClient.searchableFormats;
+    }
+  }
+
+  List<HubModelFormat> _formatsForSearch(ModelHubSource source) {
+    final supported = _searchableFormatsFor(source);
+    switch (_formatFilter) {
+      case HubFormatFilter.all:
+        return HubModelFormat.values
+            .where(supported.contains)
+            .toList(growable: false);
+      case HubFormatFilter.gguf:
+        return supported.contains(HubModelFormat.gguf)
+            ? const <HubModelFormat>[HubModelFormat.gguf]
+            : const <HubModelFormat>[];
+      case HubFormatFilter.mnn:
+        return supported.contains(HubModelFormat.mnn)
+            ? const <HubModelFormat>[HubModelFormat.mnn]
+            : const <HubModelFormat>[];
+    }
+  }
+
+  List<HubRepoSummary> _deduplicate(Iterable<HubRepoSummary> results) {
+    final unique = <String, HubRepoSummary>{};
+    for (final repo in results) {
+      final key = '${repo.source.storageValue}:${repo.repoId.toLowerCase()}';
+      unique.putIfAbsent(key, () => repo);
+    }
+    return unique.values.toList(growable: false);
   }
 
   /// Loads a repository's file listing and, in the same pass, works out which
   /// quantization tiers this device can actually run — so the picker can
   /// disable the ones that would OOM instead of failing at load time.
-  Future<void> openRepo(String repoId, {ModelHubSource? source}) async {
+  Future<void> openRepo(
+    String repoId, {
+    ModelHubSource? source,
+    required InferenceEngine engine,
+  }) async {
     _isLoadingRepo = true;
     _lastError = null;
     _repoDetail = null;
@@ -258,7 +351,7 @@ class ModelDiscoveryProvider extends ChangeNotifier {
     try {
       final detail = await (await _clientFor(
         source ?? _activeSource,
-      )).fetchRepo(repoId);
+      )).fetchRepo(repoId, expectedFormat: HubModelFormat.fromEngine(engine));
       _repoDetail = detail;
       _feasibility = await _capabilityService.assessAll(detail.files);
     } on ModelHubException catch (error) {
@@ -308,4 +401,11 @@ class ModelDiscoveryProvider extends ChangeNotifier {
     _disposed = true;
     super.dispose();
   }
+}
+
+class _FormatSearchPage {
+  const _FormatSearchPage({required this.format, required this.page});
+
+  final HubModelFormat format;
+  final HubSearchPage page;
 }

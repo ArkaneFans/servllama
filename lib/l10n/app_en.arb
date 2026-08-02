@@ -553,7 +553,6 @@
   "discoverSearchHint": "Search repositories",
   "discoverSearchDisclaimer": "Search results come straight from the hub and have not been verified on a device.",
   "discoverBackToFeatured": "View device-verified picks",
-  "discoverSourceAll": "All sources",
   "discoverSortDownloads": "Downloads",
   "discoverSortUpdated": "Recently updated",
   "discoverFormatAll": "All formats",
@@ -610,6 +609,7 @@
     }
   },
   "repoNoGgufFiles": "This repository has no GGUF files.",
+  "repoNoMnnFiles": "This repository has no MNN model files.",
   "repoMnnWholeDirectory": "MNN models download as a whole directory ({count} files).",
   "@repoMnnWholeDirectory": {
     "placeholders": {

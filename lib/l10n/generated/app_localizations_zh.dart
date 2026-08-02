@@ -948,9 +948,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get discoverBackToFeatured => '查看真机验证的精选模型';
 
   @override
-  String get discoverSourceAll => '全部来源';
-
-  @override
   String get discoverSortDownloads => '下载量';
 
   @override
@@ -1022,6 +1019,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get repoNoGgufFiles => '该仓库没有 GGUF 文件。';
+
+  @override
+  String get repoNoMnnFiles => '该仓库没有 MNN 模型文件。';
 
   @override
   String repoMnnWholeDirectory(int count) {

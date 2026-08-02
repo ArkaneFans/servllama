@@ -988,9 +988,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get discoverBackToFeatured => 'View device-verified picks';
 
   @override
-  String get discoverSourceAll => 'All sources';
-
-  @override
   String get discoverSortDownloads => 'Downloads';
 
   @override
@@ -1066,6 +1063,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get repoNoGgufFiles => 'This repository has no GGUF files.';
+
+  @override
+  String get repoNoMnnFiles => 'This repository has no MNN model files.';
 
   @override
   String repoMnnWholeDirectory(int count) {

@@ -3,124 +3,373 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/features/downloads/models/model_hub.dart';
 import 'package:servllama/features/downloads/providers/model_discovery_provider.dart';
+import 'package:servllama/features/downloads/services/device_capability_service.dart';
 import 'package:servllama/features/downloads/services/download_settings_store.dart';
+import 'package:servllama/features/downloads/services/model_catalog_service.dart';
 import 'package:servllama/features/downloads/services/model_hub_client.dart';
 
 void main() {
   group('ModelDiscoveryProvider', () {
     test(
-      'merges both hubs and applies local sort and format filters',
+      'load performs an empty-query search for the current source',
       () async {
-        final huggingFace = _FakeHubClient(
-          source: ModelHubSource.huggingFace,
-          onSearch: (_) async => <HubRepoSummary>[
-            HubRepoSummary(
-              source: ModelHubSource.huggingFace,
-              repoId: 'owner/gguf-model',
-              owner: 'owner',
-              name: 'gguf-model',
-              downloads: 10,
-              lastModified: DateTime(2026, 7, 31),
-              fileCount: 4,
-              tags: const <String>['gguf'],
-            ),
-          ],
-        );
-        final modelScope = _FakeHubClient(
-          source: ModelHubSource.modelScope,
-          onSearch: (_) async => <HubRepoSummary>[
-            HubRepoSummary(
-              source: ModelHubSource.modelScope,
-              repoId: 'MNN/mnn-model',
-              owner: 'MNN',
-              name: 'mnn-model',
-              downloads: 30,
-              lastModified: DateTime(2026, 7, 30),
-              fileCount: 7,
-              tags: const <String>['mnn'],
-            ),
-          ],
-        );
+        final calls = <_SearchCall>[];
         final provider = ModelDiscoveryProvider(
+          catalogService: _EmptyCatalogService(),
+          capabilityService: _UnknownCapabilityService(),
           settingsStore: _MemoryDownloadSettingsStore(),
-          huggingFaceClient: huggingFace,
-          modelScopeClient: modelScope,
+          huggingFaceClient: _FakeHubClient(
+            source: ModelHubSource.huggingFace,
+            onSearch: (query, format, pageToken) async {
+              calls.add(_SearchCall(query, format, pageToken));
+              return HubSearchPage(
+                items: <HubRepoSummary>[
+                  _summary(
+                    source: ModelHubSource.huggingFace,
+                    format: format,
+                    repoId: 'owner/default-model',
+                  ),
+                ],
+              );
+            },
+          ),
+          modelScopeClient: _emptyModelScopeClient(),
         );
         addTearDown(provider.dispose);
 
-        await provider.search('model');
+        await provider.load();
 
-        expect(provider.searchAllSources, isTrue);
-        expect(provider.searchResults, hasLength(2));
-        expect(
-          provider.displayedSearchResults.map((repo) => repo.repoId),
-          <String>['MNN/mnn-model', 'owner/gguf-model'],
-        );
-
-        provider.setSearchSort(HubSearchSort.updated);
-        expect(
-          provider.displayedSearchResults.map((repo) => repo.repoId),
-          <String>['owner/gguf-model', 'MNN/mnn-model'],
-        );
-
-        provider.setFormatFilter(HubFormatFilter.gguf);
-        expect(
-          provider.displayedSearchResults.single.repoId,
-          'owner/gguf-model',
-        );
-
-        provider.setFormatFilter(HubFormatFilter.mnn);
-        expect(provider.displayedSearchResults.single.repoId, 'MNN/mnn-model');
+        expect(calls, hasLength(1));
+        expect(calls.single.query, '');
+        expect(calls.single.format, HubModelFormat.gguf);
+        expect(calls.single.pageToken, isNull);
+        expect(provider.query, '');
+        expect(provider.searchResults.single.repoId, 'owner/default-model');
       },
     );
 
-    test('keeps the newest query result when searches overlap', () async {
-      final firstSearch = Completer<List<HubRepoSummary>>();
-      final huggingFace = _FakeHubClient(
-        source: ModelHubSource.huggingFace,
-        onSearch: (query) {
-          if (query == 'first') {
-            return firstSearch.future;
-          }
-          return Future<List<HubRepoSummary>>.value(<HubRepoSummary>[
-            const HubRepoSummary(
-              source: ModelHubSource.huggingFace,
-              repoId: 'owner/second',
-              owner: 'owner',
-              name: 'second',
-            ),
-          ]);
-        },
-      );
+    test('searches only the active source and its supported formats', () async {
+      final calls = <String>[];
       final provider = ModelDiscoveryProvider(
         settingsStore: _MemoryDownloadSettingsStore(),
-        huggingFaceClient: huggingFace,
+        huggingFaceClient: _FakeHubClient(
+          source: ModelHubSource.huggingFace,
+          onSearch: (query, format, _) async {
+            calls.add('hf:$query:${format.name}');
+            return HubSearchPage(
+              items: <HubRepoSummary>[
+                _summary(
+                  source: ModelHubSource.huggingFace,
+                  format: format,
+                  repoId: 'owner/hf-gguf-model',
+                  downloads: 20,
+                  lastModified: DateTime(2026, 7, 31),
+                ),
+              ],
+            );
+          },
+        ),
         modelScopeClient: _FakeHubClient(
           source: ModelHubSource.modelScope,
-          onSearch: (_) async => const <HubRepoSummary>[],
+          onSearch: (query, format, _) async {
+            calls.add('ms:$query:${format.name}');
+            return HubSearchPage(
+              items: <HubRepoSummary>[
+                _summary(
+                  source: ModelHubSource.modelScope,
+                  format: format,
+                  repoId: format == HubModelFormat.gguf
+                      ? 'owner/ms-gguf-model'
+                      : 'MNN/mnn-model',
+                  downloads: format == HubModelFormat.gguf ? 10 : 30,
+                  lastModified: format == HubModelFormat.gguf
+                      ? DateTime(2026, 7, 29)
+                      : DateTime(2026, 7, 30),
+                ),
+              ],
+            );
+          },
         ),
       );
       addTearDown(provider.dispose);
+
+      await provider.search('model');
+
+      expect(calls, <String>['hf:model:gguf']);
+      expect(provider.searchResults.single.repoId, 'owner/hf-gguf-model');
+
+      calls.clear();
+      await provider.setSource(ModelHubSource.modelScope);
+
+      expect(calls, unorderedEquals(<String>['ms:model:gguf', 'ms:model:mnn']));
+      expect(
+        provider.displayedSearchResults.map((repo) => repo.repoId),
+        <String>['MNN/mnn-model', 'owner/ms-gguf-model'],
+      );
+
+      provider.setSearchSort(HubSearchSort.updated);
+      expect(
+        provider.displayedSearchResults.map((repo) => repo.repoId),
+        <String>['MNN/mnn-model', 'owner/ms-gguf-model'],
+      );
+
+      calls.clear();
+      await provider.setFormatFilter(HubFormatFilter.mnn);
+      expect(calls, <String>['ms:model:mnn']);
+      expect(provider.searchResults.single.repoId, 'MNN/mnn-model');
+
+      calls.clear();
       await provider.setSource(ModelHubSource.huggingFace);
+      expect(provider.formatFilter, HubFormatFilter.all);
+      expect(calls, <String>['hf:model:gguf']);
+      expect(provider.availableFormatFilters, <HubFormatFilter>[
+        HubFormatFilter.all,
+        HubFormatFilter.gguf,
+      ]);
+    });
+
+    test(
+      'loadMore advances independent format tokens and appends results',
+      () async {
+        final calls = <_SearchCall>[];
+        final provider = ModelDiscoveryProvider(
+          settingsStore: _MemoryDownloadSettingsStore(),
+          huggingFaceClient: _FakeHubClient(
+            source: ModelHubSource.huggingFace,
+            onSearch: (_, _, _) async =>
+                const HubSearchPage(items: <HubRepoSummary>[]),
+          ),
+          modelScopeClient: _FakeHubClient(
+            source: ModelHubSource.modelScope,
+            onSearch: (query, format, pageToken) async {
+              calls.add(_SearchCall(query, format, pageToken));
+              final pageName = pageToken ?? '1';
+              return HubSearchPage(
+                items: <HubRepoSummary>[
+                  _summary(
+                    source: ModelHubSource.modelScope,
+                    format: format,
+                    repoId: 'owner/${format.name}-$pageName',
+                  ),
+                ],
+                nextPageToken: pageToken == null ? '${format.name}-2' : null,
+              );
+            },
+          ),
+        );
+        addTearDown(provider.dispose);
+
+        await provider.setSource(ModelHubSource.modelScope);
+
+        expect(provider.searchResults, hasLength(2));
+        expect(provider.hasMore, isTrue);
+        expect(calls.map((call) => call.pageToken), everyElement(isNull));
+
+        calls.clear();
+        await provider.loadMore();
+
+        expect(
+          calls.map((call) => '${call.format.name}:${call.pageToken}'),
+          unorderedEquals(<String>['gguf:gguf-2', 'mnn:mnn-2']),
+        );
+        expect(provider.searchResults, hasLength(4));
+        expect(provider.hasMore, isFalse);
+
+        final callCount = calls.length;
+        await provider.loadMore();
+        expect(calls, hasLength(callCount));
+      },
+    );
+
+    test('deduplicates the same repository returned for two formats', () async {
+      final provider = ModelDiscoveryProvider(
+        settingsStore: _MemoryDownloadSettingsStore(),
+        huggingFaceClient: _FakeHubClient(
+          source: ModelHubSource.huggingFace,
+          onSearch: (_, _, _) async =>
+              const HubSearchPage(items: <HubRepoSummary>[]),
+        ),
+        modelScopeClient: _FakeHubClient(
+          source: ModelHubSource.modelScope,
+          onSearch: (_, format, _) async => HubSearchPage(
+            items: <HubRepoSummary>[
+              _summary(
+                source: ModelHubSource.modelScope,
+                format: format,
+                repoId: 'owner/shared-repo',
+              ),
+            ],
+          ),
+        ),
+      );
+      addTearDown(provider.dispose);
+
+      await provider.setSource(ModelHubSource.modelScope);
+
+      expect(provider.searchResults, hasLength(1));
+      expect(provider.searchResults.single.format, HubModelFormat.gguf);
+    });
+
+    test('ignores a late loadMore result after a new search', () async {
+      final latePage = Completer<HubSearchPage>();
+      final provider = ModelDiscoveryProvider(
+        settingsStore: _MemoryDownloadSettingsStore(),
+        huggingFaceClient: _FakeHubClient(
+          source: ModelHubSource.huggingFace,
+          onSearch: (query, format, pageToken) {
+            if (pageToken != null) {
+              return latePage.future;
+            }
+            return Future<HubSearchPage>.value(
+              HubSearchPage(
+                items: <HubRepoSummary>[
+                  _summary(
+                    source: ModelHubSource.huggingFace,
+                    format: format,
+                    repoId: 'owner/$query',
+                  ),
+                ],
+                nextPageToken: query == 'first' ? 'next' : null,
+              ),
+            );
+          },
+        ),
+        modelScopeClient: _emptyModelScopeClient(),
+      );
+      addTearDown(provider.dispose);
+
+      await provider.search('first');
+      final staleLoadMore = provider.loadMore();
+      await Future<void>.delayed(Duration.zero);
+      await provider.search('second');
+      latePage.complete(
+        HubSearchPage(
+          items: <HubRepoSummary>[
+            _summary(
+              source: ModelHubSource.huggingFace,
+              format: HubModelFormat.gguf,
+              repoId: 'owner/stale-page',
+            ),
+          ],
+        ),
+      );
+      await staleLoadMore;
+
+      expect(provider.query, 'second');
+      expect(provider.searchResults.single.repoId, 'owner/second');
+      expect(provider.isLoadingMore, isFalse);
+    });
+
+    test('keeps the newest query result when searches overlap', () async {
+      final firstSearch = Completer<HubSearchPage>();
+      final provider = ModelDiscoveryProvider(
+        settingsStore: _MemoryDownloadSettingsStore(),
+        huggingFaceClient: _FakeHubClient(
+          source: ModelHubSource.huggingFace,
+          onSearch: (query, format, _) {
+            if (query == 'first') {
+              return firstSearch.future;
+            }
+            return Future<HubSearchPage>.value(
+              HubSearchPage(
+                items: <HubRepoSummary>[
+                  _summary(
+                    source: ModelHubSource.huggingFace,
+                    format: format,
+                    repoId: 'owner/second',
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+        modelScopeClient: _emptyModelScopeClient(),
+      );
+      addTearDown(provider.dispose);
 
       final staleFuture = provider.search('first');
       await Future<void>.delayed(Duration.zero);
       await provider.search('second');
-      firstSearch.complete(<HubRepoSummary>[
-        const HubRepoSummary(
-          source: ModelHubSource.huggingFace,
-          repoId: 'owner/first',
-          owner: 'owner',
-          name: 'first',
+      firstSearch.complete(
+        HubSearchPage(
+          items: <HubRepoSummary>[
+            _summary(
+              source: ModelHubSource.huggingFace,
+              format: HubModelFormat.gguf,
+              repoId: 'owner/first',
+            ),
+          ],
         ),
-      ]);
+      );
       await staleFuture;
 
       expect(provider.query, 'second');
       expect(provider.searchResults.single.repoId, 'owner/second');
       expect(provider.isSearching, isFalse);
     });
+
+    test('uses explicit format instead of guessing from repository name', () {
+      const namedMnnButGguf = HubRepoSummary(
+        source: ModelHubSource.modelScope,
+        format: HubModelFormat.gguf,
+        repoId: 'owner/model-mnn-experiment',
+        owner: 'owner',
+        name: 'model-mnn-experiment',
+      );
+      const plainNameButMnn = HubRepoSummary(
+        source: ModelHubSource.modelScope,
+        format: HubModelFormat.mnn,
+        repoId: 'owner/plain-model',
+        owner: 'owner',
+        name: 'plain-model',
+      );
+
+      expect(namedMnnButGguf.likelyEngine.name, 'llamaCpp');
+      expect(plainNameButMnn.likelyEngine.name, 'mnn');
+    });
   });
+}
+
+HubRepoSummary _summary({
+  required ModelHubSource source,
+  required HubModelFormat format,
+  required String repoId,
+  int downloads = 0,
+  DateTime? lastModified,
+}) {
+  final segments = repoId.split('/');
+  return HubRepoSummary(
+    source: source,
+    format: format,
+    repoId: repoId,
+    owner: segments.length > 1 ? segments.first : '',
+    name: segments.last,
+    downloads: downloads,
+    lastModified: lastModified,
+  );
+}
+
+_FakeHubClient _emptyModelScopeClient() => _FakeHubClient(
+  source: ModelHubSource.modelScope,
+  onSearch: (_, _, _) async => const HubSearchPage(items: <HubRepoSummary>[]),
+);
+
+class _SearchCall {
+  const _SearchCall(this.query, this.format, this.pageToken);
+
+  final String query;
+  final HubModelFormat format;
+  final String? pageToken;
+}
+
+class _EmptyCatalogService extends ModelCatalogService {
+  @override
+  Future<List<CatalogEntry>> load() async => const <CatalogEntry>[];
+}
+
+class _UnknownCapabilityService extends DeviceCapabilityService {
+  @override
+  Future<DeviceMemoryInfo> readMemory() async => DeviceMemoryInfo.unknown;
 }
 
 class _MemoryDownloadSettingsStore extends DownloadSettingsStore {
@@ -136,11 +385,30 @@ class _MemoryDownloadSettingsStore extends DownloadSettingsStore {
 }
 
 class _FakeHubClient implements ModelHubClient {
-  _FakeHubClient({required this.source, required this.onSearch});
+  _FakeHubClient({
+    required this.source,
+    required this.onSearch,
+    Set<HubModelFormat>? searchableFormats,
+  }) : searchableFormats =
+           searchableFormats ??
+           (source == ModelHubSource.huggingFace
+               ? const <HubModelFormat>{HubModelFormat.gguf}
+               : const <HubModelFormat>{
+                   HubModelFormat.gguf,
+                   HubModelFormat.mnn,
+                 });
 
   @override
   final ModelHubSource source;
-  final Future<List<HubRepoSummary>> Function(String query) onSearch;
+  final Future<HubSearchPage> Function(
+    String query,
+    HubModelFormat format,
+    String? pageToken,
+  )
+  onSearch;
+
+  @override
+  final Set<HubModelFormat> searchableFormats;
 
   @override
   Map<String, String> authHeaders(String? token) => const <String, String>{};
@@ -149,9 +417,16 @@ class _FakeHubClient implements ModelHubClient {
   String downloadUrl(String repoId, String filePath, {String? revision}) => '';
 
   @override
-  Future<HubRepoDetail> fetchRepo(String repoId) => throw UnimplementedError();
+  Future<HubRepoDetail> fetchRepo(
+    String repoId, {
+    HubModelFormat? expectedFormat,
+  }) => throw UnimplementedError();
 
   @override
-  Future<List<HubRepoSummary>> search(String query, {int limit = 20}) =>
-      onSearch(query);
+  Future<HubSearchPage> search(
+    String query, {
+    required HubModelFormat format,
+    int limit = 20,
+    String? pageToken,
+  }) => onSearch(query, format, pageToken);
 }

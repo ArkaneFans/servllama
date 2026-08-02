@@ -331,18 +331,10 @@ class _SearchTab extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                _SourceChip(
-                  label: l10n.discoverSourceAll,
-                  isSelected: discovery.searchAllSources,
-                  onTap: discovery.setSearchAllSources,
-                ),
-                const SizedBox(width: 8),
                 for (final source in ModelHubSource.values) ...[
                   _SourceChip(
                     label: source.displayName,
-                    isSelected:
-                        !discovery.searchAllSources &&
-                        discovery.activeSource == source,
+                    isSelected: discovery.activeSource == source,
                     onTap: () => discovery.setSource(source),
                   ),
                   const SizedBox(width: 8),
@@ -380,12 +372,16 @@ class _SearchTab extends StatelessWidget {
                   isSelected: discovery.formatFilter == HubFormatFilter.gguf,
                   onTap: () => discovery.setFormatFilter(HubFormatFilter.gguf),
                 ),
-                const SizedBox(width: 8),
-                _SourceChip(
-                  label: 'MNN',
-                  isSelected: discovery.formatFilter == HubFormatFilter.mnn,
-                  onTap: () => discovery.setFormatFilter(HubFormatFilter.mnn),
-                ),
+                if (discovery.availableFormatFilters.contains(
+                  HubFormatFilter.mnn,
+                )) ...[
+                  const SizedBox(width: 8),
+                  _SourceChip(
+                    label: 'MNN',
+                    isSelected: discovery.formatFilter == HubFormatFilter.mnn,
+                    onTap: () => discovery.setFormatFilter(HubFormatFilter.mnn),
+                  ),
+                ],
               ],
             ),
           ),
@@ -410,54 +406,88 @@ class _SearchTab extends StatelessWidget {
         ),
       );
     }
-    if (discovery.query.trim().isEmpty) {
-      return _CenteredHint(text: l10n.discoverSearchPrompt);
-    }
     if (results.isEmpty) {
       return _CenteredHint(text: l10n.discoverNoResults);
     }
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 10),
-          child: Text(
-            l10n.discoverResultCount(results.length),
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (notification.metrics.extentAfter < 320 &&
+            discovery.hasMore &&
+            !discovery.isLoadingMore &&
+            discovery.loadMoreError == null) {
+          unawaited(discovery.loadMore());
+        }
+        return false;
+      },
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 10),
+            child: Text(
+              l10n.discoverResultCount(results.length),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              NoticeBanner(
-                tone: StatusTone.warning,
-                message: l10n.discoverSearchDisclaimer,
-              ),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: onBackToFeatured,
-                  icon: const Icon(Icons.verified_outlined),
-                  label: Text(l10n.discoverBackToFeatured),
-                ),
-              ),
-            ],
-          ),
-        ),
-        for (final repo in results)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: _RepoResultCard(
-              repo: repo,
-              onOpen: () => onOpen(repo.repoId, repo.source, repo.likelyEngine),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                NoticeBanner(
+                  tone: StatusTone.warning,
+                  message: l10n.discoverSearchDisclaimer,
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: onBackToFeatured,
+                    icon: const Icon(Icons.verified_outlined),
+                    label: Text(l10n.discoverBackToFeatured),
+                  ),
+                ),
+              ],
             ),
           ),
-      ],
+          for (final repo in results)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _RepoResultCard(
+                repo: repo,
+                onOpen: () =>
+                    onOpen(repo.repoId, repo.source, repo.likelyEngine),
+              ),
+            ),
+          if (discovery.isLoadingMore)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (discovery.loadMoreError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Column(
+                children: [
+                  NoticeBanner(
+                    tone: StatusTone.danger,
+                    icon: Icons.wifi_off_rounded,
+                    message: RuntimeLabels.hubError(
+                      l10n,
+                      discovery.loadMoreError!,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: discovery.loadMore,
+                    child: Text(l10n.downloadRetry),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
