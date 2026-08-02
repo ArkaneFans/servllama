@@ -1,13 +1,15 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:servllama/core/providers/server_provider.dart';
+import 'package:servllama/core/providers/engine_runtime_provider.dart';
 import 'package:servllama/features/chat/pages/chat_history_page.dart';
 import 'package:servllama/features/chat/pages/chat_page.dart';
 import 'package:servllama/features/chat/widgets/chat_session_drawer_section.dart';
 import 'package:servllama/features/chat/widgets/chat_session_search_field.dart';
 import 'package:servllama/features/mnn_test/pages/mnn_test_page.dart';
+import 'package:servllama/features/downloads/providers/download_provider.dart';
 import 'package:servllama/features/server/pages/debug_page.dart';
+import 'package:servllama/features/server/pages/model_management_page.dart';
 import 'package:servllama/features/server/pages/server_page.dart';
 import 'package:servllama/features/settings/pages/settings_page.dart';
 import 'package:servllama/l10n/l10n.dart';
@@ -70,7 +72,8 @@ class _MainScaffoldState extends State<MainScaffold> {
     final theme = Theme.of(context);
     final l10n = context.l10n;
     final colorScheme = theme.colorScheme;
-    final serverProvider = context.watch<ServerProvider?>();
+    final serverProvider = context.watch<EngineRuntimeProvider?>();
+    final downloadProvider = context.watch<DownloadProvider?>();
 
     return Scaffold(
       body: PushSidebar(
@@ -124,6 +127,18 @@ class _MainScaffoldState extends State<MainScaffold> {
                         showStatusBadge: true,
                         isOnline: serverProvider?.isRunning == true,
                         onTap: () => _pushFromSidebar(const ServerPage()),
+                      ),
+                      const SizedBox(height: 8),
+                      _DrawerActionBlock(
+                        key: const Key('drawer_models_action'),
+                        icon: Icons.inventory_2_outlined,
+                        title: l10n.modelLibraryTitle,
+                        badgeLabel:
+                            (downloadProvider?.activeTaskCount ?? 0) == 0
+                            ? null
+                            : '${downloadProvider!.activeTaskCount}',
+                        onTap: () =>
+                            _pushFromSidebar(const ModelManagementPage()),
                       ),
                       const SizedBox(height: 8),
                       _DrawerActionBlock(
@@ -200,7 +215,6 @@ class _DrawerCircleButton extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return IconButton(
-      key: key,
       tooltip: tooltip,
       onPressed: onPressed,
       style: IconButton.styleFrom(
@@ -222,6 +236,7 @@ class _DrawerActionBlock extends StatefulWidget {
     required this.onTap,
     this.showStatusBadge = false,
     this.isOnline = false,
+    this.badgeLabel,
   });
 
   final IconData icon;
@@ -229,6 +244,7 @@ class _DrawerActionBlock extends StatefulWidget {
   final VoidCallback onTap;
   final bool showStatusBadge;
   final bool isOnline;
+  final String? badgeLabel;
 
   @override
   State<_DrawerActionBlock> createState() => _DrawerActionBlockState();
@@ -311,6 +327,13 @@ class _DrawerActionBlockState extends State<_DrawerActionBlock> {
                       ),
                     ),
                   ),
+                  if (widget.badgeLabel != null) ...[
+                    Badge(
+                      key: const Key('drawer_models_download_badge'),
+                      label: Text(widget.badgeLabel!),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   Icon(
                     Icons.chevron_right_rounded,
                     size: 20,

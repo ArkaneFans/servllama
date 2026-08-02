@@ -31,8 +31,8 @@ void main() {
       await tester.pump();
 
       expect(find.text('共 2 条日志'), findsOneWidget);
-      expect(find.text('system'), findsOneWidget);
-      expect(find.text('failed'), findsOneWidget);
+      expect(find.textContaining('[server] system'), findsOneWidget);
+      expect(find.textContaining('[server] failed'), findsOneWidget);
     });
 
     testWidgets('uses a reversed list for bottom-anchored logs', (
@@ -120,7 +120,10 @@ void main() {
       await tester.tap(find.byTooltip('复制全部'));
       await tester.pump();
 
-      expect(clipboardText, 'system\nout');
+      final copiedLines = clipboardText!.split('\n');
+      expect(copiedLines, hasLength(2));
+      expect(copiedLines[0], endsWith('[INFO] [server] system'));
+      expect(copiedLines[1], endsWith('[INFO] [server] out'));
       expect(find.text('日志已复制'), findsOneWidget);
     });
   });

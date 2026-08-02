@@ -1,26 +1,39 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:mnn_engine/mnn_engine.dart';
 import 'package:servllama/core/errors/model_operation_exception.dart';
 import 'package:servllama/core/logging/app_logger.dart';
+import 'package:servllama/core/models/inference_engine.dart';
+import 'package:servllama/core/models/library_model.dart';
 import 'package:servllama/core/models/model_descriptor.dart';
 import 'package:servllama/core/repositories/local_model_repository.dart';
+import 'package:servllama/core/repositories/unified_model_repository.dart';
 import 'package:servllama/core/services/app_l10n_service.dart';
 import 'package:servllama/core/services/gguf_file_picker.dart';
 
 class ModelManagementProvider extends ChangeNotifier {
   ModelManagementProvider({
     LocalModelRepository? repository,
+    UnifiedModelRepository? unifiedRepository,
     GgufFilePicker? filePicker,
+    MnnEngine? mnnEngine,
     AppLogger? logger,
   }) : _repository = repository ?? LocalModelRepository(),
+       _unifiedRepository =
+           unifiedRepository ??
+           UnifiedModelRepository(localModelRepository: repository),
        _filePicker = filePicker ?? GgufFilePicker(),
+       _mnnEngine = mnnEngine ?? MnnEngine.instance,
        _logger = logger ?? AppLogger.instance;
 
   final LocalModelRepository _repository;
+  final UnifiedModelRepository _unifiedRepository;
   final GgufFilePicker _filePicker;
+  final MnnEngine _mnnEngine;
   final AppLogger _logger;
 
   List<ModelDescriptor> _models = <ModelDescriptor>[];
+  List<LibraryModel> _libraryModels = <LibraryModel>[];
   bool _disposed = false;
   bool _isLoading = false;
   bool _isImporting = false;
@@ -32,6 +45,19 @@ class ModelManagementProvider extends ChangeNotifier {
 
   List<ModelDescriptor> get models =>
       List<ModelDescriptor>.unmodifiable(_models);
+
+  /// GGUF and MNN models in one list, told apart by [LibraryModel.engine]
+  /// (design decision D2).
+  List<LibraryModel> get libraryModels =>
+      List<LibraryModel>.unmodifiable(_libraryModels);
+
+  List<LibraryModel> libraryModelsFor(InferenceEngine engine) => _libraryModels
+      .where((model) => model.engine == engine)
+      .toList(growable: false);
+
+  int countFor(InferenceEngine engine) =>
+      _libraryModels.where((model) => model.engine == engine).length;
+
   bool get isLoading => _isLoading;
   bool get isImporting => _isImporting;
   bool get isImportingMmproj => _isImportingMmproj;
@@ -68,9 +94,10 @@ class ModelManagementProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _models = await _repository.listModels();
+      await _refreshModelLists();
     } catch (error, stackTrace) {
       _models = <ModelDescriptor>[];
+      _libraryModels = <LibraryModel>[];
       _logger.error(
         '加载模型列表失败',
         channel: LogChannel.model,
@@ -79,6 +106,72 @@ class ModelManagementProvider extends ChangeNotifier {
       );
     } finally {
       _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Pulls an MNN model directory in through the plugin's SAF picker. GGUF
+  /// files come in via [importModel]; downloads bypass both.
+  Future<String?> importMnnModelDirectory() async {
+    if (_isImporting) {
+      return null;
+    }
+
+    _isImporting = true;
+    notifyListeners();
+
+    try {
+      final model = await _mnnEngine.importModelDirectory();
+      await _refreshModelLists();
+      _logger.info(
+        'MNN 模型导入成功: ${model.displayName}',
+        channel: LogChannel.model,
+      );
+      return _l10nService.current.modelManagementImportSuccess(
+        model.displayName,
+      );
+    } catch (error, stackTrace) {
+      _logger.error(
+        '导入 MNN 模型失败',
+        channel: LogChannel.model,
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return _l10nService.current.modelManagementImportFailed(
+        _describeError(error),
+      );
+    } finally {
+      _isImporting = false;
+      notifyListeners();
+    }
+  }
+
+  /// Deletes a model from whichever store owns it.
+  Future<String> deleteLibraryModel(LibraryModel model) async {
+    if (_deletingModelId != null) {
+      return _l10nService.current.modelManagementDeleteBusy;
+    }
+
+    _deletingModelId = model.id;
+    notifyListeners();
+
+    try {
+      await _unifiedRepository.deleteModel(model);
+      await _refreshModelLists();
+      _logger.info('模型删除成功: ${model.name}', channel: LogChannel.model);
+      return _l10nService.current.modelManagementDeleteSuccess(model.name);
+    } catch (error, stackTrace) {
+      _logger.error(
+        '删除模型失败',
+        channel: LogChannel.model,
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return _l10nService.current.modelManagementDeleteFailed(
+        _describeError(error),
+      );
+    } finally {
+      _deletingModelId = null;
       notifyListeners();
     }
   }
@@ -99,7 +192,7 @@ class ModelManagementProvider extends ChangeNotifier {
       }
 
       final descriptor = await _repository.importModel(pickedFile);
-      _models = await _repository.listModels();
+      await _refreshModelLists();
       _logger.info(
         '模型导入成功: ${descriptor.modelName}',
         channel: LogChannel.model,
@@ -136,7 +229,7 @@ class ModelManagementProvider extends ChangeNotifier {
         (descriptor) => descriptor.id == modelId,
       );
       await _repository.deleteModel(modelId);
-      _models = await _repository.listModels();
+      await _refreshModelLists();
       _logger.info('模型删除成功: ${model.modelName}', channel: LogChannel.model);
       return _l10nService.current.modelManagementDeleteSuccess(model.modelName);
     } catch (error, stackTrace) {
@@ -175,7 +268,7 @@ class ModelManagementProvider extends ChangeNotifier {
       notifyListeners();
 
       final updated = await _repository.importMmproj(modelId, pickedFile);
-      _models = await _repository.listModels();
+      await _refreshModelLists();
       _logger.info(
         'mmproj 导入成功: ${updated.modelName}',
         channel: LogChannel.model,
@@ -205,7 +298,7 @@ class ModelManagementProvider extends ChangeNotifier {
   Future<String?> removeMmproj(String modelId) async {
     try {
       final updated = await _repository.removeMmproj(modelId);
-      _models = await _repository.listModels();
+      await _refreshModelLists();
       _logger.info(
         'mmproj 已移除: ${updated.modelName}',
         channel: LogChannel.model,
@@ -239,7 +332,7 @@ class ModelManagementProvider extends ChangeNotifier {
 
     try {
       final updated = await _repository.renameModel(modelId, newName);
-      _models = await _repository.listModels();
+      await _refreshModelLists();
       _logger.info(
         '模型重命名成功: ${updated.modelName}',
         channel: LogChannel.model,
@@ -262,6 +355,11 @@ class ModelManagementProvider extends ChangeNotifier {
       _renamingModelId = null;
       notifyListeners();
     }
+  }
+
+  Future<void> _refreshModelLists() async {
+    _models = await _repository.listModels();
+    _libraryModels = await _unifiedRepository.listModels();
   }
 
   String _describeError(Object error) {

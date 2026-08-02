@@ -3,7 +3,7 @@ import 'dart:developer' as developer;
 
 import 'package:servllama/core/logging/log_sink.dart';
 
-enum LogChannel { app, server, model }
+enum LogChannel { app, engine, server, model, download }
 
 enum LogLevel { debug, info, warning, error }
 

@@ -1333,6 +1333,1050 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No logs yet'**
   String get serverLogsEmpty;
+
+  /// No description provided for @serverLogsExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export logs'**
+  String get serverLogsExport;
+
+  /// No description provided for @serverLogsExported.
+  ///
+  /// In en, this message translates to:
+  /// **'Logs exported to {path}'**
+  String serverLogsExported(String path);
+
+  /// No description provided for @serverLogsExportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Export failed: {error}'**
+  String serverLogsExportFailed(String error);
+
+  /// No description provided for @serverLogsAutoScroll.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-scroll'**
+  String get serverLogsAutoScroll;
+
+  /// No description provided for @serverLogsFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get serverLogsFilterAll;
+
+  /// No description provided for @serverLogsFilterEngine.
+  ///
+  /// In en, this message translates to:
+  /// **'Engine'**
+  String get serverLogsFilterEngine;
+
+  /// No description provided for @serverLogsFilterServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Service'**
+  String get serverLogsFilterServer;
+
+  /// No description provided for @serverLogsFilterModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get serverLogsFilterModel;
+
+  /// No description provided for @serverLogsFilterDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get serverLogsFilterDownload;
+
+  /// No description provided for @serverLogsFilterErrors.
+  ///
+  /// In en, this message translates to:
+  /// **'Errors only'**
+  String get serverLogsFilterErrors;
+
+  /// No description provided for @engineSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Inference engine'**
+  String get engineSectionTitle;
+
+  /// No description provided for @engineLockedWhileRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop the service before switching engines.'**
+  String get engineLockedWhileRunning;
+
+  /// No description provided for @serverStatusIdle.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped'**
+  String get serverStatusIdle;
+
+  /// No description provided for @serverStatusPreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting'**
+  String get serverStatusPreparing;
+
+  /// No description provided for @serverStatusStopping.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopping'**
+  String get serverStatusStopping;
+
+  /// No description provided for @serverStatusError.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get serverStatusError;
+
+  /// No description provided for @serverCancelPreparation.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get serverCancelPreparation;
+
+  /// No description provided for @serverUptime.
+  ///
+  /// In en, this message translates to:
+  /// **'Running for {duration}'**
+  String serverUptime(String duration);
+
+  /// No description provided for @serverUptimeHoursMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours} h {minutes} min'**
+  String serverUptimeHoursMinutes(int hours, int minutes);
+
+  /// No description provided for @serverUptimeMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min'**
+  String serverUptimeMinutes(int minutes);
+
+  /// No description provided for @serverActiveModelLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Active model'**
+  String get serverActiveModelLabel;
+
+  /// No description provided for @serverNoModelSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'No model selected'**
+  String get serverNoModelSelected;
+
+  /// No description provided for @serverNoModelSelectedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional - loaded on demand after start'**
+  String get serverNoModelSelectedHint;
+
+  /// No description provided for @serverModelRequiredHint.
+  ///
+  /// In en, this message translates to:
+  /// **'MNN needs a model before it can start'**
+  String get serverModelRequiredHint;
+
+  /// No description provided for @serverSelectModelTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select model'**
+  String get serverSelectModelTitle;
+
+  /// No description provided for @serverSelectModelNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Start without a model'**
+  String get serverSelectModelNone;
+
+  /// No description provided for @serverNoModelsForEngine.
+  ///
+  /// In en, this message translates to:
+  /// **'No {engine} models in the library yet'**
+  String serverNoModelsForEngine(String engine);
+
+  /// No description provided for @serverPhaseLoadingModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading model'**
+  String get serverPhaseLoadingModel;
+
+  /// No description provided for @serverPhaseCheckingPort.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking port {port}'**
+  String serverPhaseCheckingPort(int port);
+
+  /// No description provided for @serverPhaseStartingServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting service'**
+  String get serverPhaseStartingServer;
+
+  /// No description provided for @serverPhaseVerifying.
+  ///
+  /// In en, this message translates to:
+  /// **'Health check'**
+  String get serverPhaseVerifying;
+
+  /// No description provided for @serverPhaseUnloadingModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Unloading model'**
+  String get serverPhaseUnloadingModel;
+
+  /// No description provided for @serverPhaseStoppingServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopping service'**
+  String get serverPhaseStoppingServer;
+
+  /// No description provided for @serverPhaseLockHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked while orchestrating. Stop the service afterwards to switch engines.'**
+  String get serverPhaseLockHint;
+
+  /// No description provided for @runtimeErrorPortInUse.
+  ///
+  /// In en, this message translates to:
+  /// **'Port {port} is taken by another app.'**
+  String runtimeErrorPortInUse(int port);
+
+  /// No description provided for @runtimeErrorModelLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load the model.'**
+  String get runtimeErrorModelLoadFailed;
+
+  /// No description provided for @runtimeErrorServerStartFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The service failed to start. Check the logs.'**
+  String get runtimeErrorServerStartFailed;
+
+  /// No description provided for @runtimeErrorServerStopFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The service failed to stop.'**
+  String get runtimeErrorServerStopFailed;
+
+  /// No description provided for @runtimeErrorModelRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a model first.'**
+  String get runtimeErrorModelRequired;
+
+  /// No description provided for @runtimeErrorEngineUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This engine is unavailable on this device.'**
+  String get runtimeErrorEngineUnavailable;
+
+  /// No description provided for @runtimeErrorUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong: {detail}'**
+  String runtimeErrorUnknown(String detail);
+
+  /// No description provided for @serverConfigRestartNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes are saved immediately. Stop and restart the service for them to take effect.'**
+  String get serverConfigRestartNotice;
+
+  /// No description provided for @serverConfigSavedNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes are saved immediately.'**
+  String get serverConfigSavedNotice;
+
+  /// No description provided for @serverOpenAccessWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'The service listens on all interfaces without an API key, so any device on the same network can access it.'**
+  String get serverOpenAccessWarning;
+
+  /// No description provided for @serverConfigMnnSection.
+  ///
+  /// In en, this message translates to:
+  /// **'MNN inference'**
+  String get serverConfigMnnSection;
+
+  /// No description provided for @serverConfigMnnBackend.
+  ///
+  /// In en, this message translates to:
+  /// **'Inference backend'**
+  String get serverConfigMnnBackend;
+
+  /// No description provided for @serverConfigMnnBackendCpu.
+  ///
+  /// In en, this message translates to:
+  /// **'CPU (fixed)'**
+  String get serverConfigMnnBackendCpu;
+
+  /// No description provided for @serverConfigMnnModelControlledHint.
+  ///
+  /// In en, this message translates to:
+  /// **'MNN sampling, context and batching are defined by config.json in the model directory and are not overridden here.'**
+  String get serverConfigMnnModelControlledHint;
+
+  /// No description provided for @modelLibraryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Models'**
+  String get modelLibraryTitle;
+
+  /// No description provided for @modelLibraryAddTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a model'**
+  String get modelLibraryAddTitle;
+
+  /// No description provided for @modelLibraryFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get modelLibraryFilterAll;
+
+  /// No description provided for @modelLibraryDownloadingSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading'**
+  String get modelLibraryDownloadingSection;
+
+  /// No description provided for @modelLibraryInstalledSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Installed'**
+  String get modelLibraryInstalledSection;
+
+  /// No description provided for @modelAddDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download from a hub'**
+  String get modelAddDownload;
+
+  /// No description provided for @modelAddDownloadDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Hugging Face and ModelScope, with resume support'**
+  String get modelAddDownloadDesc;
+
+  /// No description provided for @modelAddGguf.
+  ///
+  /// In en, this message translates to:
+  /// **'Import a GGUF file'**
+  String get modelAddGguf;
+
+  /// No description provided for @modelAddGgufDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'A single .gguf file for llama.cpp'**
+  String get modelAddGgufDesc;
+
+  /// No description provided for @modelAddMnnDir.
+  ///
+  /// In en, this message translates to:
+  /// **'Import an MNN directory'**
+  String get modelAddMnnDir;
+
+  /// No description provided for @modelAddMnnDirDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'A whole model folder for the MNN engine'**
+  String get modelAddMnnDirDesc;
+
+  /// No description provided for @modelFormatExplainer.
+  ///
+  /// In en, this message translates to:
+  /// **'GGUF is a single file; MNN models are whole directories. The engine badge on each card tells them apart.'**
+  String get modelFormatExplainer;
+
+  /// No description provided for @modelLibraryEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No models yet'**
+  String get modelLibraryEmptyTitle;
+
+  /// No description provided for @modelLibraryEmptyDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Download one, or import a file you already have.'**
+  String get modelLibraryEmptyDescription;
+
+  /// No description provided for @modelLibraryDeleteDialogContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete “{modelName}”? The files will be removed from this device.'**
+  String modelLibraryDeleteDialogContent(String modelName);
+
+  /// No description provided for @modelLibraryStatusRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Running'**
+  String get modelLibraryStatusRunning;
+
+  /// No description provided for @modelLibraryStatusIdle.
+  ///
+  /// In en, this message translates to:
+  /// **'Idle'**
+  String get modelLibraryStatusIdle;
+
+  /// No description provided for @modelLibraryActiveCannotDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'The running model cannot be deleted'**
+  String get modelLibraryActiveCannotDelete;
+
+  /// No description provided for @modelLibrarySwitchEngineBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop the running service before switching engines.'**
+  String get modelLibrarySwitchEngineBlocked;
+
+  /// No description provided for @modelLibraryActivationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not activate the model. Check the server logs.'**
+  String get modelLibraryActivationFailed;
+
+  /// No description provided for @modelCapabilityChinese.
+  ///
+  /// In en, this message translates to:
+  /// **'Chinese'**
+  String get modelCapabilityChinese;
+
+  /// No description provided for @modelCapabilityEnglish.
+  ///
+  /// In en, this message translates to:
+  /// **'English'**
+  String get modelCapabilityEnglish;
+
+  /// No description provided for @modelCapabilityVision.
+  ///
+  /// In en, this message translates to:
+  /// **'Vision'**
+  String get modelCapabilityVision;
+
+  /// No description provided for @modelCapabilityToolCalling.
+  ///
+  /// In en, this message translates to:
+  /// **'Tool calling'**
+  String get modelCapabilityToolCalling;
+
+  /// No description provided for @discoverTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discover models'**
+  String get discoverTitle;
+
+  /// No description provided for @discoverTabFeatured.
+  ///
+  /// In en, this message translates to:
+  /// **'Featured'**
+  String get discoverTabFeatured;
+
+  /// No description provided for @discoverTabSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get discoverTabSearch;
+
+  /// No description provided for @discoverDeviceMemory.
+  ///
+  /// In en, this message translates to:
+  /// **'{available} of {total} RAM available'**
+  String discoverDeviceMemory(String available, String total);
+
+  /// No description provided for @discoverDeviceMemoryUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Device memory unknown; feasibility is not checked.'**
+  String get discoverDeviceMemoryUnknown;
+
+  /// No description provided for @discoverSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search repositories'**
+  String get discoverSearchHint;
+
+  /// No description provided for @discoverSearchDisclaimer.
+  ///
+  /// In en, this message translates to:
+  /// **'Search results come straight from the hub and have not been verified on a device.'**
+  String get discoverSearchDisclaimer;
+
+  /// No description provided for @discoverBackToFeatured.
+  ///
+  /// In en, this message translates to:
+  /// **'View device-verified picks'**
+  String get discoverBackToFeatured;
+
+  /// No description provided for @discoverSourceAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All sources'**
+  String get discoverSourceAll;
+
+  /// No description provided for @discoverSortDownloads.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloads'**
+  String get discoverSortDownloads;
+
+  /// No description provided for @discoverSortUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently updated'**
+  String get discoverSortUpdated;
+
+  /// No description provided for @discoverFormatAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All formats'**
+  String get discoverFormatAll;
+
+  /// No description provided for @discoverFeaturedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Every model here has been run on a real device.'**
+  String get discoverFeaturedNote;
+
+  /// No description provided for @discoverNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching repositories'**
+  String get discoverNoResults;
+
+  /// No description provided for @discoverSearchPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a model name to search both hubs.'**
+  String get discoverSearchPrompt;
+
+  /// No description provided for @discoverErrorNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Network unreachable. Check the connection or switch route.'**
+  String get discoverErrorNetwork;
+
+  /// No description provided for @discoverErrorUnauthorized.
+  ///
+  /// In en, this message translates to:
+  /// **'This repository needs a token. Add one in Settings.'**
+  String get discoverErrorUnauthorized;
+
+  /// No description provided for @discoverErrorNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Repository not found.'**
+  String get discoverErrorNotFound;
+
+  /// No description provided for @discoverErrorMalformed.
+  ///
+  /// In en, this message translates to:
+  /// **'The hub returned an unexpected response.'**
+  String get discoverErrorMalformed;
+
+  /// No description provided for @discoverResultCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} results'**
+  String discoverResultCount(int count);
+
+  /// No description provided for @discoverDownloadsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} downloads'**
+  String discoverDownloadsCount(int count);
+
+  /// No description provided for @discoverUpdatedUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Update time unknown'**
+  String get discoverUpdatedUnknown;
+
+  /// No description provided for @discoverUpdatedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated {date}'**
+  String discoverUpdatedAt(String date);
+
+  /// No description provided for @discoverFileCountUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'File count available after opening'**
+  String get discoverFileCountUnknown;
+
+  /// No description provided for @discoverFileCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} files'**
+  String discoverFileCount(int count);
+
+  /// No description provided for @repoQuantSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantization'**
+  String get repoQuantSectionTitle;
+
+  /// No description provided for @repoFilesSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Files'**
+  String get repoFilesSectionTitle;
+
+  /// No description provided for @repoDownloadAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get repoDownloadAction;
+
+  /// No description provided for @repoEstimatedMemory.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs about {size}'**
+  String repoEstimatedMemory(String size);
+
+  /// No description provided for @repoNoGgufFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'This repository has no GGUF files.'**
+  String get repoNoGgufFiles;
+
+  /// No description provided for @repoMnnWholeDirectory.
+  ///
+  /// In en, this message translates to:
+  /// **'MNN models download as a whole directory ({count} files).'**
+  String repoMnnWholeDirectory(int count);
+
+  /// No description provided for @feasibilityComfortable.
+  ///
+  /// In en, this message translates to:
+  /// **'Runs comfortably'**
+  String get feasibilityComfortable;
+
+  /// No description provided for @feasibilityTight.
+  ///
+  /// In en, this message translates to:
+  /// **'Tight on memory'**
+  String get feasibilityTight;
+
+  /// No description provided for @feasibilityNotEnoughMemory.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough memory'**
+  String get feasibilityNotEnoughMemory;
+
+  /// No description provided for @feasibilityUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get feasibilityUnknown;
+
+  /// No description provided for @catalogSummaryVerifiedSmallGeneralist.
+  ///
+  /// In en, this message translates to:
+  /// **'Small all-rounder, quick to load'**
+  String get catalogSummaryVerifiedSmallGeneralist;
+
+  /// No description provided for @catalogSummaryVerifiedEntryLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Entry level, runs on almost anything'**
+  String get catalogSummaryVerifiedEntryLevel;
+
+  /// No description provided for @catalogSummaryVerifiedBalanced.
+  ///
+  /// In en, this message translates to:
+  /// **'Balanced quality and speed'**
+  String get catalogSummaryVerifiedBalanced;
+
+  /// No description provided for @catalogSummaryVerifiedMnnDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'The MNN engine\'s default pick'**
+  String get catalogSummaryVerifiedMnnDefault;
+
+  /// No description provided for @catalogSummaryVerifiedMnnBalanced.
+  ///
+  /// In en, this message translates to:
+  /// **'Stronger MNN model for capable phones'**
+  String get catalogSummaryVerifiedMnnBalanced;
+
+  /// No description provided for @catalogSummaryVerifiedMnnVision.
+  ///
+  /// In en, this message translates to:
+  /// **'MNN model with image understanding'**
+  String get catalogSummaryVerifiedMnnVision;
+
+  /// No description provided for @downloadsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloads'**
+  String get downloadsTitle;
+
+  /// No description provided for @downloadsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No download tasks'**
+  String get downloadsEmpty;
+
+  /// No description provided for @downloadStatusQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued'**
+  String get downloadStatusQueued;
+
+  /// No description provided for @downloadStatusRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading'**
+  String get downloadStatusRunning;
+
+  /// No description provided for @downloadStatusPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get downloadStatusPaused;
+
+  /// No description provided for @downloadStatusFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get downloadStatusFailed;
+
+  /// No description provided for @downloadStatusDownloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing'**
+  String get downloadStatusDownloaded;
+
+  /// No description provided for @downloadStatusCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get downloadStatusCompleted;
+
+  /// No description provided for @downloadPause.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get downloadPause;
+
+  /// No description provided for @downloadResume.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume'**
+  String get downloadResume;
+
+  /// No description provided for @downloadCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get downloadCancel;
+
+  /// No description provided for @downloadRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get downloadRetry;
+
+  /// No description provided for @downloadSwitchSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch source'**
+  String get downloadSwitchSource;
+
+  /// No description provided for @downloadStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Started downloading {modelName}'**
+  String downloadStarted(String modelName);
+
+  /// No description provided for @downloadProgressDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'{received} / {total} - {speed}/s'**
+  String downloadProgressDetail(String received, String total, String speed);
+
+  /// No description provided for @downloadRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'{duration} left'**
+  String downloadRemaining(String duration);
+
+  /// No description provided for @downloadFilesProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} of {total} files'**
+  String downloadFilesProgress(int done, int total);
+
+  /// No description provided for @downloadErrorNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection interrupted'**
+  String get downloadErrorNetwork;
+
+  /// No description provided for @downloadErrorUnauthorized.
+  ///
+  /// In en, this message translates to:
+  /// **'Access denied, a token may be required'**
+  String get downloadErrorUnauthorized;
+
+  /// No description provided for @downloadErrorNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'File no longer exists on the hub'**
+  String get downloadErrorNotFound;
+
+  /// No description provided for @downloadErrorDiskFull.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough storage'**
+  String get downloadErrorDiskFull;
+
+  /// No description provided for @downloadErrorIntegrity.
+  ///
+  /// In en, this message translates to:
+  /// **'File length or checksum does not match'**
+  String get downloadErrorIntegrity;
+
+  /// No description provided for @downloadErrorCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get downloadErrorCancelled;
+
+  /// No description provided for @downloadCancelDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel download'**
+  String get downloadCancelDialogTitle;
+
+  /// No description provided for @downloadCancelDialogContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel “{modelName}”? Downloaded bytes will be discarded.'**
+  String downloadCancelDialogContent(String modelName);
+
+  /// No description provided for @downloadForegroundTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'ServLlama is downloading models'**
+  String get downloadForegroundTitle;
+
+  /// No description provided for @downloadForegroundText.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tasks - {percent}%'**
+  String downloadForegroundText(int count, int percent);
+
+  /// No description provided for @settingsSectionDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloads'**
+  String get settingsSectionDownload;
+
+  /// No description provided for @settingsHuggingFaceRoute.
+  ///
+  /// In en, this message translates to:
+  /// **'Hugging Face route'**
+  String get settingsHuggingFaceRoute;
+
+  /// No description provided for @settingsHuggingFaceRouteDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'The mirror helps when the official host is unreachable.'**
+  String get settingsHuggingFaceRouteDescription;
+
+  /// No description provided for @settingsRouteAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get settingsRouteAuto;
+
+  /// No description provided for @settingsRouteOfficial.
+  ///
+  /// In en, this message translates to:
+  /// **'Official'**
+  String get settingsRouteOfficial;
+
+  /// No description provided for @settingsRouteMirror.
+  ///
+  /// In en, this message translates to:
+  /// **'Mirror'**
+  String get settingsRouteMirror;
+
+  /// No description provided for @settingsHuggingFaceToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Hugging Face token'**
+  String get settingsHuggingFaceToken;
+
+  /// No description provided for @settingsModelScopeToken.
+  ///
+  /// In en, this message translates to:
+  /// **'ModelScope token'**
+  String get settingsModelScopeToken;
+
+  /// No description provided for @settingsTokenDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Stored on this device only. Never written to logs or exported files.'**
+  String get settingsTokenDescription;
+
+  /// No description provided for @settingsTokenNotSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Not set'**
+  String get settingsTokenNotSet;
+
+  /// No description provided for @settingsTokenSheetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Access token'**
+  String get settingsTokenSheetTitle;
+
+  /// No description provided for @settingsWifiOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Download over Wi-Fi only'**
+  String get settingsWifiOnly;
+
+  /// No description provided for @settingsWifiOnlySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause tasks when the network switches to cellular'**
+  String get settingsWifiOnlySubtitle;
+
+  /// No description provided for @settingsMaxConcurrentDownloads.
+  ///
+  /// In en, this message translates to:
+  /// **'Parallel downloads'**
+  String get settingsMaxConcurrentDownloads;
+
+  /// No description provided for @settingsMaxConcurrentDownloadsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'How many tasks may run at once'**
+  String get settingsMaxConcurrentDownloadsDescription;
+
+  /// No description provided for @settingsSectionStorage.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage'**
+  String get settingsSectionStorage;
+
+  /// No description provided for @settingsStorageModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Models'**
+  String get settingsStorageModels;
+
+  /// No description provided for @settingsStorageDownloads.
+  ///
+  /// In en, this message translates to:
+  /// **'Unfinished downloads'**
+  String get settingsStorageDownloads;
+
+  /// No description provided for @settingsClearStaging.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear unfinished downloads'**
+  String get settingsClearStaging;
+
+  /// No description provided for @settingsClearStagingDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleared unfinished downloads'**
+  String get settingsClearStagingDone;
+
+  /// No description provided for @aboutMnnVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'MNN version'**
+  String get aboutMnnVersion;
+
+  /// No description provided for @aboutMnnVersionDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'MNN version: {value}'**
+  String aboutMnnVersionDetail(String value);
+
+  /// No description provided for @chatEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a model to start'**
+  String get chatEmptyTitle;
+
+  /// No description provided for @chatEmptyDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'The service starts on its own once a model is chosen.'**
+  String get chatEmptyDescription;
+
+  /// No description provided for @chatEmptyAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a model'**
+  String get chatEmptyAction;
+
+  /// No description provided for @chatCurrentRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Running now'**
+  String get chatCurrentRunning;
+
+  /// No description provided for @chatSameEngineModels.
+  ///
+  /// In en, this message translates to:
+  /// **'{engine} - switch directly'**
+  String chatSameEngineModels(String engine);
+
+  /// No description provided for @chatOtherEngines.
+  ///
+  /// In en, this message translates to:
+  /// **'Other engines'**
+  String get chatOtherEngines;
+
+  /// No description provided for @chatOtherEnginesEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'{engine} - {count} models'**
+  String chatOtherEnginesEntry(String engine, int count);
+
+  /// No description provided for @chatOtherEnginesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop the running service on the Server page to switch engines.'**
+  String get chatOtherEnginesHint;
+
+  /// No description provided for @chatMnnSwapNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Switching models on MNN restarts the service (about 10 s); the API is briefly unavailable.'**
+  String get chatMnnSwapNotice;
+
+  /// No description provided for @chatLoadModelAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Load'**
+  String get chatLoadModelAction;
+
+  /// No description provided for @chatPreparingModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing model'**
+  String get chatPreparingModel;
+
+  /// No description provided for @chatEmptyNoModelsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Download a model first. Everything runs on this device afterwards.'**
+  String get chatEmptyNoModelsDescription;
 }
 
 class _AppLocalizationsDelegate

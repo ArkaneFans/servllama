@@ -10,13 +10,19 @@ void main() {
       SharedPreferences.setMockInitialValues(<String, Object>{});
     });
 
-    test('defaults to 120 seconds', () async {
+    test('uses the configured default timeout', () async {
       final provider = ChatTimeoutProvider(kvStorage: KvStorage());
 
       await provider.load();
 
-      expect(provider.timeoutSeconds, 120);
-      expect(provider.timeout, const Duration(seconds: 120));
+      expect(
+        provider.timeoutSeconds,
+        ChatTimeoutProvider.defaultTimeoutSeconds,
+      );
+      expect(
+        provider.timeout,
+        const Duration(seconds: ChatTimeoutProvider.defaultTimeoutSeconds),
+      );
       expect(provider.hasLoaded, isTrue);
     });
 

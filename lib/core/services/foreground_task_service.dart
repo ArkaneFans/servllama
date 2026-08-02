@@ -36,19 +36,29 @@ class _LlamaServerTaskHandler extends TaskHandler {
 /// 前台服务封装类。
 /// 用于管理 Android 前台服务，保持应用在后台时进程不被终止。
 class ForegroundTaskService {
-  static final ForegroundTaskService _instance = ForegroundTaskService._internal();
+  static final ForegroundTaskService _instance =
+      ForegroundTaskService._internal();
   factory ForegroundTaskService() => _instance;
   ForegroundTaskService._internal();
 
   static const int _serviceId = 256;
   static const String _channelId = 'llama_server_foreground';
   static const String _channelName = 'Llama Server Service';
-  static const String _channelDescription =
-      '保持 llama-server 在后台运行';
+  static const String _channelDescription = '保持 llama-server 在后台运行';
+  static const String serverOwner = 'server';
+  static const String downloadsOwner = 'downloads';
+
+  final Map<String, ({String title, String text})> _owners =
+      <String, ({String title, String text})>{};
+  bool _initialized = false;
 
   /// 初始化前台任务配置。
   /// 必须在使用前调用一次。
   void init() {
+    if (_initialized) {
+      return;
+    }
+    _initialized = true;
     FlutterForegroundTask.init(
       androidNotificationOptions: AndroidNotificationOptions(
         channelId: _channelId,
@@ -86,17 +96,34 @@ class ForegroundTaskService {
   Future<bool> start({
     required String notificationTitle,
     required String notificationText,
+  }) => acquire(
+    owner: serverOwner,
+    notificationTitle: notificationTitle,
+    notificationText: notificationText,
+  );
+
+  Future<bool> acquire({
+    required String owner,
+    required String notificationTitle,
+    required String notificationText,
   }) async {
+    _owners[owner] = (title: notificationTitle, text: notificationText);
     try {
+      if (await FlutterForegroundTask.isRunningService) {
+        await _publishCurrentNotification();
+        return true;
+      }
+      final current = _currentNotification;
       final result = await FlutterForegroundTask.startService(
         serviceId: _serviceId,
-        notificationTitle: notificationTitle,
-        notificationText: notificationText,
+        notificationTitle: current.title,
+        notificationText: current.text,
         notificationInitialRoute: '/',
         callback: foregroundTaskCallback,
       );
       return result is ServiceRequestSuccess;
     } catch (e) {
+      _owners.remove(owner);
       return false;
     }
   }
@@ -105,16 +132,34 @@ class ForegroundTaskService {
   Future<void> updateNotification({
     required String title,
     required String text,
+  }) => updateOwner(owner: serverOwner, title: title, text: text);
+
+  Future<void> updateOwner({
+    required String owner,
+    required String title,
+    required String text,
   }) async {
-    await FlutterForegroundTask.updateService(
-      notificationTitle: title,
-      notificationText: text,
-    );
+    if (!_owners.containsKey(owner)) {
+      return;
+    }
+    _owners[owner] = (title: title, text: text);
+    await _publishCurrentNotification();
   }
 
   /// 停止前台服务。
   /// 返回是否停止成功。
-  Future<bool> stop() async {
+  Future<bool> stop() => release(serverOwner);
+
+  Future<bool> release(String owner) async {
+    _owners.remove(owner);
+    if (_owners.isNotEmpty) {
+      try {
+        await _publishCurrentNotification();
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
     try {
       final result = await FlutterForegroundTask.stopService();
       return result is ServiceRequestSuccess;
@@ -123,7 +168,25 @@ class ForegroundTaskService {
     }
   }
 
+  ({String title, String text}) get _currentNotification {
+    return _owners[downloadsOwner] ??
+        _owners[serverOwner] ??
+        _owners.values.last;
+  }
+
+  Future<void> _publishCurrentNotification() async {
+    if (_owners.isEmpty || !await FlutterForegroundTask.isRunningService) {
+      return;
+    }
+    final current = _currentNotification;
+    await FlutterForegroundTask.updateService(
+      notificationTitle: current.title,
+      notificationText: current.text,
+    );
+  }
+
   void dispose() {
+    _owners.clear();
     FlutterForegroundTask.removeTaskDataCallback(_handleData);
   }
 }

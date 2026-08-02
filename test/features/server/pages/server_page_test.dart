@@ -4,8 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
-import 'package:servllama/core/providers/server_provider.dart';
+import 'package:servllama/core/providers/engine_runtime_provider.dart';
+import 'package:servllama/core/providers/model_management_provider.dart';
+import 'package:servllama/core/services/engines/llama_cpp_engine_adapter.dart';
+
+import '../../../support/stub_engine_adapter.dart';
 import 'package:servllama/core/services/app_l10n_service.dart';
 import 'package:servllama/core/services/llama_server_service.dart';
 import 'package:servllama/core/services/model_storage_paths.dart';
@@ -18,21 +23,38 @@ void main() {
   group('ServerPage', () {
     setUp(() {
       AppL10nService.instance.setLocale(const Locale('zh'));
+      // start() checks the notification-permission flag through KvStorage;
+      // unmocked it throws after the test body has already finished.
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        // Marking the prompt as already shown keeps start() away from the
+        // foreground-task permission channel, whose future never resolves
+        // under the test clock.
+        'flutter.server.foreground_notification_permission_prompted': true,
+      });
     });
 
     testWidgets('shows grouped layout, API Base URL and copies it', (
       tester,
     ) async {
       final serverService = _ControllableLlamaServerService();
-      final serverProvider = ServerProvider(
-        serverService: serverService,
-        settingsLoader: _FixedServerLaunchSettingsLoader(
-          const ServerLaunchSettings(),
+      // The page re-reads the endpoint from settings when it mounts, so the
+      // fixture has to come from the loader rather than a setEndpoint call
+      // that the refresh would overwrite.
+      const settings = ServerLaunchSettings(
+        listenMode: ServerListenMode.allInterfaces,
+        port: 9000,
+      );
+      final serverProvider = EngineRuntimeProvider(
+        llamaCppAdapter: LlamaCppEngineAdapter(
+          serverService: serverService,
+          settingsLoader: _FixedServerLaunchSettingsLoader(settings),
+          modelStoragePaths: _FixedModelStoragePaths(r'C:\app\models'),
+          controlClient: StubServerControlClient(),
         ),
-        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+        mnnAdapter: StubEngineAdapter(),
+        settingsLoader: _FixedServerLaunchSettingsLoader(settings),
         localIpResolver: () async => null,
       );
-      serverProvider.setEndpoint(host: '0.0.0.0', port: 9000);
       addTearDown(() {
         serverProvider.dispose();
         serverService.dispose();
@@ -62,8 +84,11 @@ void main() {
       expect(find.byKey(const Key('server_page_status_card')), findsOneWidget);
       expect(find.byKey(const Key('server_page_menu_group')), findsOneWidget);
       expect(find.byType(Card), findsNothing);
-      expect(find.text('已停止'), findsOneWidget);
-      expect(find.text('API Base URL'), findsOneWidget);
+      expect(find.text('未运行'), findsOneWidget);
+      expect(
+        find.byKey(const Key('server_page_base_url_panel')),
+        findsOneWidget,
+      );
       expect(find.text('http://0.0.0.0:9000'), findsOneWidget);
       expect(find.text('服务器配置'), findsOneWidget);
       expect(find.text('日志'), findsOneWidget);
@@ -72,21 +97,32 @@ void main() {
       await tester.tap(find.byTooltip('复制 API Base URL'));
       await tester.pump();
 
-      expect(clipboardText, 'http://0.0.0.0:9000');
-      expect(find.text('API Base URL 已复制'), findsOneWidget);
+      // The idle URL is informational only; copy becomes available once the
+      // service is actually reachable.
+      expect(clipboardText, isNull);
+      expect(find.text('API Base URL 已复制'), findsNothing);
     });
 
     testWidgets('shows last error when server startup fails', (tester) async {
       final serverService = _FailingLlamaServerService();
-      final serverProvider = ServerProvider(
-        serverService: serverService,
+      final serverProvider = EngineRuntimeProvider(
+        llamaCppAdapter: LlamaCppEngineAdapter(
+          serverService: serverService,
+          settingsLoader: _FixedServerLaunchSettingsLoader(
+            const ServerLaunchSettings(
+              listenMode: ServerListenMode.allInterfaces,
+              port: 11434,
+            ),
+          ),
+          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+        ),
+        mnnAdapter: StubEngineAdapter(),
         settingsLoader: _FixedServerLaunchSettingsLoader(
           const ServerLaunchSettings(
             listenMode: ServerListenMode.allInterfaces,
             port: 11434,
           ),
         ),
-        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
         localIpResolver: () async => null,
       );
       addTearDown(() {
@@ -94,14 +130,17 @@ void main() {
         serverService.dispose();
       });
 
-      await serverProvider.start();
+      await tester.runAsync(() => serverProvider.start());
 
       await tester.pumpWidget(_TestApp(serverProvider: serverProvider));
       await tester.pumpAndSettle();
 
-      expect(find.text('API Base URL'), findsOneWidget);
+      expect(
+        find.byKey(const Key('server_page_base_url_panel')),
+        findsOneWidget,
+      );
       expect(find.text('http://0.0.0.0:11434'), findsOneWidget);
-      expect(find.textContaining('启动失败:'), findsOneWidget);
+      expect(find.text('服务启动失败，请查看日志。'), findsOneWidget);
     });
 
     testWidgets('shows running state and stop action when server is running', (
@@ -112,12 +151,18 @@ void main() {
         initiallyRunning: true,
         stopCompleter: stopCompleter,
       );
-      final serverProvider = ServerProvider(
-        serverService: serverService,
+      final serverProvider = EngineRuntimeProvider(
+        llamaCppAdapter: LlamaCppEngineAdapter(
+          serverService: serverService,
+          settingsLoader: _FixedServerLaunchSettingsLoader(
+            const ServerLaunchSettings(),
+          ),
+          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+        ),
+        mnnAdapter: StubEngineAdapter(),
         settingsLoader: _FixedServerLaunchSettingsLoader(
           const ServerLaunchSettings(),
         ),
-        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
       );
       addTearDown(() {
         serverProvider.dispose();
@@ -125,10 +170,18 @@ void main() {
       });
 
       await tester.pumpWidget(_TestApp(serverProvider: serverProvider));
-      await tester.pumpAndSettle();
+      // Not pumpAndSettle: the uptime ticker holds a periodic timer open for
+      // as long as the runtime is up, so no frame is ever "settled".
+      await tester.pump();
 
       expect(find.text('运行中'), findsOneWidget);
-      expect(find.widgetWithText(FilledButton, '停止'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('server_page_toggle_button')),
+          matching: find.text('停止'),
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('shows busy loading state while starting server', (
@@ -138,12 +191,18 @@ void main() {
       final serverService = _ControllableLlamaServerService(
         startCompleter: completer,
       );
-      final serverProvider = ServerProvider(
-        serverService: serverService,
+      final serverProvider = EngineRuntimeProvider(
+        llamaCppAdapter: LlamaCppEngineAdapter(
+          serverService: serverService,
+          settingsLoader: _FixedServerLaunchSettingsLoader(
+            const ServerLaunchSettings(),
+          ),
+          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+        ),
+        mnnAdapter: StubEngineAdapter(),
         settingsLoader: _FixedServerLaunchSettingsLoader(
           const ServerLaunchSettings(),
         ),
-        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
       );
       addTearDown(() async {
         if (!completer.isCompleted) {
@@ -162,27 +221,34 @@ void main() {
       final button = tester.widget<FilledButton>(
         find.byKey(const Key('server_page_toggle_button')),
       );
-      expect(button.onPressed, isNull);
+      expect(button.onPressed, isNotNull);
       expect(
         find.descendant(
           of: find.byKey(const Key('server_page_toggle_button')),
-          matching: find.byType(CircularProgressIndicator),
+          matching: find.text('取消'),
         ),
         findsOneWidget,
       );
 
       completer.complete(false);
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
     });
 
     testWidgets('opens logs page from grouped menu', (tester) async {
       final serverService = _ControllableLlamaServerService();
-      final serverProvider = ServerProvider(
-        serverService: serverService,
+      final serverProvider = EngineRuntimeProvider(
+        llamaCppAdapter: LlamaCppEngineAdapter(
+          serverService: serverService,
+          settingsLoader: _FixedServerLaunchSettingsLoader(
+            const ServerLaunchSettings(),
+          ),
+          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+        ),
+        mnnAdapter: StubEngineAdapter(),
         settingsLoader: _FixedServerLaunchSettingsLoader(
           const ServerLaunchSettings(),
         ),
-        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
       );
       addTearDown(() {
         serverProvider.dispose();
@@ -205,12 +271,18 @@ void main() {
       tester,
     ) async {
       final serverService = _ControllableLlamaServerService();
-      final serverProvider = ServerProvider(
-        serverService: serverService,
+      final serverProvider = EngineRuntimeProvider(
+        llamaCppAdapter: LlamaCppEngineAdapter(
+          serverService: serverService,
+          settingsLoader: _FixedServerLaunchSettingsLoader(
+            const ServerLaunchSettings(),
+          ),
+          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+        ),
+        mnnAdapter: StubEngineAdapter(),
         settingsLoader: _FixedServerLaunchSettingsLoader(
           const ServerLaunchSettings(),
         ),
-        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
       );
       addTearDown(() {
         serverProvider.dispose();
@@ -231,7 +303,7 @@ void main() {
       expect(opacityOf(targetFinder), 1.0);
 
       final gesture = await tester.startGesture(tester.getCenter(targetFinder));
-      await tester.pump(const Duration(milliseconds: 60));
+      await tester.pump(const Duration(milliseconds: 250));
 
       expect(opacityOf(targetFinder), lessThan(1.0));
 
@@ -246,12 +318,22 @@ void main() {
 class _TestApp extends StatelessWidget {
   const _TestApp({required this.serverProvider});
 
-  final ServerProvider serverProvider;
+  final EngineRuntimeProvider serverProvider;
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<ServerProvider>.value(
-      value: serverProvider,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<EngineRuntimeProvider>.value(
+          value: serverProvider,
+        ),
+        // The page reads the unified library to name the selected model and
+        // count entries in the menu; load() swallows its own I/O errors, so an
+        // unseeded provider just yields an empty library here.
+        ChangeNotifierProvider<ModelManagementProvider>(
+          create: (_) => ModelManagementProvider(),
+        ),
+      ],
       child: const MaterialApp(home: ServerPage()),
     );
   }
@@ -323,9 +405,7 @@ class _ControllableLlamaServerService implements LlamaServerService {
 
 class _FailingLlamaServerService extends _ControllableLlamaServerService {
   @override
-  Future<bool> startServer({List<String>? args}) {
-    throw StateError('boom');
-  }
+  Future<bool> startServer({List<String>? args}) async => false;
 }
 
 class _FixedModelStoragePaths extends ModelStoragePaths {

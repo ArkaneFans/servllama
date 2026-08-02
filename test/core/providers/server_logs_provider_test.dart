@@ -36,7 +36,11 @@ void main() {
       logger.info('err', channel: LogChannel.server, inMemory: true);
       await Future<void>.delayed(Duration.zero);
 
-      expect(provider.copyText, 'system\nout\nerr');
+      final copiedLines = provider.copyText.split('\n');
+      expect(copiedLines, hasLength(3));
+      expect(copiedLines[0], endsWith('[INFO] [server] system'));
+      expect(copiedLines[1], endsWith('[INFO] [server] out'));
+      expect(copiedLines[2], endsWith('[INFO] [server] err'));
       provider.dispose();
     });
 
@@ -63,17 +67,19 @@ void main() {
       provider.dispose();
     });
 
-    test('clear only clears server logs', () async {
+    test('clear removes every channel displayed by the log page', () async {
       final logger = AppLogger();
       logger.info('server', channel: LogChannel.server, inMemory: true);
       logger.info('model', channel: LogChannel.model, inMemory: true);
+      logger.info('app', channel: LogChannel.app, inMemory: true);
       final provider = ServerLogsProvider(logger: logger);
 
       provider.clear();
 
       expect(provider.isEmpty, isTrue);
       expect(logger.entriesFor(LogChannel.server), isEmpty);
-      expect(logger.entriesFor(LogChannel.model), hasLength(1));
+      expect(logger.entriesFor(LogChannel.model), isEmpty);
+      expect(logger.entriesFor(LogChannel.app), hasLength(1));
       provider.dispose();
     });
 
@@ -101,27 +107,29 @@ void main() {
       provider.dispose();
     });
 
-    test('clear notifies immediately and cancels the pending notification',
-        () async {
-      final logger = AppLogger();
-      final provider = ServerLogsProvider(
-        logger: logger,
-        notifyThrottle: const Duration(milliseconds: 20),
-      );
-      var notifications = 0;
-      provider.addListener(() => notifications += 1);
+    test(
+      'clear notifies immediately and cancels the pending notification',
+      () async {
+        final logger = AppLogger();
+        final provider = ServerLogsProvider(
+          logger: logger,
+          notifyThrottle: const Duration(milliseconds: 20),
+        );
+        var notifications = 0;
+        provider.addListener(() => notifications += 1);
 
-      logger.info('line', channel: LogChannel.server, inMemory: true);
-      provider.clear();
+        logger.info('line', channel: LogChannel.server, inMemory: true);
+        provider.clear();
 
-      expect(provider.isEmpty, isTrue);
-      expect(notifications, 1);
+        expect(provider.isEmpty, isTrue);
+        expect(notifications, 1);
 
-      await Future<void>.delayed(const Duration(milliseconds: 60));
+        await Future<void>.delayed(const Duration(milliseconds: 60));
 
-      // The throttled notification was cancelled — no second callback.
-      expect(notifications, 1);
-      provider.dispose();
-    });
+        // The throttled notification was cancelled — no second callback.
+        expect(notifications, 1);
+        provider.dispose();
+      },
+    );
   });
 }

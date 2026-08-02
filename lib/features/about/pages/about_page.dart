@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:mnn_engine/mnn_engine.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:servllama/core/services/llama_server_service.dart';
 import 'package:servllama/l10n/l10n.dart';
@@ -101,6 +102,8 @@ class AboutPage extends StatelessWidget {
                     );
                   },
                 ),
+                const SizedBox(height: 4),
+                const _MnnVersionLine(),
                 const SizedBox(height: 28),
                 // Star on GitHub
                 ListTile(
@@ -139,6 +142,43 @@ class AboutPage extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _MnnVersionLine extends StatefulWidget {
+  const _MnnVersionLine();
+
+  @override
+  State<_MnnVersionLine> createState() => _MnnVersionLineState();
+}
+
+class _MnnVersionLineState extends State<_MnnVersionLine> {
+  late final Future<MnnEngineInfo> _info = MnnEngine.instance.initialize();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<MnnEngineInfo>(
+      future: _info,
+      builder: (context, snapshot) {
+        final info = snapshot.data;
+        if (info == null) {
+          return const SizedBox.shrink();
+        }
+        final commit = info.mnnCommit.trim();
+        final shortCommit = commit.length > 10
+            ? commit.substring(0, 10)
+            : commit;
+        final detail = shortCommit.isEmpty || shortCommit == 'unknown'
+            ? info.mnnVersion
+            : '${info.mnnVersion} · $shortCommit';
+        return Text(
+          context.l10n.aboutMnnVersionDetail(detail),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        );
+      },
     );
   }
 }

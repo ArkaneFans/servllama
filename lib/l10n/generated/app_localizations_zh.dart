@@ -682,4 +682,580 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get serverLogsEmpty => '暂无日志输出';
+
+  @override
+  String get serverLogsExport => '导出日志';
+
+  @override
+  String serverLogsExported(String path) {
+    return '日志已导出到 $path';
+  }
+
+  @override
+  String serverLogsExportFailed(String error) {
+    return '导出失败：$error';
+  }
+
+  @override
+  String get serverLogsAutoScroll => '自动滚动';
+
+  @override
+  String get serverLogsFilterAll => '全部';
+
+  @override
+  String get serverLogsFilterEngine => '引擎';
+
+  @override
+  String get serverLogsFilterServer => '服务';
+
+  @override
+  String get serverLogsFilterModel => '模型';
+
+  @override
+  String get serverLogsFilterDownload => '下载';
+
+  @override
+  String get serverLogsFilterErrors => '仅错误';
+
+  @override
+  String get engineSectionTitle => '推理引擎';
+
+  @override
+  String get engineLockedWhileRunning => '服务运行中不可切换引擎，需先停止服务。';
+
+  @override
+  String get serverStatusIdle => '未运行';
+
+  @override
+  String get serverStatusPreparing => '准备中';
+
+  @override
+  String get serverStatusStopping => '正在停止';
+
+  @override
+  String get serverStatusError => '启动失败';
+
+  @override
+  String get serverCancelPreparation => '取消';
+
+  @override
+  String serverUptime(String duration) {
+    return '已运行 $duration';
+  }
+
+  @override
+  String serverUptimeHoursMinutes(int hours, int minutes) {
+    return '$hours 小时 $minutes 分';
+  }
+
+  @override
+  String serverUptimeMinutes(int minutes) {
+    return '$minutes 分钟';
+  }
+
+  @override
+  String get serverActiveModelLabel => '当前模型';
+
+  @override
+  String get serverNoModelSelected => '未选择模型';
+
+  @override
+  String get serverNoModelSelectedHint => '可选 · 启动后按需加载';
+
+  @override
+  String get serverModelRequiredHint => 'MNN 需要先选择模型才能启动';
+
+  @override
+  String get serverSelectModelTitle => '选择模型';
+
+  @override
+  String get serverSelectModelNone => '不选择模型直接启动';
+
+  @override
+  String serverNoModelsForEngine(String engine) {
+    return '模型库中还没有 $engine 模型';
+  }
+
+  @override
+  String get serverPhaseLoadingModel => '加载模型';
+
+  @override
+  String serverPhaseCheckingPort(int port) {
+    return '端口检查（$port）';
+  }
+
+  @override
+  String get serverPhaseStartingServer => '启动服务';
+
+  @override
+  String get serverPhaseVerifying => '健康检查';
+
+  @override
+  String get serverPhaseUnloadingModel => '卸载模型';
+
+  @override
+  String get serverPhaseStoppingServer => '停止服务';
+
+  @override
+  String get serverPhaseLockHint => '编排期间锁定，完成后仍需停止服务才能切换引擎。';
+
+  @override
+  String runtimeErrorPortInUse(int port) {
+    return '端口 $port 已被其他应用占用。';
+  }
+
+  @override
+  String get runtimeErrorModelLoadFailed => '模型加载失败。';
+
+  @override
+  String get runtimeErrorServerStartFailed => '服务启动失败，请查看日志。';
+
+  @override
+  String get runtimeErrorServerStopFailed => '服务停止失败。';
+
+  @override
+  String get runtimeErrorModelRequired => '请先选择模型。';
+
+  @override
+  String get runtimeErrorEngineUnavailable => '该引擎在此设备上不可用。';
+
+  @override
+  String runtimeErrorUnknown(String detail) {
+    return '发生错误：$detail';
+  }
+
+  @override
+  String get serverConfigRestartNotice => '改动即时保存。服务正在运行，本页参数需停止并重新启动服务后才会生效。';
+
+  @override
+  String get serverConfigSavedNotice => '改动即时保存。';
+
+  @override
+  String get serverOpenAccessWarning =>
+      '当前监听所有网络接口且未设置 API Key，同一网络中的设备都可访问此服务。';
+
+  @override
+  String get serverConfigMnnSection => 'MNN 推理';
+
+  @override
+  String get serverConfigMnnBackend => '推理后端';
+
+  @override
+  String get serverConfigMnnBackendCpu => 'CPU（固定）';
+
+  @override
+  String get serverConfigMnnModelControlledHint =>
+      'MNN 的采样、上下文和批处理参数由模型目录中的 config.json 决定，此处不会覆盖。';
+
+  @override
+  String get modelLibraryTitle => '模型库';
+
+  @override
+  String get modelLibraryAddTitle => '添加模型';
+
+  @override
+  String get modelLibraryFilterAll => '全部';
+
+  @override
+  String get modelLibraryDownloadingSection => '下载中';
+
+  @override
+  String get modelLibraryInstalledSection => '已安装';
+
+  @override
+  String get modelAddDownload => '从模型仓库下载';
+
+  @override
+  String get modelAddDownloadDesc => '支持 Hugging Face 与魔搭，断点续传';
+
+  @override
+  String get modelAddGguf => '导入 GGUF 文件';
+
+  @override
+  String get modelAddGgufDesc => 'llama.cpp 使用的单个 .gguf 文件';
+
+  @override
+  String get modelAddMnnDir => '导入 MNN 模型目录';
+
+  @override
+  String get modelAddMnnDirDesc => 'MNN 引擎使用的整个模型目录';
+
+  @override
+  String get modelFormatExplainer => 'GGUF 是单个文件，MNN 模型是整个目录。卡片上的引擎徽标用于区分两者。';
+
+  @override
+  String get modelLibraryEmptyTitle => '还没有模型';
+
+  @override
+  String get modelLibraryEmptyDescription => '可以下载一个，或导入已有的模型文件。';
+
+  @override
+  String modelLibraryDeleteDialogContent(String modelName) {
+    return '确定删除「$modelName」？该模型的文件将从本机移除。';
+  }
+
+  @override
+  String get modelLibraryStatusRunning => '运行中';
+
+  @override
+  String get modelLibraryStatusIdle => '空闲';
+
+  @override
+  String get modelLibraryActiveCannotDelete => '运行中的模型不可删除';
+
+  @override
+  String get modelLibrarySwitchEngineBlocked => '当前服务正在运行，请先停止服务再切换引擎。';
+
+  @override
+  String get modelLibraryActivationFailed => '模型激活失败，请查看服务器日志。';
+
+  @override
+  String get modelCapabilityChinese => '中文';
+
+  @override
+  String get modelCapabilityEnglish => '英文';
+
+  @override
+  String get modelCapabilityVision => '视觉';
+
+  @override
+  String get modelCapabilityToolCalling => '工具调用';
+
+  @override
+  String get discoverTitle => '发现模型';
+
+  @override
+  String get discoverTabFeatured => '精选';
+
+  @override
+  String get discoverTabSearch => '搜索';
+
+  @override
+  String discoverDeviceMemory(String available, String total) {
+    return '可用内存 $available / 共 $total';
+  }
+
+  @override
+  String get discoverDeviceMemoryUnknown => '无法读取设备内存，未做可行性判断。';
+
+  @override
+  String get discoverSearchHint => '搜索模型仓库';
+
+  @override
+  String get discoverSearchDisclaimer => '搜索结果直接来自仓库，未经真机验证。';
+
+  @override
+  String get discoverBackToFeatured => '查看真机验证的精选模型';
+
+  @override
+  String get discoverSourceAll => '全部来源';
+
+  @override
+  String get discoverSortDownloads => '下载量';
+
+  @override
+  String get discoverSortUpdated => '最近更新';
+
+  @override
+  String get discoverFormatAll => '全部格式';
+
+  @override
+  String get discoverFeaturedNote => '以下模型均经过真机验证。';
+
+  @override
+  String get discoverNoResults => '没有匹配的仓库';
+
+  @override
+  String get discoverSearchPrompt => '输入模型名称，在双源仓库中搜索。';
+
+  @override
+  String get discoverErrorNetwork => '网络不可达，请检查连接或切换线路。';
+
+  @override
+  String get discoverErrorUnauthorized => '该仓库需要访问令牌，请在设置中填写。';
+
+  @override
+  String get discoverErrorNotFound => '未找到该仓库。';
+
+  @override
+  String get discoverErrorMalformed => '仓库返回了无法解析的响应。';
+
+  @override
+  String discoverResultCount(int count) {
+    return '共 $count 个结果';
+  }
+
+  @override
+  String discoverDownloadsCount(int count) {
+    return '$count 次下载';
+  }
+
+  @override
+  String get discoverUpdatedUnknown => '更新时间未知';
+
+  @override
+  String discoverUpdatedAt(String date) {
+    return '$date 更新';
+  }
+
+  @override
+  String get discoverFileCountUnknown => '文件数待打开后获取';
+
+  @override
+  String discoverFileCount(int count) {
+    return '$count 个文件';
+  }
+
+  @override
+  String get repoQuantSectionTitle => '量化档位';
+
+  @override
+  String get repoFilesSectionTitle => '文件';
+
+  @override
+  String get repoDownloadAction => '下载';
+
+  @override
+  String repoEstimatedMemory(String size) {
+    return '约需 $size';
+  }
+
+  @override
+  String get repoNoGgufFiles => '该仓库没有 GGUF 文件。';
+
+  @override
+  String repoMnnWholeDirectory(int count) {
+    return 'MNN 模型按整个目录下载（$count 个文件）。';
+  }
+
+  @override
+  String get feasibilityComfortable => '运行流畅';
+
+  @override
+  String get feasibilityTight => '内存吃紧';
+
+  @override
+  String get feasibilityNotEnoughMemory => '内存不足';
+
+  @override
+  String get feasibilityUnknown => '未知';
+
+  @override
+  String get catalogSummaryVerifiedSmallGeneralist => '小体积通用模型，加载快';
+
+  @override
+  String get catalogSummaryVerifiedEntryLevel => '入门级，几乎所有设备都能跑';
+
+  @override
+  String get catalogSummaryVerifiedBalanced => '质量与速度均衡';
+
+  @override
+  String get catalogSummaryVerifiedMnnDefault => 'MNN 引擎的默认选择';
+
+  @override
+  String get catalogSummaryVerifiedMnnBalanced => '更强的 MNN 模型，适合性能较好的手机';
+
+  @override
+  String get catalogSummaryVerifiedMnnVision => '支持图片理解的 MNN 模型';
+
+  @override
+  String get downloadsTitle => '下载任务';
+
+  @override
+  String get downloadsEmpty => '暂无下载任务';
+
+  @override
+  String get downloadStatusQueued => '排队中';
+
+  @override
+  String get downloadStatusRunning => '下载中';
+
+  @override
+  String get downloadStatusPaused => '已暂停';
+
+  @override
+  String get downloadStatusFailed => '失败';
+
+  @override
+  String get downloadStatusDownloaded => '导入中';
+
+  @override
+  String get downloadStatusCompleted => '已完成';
+
+  @override
+  String get downloadPause => '暂停';
+
+  @override
+  String get downloadResume => '继续';
+
+  @override
+  String get downloadCancel => '取消';
+
+  @override
+  String get downloadRetry => '重试';
+
+  @override
+  String get downloadSwitchSource => '换源';
+
+  @override
+  String downloadStarted(String modelName) {
+    return '已开始下载 $modelName';
+  }
+
+  @override
+  String downloadProgressDetail(String received, String total, String speed) {
+    return '$received / $total · $speed/s';
+  }
+
+  @override
+  String downloadRemaining(String duration) {
+    return '剩余 $duration';
+  }
+
+  @override
+  String downloadFilesProgress(int done, int total) {
+    return '$done/$total 个文件';
+  }
+
+  @override
+  String get downloadErrorNetwork => '连接中断';
+
+  @override
+  String get downloadErrorUnauthorized => '无访问权限，可能需要令牌';
+
+  @override
+  String get downloadErrorNotFound => '仓库中已无此文件';
+
+  @override
+  String get downloadErrorDiskFull => '存储空间不足';
+
+  @override
+  String get downloadErrorIntegrity => '文件长度或校验值不匹配';
+
+  @override
+  String get downloadErrorCancelled => '已取消';
+
+  @override
+  String get downloadCancelDialogTitle => '取消下载';
+
+  @override
+  String downloadCancelDialogContent(String modelName) {
+    return '取消「$modelName」？已下载的数据将被丢弃。';
+  }
+
+  @override
+  String get downloadForegroundTitle => 'ServLlama 正在下载模型';
+
+  @override
+  String downloadForegroundText(int count, int percent) {
+    return '$count 个任务 · $percent%';
+  }
+
+  @override
+  String get settingsSectionDownload => '下载';
+
+  @override
+  String get settingsHuggingFaceRoute => 'Hugging Face 线路';
+
+  @override
+  String get settingsHuggingFaceRouteDescription => '官方站点不可达时可切换到镜像。';
+
+  @override
+  String get settingsRouteAuto => '自动';
+
+  @override
+  String get settingsRouteOfficial => '官方';
+
+  @override
+  String get settingsRouteMirror => '镜像';
+
+  @override
+  String get settingsHuggingFaceToken => 'Hugging Face 令牌';
+
+  @override
+  String get settingsModelScopeToken => '魔搭令牌';
+
+  @override
+  String get settingsTokenDescription => '仅保存在本机，不会写入日志，也不会出现在导出的日志文件中。';
+
+  @override
+  String get settingsTokenNotSet => '未设置';
+
+  @override
+  String get settingsTokenSheetTitle => '访问令牌';
+
+  @override
+  String get settingsWifiOnly => '仅在 Wi-Fi 下下载';
+
+  @override
+  String get settingsWifiOnlySubtitle => '切换到移动网络时暂停任务';
+
+  @override
+  String get settingsMaxConcurrentDownloads => '并行下载数';
+
+  @override
+  String get settingsMaxConcurrentDownloadsDescription => '同时进行的下载任务数量';
+
+  @override
+  String get settingsSectionStorage => '存储';
+
+  @override
+  String get settingsStorageModels => '模型';
+
+  @override
+  String get settingsStorageDownloads => '未完成的下载';
+
+  @override
+  String get settingsClearStaging => '清理未完成的下载';
+
+  @override
+  String get settingsClearStagingDone => '已清理未完成的下载';
+
+  @override
+  String get aboutMnnVersion => 'MNN 版本';
+
+  @override
+  String aboutMnnVersionDetail(String value) {
+    return 'MNN 版本：$value';
+  }
+
+  @override
+  String get chatEmptyTitle => '选一个模型开始';
+
+  @override
+  String get chatEmptyDescription => '选定模型后服务会自动启动。';
+
+  @override
+  String get chatEmptyAction => '选择模型';
+
+  @override
+  String get chatCurrentRunning => '当前运行';
+
+  @override
+  String chatSameEngineModels(String engine) {
+    return '$engine 引擎 · 可直接切换';
+  }
+
+  @override
+  String get chatOtherEngines => '其他引擎';
+
+  @override
+  String chatOtherEnginesEntry(String engine, int count) {
+    return '$engine · $count 个模型';
+  }
+
+  @override
+  String get chatOtherEnginesHint => '切换引擎需先在服务器页停止当前服务';
+
+  @override
+  String get chatMnnSwapNotice => 'MNN 换模型会自动重启服务，约需 10 秒；期间对外接口短暂中断。';
+
+  @override
+  String get chatLoadModelAction => '加载';
+
+  @override
+  String get chatPreparingModel => '模型准备中';
+
+  @override
+  String get chatEmptyNoModelsDescription => '先下载一个模型，之后全程在本机运行。';
 }

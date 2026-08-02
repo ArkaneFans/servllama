@@ -9,8 +9,11 @@ import 'package:servllama/app/providers/app_locale_provider.dart';
 import 'package:servllama/app/providers/app_theme_mode_provider.dart';
 import 'package:servllama/app/app_theme.dart';
 import 'package:servllama/app/main_scaffold.dart';
-import 'package:servllama/core/providers/server_provider.dart';
+import 'package:servllama/core/providers/engine_runtime_provider.dart';
+import 'package:servllama/core/providers/model_management_provider.dart';
 import 'package:servllama/features/chat/providers/chat_provider.dart';
+import 'package:servllama/features/downloads/providers/download_provider.dart';
+import 'package:servllama/features/downloads/providers/model_discovery_provider.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
 
 class ServLlamaApp extends StatelessWidget {
@@ -44,22 +47,46 @@ class ServLlamaApp extends StatelessWidget {
           ),
           ChangeNotifierProvider(
             create: (_) {
-              final provider = ServerProvider()..refresh();
-              unawaited(provider.loadSavedEndpoint());
+              final provider = EngineRuntimeProvider();
+              unawaited(provider.restore());
+              return provider;
+            },
+          ),
+          ChangeNotifierProvider(
+            create: (_) {
+              final provider = ModelManagementProvider();
+              unawaited(provider.load());
+              return provider;
+            },
+          ),
+          ChangeNotifierProvider(
+            create: (_) {
+              final provider = DownloadProvider();
+              unawaited(provider.load());
+              return provider;
+            },
+          ),
+          ChangeNotifierProvider(
+            create: (_) {
+              final provider = ModelDiscoveryProvider();
+              unawaited(provider.load());
               return provider;
             },
           ),
           ChangeNotifierProxyProvider2<
-            ServerProvider,
+            EngineRuntimeProvider,
             ChatTimeoutProvider,
             ChatProvider
           >(
             create: (_) => ChatProvider(),
-            update: (_, serverProvider, chatTimeoutProvider, chatProvider) {
+            update: (_, runtimeProvider, chatTimeoutProvider, chatProvider) {
               final provider = chatProvider ?? ChatProvider();
               provider.updateServerState(
-                baseUrl: serverProvider.baseUrl,
-                isServerRunning: serverProvider.isRunning,
+                baseUrl: runtimeProvider.baseUrl,
+                isServerRunning: runtimeProvider.isRunning,
+                engine: runtimeProvider.activeEngine,
+                activeModelId: runtimeProvider.activeModelId,
+                activeModelName: runtimeProvider.activeModelName,
               );
               provider.updateChatTimeout(chatTimeoutProvider.timeout);
               return provider;

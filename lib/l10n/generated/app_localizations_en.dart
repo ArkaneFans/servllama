@@ -708,4 +708,612 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get serverLogsEmpty => 'No logs yet';
+
+  @override
+  String get serverLogsExport => 'Export logs';
+
+  @override
+  String serverLogsExported(String path) {
+    return 'Logs exported to $path';
+  }
+
+  @override
+  String serverLogsExportFailed(String error) {
+    return 'Export failed: $error';
+  }
+
+  @override
+  String get serverLogsAutoScroll => 'Auto-scroll';
+
+  @override
+  String get serverLogsFilterAll => 'All';
+
+  @override
+  String get serverLogsFilterEngine => 'Engine';
+
+  @override
+  String get serverLogsFilterServer => 'Service';
+
+  @override
+  String get serverLogsFilterModel => 'Model';
+
+  @override
+  String get serverLogsFilterDownload => 'Download';
+
+  @override
+  String get serverLogsFilterErrors => 'Errors only';
+
+  @override
+  String get engineSectionTitle => 'Inference engine';
+
+  @override
+  String get engineLockedWhileRunning =>
+      'Stop the service before switching engines.';
+
+  @override
+  String get serverStatusIdle => 'Stopped';
+
+  @override
+  String get serverStatusPreparing => 'Starting';
+
+  @override
+  String get serverStatusStopping => 'Stopping';
+
+  @override
+  String get serverStatusError => 'Failed';
+
+  @override
+  String get serverCancelPreparation => 'Cancel';
+
+  @override
+  String serverUptime(String duration) {
+    return 'Running for $duration';
+  }
+
+  @override
+  String serverUptimeHoursMinutes(int hours, int minutes) {
+    return '$hours h $minutes min';
+  }
+
+  @override
+  String serverUptimeMinutes(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String get serverActiveModelLabel => 'Active model';
+
+  @override
+  String get serverNoModelSelected => 'No model selected';
+
+  @override
+  String get serverNoModelSelectedHint =>
+      'Optional - loaded on demand after start';
+
+  @override
+  String get serverModelRequiredHint => 'MNN needs a model before it can start';
+
+  @override
+  String get serverSelectModelTitle => 'Select model';
+
+  @override
+  String get serverSelectModelNone => 'Start without a model';
+
+  @override
+  String serverNoModelsForEngine(String engine) {
+    return 'No $engine models in the library yet';
+  }
+
+  @override
+  String get serverPhaseLoadingModel => 'Loading model';
+
+  @override
+  String serverPhaseCheckingPort(int port) {
+    return 'Checking port $port';
+  }
+
+  @override
+  String get serverPhaseStartingServer => 'Starting service';
+
+  @override
+  String get serverPhaseVerifying => 'Health check';
+
+  @override
+  String get serverPhaseUnloadingModel => 'Unloading model';
+
+  @override
+  String get serverPhaseStoppingServer => 'Stopping service';
+
+  @override
+  String get serverPhaseLockHint =>
+      'Locked while orchestrating. Stop the service afterwards to switch engines.';
+
+  @override
+  String runtimeErrorPortInUse(int port) {
+    return 'Port $port is taken by another app.';
+  }
+
+  @override
+  String get runtimeErrorModelLoadFailed => 'Failed to load the model.';
+
+  @override
+  String get runtimeErrorServerStartFailed =>
+      'The service failed to start. Check the logs.';
+
+  @override
+  String get runtimeErrorServerStopFailed => 'The service failed to stop.';
+
+  @override
+  String get runtimeErrorModelRequired => 'Select a model first.';
+
+  @override
+  String get runtimeErrorEngineUnavailable =>
+      'This engine is unavailable on this device.';
+
+  @override
+  String runtimeErrorUnknown(String detail) {
+    return 'Something went wrong: $detail';
+  }
+
+  @override
+  String get serverConfigRestartNotice =>
+      'Changes are saved immediately. Stop and restart the service for them to take effect.';
+
+  @override
+  String get serverConfigSavedNotice => 'Changes are saved immediately.';
+
+  @override
+  String get serverOpenAccessWarning =>
+      'The service listens on all interfaces without an API key, so any device on the same network can access it.';
+
+  @override
+  String get serverConfigMnnSection => 'MNN inference';
+
+  @override
+  String get serverConfigMnnBackend => 'Inference backend';
+
+  @override
+  String get serverConfigMnnBackendCpu => 'CPU (fixed)';
+
+  @override
+  String get serverConfigMnnModelControlledHint =>
+      'MNN sampling, context and batching are defined by config.json in the model directory and are not overridden here.';
+
+  @override
+  String get modelLibraryTitle => 'Models';
+
+  @override
+  String get modelLibraryAddTitle => 'Add a model';
+
+  @override
+  String get modelLibraryFilterAll => 'All';
+
+  @override
+  String get modelLibraryDownloadingSection => 'Downloading';
+
+  @override
+  String get modelLibraryInstalledSection => 'Installed';
+
+  @override
+  String get modelAddDownload => 'Download from a hub';
+
+  @override
+  String get modelAddDownloadDesc =>
+      'Hugging Face and ModelScope, with resume support';
+
+  @override
+  String get modelAddGguf => 'Import a GGUF file';
+
+  @override
+  String get modelAddGgufDesc => 'A single .gguf file for llama.cpp';
+
+  @override
+  String get modelAddMnnDir => 'Import an MNN directory';
+
+  @override
+  String get modelAddMnnDirDesc => 'A whole model folder for the MNN engine';
+
+  @override
+  String get modelFormatExplainer =>
+      'GGUF is a single file; MNN models are whole directories. The engine badge on each card tells them apart.';
+
+  @override
+  String get modelLibraryEmptyTitle => 'No models yet';
+
+  @override
+  String get modelLibraryEmptyDescription =>
+      'Download one, or import a file you already have.';
+
+  @override
+  String modelLibraryDeleteDialogContent(String modelName) {
+    return 'Delete “$modelName”? The files will be removed from this device.';
+  }
+
+  @override
+  String get modelLibraryStatusRunning => 'Running';
+
+  @override
+  String get modelLibraryStatusIdle => 'Idle';
+
+  @override
+  String get modelLibraryActiveCannotDelete =>
+      'The running model cannot be deleted';
+
+  @override
+  String get modelLibrarySwitchEngineBlocked =>
+      'Stop the running service before switching engines.';
+
+  @override
+  String get modelLibraryActivationFailed =>
+      'Could not activate the model. Check the server logs.';
+
+  @override
+  String get modelCapabilityChinese => 'Chinese';
+
+  @override
+  String get modelCapabilityEnglish => 'English';
+
+  @override
+  String get modelCapabilityVision => 'Vision';
+
+  @override
+  String get modelCapabilityToolCalling => 'Tool calling';
+
+  @override
+  String get discoverTitle => 'Discover models';
+
+  @override
+  String get discoverTabFeatured => 'Featured';
+
+  @override
+  String get discoverTabSearch => 'Search';
+
+  @override
+  String discoverDeviceMemory(String available, String total) {
+    return '$available of $total RAM available';
+  }
+
+  @override
+  String get discoverDeviceMemoryUnknown =>
+      'Device memory unknown; feasibility is not checked.';
+
+  @override
+  String get discoverSearchHint => 'Search repositories';
+
+  @override
+  String get discoverSearchDisclaimer =>
+      'Search results come straight from the hub and have not been verified on a device.';
+
+  @override
+  String get discoverBackToFeatured => 'View device-verified picks';
+
+  @override
+  String get discoverSourceAll => 'All sources';
+
+  @override
+  String get discoverSortDownloads => 'Downloads';
+
+  @override
+  String get discoverSortUpdated => 'Recently updated';
+
+  @override
+  String get discoverFormatAll => 'All formats';
+
+  @override
+  String get discoverFeaturedNote =>
+      'Every model here has been run on a real device.';
+
+  @override
+  String get discoverNoResults => 'No matching repositories';
+
+  @override
+  String get discoverSearchPrompt => 'Type a model name to search both hubs.';
+
+  @override
+  String get discoverErrorNetwork =>
+      'Network unreachable. Check the connection or switch route.';
+
+  @override
+  String get discoverErrorUnauthorized =>
+      'This repository needs a token. Add one in Settings.';
+
+  @override
+  String get discoverErrorNotFound => 'Repository not found.';
+
+  @override
+  String get discoverErrorMalformed =>
+      'The hub returned an unexpected response.';
+
+  @override
+  String discoverResultCount(int count) {
+    return '$count results';
+  }
+
+  @override
+  String discoverDownloadsCount(int count) {
+    return '$count downloads';
+  }
+
+  @override
+  String get discoverUpdatedUnknown => 'Update time unknown';
+
+  @override
+  String discoverUpdatedAt(String date) {
+    return 'Updated $date';
+  }
+
+  @override
+  String get discoverFileCountUnknown => 'File count available after opening';
+
+  @override
+  String discoverFileCount(int count) {
+    return '$count files';
+  }
+
+  @override
+  String get repoQuantSectionTitle => 'Quantization';
+
+  @override
+  String get repoFilesSectionTitle => 'Files';
+
+  @override
+  String get repoDownloadAction => 'Download';
+
+  @override
+  String repoEstimatedMemory(String size) {
+    return 'Needs about $size';
+  }
+
+  @override
+  String get repoNoGgufFiles => 'This repository has no GGUF files.';
+
+  @override
+  String repoMnnWholeDirectory(int count) {
+    return 'MNN models download as a whole directory ($count files).';
+  }
+
+  @override
+  String get feasibilityComfortable => 'Runs comfortably';
+
+  @override
+  String get feasibilityTight => 'Tight on memory';
+
+  @override
+  String get feasibilityNotEnoughMemory => 'Not enough memory';
+
+  @override
+  String get feasibilityUnknown => 'Unknown';
+
+  @override
+  String get catalogSummaryVerifiedSmallGeneralist =>
+      'Small all-rounder, quick to load';
+
+  @override
+  String get catalogSummaryVerifiedEntryLevel =>
+      'Entry level, runs on almost anything';
+
+  @override
+  String get catalogSummaryVerifiedBalanced => 'Balanced quality and speed';
+
+  @override
+  String get catalogSummaryVerifiedMnnDefault =>
+      'The MNN engine\'s default pick';
+
+  @override
+  String get catalogSummaryVerifiedMnnBalanced =>
+      'Stronger MNN model for capable phones';
+
+  @override
+  String get catalogSummaryVerifiedMnnVision =>
+      'MNN model with image understanding';
+
+  @override
+  String get downloadsTitle => 'Downloads';
+
+  @override
+  String get downloadsEmpty => 'No download tasks';
+
+  @override
+  String get downloadStatusQueued => 'Queued';
+
+  @override
+  String get downloadStatusRunning => 'Downloading';
+
+  @override
+  String get downloadStatusPaused => 'Paused';
+
+  @override
+  String get downloadStatusFailed => 'Failed';
+
+  @override
+  String get downloadStatusDownloaded => 'Importing';
+
+  @override
+  String get downloadStatusCompleted => 'Done';
+
+  @override
+  String get downloadPause => 'Pause';
+
+  @override
+  String get downloadResume => 'Resume';
+
+  @override
+  String get downloadCancel => 'Cancel';
+
+  @override
+  String get downloadRetry => 'Retry';
+
+  @override
+  String get downloadSwitchSource => 'Switch source';
+
+  @override
+  String downloadStarted(String modelName) {
+    return 'Started downloading $modelName';
+  }
+
+  @override
+  String downloadProgressDetail(String received, String total, String speed) {
+    return '$received / $total - $speed/s';
+  }
+
+  @override
+  String downloadRemaining(String duration) {
+    return '$duration left';
+  }
+
+  @override
+  String downloadFilesProgress(int done, int total) {
+    return '$done of $total files';
+  }
+
+  @override
+  String get downloadErrorNetwork => 'Connection interrupted';
+
+  @override
+  String get downloadErrorUnauthorized =>
+      'Access denied, a token may be required';
+
+  @override
+  String get downloadErrorNotFound => 'File no longer exists on the hub';
+
+  @override
+  String get downloadErrorDiskFull => 'Not enough storage';
+
+  @override
+  String get downloadErrorIntegrity => 'File length or checksum does not match';
+
+  @override
+  String get downloadErrorCancelled => 'Cancelled';
+
+  @override
+  String get downloadCancelDialogTitle => 'Cancel download';
+
+  @override
+  String downloadCancelDialogContent(String modelName) {
+    return 'Cancel “$modelName”? Downloaded bytes will be discarded.';
+  }
+
+  @override
+  String get downloadForegroundTitle => 'ServLlama is downloading models';
+
+  @override
+  String downloadForegroundText(int count, int percent) {
+    return '$count tasks - $percent%';
+  }
+
+  @override
+  String get settingsSectionDownload => 'Downloads';
+
+  @override
+  String get settingsHuggingFaceRoute => 'Hugging Face route';
+
+  @override
+  String get settingsHuggingFaceRouteDescription =>
+      'The mirror helps when the official host is unreachable.';
+
+  @override
+  String get settingsRouteAuto => 'Auto';
+
+  @override
+  String get settingsRouteOfficial => 'Official';
+
+  @override
+  String get settingsRouteMirror => 'Mirror';
+
+  @override
+  String get settingsHuggingFaceToken => 'Hugging Face token';
+
+  @override
+  String get settingsModelScopeToken => 'ModelScope token';
+
+  @override
+  String get settingsTokenDescription =>
+      'Stored on this device only. Never written to logs or exported files.';
+
+  @override
+  String get settingsTokenNotSet => 'Not set';
+
+  @override
+  String get settingsTokenSheetTitle => 'Access token';
+
+  @override
+  String get settingsWifiOnly => 'Download over Wi-Fi only';
+
+  @override
+  String get settingsWifiOnlySubtitle =>
+      'Pause tasks when the network switches to cellular';
+
+  @override
+  String get settingsMaxConcurrentDownloads => 'Parallel downloads';
+
+  @override
+  String get settingsMaxConcurrentDownloadsDescription =>
+      'How many tasks may run at once';
+
+  @override
+  String get settingsSectionStorage => 'Storage';
+
+  @override
+  String get settingsStorageModels => 'Models';
+
+  @override
+  String get settingsStorageDownloads => 'Unfinished downloads';
+
+  @override
+  String get settingsClearStaging => 'Clear unfinished downloads';
+
+  @override
+  String get settingsClearStagingDone => 'Cleared unfinished downloads';
+
+  @override
+  String get aboutMnnVersion => 'MNN version';
+
+  @override
+  String aboutMnnVersionDetail(String value) {
+    return 'MNN version: $value';
+  }
+
+  @override
+  String get chatEmptyTitle => 'Pick a model to start';
+
+  @override
+  String get chatEmptyDescription =>
+      'The service starts on its own once a model is chosen.';
+
+  @override
+  String get chatEmptyAction => 'Choose a model';
+
+  @override
+  String get chatCurrentRunning => 'Running now';
+
+  @override
+  String chatSameEngineModels(String engine) {
+    return '$engine - switch directly';
+  }
+
+  @override
+  String get chatOtherEngines => 'Other engines';
+
+  @override
+  String chatOtherEnginesEntry(String engine, int count) {
+    return '$engine - $count models';
+  }
+
+  @override
+  String get chatOtherEnginesHint =>
+      'Stop the running service on the Server page to switch engines.';
+
+  @override
+  String get chatMnnSwapNotice =>
+      'Switching models on MNN restarts the service (about 10 s); the API is briefly unavailable.';
+
+  @override
+  String get chatLoadModelAction => 'Load';
+
+  @override
+  String get chatPreparingModel => 'Preparing model';
+
+  @override
+  String get chatEmptyNoModelsDescription =>
+      'Download a model first. Everything runs on this device afterwards.';
 }

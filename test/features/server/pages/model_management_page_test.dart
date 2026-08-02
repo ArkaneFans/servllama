@@ -1,10 +1,14 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/core/models/model_descriptor.dart';
 import 'package:servllama/core/providers/model_management_provider.dart';
+import 'package:servllama/core/services/app_l10n_service.dart';
+import 'package:servllama/features/downloads/providers/download_provider.dart';
 import 'package:servllama/core/repositories/local_model_repository.dart';
 import 'package:servllama/core/services/gguf_file_picker.dart';
 import 'package:servllama/features/server/pages/model_management_page.dart';
@@ -13,6 +17,29 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('ModelManagementPage', () {
+    setUp(() {
+      // Provider-produced snackbar text comes from AppL10nService, which
+      // otherwise follows the host platform locale.
+      AppL10nService.instance.setLocale(const Locale('zh'));
+      // The unified library also asks the MNN plugin for its models; with no
+      // handler the platform call never completes and the page stays on its
+      // loading spinner forever.
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('com.arkanefans.mnn_engine/methods'),
+            (call) async =>
+                call.method == 'listImportedModels' ? <Object?>[] : null,
+          );
+    });
+
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('com.arkanefans.mnn_engine/methods'),
+            null,
+          );
+    });
+
     testWidgets('shows empty state when there are no models', (tester) async {
       final provider = ModelManagementProvider(
         repository: FakeLocalModelRepository(),
@@ -21,11 +48,11 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(home: ModelManagementPage(provider: provider)),
+        _host(provider),
       );
-      await tester.pump();
+      await tester.pumpAndSettle();
 
-      expect(find.text('还没有导入模型'), findsOneWidget);
+      expect(find.text('还没有模型'), findsOneWidget);
       expect(find.byKey(const Key('model_management_import_fab')), findsOneWidget);
     });
 
@@ -41,13 +68,12 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(home: ModelManagementPage(provider: provider)),
+        _host(provider),
       );
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       expect(find.text('model'), findsOneWidget);
-      expect(find.text('2.00 GB · GGUF'), findsOneWidget);
-      expect(find.byTooltip('文本'), findsOneWidget);
+      expect(find.text('llama.cpp · 2.00 GB'), findsOneWidget);
       expect(find.byTooltip('设置'), findsOneWidget);
       expect(find.byTooltip('删除'), findsOneWidget);
     });
@@ -64,12 +90,13 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(home: ModelManagementPage(provider: provider)),
+        _host(provider),
       );
-      await tester.pump();
+      await tester.pumpAndSettle();
 
-      expect(find.byTooltip('文本'), findsOneWidget);
-      expect(find.byTooltip('多模态'), findsNothing);
+      // Capability tags are additive now: a text-only model carries none.
+      expect(find.text('视觉'), findsNothing);
+      expect(find.text('工具调用'), findsNothing);
     });
 
     testWidgets('shows multimodal badge when mmproj exists', (tester) async {
@@ -89,11 +116,11 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(home: ModelManagementPage(provider: provider)),
+        _host(provider),
       );
-      await tester.pump();
+      await tester.pumpAndSettle();
 
-      expect(find.byTooltip('多模态'), findsOneWidget);
+      expect(find.text('视觉'), findsOneWidget);
     });
 
     testWidgets('shows confirmation dialog before deleting a model', (
@@ -110,9 +137,9 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(home: ModelManagementPage(provider: provider)),
+        _host(provider),
       );
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip('删除'));
       await tester.pumpAndSettle();
@@ -143,18 +170,17 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(home: ModelManagementPage(provider: provider)),
+        _host(provider),
       );
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip('删除'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('删除'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 250));
+      await _settle(tester);
 
       expect(find.text('模型已删除: delete'), findsOneWidget);
-      expect(find.text('还没有导入模型'), findsOneWidget);
+      expect(find.text('还没有模型'), findsOneWidget);
     });
 
     testWidgets('imports model and shows snackbar feedback', (tester) async {
@@ -170,17 +196,22 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(home: ModelManagementPage(provider: provider)),
+        _host(provider),
       );
-      await tester.pump();
+      await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(FloatingActionButton, '导入模型'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 250));
+      // The FAB now offers download / GGUF file / MNN directory rather than
+      // importing a GGUF straight away.
+      await tester.tap(
+        find.byKey(const Key('model_management_import_fab')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('导入 GGUF 文件'));
+      await _settle(tester);
 
       expect(find.text('模型导入成功: picked'), findsOneWidget);
       expect(find.text('picked'), findsOneWidget);
-      expect(find.text('1.00 GB · GGUF'), findsOneWidget);
+      expect(find.text('llama.cpp · 1.00 GB'), findsOneWidget);
     });
 
     testWidgets('renames model from settings sheet', (tester) async {
@@ -195,9 +226,9 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(home: ModelManagementPage(provider: provider)),
+        _host(provider),
       );
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip('设置'));
       await tester.pumpAndSettle();
@@ -205,9 +236,10 @@ void main() {
         find.byKey(const Key('model_settings_name_field')),
         'after',
       );
-      await tester.tap(find.byKey(const Key('model_settings_save_name_button')));
+      // The save button stays disabled until the draft name rebuilds.
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 250));
+      await tester.tap(find.byKey(const Key('model_settings_save_name_button')));
+      await _settle(tester);
 
       expect(find.text('模型已重命名为: after'), findsOneWidget);
       expect(find.text('after'), findsWidgets);
@@ -230,20 +262,19 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(home: ModelManagementPage(provider: provider)),
+        _host(provider),
       );
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip('设置'));
       await tester.pumpAndSettle();
       await tester.tap(
         find.byKey(const Key('model_settings_import_mmproj_button')),
       );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 250));
+      await _settle(tester);
 
       expect(find.text('mmproj 导入成功: vision'), findsOneWidget);
-      expect(find.byTooltip('多模态'), findsWidgets);
+      expect(find.text('视觉'), findsWidgets);
       expect(
         find.byKey(const Key('model_settings_remove_mmproj_button')),
         findsOneWidget,
@@ -268,9 +299,9 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(home: ModelManagementPage(provider: provider)),
+        _host(provider),
       );
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip('设置'));
       await tester.pumpAndSettle();
@@ -282,8 +313,7 @@ void main() {
       expect(find.text('确定移除 vision 的 mmproj 文件吗？'), findsOneWidget);
 
       await tester.tap(find.text('删除'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 250));
+      await _settle(tester);
 
       expect(find.text('mmproj 已移除: vision'), findsOneWidget);
       expect(
@@ -399,4 +429,29 @@ ModelDescriptor _descriptor({
     importedAt: DateTime(2026, 1, 1),
     mmprojFilePath: mmprojFilePath,
   );
+}
+
+/// The library page lists in-flight downloads alongside imported models, so it
+/// needs the download queue in scope even when no test exercises it.
+Widget _host(ModelManagementProvider provider) {
+  return MultiProvider(
+    providers: [
+      // Above MaterialApp on purpose: the settings sheet builds under the
+      // Navigator's overlay, so a provider scoped to the page itself would be
+      // out of its reach.
+      ChangeNotifierProvider<ModelManagementProvider>.value(value: provider),
+      ChangeNotifierProvider<DownloadProvider>(
+        create: (_) => DownloadProvider(),
+      ),
+    ],
+    child: MaterialApp(home: ModelManagementPage(provider: provider)),
+  );
+}
+
+/// Flushes the provider's async refresh without advancing far enough for a
+/// SnackBar to dismiss itself.
+Future<void> _settle(WidgetTester tester) async {
+  for (var i = 0; i < 8; i++) {
+    await tester.pump(const Duration(milliseconds: 40));
+  }
 }

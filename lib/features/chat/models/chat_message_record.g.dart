@@ -24,9 +24,9 @@ class ChatMessageRecordAdapter extends TypeAdapter<ChatMessageRecord> {
       sessionId: fields[9] as String?,
       modelName: fields[4] as String?,
       reasoningContent: fields[5] as String?,
-      imageFilePaths: (fields[6] as List?)?.cast<String>() ?? const [],
-      versionIds: (fields[7] as List?)?.cast<String>() ?? const [],
-      currentVersionIndex: fields[8] as int? ?? 0,
+      imageFilePaths: (fields[6] as List).cast<String>(),
+      versionIds: (fields[7] as List).cast<String>(),
+      currentVersionIndex: fields[8] as int,
     );
   }
 

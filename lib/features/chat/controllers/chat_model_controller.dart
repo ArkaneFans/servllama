@@ -1,8 +1,14 @@
 import 'package:flutter/foundation.dart';
+import 'package:servllama/core/models/inference_engine.dart';
 import 'package:servllama/features/chat/models/chat_model_option.dart';
 import 'package:servllama/features/chat/services/llama_chat_api_client.dart';
 
-enum ChatModelOperationErrorKind { loadTimeout, loadFailed, unloadTimeout, requestFailed }
+enum ChatModelOperationErrorKind {
+  loadTimeout,
+  loadFailed,
+  unloadTimeout,
+  requestFailed,
+}
 
 /// A failed model load/unload, kept as typed state so the page layer can
 /// map it to localized text (AGENTS.md forbids display text below the UI).
@@ -30,7 +36,9 @@ class ChatModelController extends ChangeNotifier {
   bool _isRefreshingModels = false;
   bool _isServerRunning = false;
   String _baseUrl = 'http://127.0.0.1:8080';
+  InferenceEngine _engine = InferenceEngine.llamaCpp;
   String? _currentModelId;
+  String? _adoptedRuntimeModelId;
   String? _loadingModelId;
   ChatModelOperationError? _lastOperationError;
 
@@ -80,12 +88,25 @@ class ChatModelController extends ChangeNotifier {
   bool updateServerState({
     required String baseUrl,
     required bool isServerRunning,
+    InferenceEngine engine = InferenceEngine.llamaCpp,
+    String? activeModelId,
+    String? activeModelName,
   }) {
     var changed = false;
 
     if (_baseUrl != baseUrl) {
       _baseUrl = baseUrl;
       _apiClient.updateBaseUrl(baseUrl);
+    }
+
+    final engineChanged = _engine != engine;
+    if (engineChanged) {
+      _engine = engine;
+      _models = <ChatModelOption>[];
+      _loadingModelId = null;
+      _currentModelId = null;
+      _adoptedRuntimeModelId = null;
+      changed = true;
     }
 
     final stopped = _isServerRunning && !isServerRunning;
@@ -97,7 +118,51 @@ class ChatModelController extends ChangeNotifier {
     if (stopped) {
       _models = <ChatModelOption>[];
       _loadingModelId = null;
+      _currentModelId = null;
+      _adoptedRuntimeModelId = null;
       changed = true;
+    }
+
+    // The orchestrator owns which model is resident; chat follows it so
+    // completions always target what the engine actually serves (FR-C1).
+    // Tracked separately from _currentModelId because a refresh may clear the
+    // latter, and re-adopting on every rebuild would loop.
+    if (isServerRunning &&
+        activeModelId != null &&
+        activeModelId != _adoptedRuntimeModelId) {
+      _adoptedRuntimeModelId = activeModelId;
+      _currentModelId = activeModelId;
+      changed = true;
+    }
+
+    // The runtime provider owns formal model activation for both engines.
+    // Treat its successful result as the authoritative loaded-model snapshot
+    // so chat can send immediately without depending on llama.cpp's private
+    // `/models` control endpoint (which MNN intentionally does not expose).
+    if (isServerRunning && activeModelId != null) {
+      final nextModels = <ChatModelOption>[
+        ChatModelOption(
+          id: activeModelId,
+          displayName: activeModelName?.trim().isNotEmpty == true
+              ? activeModelName!.trim()
+              : activeModelId,
+          status: ChatModelStatus.loaded,
+        ),
+      ];
+      if (!_sameModels(_models, nextModels)) {
+        _models = nextModels;
+        changed = true;
+      }
+      if (_currentModelId != activeModelId) {
+        _currentModelId = activeModelId;
+        changed = true;
+      }
+    } else if (isServerRunning && engine == InferenceEngine.mnn) {
+      if (_models.isNotEmpty || _currentModelId != null) {
+        _models = <ChatModelOption>[];
+        _currentModelId = null;
+        changed = true;
+      }
     }
 
     if (changed) {
@@ -111,7 +176,9 @@ class ChatModelController extends ChangeNotifier {
   }
 
   Future<void> refreshModels() async {
-    if (_isRefreshingModels || !_isServerRunning) {
+    if (_isRefreshingModels ||
+        !_isServerRunning ||
+        _engine == InferenceEngine.mnn) {
       return;
     }
 
@@ -263,6 +330,22 @@ class ChatModelController extends ChangeNotifier {
       }
     }
     return null;
+  }
+
+  bool _sameModels(List<ChatModelOption> left, List<ChatModelOption> right) {
+    if (left.length != right.length) {
+      return false;
+    }
+    for (var index = 0; index < left.length; index++) {
+      final a = left[index];
+      final b = right[index];
+      if (a.id != b.id ||
+          a.displayName != b.displayName ||
+          a.status != b.status) {
+        return false;
+      }
+    }
+    return true;
   }
 
   String get inputHintText {

@@ -273,6 +273,92 @@ class LocalModelRepository {
     return updated;
   }
 
+  /// Registers an already-downloaded GGUF file by *moving* it into the models
+  /// directory. Import copies, which would mean writing a second multi-GB copy
+  /// of a file the app just wrote itself; downloads land in private storage on
+  /// the same volume, so a rename is both correct and free.
+  Future<ModelDescriptor> adoptDownloadedModel({
+    required String modelName,
+    required File modelFile,
+    File? mmprojFile,
+  }) async {
+    final trimmedName = modelName.trim();
+    if (trimmedName.isEmpty) {
+      throw const ModelOperationException(
+        ModelOperationErrorCode.emptyModelName,
+      );
+    }
+    _validateModelName(trimmedName);
+
+    if (!await modelFile.exists()) {
+      throw const ModelOperationException(
+        ModelOperationErrorCode.selectedModelFileMissing,
+      );
+    }
+
+    final models = await listModels();
+    final normalized = _normalizeModelKey(trimmedName);
+    if (models.any((m) => _normalizeModelKey(m.modelName) == normalized)) {
+      throw const ModelOperationException(
+        ModelOperationErrorCode.duplicateModelName,
+      );
+    }
+
+    final modelDirectory = await _storagePaths.getModelDirectory(trimmedName);
+    if (await modelDirectory.exists()) {
+      throw const ModelOperationException(
+        ModelOperationErrorCode.duplicateModelName,
+      );
+    }
+    await modelDirectory.create(recursive: true);
+
+    try {
+      final fileName = modelFile.path.split(RegExp(r'[\\/]')).last;
+      final stored = await _moveInto(modelFile, modelDirectory.path, fileName);
+
+      String? storedMmprojPath;
+      if (mmprojFile != null && await mmprojFile.exists()) {
+        final mmprojName = mmprojFile.path.split(RegExp(r'[\\/]')).last;
+        final storedMmproj = await _moveInto(
+          mmprojFile,
+          modelDirectory.path,
+          mmprojName,
+        );
+        storedMmprojPath = storedMmproj.path;
+      }
+
+      final descriptor = ModelDescriptor(
+        id: _generateModelId(),
+        modelName: trimmedName,
+        sizeBytes: await stored.length(),
+        storedDirectoryPath: modelDirectory.path,
+        storedFilePath: stored.path,
+        importedAt: DateTime.now(),
+        mmprojFilePath: storedMmprojPath,
+      );
+      final box = await _box();
+      await box.put(descriptor.id, descriptor);
+      _logger.info('已收录下载的模型: $trimmedName', channel: LogChannel.model);
+      return descriptor;
+    } catch (_) {
+      await _cleanupDirectory(modelDirectory.path);
+      rethrow;
+    }
+  }
+
+  /// Rename first; falls back to copy+delete when the source sits on another
+  /// volume (rename fails with EXDEV there).
+  Future<File> _moveInto(File source, String directoryPath, String fileName) async {
+    final targetPath = _joinPath(directoryPath, fileName);
+    try {
+      return await source.rename(targetPath);
+    } on FileSystemException {
+      final copied = await source.copy(targetPath);
+      await source.delete();
+      return copied;
+    }
+  }
+
   Future<void> deleteModel(String modelId) async {
     final box = await _box();
     final descriptor = box.get(modelId);

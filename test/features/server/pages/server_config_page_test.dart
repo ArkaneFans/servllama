@@ -5,7 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/providers/server_config_provider.dart';
-import 'package:servllama/core/providers/server_provider.dart';
+import 'package:servllama/core/providers/engine_runtime_provider.dart';
+import 'package:servllama/core/services/engines/llama_cpp_engine_adapter.dart';
+
+import '../../../support/stub_engine_adapter.dart';
 import 'package:servllama/core/services/llama_server_service.dart';
 import 'package:servllama/core/services/model_storage_paths.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
@@ -32,12 +35,18 @@ void main() {
         settingsLoader: loader,
       );
       final serverService = _FakeLlamaServerService();
-      final serverProvider = ServerProvider(
-        serverService: serverService,
+      final serverProvider = EngineRuntimeProvider(
+        llamaCppAdapter: LlamaCppEngineAdapter(
+          serverService: serverService,
+          settingsLoader: _FixedServerLaunchSettingsLoader(
+            const ServerLaunchSettings(),
+          ),
+          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+        ),
+        mnnAdapter: StubEngineAdapter(),
         settingsLoader: _FixedServerLaunchSettingsLoader(
           const ServerLaunchSettings(),
         ),
-        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
       );
       addTearDown(() {
         configProvider.dispose();
@@ -78,12 +87,18 @@ void main() {
       final kvStorage = KvStorage();
       final configProvider = ServerConfigProvider(kvStorage: kvStorage);
       final serverService = _FakeLlamaServerService();
-      final serverProvider = ServerProvider(
-        serverService: serverService,
+      final serverProvider = EngineRuntimeProvider(
+        llamaCppAdapter: LlamaCppEngineAdapter(
+          serverService: serverService,
+          settingsLoader: _FixedServerLaunchSettingsLoader(
+            const ServerLaunchSettings(),
+          ),
+          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+        ),
+        mnnAdapter: StubEngineAdapter(),
         settingsLoader: _FixedServerLaunchSettingsLoader(
           const ServerLaunchSettings(),
         ),
-        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
       );
       addTearDown(() {
         configProvider.dispose();
@@ -126,12 +141,18 @@ void main() {
       final kvStorage = KvStorage();
       final configProvider = ServerConfigProvider(kvStorage: kvStorage);
       final serverService = _FakeLlamaServerService();
-      final serverProvider = ServerProvider(
-        serverService: serverService,
+      final serverProvider = EngineRuntimeProvider(
+        llamaCppAdapter: LlamaCppEngineAdapter(
+          serverService: serverService,
+          settingsLoader: _FixedServerLaunchSettingsLoader(
+            const ServerLaunchSettings(),
+          ),
+          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+        ),
+        mnnAdapter: StubEngineAdapter(),
         settingsLoader: _FixedServerLaunchSettingsLoader(
           const ServerLaunchSettings(),
         ),
-        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
       );
       addTearDown(() {
         configProvider.dispose();
@@ -146,8 +167,11 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.drag(find.byType(ListView), const Offset(0, -900));
-      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('日志'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
 
       expect(find.text('日志'), findsOneWidget);
       expect(find.text('日志启用'), findsOneWidget);
@@ -163,12 +187,18 @@ void main() {
       final kvStorage = KvStorage();
       final configProvider = ServerConfigProvider(kvStorage: kvStorage);
       final serverService = _FakeLlamaServerService();
-      final serverProvider = ServerProvider(
-        serverService: serverService,
+      final serverProvider = EngineRuntimeProvider(
+        llamaCppAdapter: LlamaCppEngineAdapter(
+          serverService: serverService,
+          settingsLoader: _FixedServerLaunchSettingsLoader(
+            const ServerLaunchSettings(),
+          ),
+          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+        ),
+        mnnAdapter: StubEngineAdapter(),
         settingsLoader: _FixedServerLaunchSettingsLoader(
           const ServerLaunchSettings(),
         ),
-        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
       );
       addTearDown(() {
         configProvider.dispose();
@@ -213,12 +243,18 @@ void main() {
       final kvStorage = KvStorage();
       final configProvider = ServerConfigProvider(kvStorage: kvStorage);
       final serverService = _FakeLlamaServerService();
-      final serverProvider = ServerProvider(
-        serverService: serverService,
+      final serverProvider = EngineRuntimeProvider(
+        llamaCppAdapter: LlamaCppEngineAdapter(
+          serverService: serverService,
+          settingsLoader: _FixedServerLaunchSettingsLoader(
+            const ServerLaunchSettings(),
+          ),
+          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+        ),
+        mnnAdapter: StubEngineAdapter(),
         settingsLoader: _FixedServerLaunchSettingsLoader(
           const ServerLaunchSettings(),
         ),
-        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
       );
       addTearDown(() {
         configProvider.dispose();
@@ -238,15 +274,20 @@ void main() {
       expect(configProvider.port, 9000);
       expect(serverProvider.displayAddress, '0.0.0.0:9000');
 
-      await tester.drag(find.byType(ListView), const Offset(0, -1200));
-      await tester.pumpAndSettle();
       final restoreDefaultTile = find.widgetWithText(ListTile, '恢复默认配置');
+      await tester.scrollUntilVisible(
+        restoreDefaultTile,
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.drag(find.byType(ListView), const Offset(0, -160));
+      await tester.pumpAndSettle();
       expect(restoreDefaultTile, findsOneWidget);
       await tester.tap(restoreDefaultTile);
       await tester.pumpAndSettle();
 
       expect(find.text('恢复默认配置'), findsNWidgets(2));
-      expect(find.text('所有配置项将恢复默认值并立即保存，确定继续吗？'), findsOneWidget);
+      expect(find.text('所有配置项将恢复默认值，确定继续吗？'), findsOneWidget);
 
       await tester.tap(find.text('取消'));
       await tester.pumpAndSettle();
@@ -294,14 +335,16 @@ void main() {
 class _TestApp extends StatelessWidget {
   const _TestApp({required this.serverProvider, required this.child});
 
-  final ServerProvider serverProvider;
+  final EngineRuntimeProvider serverProvider;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider<ServerProvider>.value(value: serverProvider),
+        ChangeNotifierProvider<EngineRuntimeProvider>.value(
+          value: serverProvider,
+        ),
       ],
       child: MaterialApp(home: child),
     );

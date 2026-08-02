@@ -4,6 +4,7 @@ import 'package:servllama/app/providers/chat_timeout_provider.dart';
 import 'package:servllama/app/providers/app_locale_provider.dart';
 import 'package:servllama/app/providers/app_theme_mode_provider.dart';
 import 'package:servllama/features/about/pages/about_page.dart';
+import 'package:servllama/features/settings/widgets/download_settings_section.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
 import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/widgets/settings_section.dart';
@@ -71,6 +72,8 @@ class SettingsPage extends StatelessWidget {
                   ],
                 ),
               ),
+              const SizedBox(height: 18),
+              const DownloadSettingsSection(),
               const SizedBox(height: 18),
               SettingsSection(
                 title: l10n.settingsSectionAbout,
@@ -187,111 +190,12 @@ class SettingsPage extends StatelessWidget {
     BuildContext context,
     ChatTimeoutProvider provider,
   ) async {
-    final l10n = context.l10n;
-    final controller = TextEditingController(
-      text: provider.timeoutSeconds.toString(),
-    );
-    var draftValue = provider.timeoutSeconds;
-
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setModalState) => SafeArea(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(
-              20,
-              8,
-              20,
-              28 + MediaQuery.of(sheetContext).viewInsets.bottom,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l10n.settingsChatTimeoutSheetTitle,
-                  style: Theme.of(
-                    sheetContext,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  l10n.settingsChatTimeoutDescription,
-                  style: Theme.of(sheetContext).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(sheetContext).colorScheme.onSurfaceVariant,
-                    height: 1.45,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  key: const Key('settings_chat_timeout_input'),
-                  controller: controller,
-                  keyboardType: TextInputType.number,
-                  textInputAction: TextInputAction.done,
-                  onChanged: (value) {
-                    final parsed = int.tryParse(value.trim());
-                    if (parsed == null) {
-                      return;
-                    }
-                    final nextValue = parsed.clamp(
-                      ChatTimeoutProvider.minTimeoutSeconds,
-                      ChatTimeoutProvider.maxTimeoutSeconds,
-                    );
-                    setModalState(() {
-                      draftValue = nextValue;
-                    });
-                  },
-                  decoration: InputDecoration(
-                    labelText: l10n.settingsChatTimeoutFieldLabel,
-                    suffixText: l10n.settingsChatTimeoutUnit,
-                    border: const OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  l10n.settingsChatTimeoutRange(
-                    ChatTimeoutProvider.minTimeoutSeconds,
-                    ChatTimeoutProvider.maxTimeoutSeconds,
-                  ),
-                  style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(sheetContext).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Row(
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(sheetContext).pop(),
-                      child: Text(l10n.commonCancel),
-                    ),
-                    const Spacer(),
-                    FilledButton(
-                      key: const Key('settings_chat_timeout_save_button'),
-                      onPressed: () async {
-                        final parsed = int.tryParse(controller.text.trim());
-                        final nextValue = (parsed ?? draftValue).clamp(
-                          ChatTimeoutProvider.minTimeoutSeconds,
-                          ChatTimeoutProvider.maxTimeoutSeconds,
-                        );
-                        await provider.updateTimeoutSeconds(nextValue);
-                        if (!sheetContext.mounted) {
-                          return;
-                        }
-                        Navigator.of(sheetContext).pop();
-                      },
-                      child: Text(l10n.commonSave),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+      builder: (sheetContext) => _ChatTimeoutSheet(provider: provider),
     );
-    controller.dispose();
   }
 
   static const List<ThemeMode> _themeModeOptions = <ThemeMode>[
@@ -546,6 +450,132 @@ class _LocaleModeSheetOption extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Owns the timeout field's controller so it lives exactly as long as the
+/// sheet does — disposing it right after `showModalBottomSheet` returns tears
+/// it down while the closing animation is still rebuilding the field.
+class _ChatTimeoutSheet extends StatefulWidget {
+  const _ChatTimeoutSheet({required this.provider});
+
+  final ChatTimeoutProvider provider;
+
+  @override
+  State<_ChatTimeoutSheet> createState() => _ChatTimeoutSheetState();
+}
+
+class _ChatTimeoutSheetState extends State<_ChatTimeoutSheet> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.provider.timeoutSeconds.toString(),
+  );
+  late int _draftValue = widget.provider.timeoutSeconds;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  int get _clampedInput {
+    final parsed = int.tryParse(_controller.text.trim());
+    return (parsed ?? _draftValue).clamp(
+      ChatTimeoutProvider.minTimeoutSeconds,
+      ChatTimeoutProvider.maxTimeoutSeconds,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          8,
+          20,
+          28 + MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l10n.settingsChatTimeoutSheetTitle,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              l10n.settingsChatTimeoutDescription,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                height: 1.45,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              key: const Key('settings_chat_timeout_input'),
+              controller: _controller,
+              keyboardType: TextInputType.number,
+              textInputAction: TextInputAction.done,
+              onChanged: (value) {
+                final parsed = int.tryParse(value.trim());
+                if (parsed == null) {
+                  return;
+                }
+                setState(() {
+                  _draftValue = parsed.clamp(
+                    ChatTimeoutProvider.minTimeoutSeconds,
+                    ChatTimeoutProvider.maxTimeoutSeconds,
+                  );
+                });
+              },
+              decoration: InputDecoration(
+                labelText: l10n.settingsChatTimeoutFieldLabel,
+                suffixText: l10n.settingsChatTimeoutUnit,
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              l10n.settingsChatTimeoutRange(
+                ChatTimeoutProvider.minTimeoutSeconds,
+                ChatTimeoutProvider.maxTimeoutSeconds,
+              ),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(l10n.commonCancel),
+                ),
+                const Spacer(),
+                FilledButton(
+                  key: const Key('settings_chat_timeout_save_button'),
+                  onPressed: () async {
+                    final navigator = Navigator.of(context);
+                    await widget.provider.updateTimeoutSeconds(_clampedInput);
+                    if (!mounted) {
+                      return;
+                    }
+                    navigator.pop();
+                  },
+                  child: Text(l10n.commonSave),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

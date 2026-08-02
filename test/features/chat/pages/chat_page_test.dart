@@ -6,12 +6,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:servllama/app/app_theme.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
-import 'package:servllama/core/providers/server_provider.dart';
+import 'package:servllama/core/providers/engine_runtime_provider.dart';
+import 'package:servllama/core/models/model_descriptor.dart';
+import 'package:servllama/core/repositories/local_model_repository.dart';
+import 'package:servllama/core/services/app_l10n_service.dart';
+import 'package:servllama/l10n/generated/app_localizations.dart';
+import 'package:servllama/core/providers/model_management_provider.dart';
+import 'package:servllama/features/downloads/providers/download_provider.dart';
+import 'package:servllama/core/services/engines/llama_cpp_engine_adapter.dart';
+
+import '../../../support/stub_engine_adapter.dart';
 import 'package:servllama/core/services/llama_server_service.dart';
 import 'package:servllama/core/services/model_storage_paths.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
+import 'package:servllama/core/storage/kv_storage.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/models/chat_message_version_record.dart';
 import 'package:servllama/features/chat/models/chat_model_option.dart';
@@ -26,6 +37,32 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('ChatPage', () {
+    setUp(() {
+      AppL10nService.instance.setLocale(const Locale('zh'));
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        // Marking the prompt as already shown keeps start() away from the
+        // foreground-task permission channel, whose future never resolves
+        // under the test clock.
+        'flutter.server.foreground_notification_permission_prompted': true,
+      });
+      // The unified library also queries the MNN plugin; with no handler the
+      // platform call never settles under the fake clock.
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('com.arkanefans.mnn_engine/methods'),
+            (call) async =>
+                call.method == 'listImportedModels' ? <Object?>[] : null,
+          );
+    });
+
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('com.arkanefans.mnn_engine/methods'),
+            null,
+          );
+    });
+
     testWidgets('calls onOpenSidebar when menu button is tapped', (
       tester,
     ) async {
@@ -39,10 +76,16 @@ void main() {
       await chatProvider.load();
 
       final serverService = _FakeLlamaServerService();
-      final serverProvider = ServerProvider(
-        serverService: serverService,
+      final serverProvider = EngineRuntimeProvider(
+        llamaCppAdapter: LlamaCppEngineAdapter(
+          serverService: serverService,
+          settingsLoader: _FixedServerLaunchSettingsLoader(),
+          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+          controlClient: StubServerControlClient(),
+        ),
+        mnnAdapter: StubEngineAdapter(),
         settingsLoader: _FixedServerLaunchSettingsLoader(),
-        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+        kvStorage: KvStorage(),
       );
       addTearDown(() {
         serverProvider.dispose();
@@ -70,32 +113,26 @@ void main() {
       expect(openSidebarCount, 1);
     });
 
-    testWidgets('shows empty-state copy and starts server from action button', (
+    testWidgets('empty state offers downloading when the library is empty', (
       tester,
     ) async {
-      final repository = _FakeChatSessionRepository(
-        sessions: <ChatSessionRecord>[],
-      );
-      final apiClient = _FakeLlamaChatApiClient(
-        models: <ChatModelOption>[
-          const ChatModelOption(
-            id: 'alpha',
-            displayName: 'alpha',
-            status: ChatModelStatus.unloaded,
-          ),
-        ],
-      );
       final chatProvider = ChatProvider(
-        repository: repository,
-        apiClient: apiClient,
+        repository: _FakeChatSessionRepository(sessions: <ChatSessionRecord>[]),
+        apiClient: _FakeLlamaChatApiClient(models: <ChatModelOption>[]),
       );
       await chatProvider.load();
 
       final serverService = _FakeLlamaServerService();
-      final serverProvider = ServerProvider(
-        serverService: serverService,
+      final serverProvider = EngineRuntimeProvider(
+        llamaCppAdapter: LlamaCppEngineAdapter(
+          serverService: serverService,
+          settingsLoader: _FixedServerLaunchSettingsLoader(),
+          modelStoragePaths: _FixedModelStoragePaths('C:/app/models'),
+          controlClient: StubServerControlClient(),
+        ),
+        mnnAdapter: StubEngineAdapter(),
         settingsLoader: _FixedServerLaunchSettingsLoader(),
-        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+        kvStorage: KvStorage(),
       );
       addTearDown(() {
         serverProvider.dispose();
@@ -108,277 +145,86 @@ void main() {
           serverProvider: serverProvider,
         ),
       );
-      await tester.pump();
+      await tester.pumpAndSettle();
 
-      expect(find.text('开始对话'), findsOneWidget);
-      expect(find.text('请先启动服务器，然后加载一个模型，马上开始你的AI对话~'), findsOneWidget);
-      expect(apiClient.fetchModelsCallCount, 0);
-      expect(
-        tester
-            .widget<Align>(
-              find.byKey(const Key('chat_conversation_hero_align')),
-            )
-            .alignment,
-        const Alignment(0, -0.236),
-      );
-      expect(
-        find.byKey(const Key('chat_empty_state_action_button')),
-        findsOneWidget,
-      );
-      expect(find.byKey(const Key('chat_empty_state_logo')), findsOneWidget);
-      expect(
-        find.byKey(const Key('chat_model_selector_button')),
-        findsOneWidget,
-      );
-      expect(find.byKey(const Key('chat_input_field')), findsOneWidget);
-      expect(find.text('请先启动服务器'), findsOneWidget);
-      expect(find.text('启动服务器'), findsOneWidget);
-      expect(
-        tester
-            .widget<IconButton>(
-              find.byKey(const Key('chat_server_toggle_button')),
-            )
-            .style
-            ?.backgroundColor
-            ?.resolve(<WidgetState>{}),
-        Colors.transparent,
-      );
-      expect(
-        tester
-            .widget<IconButton>(
-              find.byKey(const Key('chat_model_selector_button')),
-            )
-            .style
-            ?.foregroundColor
-            ?.resolve(<WidgetState>{WidgetState.disabled}),
-        const Color(0xAA565C68),
-      );
-      expect(
-        tester.widget<SizedBox>(find.byKey(const Key('chat_empty_state_logo'))),
-        isA<SizedBox>()
-            .having((widget) => widget.width, 'width', 118)
-            .having((widget) => widget.height, 'height', 118),
-      );
-
-      final actionButton = tester.widget<FilledButton>(
-        find.byKey(const Key('chat_empty_state_action_button')),
-      );
-      final actionStyle = actionButton.style;
-      expect(
-        actionStyle?.backgroundColor?.resolve(<WidgetState>{}),
-        const Color(0xFF565C68),
-      );
-      expect(
-        actionStyle?.foregroundColor?.resolve(<WidgetState>{}),
-        Colors.white,
-      );
-      expect(
-        actionStyle?.shape?.resolve(<WidgetState>{}),
-        isA<StadiumBorder>(),
-      );
+      // Starting the server is no longer something the user is asked to do
+      // (FR-C1); with nothing to pick, the only offer is to download.
+      expect(find.text('选一个模型开始'), findsOneWidget);
+      expect(find.text('先下载一个模型，之后全程在本机运行。'), findsOneWidget);
+      expect(find.text('启动服务器'), findsNothing);
       expect(
         find.descendant(
           of: find.byKey(const Key('chat_empty_state_action_button')),
-          matching: find.byType(Icon),
+          matching: find.text('发现模型'),
         ),
-        findsNothing,
-      );
-
-      await tester.tap(find.byKey(const Key('chat_empty_state_action_button')));
-      await tester.pump();
-
-      expect(
-        tester
-            .widget<IconButton>(
-              find.byKey(const Key('chat_server_toggle_button')),
-            )
-            .style
-            ?.backgroundColor
-            ?.resolve(<WidgetState>{WidgetState.disabled}),
-        Colors.transparent,
-      );
-
-      await tester.pumpAndSettle();
-
-      expect(serverProvider.isRunning, isTrue);
-      expect(find.text('服务器已启动，请先选择或加载一个模型，马上开始你的 AI 对话。'), findsOneWidget);
-      expect(
-        find.byKey(const Key('chat_empty_state_action_button')),
         findsOneWidget,
       );
-      expect(find.text('选择模型'), findsWidgets);
-
-      apiClient.fetchModelsCompleter = Completer<void>();
-      await tester.tap(find.byKey(const Key('chat_empty_state_action_button')));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      expect(apiClient.fetchModelsCallCount, 1);
-      expect(
-        find.byKey(const Key('chat_model_sheet_loading_indicator')),
-        findsOneWidget,
-      );
-      expect(find.text('已加载模型'), findsNothing);
-
-      apiClient.fetchModelsCompleter!.complete();
-      await tester.pump();
-      await tester.pumpAndSettle();
-
-      expect(find.text('已加载模型'), findsOneWidget);
-      expect(find.text('可用模型'), findsOneWidget);
-      expect(find.text('alpha'), findsOneWidget);
-      expect(find.text('已加载模型可直接切换，未加载模型会在选中时自动加载。'), findsNothing);
+      expect(find.byKey(const Key('chat_empty_state_logo')), findsOneWidget);
     });
 
-    testWidgets(
-      'opens model list from empty-state action when server is running',
-      (tester) async {
-        final repository = _FakeChatSessionRepository(
-          sessions: <ChatSessionRecord>[],
-        );
-        final apiClient = _FakeLlamaChatApiClient(
-          models: <ChatModelOption>[
-            const ChatModelOption(
-              id: 'alpha',
-              displayName: 'alpha',
-              status: ChatModelStatus.loaded,
-            ),
-            const ChatModelOption(
-              id: 'beta',
-              displayName: 'beta',
-              status: ChatModelStatus.unloaded,
-            ),
-          ],
-        );
-        final chatProvider = ChatProvider(
-          repository: repository,
-          apiClient: apiClient,
-        );
+    testWidgets('empty state opens the model sheet once the library has one', (
+      tester,
+    ) async {
+      final chatProvider = ChatProvider(
+        repository: _FakeChatSessionRepository(sessions: <ChatSessionRecord>[]),
+        apiClient: _FakeLlamaChatApiClient(models: <ChatModelOption>[]),
+      );
+      await chatProvider.load();
 
-        final serverService = _FakeLlamaServerService();
-        final serverProvider = ServerProvider(
+      final library = ModelManagementProvider(
+        repository: FakeLocalModelRepository(
+          initialModels: <ModelDescriptor>[_libraryDescriptor('alpha')],
+        ),
+      );
+      await library.load();
+
+      final serverService = _FakeLlamaServerService();
+      final serverProvider = EngineRuntimeProvider(
+        llamaCppAdapter: LlamaCppEngineAdapter(
           serverService: serverService,
           settingsLoader: _FixedServerLaunchSettingsLoader(),
-          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
-        );
-        await serverProvider.start();
-        chatProvider.updateServerState(
-          baseUrl: serverProvider.baseUrl,
-          isServerRunning: serverProvider.isRunning,
-        );
-        await chatProvider.load();
+          modelStoragePaths: _FixedModelStoragePaths('C:/app/models'),
+          controlClient: StubServerControlClient(),
+        ),
+        mnnAdapter: StubEngineAdapter(),
+        settingsLoader: _FixedServerLaunchSettingsLoader(),
+        kvStorage: KvStorage(),
+      );
+      addTearDown(() {
+        serverProvider.dispose();
+        serverService.dispose();
+      });
 
-        addTearDown(() {
-          serverProvider.dispose();
-          serverService.dispose();
-        });
+      await tester.pumpWidget(
+        _TestChatApp(
+          chatProvider: chatProvider,
+          serverProvider: serverProvider,
+          library: library,
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        await tester.pumpWidget(
-          _TestChatApp(
-            chatProvider: chatProvider,
-            serverProvider: serverProvider,
-          ),
-        );
-        await tester.pump();
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('chat_empty_state_action_button')),
+          matching: find.text('选择模型'),
+        ),
+        findsOneWidget,
+      );
 
-        expect(apiClient.fetchModelsCallCount, 0);
-        expect(
-          find.byKey(const Key('chat_empty_state_action_button')),
-          findsOneWidget,
-        );
+      await tester.tap(find.byKey(const Key('chat_empty_state_action_button')));
+      await tester.pumpAndSettle();
 
-        apiClient.fetchModelsCompleter = Completer<void>();
-        await tester.tap(
-          find.byKey(const Key('chat_empty_state_action_button')),
-        );
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 300));
-
-        expect(apiClient.fetchModelsCallCount, 1);
-        expect(
-          find.byKey(const Key('chat_model_sheet_loading_indicator')),
-          findsOneWidget,
-        );
-        expect(find.text('已加载模型'), findsNothing);
-
-        apiClient.fetchModelsCompleter!.complete();
-        await tester.pump();
-        await tester.pumpAndSettle();
-
-        expect(find.text('已加载模型'), findsOneWidget);
-        expect(find.text('可用模型'), findsOneWidget);
-        expect(find.text('alpha'), findsOneWidget);
-        expect(find.text('beta'), findsOneWidget);
-        expect(find.text('已加载模型可直接切换，未加载模型会在选中时自动加载。'), findsNothing);
-      },
-    );
-
-    testWidgets(
-      'quick toggles server from input bar and updates status badge',
-      (tester) async {
-        final repository = _FakeChatSessionRepository(
-          sessions: <ChatSessionRecord>[],
-        );
-        final chatProvider = ChatProvider(
-          repository: repository,
-          apiClient: _FakeLlamaChatApiClient(models: const <ChatModelOption>[]),
-        );
-        await chatProvider.load();
-
-        final serverService = _FakeLlamaServerService();
-        final serverProvider = ServerProvider(
-          serverService: serverService,
-          settingsLoader: _FixedServerLaunchSettingsLoader(),
-          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
-        );
-        addTearDown(() {
-          serverProvider.dispose();
-          serverService.dispose();
-        });
-
-        await tester.pumpWidget(
-          _TestChatApp(
-            chatProvider: chatProvider,
-            serverProvider: serverProvider,
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        final colorScheme = Theme.of(
-          tester.element(find.byType(ChatPage)),
-        ).colorScheme;
-
-        BoxDecoration badgeDecoration() {
-          return tester
-                  .widget<Container>(
-                    find.byKey(const Key('chat_server_status_badge')),
-                  )
-                  .decoration!
-              as BoxDecoration;
-        }
-
-        expect(
-          find.byKey(const Key('chat_server_toggle_button')),
-          findsOneWidget,
-        );
-        expect(find.byIcon(Icons.dns_outlined), findsOneWidget);
-        expect(badgeDecoration().color, colorScheme.outlineVariant);
-
-        await tester.tap(find.byKey(const Key('chat_server_toggle_button')));
-        await tester.pumpAndSettle();
-
-        expect(serverService.startCallCount, 1);
-        expect(serverProvider.isRunning, isTrue);
-        expect(badgeDecoration().color, const Color(0xFF10B981));
-
-        await tester.tap(find.byKey(const Key('chat_server_toggle_button')));
-        await tester.pumpAndSettle();
-
-        expect(serverService.stopCallCount, 1);
-        expect(serverProvider.isRunning, isFalse);
-        expect(badgeDecoration().color, colorScheme.outlineVariant);
-      },
-    );
+      // Only the active engine's models are listed (FR-C3).
+      expect(
+        find.byKey(const Key('chat_model_sheet_row_alpha')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('chat_model_sheet_mnn_notice')),
+        findsNothing,
+      );
+    });
 
     testWidgets(
       'hides empty state when server is running and a model is loaded',
@@ -401,12 +247,18 @@ void main() {
         );
 
         final serverService = _FakeLlamaServerService();
-        final serverProvider = ServerProvider(
-          serverService: serverService,
+        final serverProvider = EngineRuntimeProvider(
+          llamaCppAdapter: LlamaCppEngineAdapter(
+            serverService: serverService,
+            settingsLoader: _FixedServerLaunchSettingsLoader(),
+            modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+            controlClient: StubServerControlClient(),
+          ),
+          mnnAdapter: StubEngineAdapter(),
           settingsLoader: _FixedServerLaunchSettingsLoader(),
-          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+          kvStorage: KvStorage(),
         );
-        await serverProvider.start();
+        await tester.runAsync(() => serverProvider.start());
         chatProvider.updateServerState(
           baseUrl: serverProvider.baseUrl,
           isServerRunning: serverProvider.isRunning,
@@ -428,7 +280,7 @@ void main() {
         );
         await tester.pump();
 
-        expect(find.text('开始对话'), findsNothing);
+        expect(find.text('选一个模型开始'), findsNothing);
         expect(
           find.byKey(const Key('chat_empty_state_action_button')),
           findsNothing,
@@ -488,14 +340,14 @@ void main() {
 
         expect(provider.selectedSession, isNull);
         expect(
-          find.descendant(of: find.byType(AppBar), matching: find.text('新会话')),
+          find.descendant(of: find.byType(AppBar), matching: find.text('新对话')),
           findsOneWidget,
         );
-        expect(tester.getCenter(find.text('新会话')).dx, lessThan(200));
+        expect(tester.getCenter(find.text('新对话')).dx, closeTo(400, 24));
         expect(find.text('历史消息'), findsNothing);
 
         await provider.selectSession('s1');
-        await tester.pump();
+        await _pumpConversationSwitch(tester);
 
         expect(
           find.descendant(of: find.byType(AppBar), matching: find.text('现有会话')),
@@ -503,144 +355,83 @@ void main() {
         );
         expect(find.text('历史消息'), findsOneWidget);
 
-        await tester.tap(find.byTooltip('新建会话'));
-        await tester.pump();
+        await tester.tap(find.byTooltip('新建对话'));
+        await _pumpConversationSwitch(tester);
 
         expect(provider.selectedSession, isNull);
         expect(provider.sessions, hasLength(1));
         expect(
-          find.descendant(of: find.byType(AppBar), matching: find.text('新会话')),
+          find.descendant(of: find.byType(AppBar), matching: find.text('新对话')),
           findsOneWidget,
         );
         expect(find.text('历史消息'), findsNothing);
       },
     );
 
-    testWidgets('shows loaded and available model groups and loads a model', (
+    testWidgets('picking a model in the sheet activates it on the runtime', (
       tester,
     ) async {
-      final repository = _FakeChatSessionRepository(
-        sessions: <ChatSessionRecord>[_session(id: 's1', title: '会话')],
+      final chatProvider = ChatProvider(
+        repository: _FakeChatSessionRepository(sessions: <ChatSessionRecord>[]),
+        apiClient: _FakeLlamaChatApiClient(models: <ChatModelOption>[]),
       );
-      final apiClient = _FakeLlamaChatApiClient(
-        models: <ChatModelOption>[
-          const ChatModelOption(
-            id: 'alpha',
-            displayName: 'alpha',
-            status: ChatModelStatus.loaded,
-          ),
-          const ChatModelOption(
-            id: 'beta',
-            displayName: 'beta',
-            status: ChatModelStatus.unloaded,
-          ),
-        ],
-      );
-      final provider = ChatProvider(
-        repository: repository,
-        apiClient: apiClient,
-      );
-      provider.updateServerState(
-        baseUrl: 'http://127.0.0.1:8080',
-        isServerRunning: true,
-      );
-      await provider.load();
+      await chatProvider.load();
 
-      await tester.pumpWidget(
-        ChangeNotifierProvider<ChatProvider>.value(
-          value: provider,
-          child: const MaterialApp(home: ChatPage()),
+      final library = ModelManagementProvider(
+        repository: FakeLocalModelRepository(
+          initialModels: <ModelDescriptor>[_libraryDescriptor('alpha')],
         ),
       );
-      await tester.pump();
+      await library.load();
 
-      expect(find.text('当前模型'), findsNothing);
-      expect(
-        find.byKey(const Key('chat_model_selector_button')),
-        findsOneWidget,
+      final serverService = _FakeLlamaServerService();
+      final serverProvider = EngineRuntimeProvider(
+        llamaCppAdapter: LlamaCppEngineAdapter(
+          serverService: serverService,
+          settingsLoader: _FixedServerLaunchSettingsLoader(),
+          modelStoragePaths: _FixedModelStoragePaths('C:/app/models'),
+          controlClient: StubServerControlClient(),
+        ),
+        mnnAdapter: StubEngineAdapter(),
+        settingsLoader: _FixedServerLaunchSettingsLoader(),
+        kvStorage: KvStorage(),
       );
-      expect(find.byTooltip('选择模型'), findsOneWidget);
-      expect(apiClient.fetchModelsCallCount, 0);
-
-      apiClient.fetchModelsCompleter = Completer<void>();
-      await tester.tap(find.byKey(const Key('chat_model_selector_button')));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      expect(apiClient.fetchModelsCallCount, 1);
-      expect(
-        find.byKey(const Key('chat_model_sheet_loading_indicator')),
-        findsOneWidget,
-      );
-      expect(find.text('已加载模型'), findsNothing);
-
-      apiClient.fetchModelsCompleter!.complete();
-      await tester.pump();
-      await tester.pumpAndSettle();
-
-      expect(find.text('已加载模型'), findsOneWidget);
-      expect(find.text('可用模型'), findsOneWidget);
-      expect(find.text('alpha'), findsOneWidget);
-      expect(find.text('beta'), findsOneWidget);
-      expect(find.text('已加载模型可直接切换，未加载模型会在选中时自动加载。'), findsNothing);
-
-      await tester.tap(find.text('beta'));
-      await tester.pumpAndSettle();
-
-      expect(provider.currentModelId, 'beta');
-      expect(find.text('模型已加载: beta'), findsNothing);
-      expect(find.byTooltip('beta'), findsOneWidget);
-    });
-
-    testWidgets('shows inline error in model sheet when loading times out', (
-      tester,
-    ) async {
-      final repository = _FakeChatSessionRepository(
-        sessions: <ChatSessionRecord>[_session(id: 's1', title: '会话')],
-      );
-      final apiClient = _FakeLlamaChatApiClient(
-        models: <ChatModelOption>[
-          const ChatModelOption(
-            id: 'beta',
-            displayName: 'beta',
-            status: ChatModelStatus.unloaded,
-          ),
-        ],
-      );
-      apiClient.loadError = const LlamaChatApiException(
-        'Model load timed out.',
-        code: LlamaChatApiErrorCode.modelLoadTimeout,
-      );
-      final provider = ChatProvider(
-        repository: repository,
-        apiClient: apiClient,
-      );
-      provider.updateServerState(
-        baseUrl: 'http://127.0.0.1:8080',
-        isServerRunning: true,
-      );
-      await provider.load();
+      addTearDown(() {
+        serverProvider.dispose();
+        serverService.dispose();
+      });
 
       await tester.pumpWidget(
-        ChangeNotifierProvider<ChatProvider>.value(
-          value: provider,
-          child: const MaterialApp(home: ChatPage()),
+        _TestChatApp(
+          chatProvider: chatProvider,
+          serverProvider: serverProvider,
+          library: library,
         ),
       );
-      await tester.pump();
-
-      await tester.tap(find.byKey(const Key('chat_model_selector_button')));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('chat_model_sheet_error')), findsNothing);
+      expect(serverProvider.isRunning, isFalse);
 
-      await tester.tap(find.text('beta'));
+      await tester.tap(find.byKey(const Key('chat_empty_state_action_button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('chat_model_sheet_row_alpha')));
       await tester.pumpAndSettle();
 
-      // The sheet stays open for retry and shows the localized error inline.
-      expect(find.byKey(const Key('chat_model_sheet_error')), findsOneWidget);
-      expect(find.text('模型加载超时：beta，请稍后重试'), findsOneWidget);
-      expect(provider.currentModelId, isNull);
+      // One tap owns the whole bring-up: the sheet closes and the orchestrator
+      // starts the engine with the chosen model (FR-C1).
+      await tester.runAsync(
+        () => _waitForRuntime(
+          () => serverProvider.isRunning || serverProvider.lastError != null,
+        ),
+      );
+      // A ready runtime keeps the status treatment animated, so settling is
+      // intentionally bounded.
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 40));
+      }
+
+      expect(serverProvider.isRunning, isTrue);
+      expect(serverProvider.activeModelId, 'alpha');
     });
 
     testWidgets('uses dedicated dark hero button colors', (tester) async {
@@ -654,10 +445,16 @@ void main() {
       await chatProvider.load();
 
       final serverService = _FakeLlamaServerService();
-      final serverProvider = ServerProvider(
-        serverService: serverService,
+      final serverProvider = EngineRuntimeProvider(
+        llamaCppAdapter: LlamaCppEngineAdapter(
+          serverService: serverService,
+          settingsLoader: _FixedServerLaunchSettingsLoader(),
+          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+          controlClient: StubServerControlClient(),
+        ),
+        mnnAdapter: StubEngineAdapter(),
         settingsLoader: _FixedServerLaunchSettingsLoader(),
-        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+        kvStorage: KvStorage(),
       );
       addTearDown(() {
         serverProvider.dispose();
@@ -691,78 +488,6 @@ void main() {
         actionStyle?.shape?.resolve(<WidgetState>{}),
         isA<StadiumBorder>(),
       );
-    });
-
-    testWidgets('unloads current loaded model from model sheet', (
-      tester,
-    ) async {
-      final repository = _FakeChatSessionRepository(
-        sessions: <ChatSessionRecord>[_session(id: 's1', title: '会话')],
-      );
-      final apiClient = _FakeLlamaChatApiClient(
-        models: <ChatModelOption>[
-          const ChatModelOption(
-            id: 'alpha',
-            displayName: 'alpha',
-            status: ChatModelStatus.loaded,
-          ),
-          const ChatModelOption(
-            id: 'beta',
-            displayName: 'beta',
-            status: ChatModelStatus.loaded,
-          ),
-        ],
-      );
-      final provider = ChatProvider(
-        repository: repository,
-        apiClient: apiClient,
-      );
-      provider.updateServerState(
-        baseUrl: 'http://127.0.0.1:8080',
-        isServerRunning: true,
-      );
-      await provider.load();
-      await provider.refreshModels();
-      provider.selectLoadedModel('alpha');
-
-      await tester.pumpWidget(
-        ChangeNotifierProvider<ChatProvider>.value(
-          value: provider,
-          child: const MaterialApp(home: ChatPage()),
-        ),
-      );
-      await tester.pump();
-
-      await tester.tap(find.byKey(const Key('chat_model_selector_button')));
-      await tester.pumpAndSettle();
-
-      expect(
-        find.byKey(const Key('chat_model_unload_button_alpha')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const Key('chat_model_unload_button_beta')),
-        findsOneWidget,
-      );
-
-      await tester.tap(find.byKey(const Key('chat_model_unload_button_alpha')));
-      await tester.pumpAndSettle();
-
-      expect(provider.currentModelId, isNull);
-      expect(find.byTooltip('选择模型'), findsOneWidget);
-      expect(find.text('已加载模型'), findsOneWidget);
-      expect(find.text('可用模型'), findsOneWidget);
-      expect(
-        find.byKey(const Key('chat_model_unload_button_beta')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const Key('chat_model_unload_button_alpha')),
-        findsNothing,
-      );
-      expect(find.text('alpha'), findsOneWidget);
-      expect(find.text('输入消息'), findsNothing);
-      expect(find.text('请先选择模型'), findsOneWidget);
     });
 
     testWidgets('shows stored modelName for assistant message history', (
@@ -882,7 +607,7 @@ void main() {
       },
     );
 
-    testWidgets('does not jump to bottom after opening history session', (
+    testWidgets('opens a history session at the latest message', (
       tester,
     ) async {
       final repository = _FakeChatSessionRepository(
@@ -905,14 +630,13 @@ void main() {
       await tester.pump();
 
       await provider.selectSession('s1');
-      await tester.pump();
-      await tester.pump();
+      await _pumpConversationSwitch(tester);
 
       expect(provider.visibleMessages, hasLength(30));
       expect(provider.visibleMessages.first.id, 'm35');
       expect(provider.visibleMessages.last.id, 'm64');
-      expect(find.text('message 35'), findsOneWidget);
-      expect(find.text('message 64'), findsNothing);
+      expect(find.text('message 35'), findsNothing);
+      expect(find.text('message 64'), findsOneWidget);
     });
 
     testWidgets('uses stronger send button contrast than model selector', (
@@ -1096,7 +820,7 @@ void main() {
                   content: '最终回答',
                   createdAt: DateTime(2026, 3, 25, 11, 0),
                   modelName: 'alpha',
-                  reasoningContent: '这里是推理过程',
+                  reasoningContent: '这里是深度思考',
                 ),
               ],
             ),
@@ -1118,17 +842,17 @@ void main() {
         await tester.pump();
 
         expect(find.text('最终回答'), findsOneWidget);
-        expect(find.text('推理过程'), findsOneWidget);
-        expect(find.text('这里是推理过程'), findsNothing);
+        expect(find.text('深度思考'), findsOneWidget);
+        expect(find.text('这里是深度思考'), findsNothing);
         expect(
-          tester.getTopLeft(find.text('推理过程')).dy,
+          tester.getTopLeft(find.text('深度思考')).dy,
           lessThan(tester.getTopLeft(find.text('最终回答')).dy),
         );
 
-        await tester.tap(find.text('推理过程'));
+        await tester.tap(find.text('深度思考'));
         await tester.pumpAndSettle();
 
-        expect(find.text('这里是推理过程'), findsOneWidget);
+        expect(find.text('这里是深度思考'), findsOneWidget);
       },
     );
 
@@ -1168,10 +892,10 @@ void main() {
         );
         await tester.pump();
 
-        expect(find.text('推理过程'), findsOneWidget);
+        expect(find.text('深度思考'), findsOneWidget);
         expect(find.text('只有推理没有正文'), findsNothing);
 
-        await tester.tap(find.text('推理过程'));
+        await tester.tap(find.text('深度思考'));
         await tester.pumpAndSettle();
 
         expect(find.text('只有推理没有正文'), findsOneWidget);
@@ -1247,7 +971,7 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.byKey(const Key('chat_message_delete_button_u1')),
+        find.byKey(const Key('chat_message_more_button_u1')),
         findsOneWidget,
       );
       expect(
@@ -1262,9 +986,14 @@ void main() {
         find.byKey(const Key('chat_message_regenerate_button_a1')),
         findsOneWidget,
       );
+      // Delete is no longer a quick action; it moved behind the overflow sheet.
+      expect(
+        find.byKey(const Key('chat_message_more_button_a1')),
+        findsOneWidget,
+      );
       expect(
         find.byKey(const Key('chat_message_delete_button_a1')),
-        findsOneWidget,
+        findsNothing,
       );
     });
 
@@ -1539,9 +1268,6 @@ void main() {
         reason: _messageListPositionDescription(tester),
       );
 
-      await streamController.close();
-      await tester.pump();
-
       await tester.enterText(find.byKey(const Key('chat_input_field')), 'next');
       await tester.tap(find.byKey(const Key('chat_send_button')));
       await tester.pump();
@@ -1568,6 +1294,9 @@ void main() {
         isTrue,
         reason: _messageListPositionDescription(tester),
       );
+
+      await streamController.close();
+      await tester.pump();
     });
 
     testWidgets(
@@ -1755,6 +1484,99 @@ void main() {
       expect(find.text('1/2'), findsOneWidget);
       expect(provider.visibleMessages.last.currentVersionIndex, 0);
     });
+    testWidgets(
+      'quick toggles server from input bar and updates status badge',
+      (tester) async {
+        final repository = _FakeChatSessionRepository(
+          sessions: <ChatSessionRecord>[],
+        );
+        final chatProvider = ChatProvider(
+          repository: repository,
+          apiClient: _FakeLlamaChatApiClient(models: const <ChatModelOption>[]),
+        );
+        await chatProvider.load();
+
+        final serverService = _FakeLlamaServerService();
+        final serverProvider = EngineRuntimeProvider(
+          llamaCppAdapter: LlamaCppEngineAdapter(
+            serverService: serverService,
+            settingsLoader: _FixedServerLaunchSettingsLoader(),
+            modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+            controlClient: StubServerControlClient(),
+          ),
+          mnnAdapter: StubEngineAdapter(),
+          settingsLoader: _FixedServerLaunchSettingsLoader(),
+          kvStorage: KvStorage(),
+        );
+        addTearDown(() {
+          serverProvider.dispose();
+          serverService.dispose();
+        });
+
+        await tester.pumpWidget(
+          _TestChatApp(
+            chatProvider: chatProvider,
+            serverProvider: serverProvider,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final colorScheme = Theme.of(
+          tester.element(find.byType(ChatPage)),
+        ).colorScheme;
+
+        BoxDecoration badgeDecoration() {
+          return tester
+                  .widget<Container>(
+                    find.byKey(const Key('chat_server_status_badge')),
+                  )
+                  .decoration!
+              as BoxDecoration;
+        }
+
+        expect(
+          find.byKey(const Key('chat_server_toggle_button')),
+          findsOneWidget,
+        );
+        expect(find.byIcon(Icons.dns_outlined), findsOneWidget);
+        expect(badgeDecoration().color, colorScheme.outlineVariant);
+
+        await tester.tap(find.byKey(const Key('chat_server_toggle_button')));
+        await tester.runAsync(
+          () => _waitForRuntime(
+            () => serverProvider.isRunning || serverProvider.lastError != null,
+          ),
+        );
+        for (var i = 0; i < 10; i++) {
+          await tester.pump(const Duration(milliseconds: 40));
+        }
+
+        expect(serverService.startCallCount, 1);
+        expect(serverProvider.isRunning, isTrue);
+        expect(badgeDecoration().color, const Color(0xFF10B981));
+
+        await tester.tap(find.byKey(const Key('chat_server_toggle_button')));
+        await tester.runAsync(
+          () => _waitForRuntime(
+            () => !serverProvider.isRunning && !serverProvider.isBusy,
+          ),
+        );
+        for (var i = 0; i < 10; i++) {
+          await tester.pump(const Duration(milliseconds: 40));
+        }
+
+        expect(serverService.stopCallCount, 1);
+        expect(serverProvider.isRunning, isFalse);
+        expect(badgeDecoration().color, colorScheme.outlineVariant);
+
+        // Toggling runs real-clock work (model refresh after the runtime comes
+        // up); let it finish here rather than leaking into the next test.
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 100)),
+        );
+        await tester.pump();
+      },
+    );
   });
 }
 
@@ -1762,6 +1584,7 @@ class _TestChatApp extends StatelessWidget {
   const _TestChatApp({
     required this.chatProvider,
     required this.serverProvider,
+    this.library,
     this.home,
     this.theme,
     this.darkTheme,
@@ -1769,7 +1592,8 @@ class _TestChatApp extends StatelessWidget {
   });
 
   final ChatProvider chatProvider;
-  final ServerProvider serverProvider;
+  final EngineRuntimeProvider serverProvider;
+  final ModelManagementProvider? library;
   final Widget? home;
   final ThemeData? theme;
   final ThemeData? darkTheme;
@@ -1779,20 +1603,40 @@ class _TestChatApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider<ServerProvider>.value(value: serverProvider),
-        ChangeNotifierProxyProvider<ServerProvider, ChatProvider>(
+        ChangeNotifierProvider<EngineRuntimeProvider>.value(
+          value: serverProvider,
+        ),
+        // The empty state asks the library whether there is anything to pick,
+        // and the model sheet lists downloads in flight (FR-C1 / FR-C3).
+        if (library == null)
+          ChangeNotifierProvider<ModelManagementProvider>(
+            create: (_) => ModelManagementProvider(),
+          )
+        else
+          ChangeNotifierProvider<ModelManagementProvider>.value(
+            value: library!,
+          ),
+        ChangeNotifierProvider<DownloadProvider>(
+          create: (_) => DownloadProvider(),
+        ),
+        ChangeNotifierProxyProvider<EngineRuntimeProvider, ChatProvider>(
           create: (_) => chatProvider,
           update: (_, serverProvider, current) {
             final provider = current ?? chatProvider;
             provider.updateServerState(
               baseUrl: serverProvider.baseUrl,
               isServerRunning: serverProvider.isRunning,
+              activeModelId: serverProvider.activeModelId,
             );
             return provider;
           },
         ),
       ],
       child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        // Pinned so the Chinese assertions do not follow the host locale.
+        locale: const Locale('zh'),
         theme: theme,
         darkTheme: darkTheme,
         themeMode: themeMode,
@@ -2143,6 +1987,25 @@ Finder _messageScrollable() {
       .first;
 }
 
+Future<void> _pumpConversationSwitch(WidgetTester tester) async {
+  // The Android path uses a Timer-backed switch delay. One large pump only
+  // fires that timer; follow-up frames are still needed for the async commit,
+  // staged list and end-of-frame callback.
+  for (var i = 0; i < 8; i++) {
+    await tester.pump(const Duration(milliseconds: 80));
+  }
+}
+
+Future<void> _waitForRuntime(bool Function() isDone) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 3));
+  while (!isDone()) {
+    if (DateTime.now().isAfter(deadline)) {
+      throw TestFailure('runtime operation did not settle within 3 seconds');
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+  }
+}
+
 Future<void> _scrollMessageListToBottom(WidgetTester tester) async {
   await tester.dragUntilVisible(
     find.text('message 64'),
@@ -2163,4 +2026,29 @@ String _messageListPositionDescription(WidgetTester tester) {
   final scrollable = tester.state<ScrollableState>(_messageScrollable());
   final position = scrollable.position;
   return 'pixels=${position.pixels}, max=${position.maxScrollExtent}';
+}
+
+ModelDescriptor _libraryDescriptor(String name) {
+  return ModelDescriptor(
+    id: name,
+    modelName: name,
+    sizeBytes: 1073741824,
+    storedDirectoryPath: 'C:/models/$name',
+    storedFilePath: 'C:/models/$name/$name.gguf',
+    importedAt: DateTime(2026, 1, 1),
+  );
+}
+
+class FakeLocalModelRepository extends LocalModelRepository {
+  FakeLocalModelRepository({List<ModelDescriptor>? initialModels})
+    : _models = List<ModelDescriptor>.from(
+        initialModels ?? const <ModelDescriptor>[],
+      ),
+      super(appSupportDirectory: Directory.systemTemp);
+
+  final List<ModelDescriptor> _models;
+
+  @override
+  Future<List<ModelDescriptor>> listModels() async =>
+      List<ModelDescriptor>.from(_models);
 }

@@ -80,28 +80,31 @@ void main() {
       expect(provider.models.single.modelName, 'model');
     });
 
-    test('does not notify after dispose when an import completes late', () async {
-      final repository = FakeLocalModelRepository();
-      final completer = Completer<ModelDescriptor>();
-      repository.importCompleter = completer;
-      final provider = ModelManagementProvider(
-        repository: repository,
-        filePicker: FakeGgufFilePicker(
-          pickedFile: const PickedGgufFile(
-            path: 'C:\\mock\\model.gguf',
-            fileName: 'model.gguf',
+    test(
+      'does not notify after dispose when an import completes late',
+      () async {
+        final repository = FakeLocalModelRepository();
+        final completer = Completer<ModelDescriptor>();
+        repository.importCompleter = completer;
+        final provider = ModelManagementProvider(
+          repository: repository,
+          filePicker: FakeGgufFilePicker(
+            pickedFile: const PickedGgufFile(
+              path: 'C:\\mock\\model.gguf',
+              fileName: 'model.gguf',
+            ),
           ),
-        ),
-        logger: AppLogger(),
-      );
+          logger: AppLogger(),
+        );
 
-      final pendingImport = provider.importModel();
-      provider.dispose();
-      completer.complete(_descriptor(id: 'm1', modelName: 'model'));
+        final pendingImport = provider.importModel();
+        provider.dispose();
+        completer.complete(_descriptor(id: 'm1', modelName: 'model'));
 
-      // Must not throw "used after being disposed".
-      await pendingImport;
-    });
+        // Must not throw "used after being disposed".
+        await pendingImport;
+      },
+    );
 
     test('deleteModel removes item and clears deleting state', () async {
       final repository = FakeLocalModelRepository(
@@ -132,7 +135,7 @@ void main() {
         initialModels: <ModelDescriptor>[
           _descriptor(id: 'm1', modelName: 'vision'),
         ],
-      );
+      )..importMmprojGate = Completer<void>();
       final provider = ModelManagementProvider(
         repository: repository,
         filePicker: FakeGgufFilePicker(
@@ -146,16 +149,21 @@ void main() {
 
       await provider.load();
       final future = provider.importMmproj('m1');
+      await Future<void>.delayed(Duration.zero);
 
       expect(provider.isImportingMmproj, isTrue);
       expect(provider.importingMmprojModelId, 'm1');
 
+      repository.importMmprojGate!.complete();
       final message = await future;
 
       expect(message, 'mmproj imported: vision');
       expect(provider.isImportingMmproj, isFalse);
       expect(provider.importingMmprojModelId, isNull);
-      expect(provider.models.single.mmprojFilePath, 'C:\\mock\\mmproj-f16.gguf');
+      expect(
+        provider.models.single.mmprojFilePath,
+        'C:\\mock\\mmproj-f16.gguf',
+      );
     });
 
     test('renameModel updates list and clears renaming state', () async {
@@ -207,24 +215,21 @@ void main() {
       expect(provider.models.single.mmprojFilePath, isNull);
     });
 
-    test(
-      'formats file picker errors for mmproj import message',
-      () async {
-        final provider = ModelManagementProvider(
-          repository: FakeLocalModelRepository(),
-          filePicker: FakeGgufFilePicker(
-            error: PlatformException(code: 'FilePicker', message: '文件不可用'),
-          ),
-          logger: AppLogger(),
-        );
+    test('formats file picker errors for mmproj import message', () async {
+      final provider = ModelManagementProvider(
+        repository: FakeLocalModelRepository(),
+        filePicker: FakeGgufFilePicker(
+          error: PlatformException(code: 'FilePicker', message: '文件不可用'),
+        ),
+        logger: AppLogger(),
+      );
 
-        final message = await provider.importMmproj('m1');
+      final message = await provider.importMmproj('m1');
 
-        expect(message, 'Failed to import mmproj: 文件不可用');
-        expect(provider.isImportingMmproj, isFalse);
-        expect(provider.importingMmprojModelId, isNull);
-      },
-    );
+      expect(message, 'Failed to import mmproj: 文件不可用');
+      expect(provider.isImportingMmproj, isFalse);
+      expect(provider.importingMmprojModelId, isNull);
+    });
 
     test(
       'returns error message and resets state when repository throws',
@@ -285,6 +290,7 @@ class FakeLocalModelRepository extends LocalModelRepository {
   Object? importError;
   Object? deleteError;
   Object? importMmprojError;
+  Completer<void>? importMmprojGate;
   Object? renameError;
   Object? removeMmprojError;
 
@@ -329,6 +335,9 @@ class FakeLocalModelRepository extends LocalModelRepository {
     if (importMmprojError != null) {
       throw importMmprojError!;
     }
+    if (importMmprojGate != null) {
+      await importMmprojGate!.future;
+    }
 
     final index = _models.indexWhere((model) => model.id == modelId);
     final updated = _models[index].copyWith(mmprojFilePath: pickedFile.path);
@@ -359,7 +368,8 @@ class FakeLocalModelRepository extends LocalModelRepository {
     final updated = current.copyWith(
       modelName: newName,
       storedDirectoryPath: 'C:\\models\\$newName',
-      storedFilePath: 'C:\\models\\$newName\\${current.storedFilePath.split('\\').last}',
+      storedFilePath:
+          'C:\\models\\$newName\\${current.storedFilePath.split('\\').last}',
       mmprojFilePath: current.mmprojFilePath == null
           ? null
           : 'C:\\models\\$newName\\${current.mmprojFilePath!.split('\\').last}',

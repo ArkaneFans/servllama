@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:servllama/core/models/inference_engine.dart';
 import 'package:servllama/features/chat/controllers/chat_conversation_controller.dart';
 import 'package:servllama/features/chat/controllers/chat_generation_controller.dart';
 import 'package:servllama/features/chat/controllers/chat_id_generator.dart';
@@ -122,10 +123,16 @@ class ChatProvider extends ChangeNotifier {
   void updateServerState({
     required String baseUrl,
     required bool isServerRunning,
+    InferenceEngine engine = InferenceEngine.llamaCpp,
+    String? activeModelId,
+    String? activeModelName,
   }) {
     final stopped = _models.updateServerState(
       baseUrl: baseUrl,
       isServerRunning: isServerRunning,
+      engine: engine,
+      activeModelId: activeModelId,
+      activeModelName: activeModelName,
     );
     if (stopped) {
       _generation.cancelForServerStop();
