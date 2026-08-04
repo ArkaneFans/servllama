@@ -101,16 +101,17 @@ void main() {
       calls.clear();
       await provider.setSource(ModelHubSource.modelScope);
 
-      expect(calls, unorderedEquals(<String>['ms:model:gguf', 'ms:model:mnn']));
+      expect(provider.formatFilter, HubFormatFilter.gguf);
+      expect(calls, <String>['ms:model:gguf']);
       expect(
         provider.displayedSearchResults.map((repo) => repo.repoId),
-        <String>['MNN/mnn-model', 'owner/ms-gguf-model'],
+        <String>['owner/ms-gguf-model'],
       );
 
       provider.setSearchSort(HubSearchSort.updated);
       expect(
         provider.displayedSearchResults.map((repo) => repo.repoId),
-        <String>['MNN/mnn-model', 'owner/ms-gguf-model'],
+        <String>['owner/ms-gguf-model'],
       );
 
       calls.clear();
@@ -120,16 +121,15 @@ void main() {
 
       calls.clear();
       await provider.setSource(ModelHubSource.huggingFace);
-      expect(provider.formatFilter, HubFormatFilter.all);
+      expect(provider.formatFilter, HubFormatFilter.gguf);
       expect(calls, <String>['hf:model:gguf']);
       expect(provider.availableFormatFilters, <HubFormatFilter>[
-        HubFormatFilter.all,
         HubFormatFilter.gguf,
       ]);
     });
 
     test(
-      'loadMore advances independent format tokens and appends results',
+      'loadMore advances the active format token and appends results',
       () async {
         final calls = <_SearchCall>[];
         final provider = ModelDiscoveryProvider(
@@ -161,18 +161,22 @@ void main() {
 
         await provider.setSource(ModelHubSource.modelScope);
 
-        expect(provider.searchResults, hasLength(2));
+        expect(provider.formatFilter, HubFormatFilter.gguf);
+        expect(provider.searchResults, hasLength(1));
         expect(provider.hasMore, isTrue);
         expect(calls.map((call) => call.pageToken), everyElement(isNull));
+        expect(calls.map((call) => call.format), <HubModelFormat>[
+          HubModelFormat.gguf,
+        ]);
 
         calls.clear();
         await provider.loadMore();
 
         expect(
           calls.map((call) => '${call.format.name}:${call.pageToken}'),
-          unorderedEquals(<String>['gguf:gguf-2', 'mnn:mnn-2']),
+          <String>['gguf:gguf-2'],
         );
-        expect(provider.searchResults, hasLength(4));
+        expect(provider.searchResults, hasLength(2));
         expect(provider.hasMore, isFalse);
 
         final callCount = calls.length;
@@ -181,7 +185,7 @@ void main() {
       },
     );
 
-    test('deduplicates the same repository returned for two formats', () async {
+    test('deduplicates duplicate repositories in one search page', () async {
       final provider = ModelDiscoveryProvider(
         settingsStore: _MemoryDownloadSettingsStore(),
         huggingFaceClient: _FakeHubClient(
@@ -193,6 +197,11 @@ void main() {
           source: ModelHubSource.modelScope,
           onSearch: (_, format, _) async => HubSearchPage(
             items: <HubRepoSummary>[
+              _summary(
+                source: ModelHubSource.modelScope,
+                format: format,
+                repoId: 'owner/shared-repo',
+              ),
               _summary(
                 source: ModelHubSource.modelScope,
                 format: format,
@@ -426,7 +435,7 @@ class _FakeHubClient implements ModelHubClient {
   Future<HubSearchPage> search(
     String query, {
     required HubModelFormat format,
-    int limit = 20,
+    int limit = ModelHubClient.defaultSearchLimit,
     String? pageToken,
   }) => onSearch(query, format, pageToken);
 }

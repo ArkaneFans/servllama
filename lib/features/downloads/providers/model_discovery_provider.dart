@@ -10,7 +10,7 @@ import 'package:servllama/features/downloads/services/hugging_face_route_resolve
 
 enum HubSearchSort { downloads, updated }
 
-enum HubFormatFilter { all, gguf, mnn }
+enum HubFormatFilter { gguf, mnn }
 
 /// Drives the two discovery paths (design decision D3): a curated catalog of
 /// models that have been run on real devices, and raw search across both hubs.
@@ -57,7 +57,7 @@ class ModelDiscoveryProvider extends ChangeNotifier {
   String _query = '';
   ModelHubSource _activeSource = ModelHubSource.huggingFace;
   HubSearchSort _searchSort = HubSearchSort.downloads;
-  HubFormatFilter _formatFilter = HubFormatFilter.all;
+  HubFormatFilter _formatFilter = HubFormatFilter.gguf;
   ModelHubErrorKind? _lastError;
   ModelHubErrorKind? _loadMoreError;
   Map<HubModelFormat, String> _nextPageTokens = <HubModelFormat, String>{};
@@ -84,7 +84,6 @@ class ModelDiscoveryProvider extends ChangeNotifier {
   List<HubFormatFilter> get availableFormatFilters {
     final formats = _searchableFormatsFor(_activeSource);
     return <HubFormatFilter>[
-      HubFormatFilter.all,
       if (formats.contains(HubModelFormat.gguf)) HubFormatFilter.gguf,
       if (formats.contains(HubModelFormat.mnn)) HubFormatFilter.mnn,
     ];
@@ -94,8 +93,6 @@ class ModelDiscoveryProvider extends ChangeNotifier {
     final results = _searchResults
         .where((repo) {
           switch (_formatFilter) {
-            case HubFormatFilter.all:
-              return true;
             case HubFormatFilter.gguf:
               return repo.likelyEngine == InferenceEngine.llamaCpp;
             case HubFormatFilter.mnn:
@@ -155,7 +152,7 @@ class ModelDiscoveryProvider extends ChangeNotifier {
     }
     _activeSource = source;
     if (!availableFormatFilters.contains(_formatFilter)) {
-      _formatFilter = HubFormatFilter.all;
+      _formatFilter = _preferredFormatFilter(_activeSource);
     }
     await _settingsStore.savePreferredSource(source);
     notifyListeners();
@@ -284,6 +281,7 @@ class ModelDiscoveryProvider extends ChangeNotifier {
         final page = await client.search(
           query,
           format: format,
+          limit: ModelHubClient.defaultSearchLimit,
           pageToken: pageTokens[format],
         );
         return _FormatSearchPage(format: format, page: page);
@@ -309,20 +307,24 @@ class ModelDiscoveryProvider extends ChangeNotifier {
 
   List<HubModelFormat> _formatsForSearch(ModelHubSource source) {
     final supported = _searchableFormatsFor(source);
-    switch (_formatFilter) {
-      case HubFormatFilter.all:
-        return HubModelFormat.values
-            .where(supported.contains)
-            .toList(growable: false);
-      case HubFormatFilter.gguf:
-        return supported.contains(HubModelFormat.gguf)
-            ? const <HubModelFormat>[HubModelFormat.gguf]
-            : const <HubModelFormat>[];
-      case HubFormatFilter.mnn:
-        return supported.contains(HubModelFormat.mnn)
-            ? const <HubModelFormat>[HubModelFormat.mnn]
-            : const <HubModelFormat>[];
+    final requested = switch (_formatFilter) {
+      HubFormatFilter.gguf => HubModelFormat.gguf,
+      HubFormatFilter.mnn => HubModelFormat.mnn,
+    };
+    return supported.contains(requested)
+        ? <HubModelFormat>[requested]
+        : const <HubModelFormat>[];
+  }
+
+  HubFormatFilter _preferredFormatFilter(ModelHubSource source) {
+    final supported = _searchableFormatsFor(source);
+    if (supported.contains(HubModelFormat.gguf)) {
+      return HubFormatFilter.gguf;
     }
+    if (supported.contains(HubModelFormat.mnn)) {
+      return HubFormatFilter.mnn;
+    }
+    return HubFormatFilter.gguf;
   }
 
   List<HubRepoSummary> _deduplicate(Iterable<HubRepoSummary> results) {

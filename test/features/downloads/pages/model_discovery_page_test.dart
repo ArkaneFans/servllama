@@ -45,9 +45,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('全部来源'), findsNothing);
+    expect(find.text('全部格式'), findsNothing);
     expect(find.text('GGUF'), findsOneWidget);
     expect(find.text('MNN'), findsNothing);
-    expect(find.text('共 20 个结果'), findsOneWidget);
+    expect(provider.formatFilter, HubFormatFilter.gguf);
+    expect(find.text('共 10 个结果'), findsOneWidget);
     expect(
       tester.getTopLeft(find.text('Hugging Face')).dx,
       moreOrLessEquals(tester.getTopLeft(find.text('下载量')).dx),
@@ -61,18 +63,25 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(huggingFace.calls.any((call) => call.pageToken == '2'), isTrue);
-    expect(provider.searchResults, hasLength(21));
+    expect(provider.searchResults, hasLength(11));
 
     await tester.tap(find.text('魔搭 ModelScope'));
     await tester.pumpAndSettle();
 
+    expect(find.text('GGUF'), findsWidgets);
     expect(find.text('MNN'), findsWidgets);
+    expect(provider.formatFilter, HubFormatFilter.gguf);
     expect(
       modelScope.calls.map((call) => call.format),
-      unorderedEquals(<HubModelFormat>[
-        HubModelFormat.gguf,
-        HubModelFormat.mnn,
-      ]),
+      <HubModelFormat>[HubModelFormat.gguf],
+    );
+
+    await tester.tap(find.text('MNN').last);
+    await tester.pumpAndSettle();
+    expect(provider.formatFilter, HubFormatFilter.mnn);
+    expect(
+      modelScope.calls.map((call) => call.format),
+      <HubModelFormat>[HubModelFormat.gguf, HubModelFormat.mnn],
     );
   });
 }
@@ -124,13 +133,13 @@ class _WidgetFakeHubClient implements ModelHubClient {
   Future<HubSearchPage> search(
     String query, {
     required HubModelFormat format,
-    int limit = 20,
+    int limit = ModelHubClient.defaultSearchLimit,
     String? pageToken,
   }) async {
     calls.add(_SearchCall(query, format, pageToken));
     if (source == ModelHubSource.huggingFace) {
-      final start = pageToken == null ? 0 : 20;
-      final count = pageToken == null ? 20 : 1;
+      final start = pageToken == null ? 0 : ModelHubClient.defaultSearchLimit;
+      final count = pageToken == null ? ModelHubClient.defaultSearchLimit : 1;
       return HubSearchPage(
         items: List<HubRepoSummary>.generate(
           count,

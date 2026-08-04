@@ -17,6 +17,9 @@ class ModelHubException implements Exception {
 
 /// Search / browse / resolve-download-url for one model hub.
 abstract class ModelHubClient {
+  /// Shared page size for HF / ModelScope discovery search.
+  static const int defaultSearchLimit = 10;
+
   ModelHubSource get source;
 
   Set<HubModelFormat> get searchableFormats;
@@ -24,7 +27,7 @@ abstract class ModelHubClient {
   Future<HubSearchPage> search(
     String query, {
     required HubModelFormat format,
-    int limit = 20,
+    int limit = ModelHubClient.defaultSearchLimit,
     String? pageToken,
   });
 
@@ -86,7 +89,7 @@ class HuggingFaceHubClient implements ModelHubClient {
   Future<HubSearchPage> search(
     String query, {
     required HubModelFormat format,
-    int limit = 20,
+    int limit = ModelHubClient.defaultSearchLimit,
     String? pageToken,
   }) async {
     if (!searchableFormats.contains(format)) {
@@ -340,7 +343,7 @@ class ModelScopeHubClient implements ModelHubClient {
   Future<HubSearchPage> search(
     String query, {
     required HubModelFormat format,
-    int limit = 20,
+    int limit = ModelHubClient.defaultSearchLimit,
     String? pageToken,
   }) async {
     if (!searchableFormats.contains(format)) {

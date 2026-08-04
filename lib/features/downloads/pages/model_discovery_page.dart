@@ -362,17 +362,16 @@ class _SearchTab extends StatelessWidget {
                   onTap: () => discovery.setSearchSort(HubSearchSort.updated),
                 ),
                 const SizedBox(width: 16),
-                _SourceChip(
-                  label: l10n.discoverFormatAll,
-                  isSelected: discovery.formatFilter == HubFormatFilter.all,
-                  onTap: () => discovery.setFormatFilter(HubFormatFilter.all),
-                ),
-                const SizedBox(width: 8),
-                _SourceChip(
-                  label: 'GGUF',
-                  isSelected: discovery.formatFilter == HubFormatFilter.gguf,
-                  onTap: () => discovery.setFormatFilter(HubFormatFilter.gguf),
-                ),
+                if (discovery.availableFormatFilters.contains(
+                  HubFormatFilter.gguf,
+                ))
+                  _SourceChip(
+                    label: 'GGUF',
+                    isSelected: discovery.formatFilter == HubFormatFilter.gguf,
+                    // Keep the only/default format selected; re-tapping is a no-op.
+                    onTap: () =>
+                        discovery.setFormatFilter(HubFormatFilter.gguf),
+                  ),
                 if (discovery.availableFormatFilters.contains(
                   HubFormatFilter.mnn,
                 )) ...[
