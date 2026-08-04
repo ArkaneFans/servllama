@@ -49,7 +49,10 @@ void main() {
     expect(find.text('GGUF'), findsOneWidget);
     expect(find.text('MNN'), findsNothing);
     expect(provider.formatFilter, HubFormatFilter.gguf);
-    expect(find.text('共 10 个结果'), findsOneWidget);
+    expect(find.text('共 10 个结果'), findsNothing);
+    expect(find.textContaining('可用内存'), findsNothing);
+    expect(find.textContaining('真机验证'), findsNothing);
+    expect(find.textContaining('直接来自仓库'), findsNothing);
     expect(
       tester.getTopLeft(find.text('Hugging Face')).dx,
       moreOrLessEquals(tester.getTopLeft(find.text('下载量')).dx),

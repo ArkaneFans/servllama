@@ -3,20 +3,16 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/core/models/inference_engine.dart';
-import 'package:servllama/core/utils/format_utils.dart';
 import 'package:servllama/features/downloads/models/model_hub.dart';
 import 'package:servllama/features/downloads/pages/hub_repo_page.dart';
 import 'package:servllama/features/downloads/providers/model_discovery_provider.dart';
-import 'package:servllama/features/downloads/services/device_capability_service.dart';
 import 'package:servllama/features/downloads/services/model_catalog_service.dart';
 import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/l10n/runtime_labels.dart';
 import 'package:servllama/shared/widgets/engine_badge.dart';
 
 /// Two ways to find a model (design decision D3): a curated list that has
-/// been run on real devices, and raw hub search for everything else. The
-/// device memory banner sits above both, because "will it run" is the
-/// question that decides everything below it.
+/// been run on real devices, and raw hub search for everything else.
 class ModelDiscoveryPage extends StatefulWidget {
   const ModelDiscoveryPage({super.key});
 
@@ -90,52 +86,19 @@ class _ModelDiscoveryPageState extends State<ModelDiscoveryPage>
       ),
       body: Consumer<ModelDiscoveryProvider>(
         builder: (context, discovery, _) {
-          return Column(
+          return TabBarView(
+            controller: _tabController,
             children: [
-              _MemoryBanner(memory: discovery.memory),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _FeaturedTab(discovery: discovery, onOpen: _openRepo),
-                    _SearchTab(
-                      discovery: discovery,
-                      controller: _searchController,
-                      onQueryChanged: _onQueryChanged,
-                      onOpen: _openRepo,
-                      onBackToFeatured: () => _tabController.animateTo(0),
-                    ),
-                  ],
-                ),
+              _FeaturedTab(discovery: discovery, onOpen: _openRepo),
+              _SearchTab(
+                discovery: discovery,
+                controller: _searchController,
+                onQueryChanged: _onQueryChanged,
+                onOpen: _openRepo,
               ),
             ],
           );
         },
-      ),
-    );
-  }
-}
-
-class _MemoryBanner extends StatelessWidget {
-  const _MemoryBanner({required this.memory});
-
-  final DeviceMemoryInfo memory;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-      child: NoticeBanner(
-        tone: memory.isKnown ? StatusTone.idle : StatusTone.warning,
-        icon: Icons.memory_rounded,
-        message: memory.isKnown
-            ? l10n.discoverDeviceMemory(
-                FormatUtils.bytes(memory.availableBytes),
-                FormatUtils.bytes(memory.totalBytes),
-              )
-            : l10n.discoverDeviceMemoryUnknown,
       ),
     );
   }
@@ -156,9 +119,6 @@ class _FeaturedTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-
     if (discovery.isLoadingCatalog) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -166,15 +126,6 @@ class _FeaturedTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
       children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 12),
-          child: Text(
-            l10n.discoverFeaturedNote,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
         for (final entry in discovery.catalog)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
@@ -294,19 +245,16 @@ class _SearchTab extends StatelessWidget {
     required this.controller,
     required this.onQueryChanged,
     required this.onOpen,
-    required this.onBackToFeatured,
   });
 
   final ModelDiscoveryProvider discovery;
   final TextEditingController controller;
   final ValueChanged<String> onQueryChanged;
   final _OpenRepo onOpen;
-  final VoidCallback onBackToFeatured;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final theme = Theme.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -386,12 +334,12 @@ class _SearchTab extends StatelessWidget {
             ),
           ),
         ),
-        Expanded(child: _buildResults(context, l10n, theme)),
+        Expanded(child: _buildResults(context, l10n)),
       ],
     );
   }
 
-  Widget _buildResults(BuildContext context, dynamic l10n, ThemeData theme) {
+  Widget _buildResults(BuildContext context, dynamic l10n) {
     final results = discovery.displayedSearchResults;
     if (discovery.isSearching) {
       return const Center(child: CircularProgressIndicator());
@@ -423,35 +371,6 @@ class _SearchTab extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
         children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 10),
-            child: Text(
-              l10n.discoverResultCount(results.length),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                NoticeBanner(
-                  tone: StatusTone.warning,
-                  message: l10n.discoverSearchDisclaimer,
-                ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: onBackToFeatured,
-                    icon: const Icon(Icons.verified_outlined),
-                    label: Text(l10n.discoverBackToFeatured),
-                  ),
-                ),
-              ],
-            ),
-          ),
           for (final repo in results)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
