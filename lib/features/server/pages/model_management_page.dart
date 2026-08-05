@@ -417,8 +417,6 @@ enum _LibraryFilter { all, llamaCpp, mnn, vision, tools }
 
 enum _AddModelChoice { download, ggufFile, mnnDirectory }
 
-/// Three ways in, with the format difference spelled out — users who have
-/// only ever seen GGUF need to know MNN arrives as a whole directory.
 class _AddModelSheet extends StatelessWidget {
   const _AddModelSheet();
 
@@ -459,11 +457,6 @@ class _AddModelSheet extends StatelessWidget {
               subtitle: l10n.modelAddMnnDirDesc,
               onTap: () =>
                   Navigator.of(context).pop(_AddModelChoice.mnnDirectory),
-            ),
-            const SizedBox(height: 8),
-            NoticeBanner(
-              tone: StatusTone.idle,
-              message: l10n.modelFormatExplainer,
             ),
           ],
         ),
