@@ -49,13 +49,16 @@ void main() {
     expect(find.text('GGUF'), findsOneWidget);
     expect(find.text('MNN'), findsNothing);
     expect(provider.formatFilter, HubFormatFilter.gguf);
+    expect(provider.searchSort, HubSearchSort.trending);
+    expect(find.text('综合'), findsOneWidget);
+    expect(find.text('喜欢数'), findsOneWidget);
     expect(find.text('共 10 个结果'), findsNothing);
     expect(find.textContaining('可用内存'), findsNothing);
     expect(find.textContaining('真机验证'), findsNothing);
     expect(find.textContaining('直接来自仓库'), findsNothing);
     expect(
       tester.getTopLeft(find.text('Hugging Face')).dx,
-      moreOrLessEquals(tester.getTopLeft(find.text('下载量')).dx),
+      moreOrLessEquals(tester.getTopLeft(find.text('综合')).dx),
     );
 
     await tester.fling(
@@ -112,11 +115,12 @@ class _MemoryDownloadSettingsStore extends DownloadSettingsStore {
 }
 
 class _SearchCall {
-  const _SearchCall(this.query, this.format, this.pageToken);
+  const _SearchCall(this.query, this.format, this.pageToken, this.sort);
 
   final String query;
   final HubModelFormat format;
   final String? pageToken;
+  final HubSearchSort sort;
 }
 
 class _WidgetFakeHubClient implements ModelHubClient {
@@ -136,10 +140,11 @@ class _WidgetFakeHubClient implements ModelHubClient {
   Future<HubSearchPage> search(
     String query, {
     required HubModelFormat format,
+    HubSearchSort sort = HubSearchSort.trending,
     int limit = ModelHubClient.defaultSearchLimit,
     String? pageToken,
   }) async {
-    calls.add(_SearchCall(query, format, pageToken));
+    calls.add(_SearchCall(query, format, pageToken, sort));
     if (source == ModelHubSource.huggingFace) {
       final start = pageToken == null ? 0 : ModelHubClient.defaultSearchLimit;
       final count = pageToken == null ? ModelHubClient.defaultSearchLimit : 1;

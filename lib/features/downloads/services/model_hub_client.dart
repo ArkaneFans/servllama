@@ -27,6 +27,7 @@ abstract class ModelHubClient {
   Future<HubSearchPage> search(
     String query, {
     required HubModelFormat format,
+    HubSearchSort sort = HubSearchSort.trending,
     int limit = ModelHubClient.defaultSearchLimit,
     String? pageToken,
   });
@@ -44,7 +45,7 @@ abstract class ModelHubClient {
 }
 
 /// Verified against the live API on 2026-07-29:
-/// - `GET /api/models?search=&filter=gguf&limit=&sort=downloads`
+/// - `GET /api/models?search=&filter=gguf&limit=&sort=trendingScore|downloads|likes`
 /// - `GET /api/models/{repo}/tree/{rev}?recursive=true`
 /// - `GET /{repo}/resolve/{rev}/{path}` → 302 CDN, `Accept-Ranges: bytes`
 class HuggingFaceHubClient implements ModelHubClient {
@@ -89,6 +90,7 @@ class HuggingFaceHubClient implements ModelHubClient {
   Future<HubSearchPage> search(
     String query, {
     required HubModelFormat format,
+    HubSearchSort sort = HubSearchSort.trending,
     int limit = ModelHubClient.defaultSearchLimit,
     String? pageToken,
   }) async {
@@ -103,7 +105,7 @@ class HuggingFaceHubClient implements ModelHubClient {
         // parameter and is ignored when sent directly to `/api/models`.
         'filter': format.libraryTag,
         'limit': limit,
-        'sort': 'downloads',
+        'sort': _huggingFaceSort(sort),
         'direction': -1,
         // The full response includes `siblings`, which lets the result card
         // show a file count without opening every repository individually.
@@ -282,6 +284,17 @@ class HuggingFaceHubClient implements ModelHubClient {
     });
   }
 
+  String _huggingFaceSort(HubSearchSort sort) {
+    switch (sort) {
+      case HubSearchSort.trending:
+        return 'trendingScore';
+      case HubSearchSort.downloads:
+        return 'downloads';
+      case HubSearchSort.likes:
+        return 'likes';
+    }
+  }
+
   String? _nextCursor(Headers headers) {
     final link = headers.value('link');
     if (link == null || link.isEmpty) {
@@ -343,6 +356,7 @@ class ModelScopeHubClient implements ModelHubClient {
   Future<HubSearchPage> search(
     String query, {
     required HubModelFormat format,
+    HubSearchSort sort = HubSearchSort.trending,
     int limit = ModelHubClient.defaultSearchLimit,
     String? pageToken,
   }) async {
@@ -357,7 +371,7 @@ class ModelScopeHubClient implements ModelHubClient {
         data: <String, dynamic>{
           'PageSize': limit,
           'PageNumber': pageNumber,
-          'SortBy': 'Default',
+          'SortBy': _modelScopeSort(sort),
           'Target': '',
           'SingleCriterion': <dynamic>[],
           'Criterion': <Map<String, dynamic>>[
@@ -553,6 +567,19 @@ class ModelScopeHubClient implements ModelHubClient {
       files.any((file) => file.isMnnModel)
       ? HubModelFormat.mnn
       : HubModelFormat.gguf;
+
+  String _modelScopeSort(HubSearchSort sort) {
+    switch (sort) {
+      case HubSearchSort.trending:
+        return 'Default';
+      // Verified against modelscope.cn model list requests:
+      // downloads -> DownloadsCount, likes -> StarsCount.
+      case HubSearchSort.downloads:
+        return 'DownloadsCount';
+      case HubSearchSort.likes:
+        return 'StarsCount';
+    }
+  }
 
   bool _hasModelScopeFormatEvidence(
     Map<dynamic, dynamic> item,

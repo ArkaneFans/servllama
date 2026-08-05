@@ -299,15 +299,21 @@ class _SearchTab extends StatelessWidget {
             child: Row(
               children: [
                 _SourceChip(
+                  label: l10n.discoverSortTrending,
+                  isSelected: discovery.searchSort == HubSearchSort.trending,
+                  onTap: () => discovery.setSearchSort(HubSearchSort.trending),
+                ),
+                const SizedBox(width: 8),
+                _SourceChip(
                   label: l10n.discoverSortDownloads,
                   isSelected: discovery.searchSort == HubSearchSort.downloads,
                   onTap: () => discovery.setSearchSort(HubSearchSort.downloads),
                 ),
                 const SizedBox(width: 8),
                 _SourceChip(
-                  label: l10n.discoverSortUpdated,
-                  isSelected: discovery.searchSort == HubSearchSort.updated,
-                  onTap: () => discovery.setSearchSort(HubSearchSort.updated),
+                  label: l10n.discoverSortLikes,
+                  isSelected: discovery.searchSort == HubSearchSort.likes,
+                  onTap: () => discovery.setSearchSort(HubSearchSort.likes),
                 ),
                 const SizedBox(width: 16),
                 if (discovery.availableFormatFilters.contains(

@@ -988,7 +988,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get discoverBackToFeatured => 'View device-verified picks';
 
   @override
+  String get discoverSortTrending => 'Trending';
+
+  @override
   String get discoverSortDownloads => 'Downloads';
+
+  @override
+  String get discoverSortLikes => 'Likes';
 
   @override
   String get discoverSortUpdated => 'Recently updated';

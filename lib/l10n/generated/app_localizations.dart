@@ -1814,11 +1814,23 @@ abstract class AppLocalizations {
   /// **'View device-verified picks'**
   String get discoverBackToFeatured;
 
+  /// No description provided for @discoverSortTrending.
+  ///
+  /// In en, this message translates to:
+  /// **'Trending'**
+  String get discoverSortTrending;
+
   /// No description provided for @discoverSortDownloads.
   ///
   /// In en, this message translates to:
   /// **'Downloads'**
   String get discoverSortDownloads;
+
+  /// No description provided for @discoverSortLikes.
+  ///
+  /// In en, this message translates to:
+  /// **'Likes'**
+  String get discoverSortLikes;
 
   /// No description provided for @discoverSortUpdated.
   ///

@@ -20,7 +20,7 @@ void main() {
           settingsStore: _MemoryDownloadSettingsStore(),
           huggingFaceClient: _FakeHubClient(
             source: ModelHubSource.huggingFace,
-            onSearch: (query, format, pageToken) async {
+            onSearch: (query, format, pageToken, sort) async {
               calls.add(_SearchCall(query, format, pageToken));
               return HubSearchPage(
                 items: <HubRepoSummary>[
@@ -54,8 +54,8 @@ void main() {
         settingsStore: _MemoryDownloadSettingsStore(),
         huggingFaceClient: _FakeHubClient(
           source: ModelHubSource.huggingFace,
-          onSearch: (query, format, _) async {
-            calls.add('hf:$query:${format.name}');
+          onSearch: (query, format, _, sort) async {
+            calls.add('hf:$query:${format.name}:${sort.name}');
             return HubSearchPage(
               items: <HubRepoSummary>[
                 _summary(
@@ -71,8 +71,8 @@ void main() {
         ),
         modelScopeClient: _FakeHubClient(
           source: ModelHubSource.modelScope,
-          onSearch: (query, format, _) async {
-            calls.add('ms:$query:${format.name}');
+          onSearch: (query, format, _, sort) async {
+            calls.add('ms:$query:${format.name}:${sort.name}');
             return HubSearchPage(
               items: <HubRepoSummary>[
                 _summary(
@@ -95,20 +95,24 @@ void main() {
 
       await provider.search('model');
 
-      expect(calls, <String>['hf:model:gguf']);
+      expect(calls, <String>['hf:model:gguf:trending']);
       expect(provider.searchResults.single.repoId, 'owner/hf-gguf-model');
 
       calls.clear();
       await provider.setSource(ModelHubSource.modelScope);
 
       expect(provider.formatFilter, HubFormatFilter.gguf);
-      expect(calls, <String>['ms:model:gguf']);
+      expect(provider.searchSort, HubSearchSort.trending);
+      expect(calls, <String>['ms:model:gguf:trending']);
       expect(
         provider.displayedSearchResults.map((repo) => repo.repoId),
         <String>['owner/ms-gguf-model'],
       );
 
-      provider.setSearchSort(HubSearchSort.updated);
+      calls.clear();
+      await provider.setSearchSort(HubSearchSort.likes);
+      expect(provider.searchSort, HubSearchSort.likes);
+      expect(calls, <String>['ms:model:gguf:likes']);
       expect(
         provider.displayedSearchResults.map((repo) => repo.repoId),
         <String>['owner/ms-gguf-model'],
@@ -116,13 +120,13 @@ void main() {
 
       calls.clear();
       await provider.setFormatFilter(HubFormatFilter.mnn);
-      expect(calls, <String>['ms:model:mnn']);
+      expect(calls, <String>['ms:model:mnn:likes']);
       expect(provider.searchResults.single.repoId, 'MNN/mnn-model');
 
       calls.clear();
       await provider.setSource(ModelHubSource.huggingFace);
       expect(provider.formatFilter, HubFormatFilter.gguf);
-      expect(calls, <String>['hf:model:gguf']);
+      expect(calls, <String>['hf:model:gguf:likes']);
       expect(provider.availableFormatFilters, <HubFormatFilter>[
         HubFormatFilter.gguf,
       ]);
@@ -136,12 +140,12 @@ void main() {
           settingsStore: _MemoryDownloadSettingsStore(),
           huggingFaceClient: _FakeHubClient(
             source: ModelHubSource.huggingFace,
-            onSearch: (_, _, _) async =>
+            onSearch: (_, _, _, sort) async =>
                 const HubSearchPage(items: <HubRepoSummary>[]),
           ),
           modelScopeClient: _FakeHubClient(
             source: ModelHubSource.modelScope,
-            onSearch: (query, format, pageToken) async {
+            onSearch: (query, format, pageToken, sort) async {
               calls.add(_SearchCall(query, format, pageToken));
               final pageName = pageToken ?? '1';
               return HubSearchPage(
@@ -185,17 +189,75 @@ void main() {
       },
     );
 
+    test('loadMore keeps previously loaded result order', () async {
+      final provider = ModelDiscoveryProvider(
+        settingsStore: _MemoryDownloadSettingsStore(),
+        huggingFaceClient: _FakeHubClient(
+          source: ModelHubSource.huggingFace,
+          onSearch: (_, format, pageToken, sort) async {
+            if (pageToken == null) {
+              return HubSearchPage(
+                items: <HubRepoSummary>[
+                  _summary(
+                    source: ModelHubSource.huggingFace,
+                    format: format,
+                    repoId: 'owner/low-downloads',
+                    downloads: 1,
+                  ),
+                  _summary(
+                    source: ModelHubSource.huggingFace,
+                    format: format,
+                    repoId: 'owner/high-downloads',
+                    downloads: 100,
+                  ),
+                ],
+                nextPageToken: '2',
+              );
+            }
+            return HubSearchPage(
+              items: <HubRepoSummary>[
+                _summary(
+                  source: ModelHubSource.huggingFace,
+                  format: format,
+                  repoId: 'owner/mid-downloads',
+                  downloads: 50,
+                ),
+              ],
+            );
+          },
+        ),
+        modelScopeClient: _emptyModelScopeClient(),
+      );
+      addTearDown(provider.dispose);
+
+      await provider.search('q');
+      expect(
+        provider.displayedSearchResults.map((repo) => repo.repoId),
+        <String>['owner/low-downloads', 'owner/high-downloads'],
+      );
+
+      await provider.loadMore();
+      expect(
+        provider.displayedSearchResults.map((repo) => repo.repoId),
+        <String>[
+          'owner/low-downloads',
+          'owner/high-downloads',
+          'owner/mid-downloads',
+        ],
+      );
+    });
+
     test('deduplicates duplicate repositories in one search page', () async {
       final provider = ModelDiscoveryProvider(
         settingsStore: _MemoryDownloadSettingsStore(),
         huggingFaceClient: _FakeHubClient(
           source: ModelHubSource.huggingFace,
-          onSearch: (_, _, _) async =>
+          onSearch: (_, _, _, sort) async =>
               const HubSearchPage(items: <HubRepoSummary>[]),
         ),
         modelScopeClient: _FakeHubClient(
           source: ModelHubSource.modelScope,
-          onSearch: (_, format, _) async => HubSearchPage(
+          onSearch: (_, format, _, sort) async => HubSearchPage(
             items: <HubRepoSummary>[
               _summary(
                 source: ModelHubSource.modelScope,
@@ -225,7 +287,7 @@ void main() {
         settingsStore: _MemoryDownloadSettingsStore(),
         huggingFaceClient: _FakeHubClient(
           source: ModelHubSource.huggingFace,
-          onSearch: (query, format, pageToken) {
+          onSearch: (query, format, pageToken, sort) {
             if (pageToken != null) {
               return latePage.future;
             }
@@ -275,7 +337,7 @@ void main() {
         settingsStore: _MemoryDownloadSettingsStore(),
         huggingFaceClient: _FakeHubClient(
           source: ModelHubSource.huggingFace,
-          onSearch: (query, format, _) {
+          onSearch: (query, format, _, sort) {
             if (query == 'first') {
               return firstSearch.future;
             }
@@ -360,7 +422,7 @@ HubRepoSummary _summary({
 
 _FakeHubClient _emptyModelScopeClient() => _FakeHubClient(
   source: ModelHubSource.modelScope,
-  onSearch: (_, _, _) async => const HubSearchPage(items: <HubRepoSummary>[]),
+  onSearch: (_, _, _, sort) async => const HubSearchPage(items: <HubRepoSummary>[]),
 );
 
 class _SearchCall {
@@ -413,6 +475,7 @@ class _FakeHubClient implements ModelHubClient {
     String query,
     HubModelFormat format,
     String? pageToken,
+    HubSearchSort sort,
   )
   onSearch;
 
@@ -435,7 +498,8 @@ class _FakeHubClient implements ModelHubClient {
   Future<HubSearchPage> search(
     String query, {
     required HubModelFormat format,
+    HubSearchSort sort = HubSearchSort.trending,
     int limit = ModelHubClient.defaultSearchLimit,
     String? pageToken,
-  }) => onSearch(query, format, pageToken);
+  }) => onSearch(query, format, pageToken, sort);
 }

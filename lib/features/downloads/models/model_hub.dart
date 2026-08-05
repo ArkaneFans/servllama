@@ -66,6 +66,12 @@ enum HubModelFormat {
   }
 }
 
+/// Server-side ranking for hub search.
+///
+/// English UI uses the same labels on both hubs. [trending] is Hugging Face
+/// `trendingScore` and ModelScope `Default` (综合).
+enum HubSearchSort { trending, downloads, likes }
+
 /// A repository as it appears in search results.
 class HubRepoSummary {
   const HubRepoSummary({

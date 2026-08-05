@@ -948,7 +948,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get discoverBackToFeatured => '查看真机验证的精选模型';
 
   @override
+  String get discoverSortTrending => '综合';
+
+  @override
   String get discoverSortDownloads => '下载量';
+
+  @override
+  String get discoverSortLikes => '喜欢数';
 
   @override
   String get discoverSortUpdated => '最近更新';

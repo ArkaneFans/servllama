@@ -8,8 +8,6 @@ import 'package:servllama/features/downloads/services/model_catalog_service.dart
 import 'package:servllama/features/downloads/services/model_hub_client.dart';
 import 'package:servllama/features/downloads/services/hugging_face_route_resolver.dart';
 
-enum HubSearchSort { downloads, updated }
-
 enum HubFormatFilter { gguf, mnn }
 
 /// Drives the two discovery paths (design decision D3): a curated catalog of
@@ -56,7 +54,7 @@ class ModelDiscoveryProvider extends ChangeNotifier {
   bool _isLoadingRepo = false;
   String _query = '';
   ModelHubSource _activeSource = ModelHubSource.huggingFace;
-  HubSearchSort _searchSort = HubSearchSort.downloads;
+  HubSearchSort _searchSort = HubSearchSort.trending;
   HubFormatFilter _formatFilter = HubFormatFilter.gguf;
   ModelHubErrorKind? _lastError;
   ModelHubErrorKind? _loadMoreError;
@@ -90,7 +88,9 @@ class ModelDiscoveryProvider extends ChangeNotifier {
   }
 
   List<HubRepoSummary> get displayedSearchResults {
-    final results = _searchResults
+    // Preserve hub order: sort is a server-side query param, and load-more
+    // only appends. Re-sorting here would reshuffle already-visible rows.
+    return _searchResults
         .where((repo) {
           switch (_formatFilter) {
             case HubFormatFilter.gguf:
@@ -100,19 +100,6 @@ class ModelDiscoveryProvider extends ChangeNotifier {
           }
         })
         .toList(growable: false);
-    results.sort((left, right) {
-      switch (_searchSort) {
-        case HubSearchSort.downloads:
-          return right.downloads.compareTo(left.downloads);
-        case HubSearchSort.updated:
-          final leftTime =
-              left.lastModified ?? DateTime.fromMillisecondsSinceEpoch(0);
-          final rightTime =
-              right.lastModified ?? DateTime.fromMillisecondsSinceEpoch(0);
-          return rightTime.compareTo(leftTime);
-      }
-    });
-    return results;
   }
 
   ModelFeasibility feasibilityOf(String filePath) =>
@@ -159,12 +146,13 @@ class ModelDiscoveryProvider extends ChangeNotifier {
     await search(_query);
   }
 
-  void setSearchSort(HubSearchSort value) {
+  Future<void> setSearchSort(HubSearchSort value) async {
     if (_searchSort == value) {
       return;
     }
     _searchSort = value;
     notifyListeners();
+    await search(_query);
   }
 
   Future<void> setFormatFilter(HubFormatFilter value) async {
@@ -281,6 +269,7 @@ class ModelDiscoveryProvider extends ChangeNotifier {
         final page = await client.search(
           query,
           format: format,
+          sort: _searchSort,
           limit: ModelHubClient.defaultSearchLimit,
           pageToken: pageTokens[format],
         );
