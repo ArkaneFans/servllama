@@ -66,8 +66,10 @@ class EngineRuntimeState {
       status == EngineRuntimeStatus.preparing ||
       status == EngineRuntimeStatus.stopping;
 
-  /// The engine can only be swapped while nothing is running (design D5).
-  bool get canSwitchEngine => status == EngineRuntimeStatus.idle;
+  /// Busy and ready states own runtime resources. An error may be switchable
+  /// once the provider confirms the adapter is no longer running.
+  bool get canSwitchEngine =>
+      status == EngineRuntimeStatus.idle || status == EngineRuntimeStatus.error;
 
   /// MNN refuses to start without a resident model; llama.cpp does not.
   bool get canStart =>

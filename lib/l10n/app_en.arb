@@ -415,7 +415,6 @@
   "serverLogsFilterDownload": "Download",
   "serverLogsFilterErrors": "Errors only",
   "engineSectionTitle": "Inference engine",
-  "engineLockedWhileRunning": "Stop the service before switching engines.",
   "serverStatusIdle": "Stopped",
   "serverStatusPreparing": "Starting",
   "serverStatusStopping": "Stopping",
@@ -475,7 +474,6 @@
   "serverPhaseVerifying": "Health check",
   "serverPhaseUnloadingModel": "Unloading model",
   "serverPhaseStoppingServer": "Stopping service",
-  "serverPhaseLockHint": "Locked while orchestrating. Stop the service afterwards to switch engines.",
   "runtimeErrorPortInUse": "Port {port} is taken by another app.",
   "@runtimeErrorPortInUse": {
     "placeholders": {

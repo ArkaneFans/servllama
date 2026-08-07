@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:servllama/core/models/engine_runtime_state.dart';
+import 'package:servllama/core/models/inference_engine.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/providers/engine_runtime_provider.dart';
 import 'package:servllama/core/providers/model_management_provider.dart';
@@ -16,6 +18,7 @@ import 'package:servllama/core/services/llama_server_service.dart';
 import 'package:servllama/core/services/model_storage_paths.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
 import 'package:servllama/features/server/pages/server_page.dart';
+import 'package:servllama/features/server/widgets/runtime_hero_card.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -141,6 +144,22 @@ void main() {
       );
       expect(find.text('http://0.0.0.0:11434'), findsOneWidget);
       expect(find.text('服务启动失败，请查看日志。'), findsOneWidget);
+      expect(serverProvider.canSwitchEngine, isTrue);
+
+      final selector = find.byKey(const Key('server_engine_selector'));
+      final mnnLabel = find.descendant(
+        of: selector,
+        matching: find.text('MNN'),
+      );
+      final mnnGesture = find.ancestor(
+        of: mnnLabel,
+        matching: find.byType(GestureDetector),
+      );
+      expect(
+        find.ancestor(of: selector, matching: find.byType(Opacity)),
+        findsNothing,
+      );
+      expect(tester.widget<GestureDetector>(mnnGesture).onTap, isNotNull);
     });
 
     testWidgets('shows running state and stop action when server is running', (
@@ -229,10 +248,52 @@ void main() {
         ),
         findsOneWidget,
       );
+      final statusCard = find.byKey(const Key('server_page_status_card'));
+      expect(
+        find.descendant(of: statusCard, matching: find.text('准备中')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('server_page_phase_list')), findsNothing);
+      expect(find.text('编排期间锁定，完成后仍需停止服务才能切换引擎。'), findsNothing);
+      expect(find.text('服务运行中不可切换引擎，需先停止服务。'), findsNothing);
 
       completer.complete(false);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
+    });
+
+    testWidgets('shows the current orchestration phase in the status pill', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: RuntimeHeroCard(
+              state: const EngineRuntimeState(
+                engine: InferenceEngine.llamaCpp,
+                status: EngineRuntimeStatus.preparing,
+                phase: RuntimePhase.startingServer,
+              ),
+              displayUrl: 'http://127.0.0.1:8080',
+              selectedModelId: null,
+              selectedModelName: null,
+              port: 8080,
+              canStart: false,
+              onSelectModel: () {},
+              onToggle: () {},
+              onCopyUrl: () {},
+            ),
+          ),
+        ),
+      );
+
+      final statusCard = find.byKey(const Key('server_page_status_card'));
+      expect(
+        find.descendant(of: statusCard, matching: find.text('启动服务')),
+        findsOneWidget,
+      );
+      expect(find.text('准备中'), findsNothing);
+      expect(find.byKey(const Key('server_page_phase_list')), findsNothing);
     });
 
     testWidgets('opens logs page from grouped menu', (tester) async {

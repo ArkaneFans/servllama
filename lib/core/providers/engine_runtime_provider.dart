@@ -71,7 +71,8 @@ class EngineRuntimeProvider extends ChangeNotifier {
   EngineRuntimeStatus get status => _state.status;
   bool get isRunning => _state.isRunning;
   bool get isBusy => _state.isBusy;
-  bool get canSwitchEngine => _state.canSwitchEngine;
+  bool get canSwitchEngine =>
+      _state.canSwitchEngine && !_adapters[_state.engine]!.isRunning;
   bool get canStart =>
       (_state.status == EngineRuntimeStatus.idle ||
           _state.status == EngineRuntimeStatus.error) &&
@@ -197,7 +198,7 @@ class EngineRuntimeProvider extends ChangeNotifier {
     }
     // Guarded rather than orchestrated: switching while running would need a
     // stop/unload/start rollback path, which D5 exists to avoid.
-    if (!_state.canSwitchEngine) {
+    if (!canSwitchEngine) {
       return;
     }
 
@@ -475,6 +476,12 @@ class EngineRuntimeProvider extends ChangeNotifier {
 
   void _handleExternalRunningChange(InferenceEngine engine, bool running) {
     if (_disposed || engine != _state.engine || _state.isBusy) {
+      return;
+    }
+    if (_state.status == EngineRuntimeStatus.error) {
+      // Keep the error visible, but rebuild consumers because engine
+      // switching becomes safe as soon as the adapter finishes cleanup.
+      notifyListeners();
       return;
     }
     if (running == _state.isRunning) {

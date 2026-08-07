@@ -10,13 +10,11 @@ class EngineSelector extends StatelessWidget {
     super.key,
     required this.selected,
     required this.enabled,
-    required this.lockedHint,
     required this.onChanged,
   });
 
   final InferenceEngine selected;
   final bool enabled;
-  final String lockedHint;
   final ValueChanged<InferenceEngine> onChanged;
 
   @override
@@ -52,25 +50,7 @@ class EngineSelector extends StatelessWidget {
       return control;
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Opacity(
-          opacity: 0.55,
-          child: IgnorePointer(child: control),
-        ),
-        const SizedBox(height: 8),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Text(
-            lockedHint,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      ],
-    );
+    return Opacity(opacity: 0.55, child: IgnorePointer(child: control));
   }
 }
 

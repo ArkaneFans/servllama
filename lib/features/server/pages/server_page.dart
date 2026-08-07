@@ -15,14 +15,14 @@ import 'package:servllama/features/server/pages/server_config_page.dart';
 import 'package:servllama/features/server/pages/server_logs_page.dart';
 import 'package:servllama/features/server/widgets/engine_selector.dart';
 import 'package:servllama/features/server/widgets/runtime_hero_card.dart';
-import 'package:servllama/features/server/widgets/runtime_phase_list.dart';
 import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/l10n/runtime_labels.dart';
 import 'package:servllama/shared/widgets/engine_badge.dart';
 
 /// Runtime control center: pick an engine, pick a model, start or stop. The
 /// two engines' opposite startup orders are absorbed by
-/// [EngineRuntimeProvider]; this page only renders one phase list either way.
+/// [EngineRuntimeProvider]; this page reports whichever phase is current in
+/// the service status pill.
 class ServerPage extends StatefulWidget {
   const ServerPage({super.key});
 
@@ -89,8 +89,7 @@ class _ServerPageState extends State<ServerPage> {
           children: [
             EngineSelector(
               selected: state.engine,
-              enabled: state.canSwitchEngine,
-              lockedHint: l10n.engineLockedWhileRunning,
+              enabled: runtime.canSwitchEngine,
               onChanged: runtime.switchEngine,
             ),
             const SizedBox(height: 18),
@@ -98,6 +97,7 @@ class _ServerPageState extends State<ServerPage> {
               state: state,
               displayUrl: runtime.displayUrl,
               selectedModelId: runtime.selectedModelId,
+              port: runtime.port,
               selectedModelName: _modelNameFor(
                 library,
                 state.engine,
@@ -115,15 +115,6 @@ class _ServerPageState extends State<ServerPage> {
                 tone: StatusTone.warning,
                 icon: Icons.security_rounded,
                 message: l10n.serverOpenAccessWarning,
-              ),
-            ],
-            if (state.isBusy) ...[
-              const SizedBox(height: 16),
-              RuntimePhaseList(
-                current: state.phase,
-                completed: state.completedPhases,
-                port: runtime.port,
-                hint: l10n.serverPhaseLockHint,
               ),
             ],
             if (state.error != null) ...[

@@ -85,6 +85,60 @@ void main() {
       expect(mnn.activateCount, 0);
       expect(mnn.startCount, 1);
     });
+
+    test('allows switching engines after startup failure cleanup', () async {
+      final llama = _FakeEngineAdapter(
+        InferenceEngine.llamaCpp,
+        startError: const EngineAdapterException(
+          EngineRuntimeErrorKind.serverStartFailed,
+        ),
+      );
+      final mnn = _FakeEngineAdapter(InferenceEngine.mnn);
+      final provider = _provider(llama: llama, mnn: mnn);
+      addTearDown(provider.dispose);
+
+      await provider.start();
+
+      expect(provider.status, EngineRuntimeStatus.error);
+      expect(provider.canSwitchEngine, isTrue);
+
+      await provider.switchEngine(InferenceEngine.mnn);
+
+      expect(provider.activeEngine, InferenceEngine.mnn);
+      expect(provider.status, EngineRuntimeStatus.idle);
+    });
+
+    test(
+      'blocks switching while an errored adapter is still running',
+      () async {
+        final llama = _FakeEngineAdapter(
+          InferenceEngine.llamaCpp,
+          stopError: const EngineAdapterException(
+            EngineRuntimeErrorKind.serverStopFailed,
+          ),
+        );
+        final mnn = _FakeEngineAdapter(InferenceEngine.mnn);
+        final provider = _provider(llama: llama, mnn: mnn);
+        addTearDown(provider.dispose);
+
+        await provider.start();
+        await provider.stop();
+
+        expect(provider.status, EngineRuntimeStatus.error);
+        expect(llama.isRunning, isTrue);
+        expect(provider.canSwitchEngine, isFalse);
+
+        await provider.switchEngine(InferenceEngine.mnn);
+        expect(provider.activeEngine, InferenceEngine.llamaCpp);
+
+        llama.emitRunning(false);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(provider.canSwitchEngine, isTrue);
+        await provider.switchEngine(InferenceEngine.mnn);
+        expect(provider.activeEngine, InferenceEngine.mnn);
+      },
+    );
   });
 }
 
@@ -106,11 +160,18 @@ class _FixedSettingsLoader extends ServerLaunchSettingsLoader {
 }
 
 class _FakeEngineAdapter implements InferenceEngineAdapter {
-  _FakeEngineAdapter(this.engine, {this.startBlocker});
+  _FakeEngineAdapter(
+    this.engine, {
+    this.startBlocker,
+    this.startError,
+    this.stopError,
+  });
 
   @override
   final InferenceEngine engine;
   final Completer<void>? startBlocker;
+  final EngineAdapterException? startError;
+  final EngineAdapterException? stopError;
   final StreamController<bool> _running = StreamController<bool>.broadcast();
 
   bool _isRunning = false;
@@ -135,6 +196,9 @@ class _FakeEngineAdapter implements InferenceEngineAdapter {
     startCount += 1;
     onPhase(RuntimePhase.loadingModel);
     await startBlocker?.future;
+    if (startError != null) {
+      throw startError!;
+    }
     _isRunning = true;
     return EngineStartResult(
       host: '127.0.0.1',
@@ -146,7 +210,15 @@ class _FakeEngineAdapter implements InferenceEngineAdapter {
 
   @override
   Future<void> stop({required RuntimePhaseCallback onPhase}) async {
+    if (stopError != null) {
+      throw stopError!;
+    }
     _isRunning = false;
+  }
+
+  void emitRunning(bool value) {
+    _isRunning = value;
+    _running.add(value);
   }
 
   @override

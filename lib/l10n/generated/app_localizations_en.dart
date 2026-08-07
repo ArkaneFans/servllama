@@ -747,10 +747,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get engineSectionTitle => 'Inference engine';
 
   @override
-  String get engineLockedWhileRunning =>
-      'Stop the service before switching engines.';
-
-  @override
   String get serverStatusIdle => 'Stopped';
 
   @override
@@ -823,10 +819,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get serverPhaseStoppingServer => 'Stopping service';
-
-  @override
-  String get serverPhaseLockHint =>
-      'Locked while orchestrating. Stop the service afterwards to switch engines.';
 
   @override
   String runtimeErrorPortInUse(int port) {

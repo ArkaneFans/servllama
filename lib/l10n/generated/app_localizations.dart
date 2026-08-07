@@ -1400,12 +1400,6 @@ abstract class AppLocalizations {
   /// **'Inference engine'**
   String get engineSectionTitle;
 
-  /// No description provided for @engineLockedWhileRunning.
-  ///
-  /// In en, this message translates to:
-  /// **'Stop the service before switching engines.'**
-  String get engineLockedWhileRunning;
-
   /// No description provided for @serverStatusIdle.
   ///
   /// In en, this message translates to:
@@ -1531,12 +1525,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Stopping service'**
   String get serverPhaseStoppingServer;
-
-  /// No description provided for @serverPhaseLockHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Locked while orchestrating. Stop the service afterwards to switch engines.'**
-  String get serverPhaseLockHint;
 
   /// No description provided for @runtimeErrorPortInUse.
   ///

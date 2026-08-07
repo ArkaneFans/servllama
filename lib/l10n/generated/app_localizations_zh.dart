@@ -721,9 +721,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get engineSectionTitle => '推理引擎';
 
   @override
-  String get engineLockedWhileRunning => '服务运行中不可切换引擎，需先停止服务。';
-
-  @override
   String get serverStatusIdle => '未运行';
 
   @override
@@ -795,9 +792,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get serverPhaseStoppingServer => '停止服务';
-
-  @override
-  String get serverPhaseLockHint => '编排期间锁定，完成后仍需停止服务才能切换引擎。';
 
   @override
   String runtimeErrorPortInUse(int port) {
