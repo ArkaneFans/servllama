@@ -686,7 +686,7 @@ class _ChatConversationBody extends StatelessWidget {
       final isPreparing = runtime?.isBusy == true;
       final phase = runtime?.currentPhase;
       final preparingLabel = isPreparing && phase != null && runtime != null
-          ? RuntimeLabels.phase(context.l10n, phase, runtime.port)
+          ? RuntimeLabels.phase(context.l10n, phase)
           : null;
       // Nullable like the runtime above: the page is embeddable without the
       // library scope (it only changes which hero action is offered).
@@ -844,7 +844,7 @@ class _ChatRuntimeTitle extends StatelessWidget {
 
     String label;
     if (state.status == EngineRuntimeStatus.preparing && state.phase != null) {
-      label = RuntimeLabels.phase(l10n, state.phase!, runtime.port);
+      label = RuntimeLabels.phase(l10n, state.phase!);
     } else if (state.status == EngineRuntimeStatus.stopping) {
       label = l10n.serverStatusStopping;
     } else {

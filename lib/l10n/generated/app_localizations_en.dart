@@ -804,11 +804,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get serverPhaseLoadingModel => 'Loading model';
 
   @override
-  String serverPhaseCheckingPort(int port) {
-    return 'Checking port $port';
-  }
-
-  @override
   String get serverPhaseStartingServer => 'Starting service';
 
   @override
@@ -822,7 +817,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String runtimeErrorPortInUse(int port) {
-    return 'Port $port is taken by another app.';
+    return 'Port $port is currently unavailable; another service may still be using it.';
   }
 
   @override

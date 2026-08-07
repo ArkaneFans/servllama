@@ -277,7 +277,6 @@ void main() {
               displayUrl: 'http://127.0.0.1:8080',
               selectedModelId: null,
               selectedModelName: null,
-              port: 8080,
               canStart: false,
               onSelectModel: () {},
               onToggle: () {},

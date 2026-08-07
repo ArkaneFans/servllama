@@ -27,12 +27,10 @@ class RuntimeLabels {
     }
   }
 
-  static String phase(AppLocalizations l10n, RuntimePhase phase, int port) {
+  static String phase(AppLocalizations l10n, RuntimePhase phase) {
     switch (phase) {
       case RuntimePhase.loadingModel:
         return l10n.serverPhaseLoadingModel;
-      case RuntimePhase.checkingPort:
-        return l10n.serverPhaseCheckingPort(port);
       case RuntimePhase.startingServer:
         return l10n.serverPhaseStartingServer;
       case RuntimePhase.verifying:

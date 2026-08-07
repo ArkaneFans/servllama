@@ -16,7 +16,6 @@ class RuntimeHeroCard extends StatelessWidget {
     required this.displayUrl,
     required this.selectedModelId,
     required this.selectedModelName,
-    required this.port,
     required this.canStart,
     required this.onSelectModel,
     required this.onToggle,
@@ -27,7 +26,6 @@ class RuntimeHeroCard extends StatelessWidget {
   final String displayUrl;
   final String? selectedModelId;
   final String? selectedModelName;
-  final int port;
   final bool canStart;
   final VoidCallback onSelectModel;
   final VoidCallback onToggle;
@@ -40,7 +38,7 @@ class RuntimeHeroCard extends StatelessWidget {
     final l10n = context.l10n;
     final isLight = theme.brightness == Brightness.light;
     final statusLabel = state.isBusy && state.phase != null
-        ? RuntimeLabels.phase(l10n, state.phase!, port)
+        ? RuntimeLabels.phase(l10n, state.phase!)
         : RuntimeLabels.status(l10n, state.status);
 
     return DecoratedBox(

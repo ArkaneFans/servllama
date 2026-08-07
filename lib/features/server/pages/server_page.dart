@@ -97,7 +97,6 @@ class _ServerPageState extends State<ServerPage> {
               state: state,
               displayUrl: runtime.displayUrl,
               selectedModelId: runtime.selectedModelId,
-              port: runtime.port,
               selectedModelName: _modelNameFor(
                 library,
                 state.engine,

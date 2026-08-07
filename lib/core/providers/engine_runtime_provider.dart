@@ -79,7 +79,6 @@ class EngineRuntimeProvider extends ChangeNotifier {
       (!activeEngine.requiresModelBeforeStart || selectedModelId != null);
   EngineRuntimeError? get lastError => _state.error;
   RuntimePhase? get currentPhase => _state.phase;
-  List<RuntimePhase> get completedPhases => _state.completedPhases;
   String? get activeModelId => _state.activeModelId;
   String? get activeModelName => _state.activeModelName;
 
@@ -282,7 +281,6 @@ class EngineRuntimeProvider extends ChangeNotifier {
     final adapter = _adapters[_state.engine]!;
     _state = _state.copyWith(
       status: EngineRuntimeStatus.stopping,
-      completedPhases: const <RuntimePhase>[],
       phase: RuntimePhase.stoppingServer,
       error: null,
     );
@@ -387,7 +385,6 @@ class EngineRuntimeProvider extends ChangeNotifier {
     final operationEpoch = ++_operationEpoch;
     _state = _state.copyWith(
       status: EngineRuntimeStatus.preparing,
-      completedPhases: const <RuntimePhase>[],
       phase: null,
       error: null,
     );
@@ -404,10 +401,6 @@ class EngineRuntimeProvider extends ChangeNotifier {
       _state = _state.copyWith(
         status: EngineRuntimeStatus.ready,
         phase: null,
-        completedPhases: <RuntimePhase>[
-          ..._state.completedPhases,
-          if (_state.phase != null) _state.phase!,
-        ],
         activeModelId: result.activeModelId,
         activeModelName: result.activeModelName,
         startedAt: _state.startedAt ?? DateTime.now(),
@@ -463,13 +456,8 @@ class EngineRuntimeProvider extends ChangeNotifier {
     if (_state.status != EngineRuntimeStatus.preparing) {
       return;
     }
-    final previous = _state.phase;
     _state = _state.copyWith(
       phase: phase,
-      completedPhases: <RuntimePhase>[
-        ..._state.completedPhases,
-        if (previous != null) previous,
-      ],
     );
     notifyListeners();
   }

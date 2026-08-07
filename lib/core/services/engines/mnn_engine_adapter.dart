@@ -10,18 +10,16 @@ import 'package:servllama/core/services/server_launch_settings_loader.dart';
 
 /// Model-first lifecycle: MNN has to have a model resident before its Ktor
 /// server can bind, and it cannot swap models while serving. Swapping
-/// therefore means stop → unload → load → start, which this adapter reports
-/// phase by phase.
+/// therefore means stop → unload → load → start. The native start call owns
+/// the bind operation; there is no separate, race-prone port preflight.
 class MnnEngineAdapter implements InferenceEngineAdapter {
   MnnEngineAdapter({
     MnnEngine? mnnEngine,
     ServerLaunchSettingsLoader? settingsLoader,
     AppLogger? logger,
-    Future<void> Function(Duration) delay = Future<void>.delayed,
   }) : _engine = mnnEngine ?? MnnEngine.instance,
        _settingsLoader = settingsLoader ?? ServerLaunchSettingsLoader(),
-       _logger = logger ?? AppLogger.instance,
-       _delay = delay {
+       _logger = logger ?? AppLogger.instance {
     _eventSubscription = _engine.events.listen((event) {
       final running = event.snapshot.serverState == 'running';
       _activeModel = event.snapshot.activeModel;
@@ -36,7 +34,6 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
   final MnnEngine _engine;
   final ServerLaunchSettingsLoader _settingsLoader;
   final AppLogger _logger;
-  final Future<void> Function(Duration) _delay;
   final StreamController<bool> _runningStateController =
       StreamController<bool>.broadcast();
 
@@ -49,12 +46,6 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
   ServerLogLevel _minimumLogLevel = ServerLogLevel.info;
   int _lastLogSequence = -1;
   MnnModelInfo? _activeModel;
-
-  static const List<Duration> _portRetryBackoff = <Duration>[
-    Duration(milliseconds: 300),
-    Duration(milliseconds: 600),
-    Duration(milliseconds: 1200),
-  ];
 
   @override
   InferenceEngine get engine => InferenceEngine.mnn;
@@ -120,19 +111,6 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
       final model = await _loadModel(modelId);
       _throwIfCancelled();
 
-      onPhase(RuntimePhase.checkingPort);
-      final portCheck = await _checkPortWithRetry(
-        bindMode: bindMode,
-        port: settings.port,
-      );
-      _throwIfCancelled();
-      if (!portCheck.available && !portCheck.ownedByMnn) {
-        throw EngineAdapterException(
-          EngineRuntimeErrorKind.portInUse,
-          detail: portCheck.message,
-        );
-      }
-
       onPhase(RuntimePhase.startingServer);
       final MnnServerInfo server;
       try {
@@ -145,21 +123,11 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
         );
       } on MnnEngineException catch (error) {
         throw EngineAdapterException(
-          EngineRuntimeErrorKind.serverStartFailed,
+          _serverStartErrorKind(error),
           detail: error.message,
         );
       }
       _throwIfCancelled();
-
-      onPhase(RuntimePhase.verifying);
-      final snapshot = await _engine.getSnapshot();
-      _throwIfCancelled();
-      if (snapshot.serverState != 'running') {
-        throw EngineAdapterException(
-          EngineRuntimeErrorKind.serverStartFailed,
-          detail: snapshot.lastError,
-        );
-      }
       _lastRunningState = true;
 
       return EngineStartResult(
@@ -232,20 +200,13 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
     await _releaseRuntime(onPhase: onPhase);
   }
 
-  Future<MnnPortCheckResult> _checkPortWithRetry({
-    required MnnServerBindMode bindMode,
-    required int port,
-  }) async {
-    var result = await _engine.checkPort(bindMode: bindMode, port: port);
-    for (final backoff in _portRetryBackoff) {
-      if (result.available || result.ownedByMnn) {
-        return result;
-      }
-      await _delay(backoff);
-      _throwIfCancelled();
-      result = await _engine.checkPort(bindMode: bindMode, port: port);
+  EngineRuntimeErrorKind _serverStartErrorKind(MnnEngineException error) {
+    switch (error.code) {
+      case 'port_in_use':
+        return EngineRuntimeErrorKind.portInUse;
+      default:
+        return EngineRuntimeErrorKind.serverStartFailed;
     }
-    return result;
   }
 
   Future<void> _releaseRuntime({RuntimePhaseCallback? onPhase}) async {

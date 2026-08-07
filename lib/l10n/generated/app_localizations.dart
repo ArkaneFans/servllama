@@ -1496,12 +1496,6 @@ abstract class AppLocalizations {
   /// **'Loading model'**
   String get serverPhaseLoadingModel;
 
-  /// No description provided for @serverPhaseCheckingPort.
-  ///
-  /// In en, this message translates to:
-  /// **'Checking port {port}'**
-  String serverPhaseCheckingPort(int port);
-
   /// No description provided for @serverPhaseStartingServer.
   ///
   /// In en, this message translates to:
@@ -1529,7 +1523,7 @@ abstract class AppLocalizations {
   /// No description provided for @runtimeErrorPortInUse.
   ///
   /// In en, this message translates to:
-  /// **'Port {port} is taken by another app.'**
+  /// **'Port {port} is currently unavailable; another service may still be using it.'**
   String runtimeErrorPortInUse(int port);
 
   /// No description provided for @runtimeErrorModelLoadFailed.

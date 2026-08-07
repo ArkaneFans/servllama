@@ -41,8 +41,8 @@ class EngineStartResult {
 /// Hides the structurally opposite lifecycles of the two engines behind one
 /// interface: `llama.cpp` starts its server first and loads models on demand,
 /// while MNN must have a model resident before its server can bind. Each
-/// adapter reports its own phase order through [RuntimePhaseCallback] so the
-/// UI can render a single progress list either way.
+/// adapter reports its current phase through [RuntimePhaseCallback] so the UI
+/// can show one concise status component for either lifecycle.
 abstract class InferenceEngineAdapter {
   InferenceEngine get engine;
 

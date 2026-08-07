@@ -3,12 +3,9 @@ import 'package:servllama/core/models/inference_engine.dart';
 /// Coarse runtime status the whole app reasons about, regardless of engine.
 enum EngineRuntimeStatus { idle, preparing, ready, stopping, error }
 
-/// Steps the orchestrator walks through while bringing a runtime up or
-/// swapping its model. The two engines run these in different orders; the
-/// orchestrator emits them so the UI can render one progress list either way.
+/// The current operation shown by the runtime status component.
 enum RuntimePhase {
   loadingModel,
-  checkingPort,
   startingServer,
   verifying,
   unloadingModel,
@@ -39,7 +36,6 @@ class EngineRuntimeState {
     required this.engine,
     this.status = EngineRuntimeStatus.idle,
     this.phase,
-    this.completedPhases = const <RuntimePhase>[],
     this.activeModelId,
     this.activeModelName,
     this.startedAt,
@@ -52,9 +48,6 @@ class EngineRuntimeState {
   /// Phase currently in flight; null unless [status] is
   /// [EngineRuntimeStatus.preparing].
   final RuntimePhase? phase;
-
-  /// Phases already done in the current operation, in execution order.
-  final List<RuntimePhase> completedPhases;
 
   final String? activeModelId;
   final String? activeModelName;
@@ -82,7 +75,6 @@ class EngineRuntimeState {
     InferenceEngine? engine,
     EngineRuntimeStatus? status,
     Object? phase = _unset,
-    List<RuntimePhase>? completedPhases,
     Object? activeModelId = _unset,
     Object? activeModelName = _unset,
     Object? startedAt = _unset,
@@ -92,7 +84,6 @@ class EngineRuntimeState {
       engine: engine ?? this.engine,
       status: status ?? this.status,
       phase: identical(phase, _unset) ? this.phase : phase as RuntimePhase?,
-      completedPhases: completedPhases ?? this.completedPhases,
       activeModelId: identical(activeModelId, _unset)
           ? this.activeModelId
           : activeModelId as String?,

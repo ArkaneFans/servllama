@@ -462,19 +462,11 @@
     }
   },
   "serverPhaseLoadingModel": "Loading model",
-  "serverPhaseCheckingPort": "Checking port {port}",
-  "@serverPhaseCheckingPort": {
-    "placeholders": {
-      "port": {
-        "type": "int"
-      }
-    }
-  },
   "serverPhaseStartingServer": "Starting service",
   "serverPhaseVerifying": "Health check",
   "serverPhaseUnloadingModel": "Unloading model",
   "serverPhaseStoppingServer": "Stopping service",
-  "runtimeErrorPortInUse": "Port {port} is taken by another app.",
+  "runtimeErrorPortInUse": "Port {port} is currently unavailable; another service may still be using it.",
   "@runtimeErrorPortInUse": {
     "placeholders": {
       "port": {

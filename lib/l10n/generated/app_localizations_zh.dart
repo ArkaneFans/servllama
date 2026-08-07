@@ -777,11 +777,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get serverPhaseLoadingModel => '加载模型';
 
   @override
-  String serverPhaseCheckingPort(int port) {
-    return '端口检查（$port）';
-  }
-
-  @override
   String get serverPhaseStartingServer => '启动服务';
 
   @override
@@ -795,7 +790,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String runtimeErrorPortInUse(int port) {
-    return '端口 $port 已被其他应用占用。';
+    return '端口 $port 当前不可用，可能仍有其他服务正在使用。';
   }
 
   @override
