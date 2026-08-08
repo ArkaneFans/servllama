@@ -51,6 +51,34 @@ void main() {
       expect(listView.reverse, isTrue);
     });
 
+    testWidgets('wraps long log entries instead of scrolling horizontally', (
+      tester,
+    ) async {
+      final logger = AppLogger();
+      logger.info(
+        'a long log entry ' * 20,
+        channel: LogChannel.server,
+        inMemory: true,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(home: ServerLogsPage(logger: logger)),
+      );
+      await tester.pump();
+
+      final entry = tester.widget<SelectableText>(find.byType(SelectableText));
+      expect(entry.maxLines, isNull);
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is SingleChildScrollView &&
+              widget.scrollDirection == Axis.horizontal,
+        ),
+        findsOneWidget,
+        reason: 'only the filter chips should scroll horizontally',
+      );
+    });
+
     testWidgets('opens at the bottom without scrolling to max extent', (
       tester,
     ) async {

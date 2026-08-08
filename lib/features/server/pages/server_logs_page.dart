@@ -271,18 +271,14 @@ class _ServerLogsViewState extends State<_ServerLogsView> {
                           final entry = logs[logs.length - 1 - index];
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 6),
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: SelectableText(
-                                provider.formatEntry(entry),
-                                maxLines: 1,
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(
-                                      fontFamily: 'monospace',
-                                      height: 1.4,
-                                      color: _resolveLogColor(context, entry),
-                                    ),
-                              ),
+                            child: SelectableText(
+                              provider.formatEntry(entry),
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    fontFamily: 'monospace',
+                                    height: 1.4,
+                                    color: _resolveLogColor(context, entry),
+                                  ),
                             ),
                           );
                         },
