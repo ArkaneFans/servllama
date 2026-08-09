@@ -550,12 +550,16 @@
   "chatEmptyTitle": "选一个模型开始",
   "chatEmptyDescription": "选定模型后服务会自动启动。",
   "chatEmptyAction": "选择模型",
+  "chatChooseEngineToStart": "选择要启动的推理引擎",
+  "chatEngineDefaultModel": "默认模型：{model}",
+  "@chatEngineDefaultModel": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
+  },
   "chatCurrentRunning": "当前运行",
-  "chatSameEngineModels": "{engine} 引擎 · 可直接切换",
-  "chatOtherEngines": "其他引擎",
-  "chatOtherEnginesEntry": "{engine} · {count} 个模型",
-  "chatOtherEnginesHint": "切换引擎需先在服务器页停止当前服务",
-  "chatMnnSwapNotice": "MNN 换模型会自动重启服务，约需 10 秒；期间对外接口短暂中断。",
   "chatLoadModelAction": "加载",
   "chatPreparingModel": "模型准备中",
   "chatEmptyNoModelsDescription": "先下载一个模型，之后全程在本机运行。"

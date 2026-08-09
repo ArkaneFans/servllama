@@ -84,8 +84,16 @@ class EngineRuntimeProvider extends ChangeNotifier {
 
   /// Model the user has picked for [activeEngine], whether or not it is
   /// loaded yet. Null means "no default model", which only llama.cpp allows.
-  String? get selectedModelId =>
-      _state.activeModelId ?? _selectedModelIds[_state.engine];
+  String? get selectedModelId => selectedModelIdFor(_state.engine);
+
+  /// The saved default model for [engine], including engines that are not
+  /// currently active. A running engine reports its resident model first.
+  String? selectedModelIdFor(InferenceEngine engine) {
+    if (engine == _state.engine && _state.activeModelId != null) {
+      return _state.activeModelId;
+    }
+    return _selectedModelIds[engine];
+  }
 
   String get host => _host;
   int get port => _port;
@@ -456,9 +464,7 @@ class EngineRuntimeProvider extends ChangeNotifier {
     if (_state.status != EngineRuntimeStatus.preparing) {
       return;
     }
-    _state = _state.copyWith(
-      phase: phase,
-    );
+    _state = _state.copyWith(phase: phase);
     notifyListeners();
   }
 

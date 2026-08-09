@@ -1211,26 +1211,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatEmptyAction => '选择模型';
 
   @override
+  String get chatChooseEngineToStart => '选择要启动的推理引擎';
+
+  @override
+  String chatEngineDefaultModel(String model) {
+    return '默认模型：$model';
+  }
+
+  @override
   String get chatCurrentRunning => '当前运行';
-
-  @override
-  String chatSameEngineModels(String engine) {
-    return '$engine 引擎 · 可直接切换';
-  }
-
-  @override
-  String get chatOtherEngines => '其他引擎';
-
-  @override
-  String chatOtherEnginesEntry(String engine, int count) {
-    return '$engine · $count 个模型';
-  }
-
-  @override
-  String get chatOtherEnginesHint => '切换引擎需先在服务器页停止当前服务';
-
-  @override
-  String get chatMnnSwapNotice => 'MNN 换模型会自动重启服务，约需 10 秒；期间对外接口短暂中断。';
 
   @override
   String get chatLoadModelAction => '加载';

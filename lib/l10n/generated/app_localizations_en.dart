@@ -151,7 +151,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatModelStatusLoading => 'Loading';
 
   @override
-  String get chatModelStatusAvailable => 'Available';
+  String get chatModelStatusAvailable => 'Available to load';
 
   @override
   String get chatModelStatusFailed => 'Load failed';
@@ -1264,28 +1264,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatEmptyAction => 'Choose a model';
 
   @override
+  String get chatChooseEngineToStart => 'Choose the inference engine to start';
+
+  @override
+  String chatEngineDefaultModel(String model) {
+    return 'Default model: $model';
+  }
+
+  @override
   String get chatCurrentRunning => 'Running now';
-
-  @override
-  String chatSameEngineModels(String engine) {
-    return '$engine - switch directly';
-  }
-
-  @override
-  String get chatOtherEngines => 'Other engines';
-
-  @override
-  String chatOtherEnginesEntry(String engine, int count) {
-    return '$engine - $count models';
-  }
-
-  @override
-  String get chatOtherEnginesHint =>
-      'Stop the running service on the Server page to switch engines.';
-
-  @override
-  String get chatMnnSwapNotice =>
-      'Switching models on MNN restarts the service (about 10 s); the API is briefly unavailable.';
 
   @override
   String get chatLoadModelAction => 'Load';

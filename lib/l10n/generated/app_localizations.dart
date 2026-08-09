@@ -371,7 +371,7 @@ abstract class AppLocalizations {
   /// No description provided for @chatModelStatusAvailable.
   ///
   /// In en, this message translates to:
-  /// **'Available'**
+  /// **'Available to load'**
   String get chatModelStatusAvailable;
 
   /// No description provided for @chatModelStatusFailed.
@@ -2294,41 +2294,23 @@ abstract class AppLocalizations {
   /// **'Choose a model'**
   String get chatEmptyAction;
 
+  /// No description provided for @chatChooseEngineToStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the inference engine to start'**
+  String get chatChooseEngineToStart;
+
+  /// No description provided for @chatEngineDefaultModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Default model: {model}'**
+  String chatEngineDefaultModel(String model);
+
   /// No description provided for @chatCurrentRunning.
   ///
   /// In en, this message translates to:
   /// **'Running now'**
   String get chatCurrentRunning;
-
-  /// No description provided for @chatSameEngineModels.
-  ///
-  /// In en, this message translates to:
-  /// **'{engine} - switch directly'**
-  String chatSameEngineModels(String engine);
-
-  /// No description provided for @chatOtherEngines.
-  ///
-  /// In en, this message translates to:
-  /// **'Other engines'**
-  String get chatOtherEngines;
-
-  /// No description provided for @chatOtherEnginesEntry.
-  ///
-  /// In en, this message translates to:
-  /// **'{engine} - {count} models'**
-  String chatOtherEnginesEntry(String engine, int count);
-
-  /// No description provided for @chatOtherEnginesHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Stop the running service on the Server page to switch engines.'**
-  String get chatOtherEnginesHint;
-
-  /// No description provided for @chatMnnSwapNotice.
-  ///
-  /// In en, this message translates to:
-  /// **'Switching models on MNN restarts the service (about 10 s); the API is briefly unavailable.'**
-  String get chatMnnSwapNotice;
 
   /// No description provided for @chatLoadModelAction.
   ///

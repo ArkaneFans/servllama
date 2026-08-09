@@ -172,14 +172,7 @@ class _MainScaffoldState extends State<MainScaffold> {
             ),
           ),
         ),
-        child: ChatPage(
-          onOpenSidebar: _toggleSidebar,
-          onNavigateToServer: () {
-            Navigator.of(
-              context,
-            ).push(MaterialPageRoute<void>(builder: (_) => const ServerPage()));
-          },
-        ),
+        child: ChatPage(onOpenSidebar: _toggleSidebar),
       ),
     );
   }

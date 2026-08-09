@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:servllama/app/app_theme.dart';
+import 'package:servllama/core/models/inference_engine.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/providers/engine_runtime_provider.dart';
 import 'package:servllama/core/models/model_descriptor.dart';
@@ -220,10 +221,9 @@ void main() {
         find.byKey(const Key('chat_model_sheet_row_alpha')),
         findsOneWidget,
       );
-      expect(
-        find.byKey(const Key('chat_model_sheet_mnn_notice')),
-        findsNothing,
-      );
+      expect(find.text('可加载'), findsOneWidget);
+      expect(find.textContaining('可直接切换'), findsNothing);
+      expect(find.text('其他引擎'), findsNothing);
     });
 
     testWidgets(
@@ -379,7 +379,10 @@ void main() {
 
       final library = ModelManagementProvider(
         repository: FakeLocalModelRepository(
-          initialModels: <ModelDescriptor>[_libraryDescriptor('alpha')],
+          initialModels: <ModelDescriptor>[
+            _libraryDescriptor('alpha'),
+            _libraryDescriptor('beta'),
+          ],
         ),
       );
       await library.load();
@@ -432,6 +435,21 @@ void main() {
 
       expect(serverProvider.isRunning, isTrue);
       expect(serverProvider.activeModelId, 'alpha');
+
+      await tester.tap(find.byKey(const Key('chat_model_selector_button')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('当前运行'), findsOneWidget);
+      expect(find.text('可加载'), findsOneWidget);
+      expect(
+        find.byKey(const Key('chat_model_sheet_row_alpha')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('chat_model_sheet_row_beta')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('可直接切换'), findsNothing);
     });
 
     testWidgets('uses dedicated dark hero button colors', (tester) async {
@@ -1484,8 +1502,133 @@ void main() {
       expect(find.text('1/2'), findsOneWidget);
       expect(provider.visibleMessages.last.currentVersionIndex, 0);
     });
+    testWidgets('shows each engine default model in the start sheet', (
+      tester,
+    ) async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('com.arkanefans.mnn_engine/methods'),
+            (call) async => call.method == 'listImportedModels'
+                ? <Object?>[
+                    <String, Object?>{
+                      'modelId': 'mnn-default',
+                      'modelKey': 'mnn-default',
+                      'displayName': 'Qwen MNN',
+                      'modelDirPath': 'C:/models/mnn-default',
+                      'configPath': 'C:/models/mnn-default/config.json',
+                      'sizeBytes': 1024,
+                      'importedAt': 0,
+                      'isActive': false,
+                    },
+                  ]
+                : null,
+          );
+
+      final chatProvider = ChatProvider(
+        repository: _FakeChatSessionRepository(sessions: <ChatSessionRecord>[]),
+        apiClient: _FakeLlamaChatApiClient(models: const <ChatModelOption>[]),
+      );
+      await chatProvider.load();
+
+      final library = ModelManagementProvider(
+        repository: FakeLocalModelRepository(
+          initialModels: <ModelDescriptor>[_libraryDescriptor('alpha')],
+        ),
+      );
+      await library.load();
+
+      final serverService = _FakeLlamaServerService();
+      final serverProvider = EngineRuntimeProvider(
+        llamaCppAdapter: LlamaCppEngineAdapter(
+          serverService: serverService,
+          settingsLoader: _FixedServerLaunchSettingsLoader(),
+          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+          controlClient: StubServerControlClient(),
+        ),
+        mnnAdapter: StubEngineAdapter(),
+        settingsLoader: _FixedServerLaunchSettingsLoader(),
+        kvStorage: KvStorage(),
+      );
+      await serverProvider.selectModel('alpha');
+      await serverProvider.switchEngine(InferenceEngine.mnn);
+      await serverProvider.selectModel('mnn-default');
+      await serverProvider.switchEngine(InferenceEngine.llamaCpp);
+      addTearDown(() {
+        serverProvider.dispose();
+        serverService.dispose();
+      });
+
+      await tester.pumpWidget(
+        _TestChatApp(
+          chatProvider: chatProvider,
+          serverProvider: serverProvider,
+          library: library,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('chat_server_toggle_button')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('默认模型：alpha'), findsOneWidget);
+      expect(find.text('默认模型：Qwen MNN'), findsOneWidget);
+    });
+
     testWidgets(
-      'quick toggles server from input bar and updates status badge',
+      'opens the MNN model picker when the selected engine needs a model',
+      (tester) async {
+        final chatProvider = ChatProvider(
+          repository: _FakeChatSessionRepository(
+            sessions: <ChatSessionRecord>[],
+          ),
+          apiClient: _FakeLlamaChatApiClient(models: const <ChatModelOption>[]),
+        );
+        await chatProvider.load();
+
+        final serverService = _FakeLlamaServerService();
+        final mnnAdapter = StubEngineAdapter();
+        final serverProvider = EngineRuntimeProvider(
+          llamaCppAdapter: LlamaCppEngineAdapter(
+            serverService: serverService,
+            settingsLoader: _FixedServerLaunchSettingsLoader(),
+            modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+            controlClient: StubServerControlClient(),
+          ),
+          mnnAdapter: mnnAdapter,
+          settingsLoader: _FixedServerLaunchSettingsLoader(),
+          kvStorage: KvStorage(),
+        );
+        addTearDown(() {
+          serverProvider.dispose();
+          serverService.dispose();
+        });
+
+        await tester.pumpWidget(
+          _TestChatApp(
+            chatProvider: chatProvider,
+            serverProvider: serverProvider,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byKey(const Key('chat_server_toggle_button')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('chat_engine_start_option_mnn')));
+        await tester.pumpAndSettle();
+
+        expect(serverProvider.activeEngine, InferenceEngine.mnn);
+        expect(serverProvider.isRunning, isFalse);
+        expect(mnnAdapter.isRunning, isFalse);
+        expect(
+          find.byKey(const Key('chat_model_sheet_discover')),
+          findsOneWidget,
+        );
+        expect(find.text('选择模型'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'chooses an engine before starting and stops directly from input bar',
       (tester) async {
         final repository = _FakeChatSessionRepository(
           sessions: <ChatSessionRecord>[],
@@ -1542,6 +1685,24 @@ void main() {
         expect(badgeDecoration().color, colorScheme.outlineVariant);
 
         await tester.tap(find.byKey(const Key('chat_server_toggle_button')));
+        await tester.pumpAndSettle();
+
+        expect(find.text('启动服务器'), findsOneWidget);
+        expect(find.text('选择要启动的推理引擎'), findsOneWidget);
+        expect(
+          find.byKey(const Key('chat_engine_start_option_llama_cpp')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('chat_engine_start_option_mnn')),
+          findsOneWidget,
+        );
+        expect(find.text('默认模型：未选择模型'), findsNWidgets(2));
+        expect(serverService.startCallCount, 0);
+
+        await tester.tap(
+          find.byKey(const Key('chat_engine_start_option_llama_cpp')),
+        );
         await tester.runAsync(
           () => _waitForRuntime(
             () => serverProvider.isRunning || serverProvider.lastError != null,

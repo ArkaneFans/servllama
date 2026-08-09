@@ -15,6 +15,7 @@ import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/providers/chat_provider.dart';
 import 'package:servllama/features/chat/services/image_attachment_service.dart';
 import 'package:servllama/features/chat/widgets/chat_conversation_transition.dart';
+import 'package:servllama/features/chat/widgets/chat_engine_start_sheet.dart';
 import 'package:servllama/features/chat/widgets/chat_conversation_hero.dart';
 import 'package:servllama/features/chat/widgets/chat_input_bar.dart';
 import 'package:servllama/features/chat/widgets/chat_input_overlay_layout.dart';
@@ -30,15 +31,9 @@ import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/l10n/runtime_labels.dart';
 
 class ChatPage extends StatelessWidget {
-  const ChatPage({
-    super.key,
-    this.provider,
-    this.onNavigateToServer,
-    this.onOpenSidebar,
-  });
+  const ChatPage({super.key, this.provider, this.onOpenSidebar});
 
   final ChatProvider? provider;
-  final VoidCallback? onNavigateToServer;
   final VoidCallback? onOpenSidebar;
 
   @override
@@ -47,23 +42,16 @@ class ChatPage extends StatelessWidget {
     if (existingProvider != null) {
       return ChangeNotifierProvider<ChatProvider>.value(
         value: existingProvider,
-        child: _ChatView(
-          onNavigateToServer: onNavigateToServer,
-          onOpenSidebar: onOpenSidebar,
-        ),
+        child: _ChatView(onOpenSidebar: onOpenSidebar),
       );
     }
-    return _ChatView(
-      onNavigateToServer: onNavigateToServer,
-      onOpenSidebar: onOpenSidebar,
-    );
+    return _ChatView(onOpenSidebar: onOpenSidebar);
   }
 }
 
 class _ChatView extends StatefulWidget {
-  const _ChatView({this.onNavigateToServer, this.onOpenSidebar});
+  const _ChatView({this.onOpenSidebar});
 
-  final VoidCallback? onNavigateToServer;
   final VoidCallback? onOpenSidebar;
 
   @override
@@ -138,6 +126,82 @@ class _ChatViewState extends State<_ChatView> {
     }
   }
 
+  Future<void> _handleServerAction(BuildContext context) async {
+    final runtime = context.read<EngineRuntimeProvider?>();
+    if (runtime == null) {
+      return;
+    }
+
+    if (runtime.isRunning) {
+      await runtime.stop();
+      if (context.mounted) {
+        _showRuntimeError(context, runtime);
+      }
+      return;
+    }
+
+    final library = context.read<ModelManagementProvider>();
+    unawaited(library.load());
+    final engine = await showModalBottomSheet<InferenceEngine>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) =>
+          Consumer2<EngineRuntimeProvider, ModelManagementProvider>(
+            builder: (_, runtime, library, __) => ChatEngineStartSheet(
+              currentEngine: runtime.activeEngine,
+              defaultModelNames: <InferenceEngine, String?>{
+                for (final engine in InferenceEngine.values)
+                  engine: _modelDisplayName(
+                    library,
+                    engine,
+                    runtime.selectedModelIdFor(engine),
+                  ),
+              },
+              onSelect: (engine) => Navigator.of(sheetContext).pop(engine),
+            ),
+          ),
+    );
+    if (engine == null || !context.mounted) {
+      return;
+    }
+
+    if (runtime.activeEngine != engine) {
+      await runtime.switchEngine(engine);
+    }
+    if (!context.mounted || runtime.activeEngine != engine) {
+      return;
+    }
+
+    // MNN cannot bind its server without a resident model. Continue directly
+    // into the current-engine model picker instead of failing with a dead-end
+    // error; choosing a model owns the remaining start sequence.
+    if (engine.requiresModelBeforeStart && runtime.selectedModelId == null) {
+      await _showModels(context);
+      return;
+    }
+
+    await runtime.start();
+    if (context.mounted) {
+      _showRuntimeError(context, runtime);
+    }
+  }
+
+  String? _modelDisplayName(
+    ModelManagementProvider library,
+    InferenceEngine engine,
+    String? modelId,
+  ) {
+    if (modelId == null) {
+      return null;
+    }
+    for (final model in library.libraryModelsFor(engine)) {
+      if (model.runtimeId == modelId) {
+        return model.name;
+      }
+    }
+    return modelId;
+  }
+
   Future<void> _showModels(BuildContext context) async {
     final runtime = context.read<EngineRuntimeProvider?>();
     if (runtime == null) {
@@ -158,9 +222,6 @@ class _ChatViewState extends State<_ChatView> {
           >(
             builder: (_, runtime, library, downloads, __) {
               final engine = runtime.activeEngine;
-              final otherEngine = engine == InferenceEngine.llamaCpp
-                  ? InferenceEngine.mnn
-                  : InferenceEngine.llamaCpp;
               final error = runtime.lastError;
               return ChatModelSheet(
                 engine: engine,
@@ -170,7 +231,6 @@ class _ChatViewState extends State<_ChatView> {
                 downloading: downloads.activeTasks
                     .where((task) => task.engine == engine)
                     .toList(growable: false),
-                otherEngineCount: library.countFor(otherEngine),
                 errorText: error == null
                     ? null
                     : RuntimeLabels.runtimeError(
@@ -179,10 +239,6 @@ class _ChatViewState extends State<_ChatView> {
                         runtime.port,
                       ),
                 onSelect: (model) => Navigator.of(sheetContext).pop(model),
-                onOpenOtherEngine: () {
-                  Navigator.of(sheetContext).pop();
-                  widget.onNavigateToServer?.call();
-                },
                 onDiscover: () {
                   Navigator.of(sheetContext).pop();
                   _openDiscovery(context);
@@ -201,16 +257,21 @@ class _ChatViewState extends State<_ChatView> {
     if (!context.mounted) {
       return;
     }
+    _showRuntimeError(context, runtime);
+  }
+
+  void _showRuntimeError(BuildContext context, EngineRuntimeProvider runtime) {
     final error = runtime.lastError;
-    if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            RuntimeLabels.runtimeError(context.l10n, error, runtime.port),
-          ),
-        ),
-      );
+    if (error == null) {
+      return;
     }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          RuntimeLabels.runtimeError(context.l10n, error, runtime.port),
+        ),
+      ),
+    );
   }
 
   void _openDiscovery(BuildContext context) {
@@ -388,6 +449,7 @@ class _ChatViewState extends State<_ChatView> {
                 inputController: _inputController,
                 onDiscoverModels: () => _openDiscovery(context),
                 onOpenModels: () => _showModels(context),
+                onServerAction: () => _handleServerAction(context),
                 onSend: () => _send(context),
                 onPickFromGallery: () => _pickFromGallery(context),
                 onCopyMessage: (message) =>
@@ -417,6 +479,7 @@ class _ChatInputOverlayScaffold extends StatefulWidget {
     required this.inputController,
     required this.onDiscoverModels,
     required this.onOpenModels,
+    required this.onServerAction,
     required this.onSend,
     required this.onPickFromGallery,
     required this.onCopyMessage,
@@ -431,6 +494,7 @@ class _ChatInputOverlayScaffold extends StatefulWidget {
   final TextEditingController inputController;
   final VoidCallback onDiscoverModels;
   final VoidCallback onOpenModels;
+  final VoidCallback onServerAction;
   final VoidCallback onSend;
   final VoidCallback onPickFromGallery;
   final Future<void> Function(ChatMessageRecord message) onCopyMessage;
@@ -483,6 +547,7 @@ class _ChatInputOverlayScaffoldState extends State<_ChatInputOverlayScaffold> {
           child: _ChatInputPanel(
             controller: widget.inputController,
             onOpenModels: widget.onOpenModels,
+            onServerAction: widget.onServerAction,
             onSend: widget.onSend,
             onPickFromGallery: widget.onPickFromGallery,
           ),
@@ -590,12 +655,14 @@ class _ChatInputPanel extends StatelessWidget {
   const _ChatInputPanel({
     required this.controller,
     required this.onOpenModels,
+    required this.onServerAction,
     required this.onSend,
     required this.onPickFromGallery,
   });
 
   final TextEditingController controller;
   final VoidCallback onOpenModels;
+  final VoidCallback onServerAction;
   final VoidCallback onSend;
   final VoidCallback onPickFromGallery;
 
@@ -620,9 +687,7 @@ class _ChatInputPanel extends StatelessWidget {
       canOpenModels: snapshot.canOpenModels,
       isModelLoading: snapshot.isModelLoading,
       hasLoadedModel: snapshot.hasLoadedModel,
-      onToggleServer: serverProvider == null
-          ? null
-          : () => serverProvider.toggle(),
+      onServerAction: serverProvider == null ? null : onServerAction,
       onOpenModels: onOpenModels,
       canSend: snapshot.canSend,
       isSending: snapshot.isSending,

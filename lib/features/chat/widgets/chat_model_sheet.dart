@@ -9,10 +9,9 @@ import 'package:servllama/shared/widgets/engine_badge.dart';
 
 /// Model picker for the chat page.
 ///
-/// Only the active engine's models are listed: D5 forbids switching engines
-/// while the service runs, so showing the other engine's models as unreachable
-/// rows would only invite taps that cannot work (FR-C3). The other engine gets
-/// one entry row that explains the constraint and routes to the server page.
+/// Only the active engine's models are listed. Engine selection belongs to the
+/// server action beside the model button, keeping this sheet focused on model
+/// loading within the selected runtime.
 class ChatModelSheet extends StatelessWidget {
   const ChatModelSheet({
     super.key,
@@ -21,10 +20,8 @@ class ChatModelSheet extends StatelessWidget {
     required this.activeModelId,
     required this.pendingModelId,
     required this.downloading,
-    required this.otherEngineCount,
     required this.errorText,
     required this.onSelect,
-    required this.onOpenOtherEngine,
     required this.onDiscover,
   });
 
@@ -40,11 +37,9 @@ class ChatModelSheet extends StatelessWidget {
   final String? pendingModelId;
 
   final List<DownloadTaskView> downloading;
-  final int otherEngineCount;
   final String? errorText;
 
   final ValueChanged<LibraryModel> onSelect;
-  final VoidCallback onOpenOtherEngine;
   final VoidCallback onDiscover;
 
   @override
@@ -78,17 +73,6 @@ class ChatModelSheet extends StatelessWidget {
                 EngineBadge(engine: engine),
               ],
             ),
-            // llama.cpp hot-swaps without dropping the socket, so this warning
-            // would be a lie there; only MNN restarts on a model change.
-            if (engine.restartsOnModelSwap) ...[
-              const SizedBox(height: 12),
-              NoticeBanner(
-                key: const Key('chat_model_sheet_mnn_notice'),
-                tone: StatusTone.warning,
-                icon: Icons.autorenew_rounded,
-                message: l10n.chatMnnSwapNotice,
-              ),
-            ],
             if (errorText != null) ...[
               const SizedBox(height: 12),
               NoticeBanner(
@@ -113,9 +97,7 @@ class ChatModelSheet extends StatelessWidget {
                     ),
                   ],
                   if (switchable.isNotEmpty) ...[
-                    _SectionLabel(
-                      l10n.chatSameEngineModels(engine.displayName),
-                    ),
+                    _SectionLabel(l10n.chatModelStatusAvailable),
                     ...switchable.map(
                       (model) => _ModelRow(
                         model: model,
@@ -152,26 +134,10 @@ class ChatModelSheet extends StatelessWidget {
                   if (downloading.isNotEmpty) ...[
                     _SectionLabel(l10n.downloadStatusRunning),
                     ...downloading.map(
-                      (task) => _DownloadingRow(key: Key(
-                        'chat_model_sheet_downloading_${task.id}',
-                      ), task: task),
-                    ),
-                  ],
-                  if (otherEngineCount > 0) ...[
-                    _SectionLabel(l10n.chatOtherEngines),
-                    ListTile(
-                      key: const Key('chat_model_sheet_other_engine'),
-                      contentPadding: EdgeInsets.zero,
-                      leading: ModelFormatBadge(engine: _otherEngine, size: 40),
-                      title: Text(
-                        l10n.chatOtherEnginesEntry(
-                          _otherEngine.displayName,
-                          otherEngineCount,
-                        ),
+                      (task) => _DownloadingRow(
+                        key: Key('chat_model_sheet_downloading_${task.id}'),
+                        task: task,
                       ),
-                      subtitle: Text(l10n.chatOtherEnginesHint),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: onOpenOtherEngine,
                     ),
                   ],
                 ],
@@ -182,10 +148,6 @@ class ChatModelSheet extends StatelessWidget {
       ),
     );
   }
-
-  InferenceEngine get _otherEngine => engine == InferenceEngine.llamaCpp
-      ? InferenceEngine.mnn
-      : InferenceEngine.llamaCpp;
 
   LibraryModel? _findActive() {
     if (activeModelId == null) {

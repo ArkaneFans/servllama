@@ -59,7 +59,7 @@
   "chatUnloadModel": "Unload model",
   "chatModelStatusLoaded": "Loaded",
   "chatModelStatusLoading": "Loading",
-  "chatModelStatusAvailable": "Available",
+  "chatModelStatusAvailable": "Available to load",
   "chatModelStatusFailed": "Load failed",
   "chatModelLoadTimeout": "Model load timed out: {model}",
   "@chatModelLoadTimeout": {
@@ -729,29 +729,16 @@
   "chatEmptyTitle": "Pick a model to start",
   "chatEmptyDescription": "The service starts on its own once a model is chosen.",
   "chatEmptyAction": "Choose a model",
+  "chatChooseEngineToStart": "Choose the inference engine to start",
+  "chatEngineDefaultModel": "Default model: {model}",
+  "@chatEngineDefaultModel": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
+  },
   "chatCurrentRunning": "Running now",
-  "chatSameEngineModels": "{engine} - switch directly",
-  "@chatSameEngineModels": {
-    "placeholders": {
-      "engine": {
-        "type": "String"
-      }
-    }
-  },
-  "chatOtherEngines": "Other engines",
-  "chatOtherEnginesEntry": "{engine} - {count} models",
-  "@chatOtherEnginesEntry": {
-    "placeholders": {
-      "engine": {
-        "type": "String"
-      },
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "chatOtherEnginesHint": "Stop the running service on the Server page to switch engines.",
-  "chatMnnSwapNotice": "Switching models on MNN restarts the service (about 10 s); the API is briefly unavailable.",
   "chatLoadModelAction": "Load",
   "chatPreparingModel": "Preparing model",
   "chatEmptyNoModelsDescription": "Download a model first. Everything runs on this device afterwards."
