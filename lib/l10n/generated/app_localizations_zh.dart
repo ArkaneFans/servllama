@@ -479,13 +479,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get serverConfigLogEnabled => '日志启用';
 
   @override
-  String get serverConfigLogEnabledSubtitle => '控制 llama-server 运行日志输出';
+  String get serverConfigLogEnabledSubtitle => '控制推理引擎运行日志输出';
 
   @override
   String get serverConfigLogLevel => '日志级别';
 
   @override
-  String get serverConfigLogLevelDescription => '控制日志输出信息的详细程度';
+  String get serverConfigLogLevelDescription => '控制推理引擎日志的详细程度';
 
   @override
   String get serverConfigLogLevelError => '错误';
@@ -822,19 +822,6 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get serverOpenAccessWarning =>
       '当前监听所有网络接口且未设置 API Key，同一网络中的设备都可访问此服务。';
-
-  @override
-  String get serverConfigMnnSection => 'MNN 推理';
-
-  @override
-  String get serverConfigMnnBackend => '推理后端';
-
-  @override
-  String get serverConfigMnnBackendCpu => 'CPU（固定）';
-
-  @override
-  String get serverConfigMnnModelControlledHint =>
-      'MNN 的采样、上下文和批处理参数由模型目录中的 config.json 决定，此处不会覆盖。';
 
   @override
   String get modelLibraryTitle => '模型库';

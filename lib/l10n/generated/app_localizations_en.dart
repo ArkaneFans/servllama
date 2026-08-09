@@ -495,14 +495,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get serverConfigLogEnabledSubtitle =>
-      'Controls llama-server runtime log output';
+      'Controls whether inference engine runtime logs are displayed and recorded in the app';
 
   @override
   String get serverConfigLogLevel => 'Log level';
 
   @override
   String get serverConfigLogLevelDescription =>
-      'Controls the granularity of log output information';
+      'Controls the detail level of inference engine logs';
 
   @override
   String get serverConfigLogLevelError => 'Error';
@@ -852,19 +852,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get serverOpenAccessWarning =>
       'The service listens on all interfaces without an API key, so any device on the same network can access it.';
-
-  @override
-  String get serverConfigMnnSection => 'MNN inference';
-
-  @override
-  String get serverConfigMnnBackend => 'Inference backend';
-
-  @override
-  String get serverConfigMnnBackendCpu => 'CPU (fixed)';
-
-  @override
-  String get serverConfigMnnModelControlledHint =>
-      'MNN sampling, context and batching are defined by config.json in the model directory and are not overridden here.';
 
   @override
   String get modelLibraryTitle => 'Models';

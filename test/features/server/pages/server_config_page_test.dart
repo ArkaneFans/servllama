@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:servllama/core/models/inference_engine.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/providers/server_config_provider.dart';
 import 'package:servllama/core/providers/engine_runtime_provider.dart';
@@ -179,6 +180,47 @@ void main() {
       expect(find.text('信息'), findsOneWidget);
       expect(configProvider.logEnabled, isTrue);
       expect(configProvider.logLevel, ServerLogLevel.info);
+    });
+
+    testWidgets('omits inference controls when MNN is selected', (
+      tester,
+    ) async {
+      final kvStorage = KvStorage();
+      final configProvider = ServerConfigProvider(kvStorage: kvStorage);
+      final serverService = _FakeLlamaServerService();
+      final serverProvider = EngineRuntimeProvider(
+        llamaCppAdapter: LlamaCppEngineAdapter(
+          serverService: serverService,
+          settingsLoader: _FixedServerLaunchSettingsLoader(
+            const ServerLaunchSettings(),
+          ),
+          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+        ),
+        mnnAdapter: StubEngineAdapter(),
+        settingsLoader: _FixedServerLaunchSettingsLoader(
+          const ServerLaunchSettings(),
+        ),
+      );
+      addTearDown(() {
+        configProvider.dispose();
+        serverProvider.dispose();
+        serverService.dispose();
+      });
+
+      await serverProvider.switchEngine(InferenceEngine.mnn);
+      await tester.pumpWidget(
+        _TestApp(
+          serverProvider: serverProvider,
+          child: ServerConfigPage(provider: configProvider),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('MNN'), findsOneWidget);
+      expect(find.text('MNN 推理'), findsNothing);
+      expect(find.text('推理后端'), findsNothing);
+      expect(find.text('推理参数'), findsNothing);
+      expect(find.text('上下文长度'), findsNothing);
     });
 
     testWidgets('removes fixed action bar and saves port changes immediately', (

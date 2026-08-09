@@ -300,32 +300,6 @@ class _ServerConfigViewState extends State<_ServerConfigView> {
                                 ],
                               ),
                             ),
-                          ] else ...[
-                            const SizedBox(height: 18),
-                            SettingsSection(
-                              title: l10n.serverConfigMnnSection,
-                              child: _SectionItems(
-                                children: [
-                                  ListTile(
-                                    contentPadding: EdgeInsets.zero,
-                                    leading: const Icon(Icons.memory_rounded),
-                                    title: Text(l10n.serverConfigMnnBackend),
-                                    trailing: Text(
-                                      l10n.serverConfigMnnBackendCpu,
-                                    ),
-                                  ),
-                                  NoticeBanner(
-                                    key: const Key(
-                                      'server_config_mnn_model_notice',
-                                    ),
-                                    tone: StatusTone.idle,
-                                    icon: Icons.info_outline_rounded,
-                                    message:
-                                        l10n.serverConfigMnnModelControlledHint,
-                                  ),
-                                ],
-                              ),
-                            ),
                           ],
                           const SizedBox(height: 18),
                           SettingsSection(

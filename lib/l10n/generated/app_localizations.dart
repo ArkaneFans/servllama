@@ -983,7 +983,7 @@ abstract class AppLocalizations {
   /// No description provided for @serverConfigLogEnabledSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Controls llama-server runtime log output'**
+  /// **'Controls whether inference engine runtime logs are displayed and recorded in the app'**
   String get serverConfigLogEnabledSubtitle;
 
   /// No description provided for @serverConfigLogLevel.
@@ -995,7 +995,7 @@ abstract class AppLocalizations {
   /// No description provided for @serverConfigLogLevelDescription.
   ///
   /// In en, this message translates to:
-  /// **'Controls the granularity of log output information'**
+  /// **'Controls the detail level of inference engine logs'**
   String get serverConfigLogLevelDescription;
 
   /// No description provided for @serverConfigLogLevelError.
@@ -1579,30 +1579,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The service listens on all interfaces without an API key, so any device on the same network can access it.'**
   String get serverOpenAccessWarning;
-
-  /// No description provided for @serverConfigMnnSection.
-  ///
-  /// In en, this message translates to:
-  /// **'MNN inference'**
-  String get serverConfigMnnSection;
-
-  /// No description provided for @serverConfigMnnBackend.
-  ///
-  /// In en, this message translates to:
-  /// **'Inference backend'**
-  String get serverConfigMnnBackend;
-
-  /// No description provided for @serverConfigMnnBackendCpu.
-  ///
-  /// In en, this message translates to:
-  /// **'CPU (fixed)'**
-  String get serverConfigMnnBackendCpu;
-
-  /// No description provided for @serverConfigMnnModelControlledHint.
-  ///
-  /// In en, this message translates to:
-  /// **'MNN sampling, context and batching are defined by config.json in the model directory and are not overridden here.'**
-  String get serverConfigMnnModelControlledHint;
 
   /// No description provided for @modelLibraryTitle.
   ///
