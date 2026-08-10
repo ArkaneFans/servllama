@@ -252,7 +252,8 @@ void main() {
                     'Type': 'blob',
                     'Name': 'llm.mnn',
                     'Path': 'llm/llm.mnn',
-                    'Size': 200,
+                    // ModelScope sometimes serializes large sizes as text.
+                    'Size': '200',
                     'Sha256': 'nested-sha',
                   },
                 ];
@@ -274,6 +275,7 @@ void main() {
       ]);
       expect(detail.hasMnnModelFiles, isTrue);
       expect(detail.summary.format, HubModelFormat.mnn);
+      expect(detail.files.last.sizeBytes, 200);
     });
   });
 }
@@ -308,4 +310,3 @@ class _StubReply {
   final dynamic data;
   final Map<String, List<String>> headers;
 }
-

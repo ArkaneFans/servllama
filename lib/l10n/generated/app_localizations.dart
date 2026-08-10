@@ -2072,6 +2072,12 @@ abstract class AppLocalizations {
   /// **'{received} / {total} - {speed}/s'**
   String downloadProgressDetail(String received, String total, String speed);
 
+  /// No description provided for @downloadProgressUnknownTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'{received} downloaded - {speed}/s'**
+  String downloadProgressUnknownTotal(String received, String speed);
+
   /// No description provided for @downloadRemaining.
   ///
   /// In en, this message translates to:

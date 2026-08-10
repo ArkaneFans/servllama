@@ -60,8 +60,11 @@ class ServLlamaApp extends StatelessWidget {
             },
           ),
           ChangeNotifierProvider(
-            create: (_) {
-              final provider = DownloadProvider();
+            create: (context) {
+              final modelManagement = context.read<ModelManagementProvider>();
+              final provider = DownloadProvider(
+                onLibraryChanged: modelManagement.refresh,
+              );
               unawaited(provider.load());
               return provider;
             },

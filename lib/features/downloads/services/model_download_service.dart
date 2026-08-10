@@ -16,10 +16,17 @@ enum DownloadErrorKind {
 }
 
 class DownloadException implements Exception {
-  const DownloadException(this.kind, {this.detail});
+  const DownloadException(
+    this.kind, {
+    this.detail,
+    this.isRetryable = true,
+    this.restartRequired = false,
+  });
 
   final DownloadErrorKind kind;
   final String? detail;
+  final bool isRetryable;
+  final bool restartRequired;
 
   @override
   String toString() => detail ?? kind.name;
@@ -67,8 +74,28 @@ class ModelDownloadService {
     final destination = File(
       '${targetDirectory.path}${Platform.pathSeparator}$relativePath',
     );
-    if (await destination.exists() && file.completed) {
-      return destination;
+    if (await destination.exists()) {
+      final existingLength = await destination.length();
+      final expectedSha256 = _normalizeSha256(file.sha256);
+      final lengthMatches =
+          file.totalBytes <= 0 || existingLength == file.totalBytes;
+      final hashMatches =
+          expectedSha256 == null ||
+          await _sha256Matches(destination, expectedSha256);
+      // Recover the narrow process-death window after `.part` was renamed but
+      // before the completed flag reached Hive.
+      final canRecover =
+          lengthMatches &&
+          hashMatches &&
+          (file.completed || file.totalBytes > 0 || expectedSha256 != null);
+      if (canRecover) {
+        file
+          ..receivedBytes = existingLength
+          ..totalBytes = existingLength
+          ..completed = true;
+        return destination;
+      }
+      file.completed = false;
     }
 
     final partFile = File('${destination.path}$partSuffix');
@@ -81,6 +108,7 @@ class ModelDownloadService {
     // actually survived on disk, or the Range offset would skip content.
     if (alreadyOnDisk != file.receivedBytes) {
       file.receivedBytes = alreadyOnDisk;
+      onProgress?.call(file, 0);
     }
 
     await destination.parent.create(recursive: true);
@@ -129,6 +157,7 @@ class ModelDownloadService {
       await partFile.writeAsBytes(const <int>[], flush: true);
       alreadyOnDisk = 0;
       file.receivedBytes = 0;
+      onProgress?.call(file, 0);
     }
 
     final declaredLength = _resolveTotalBytes(response.headers, alreadyOnDisk);
@@ -166,19 +195,23 @@ class ModelDownloadService {
 
     final actualLength = await partFile.length();
     file.receivedBytes = actualLength;
+    if (file.totalBytes <= 0) {
+      file.totalBytes = actualLength;
+    }
     if (file.totalBytes > 0 && actualLength != file.totalBytes) {
       throw DownloadException(
         DownloadErrorKind.integrity,
         detail: 'expected ${file.totalBytes} bytes, got $actualLength',
+        restartRequired: actualLength > file.totalBytes,
       );
     }
     final expectedSha256 = _normalizeSha256(file.sha256);
     if (expectedSha256 != null) {
-      final digest = await sha256.bind(partFile.openRead()).first;
-      if (digest.toString().toLowerCase() != expectedSha256) {
+      if (!await _sha256Matches(partFile, expectedSha256)) {
         throw const DownloadException(
           DownloadErrorKind.integrity,
           detail: 'sha256 mismatch',
+          restartRequired: true,
         );
       }
     }
@@ -189,6 +222,24 @@ class ModelDownloadService {
     await partFile.rename(destination.path);
     file.completed = true;
     return destination;
+  }
+
+  /// Removes bytes that integrity checking proved cannot be resumed safely.
+  Future<void> discardPartial({
+    required DownloadFileRecord file,
+    required Directory targetDirectory,
+  }) async {
+    final relativePath = _safeRelativePath(file.fileName);
+    final partFile = File(
+      '${targetDirectory.path}${Platform.pathSeparator}'
+      '$relativePath$partSuffix',
+    );
+    if (await partFile.exists()) {
+      await partFile.delete();
+    }
+    file
+      ..receivedBytes = 0
+      ..completed = false;
   }
 
   /// Total size of the resource, reconstructed from either `Content-Range`
@@ -227,6 +278,11 @@ class ModelDownloadService {
         : null;
   }
 
+  Future<bool> _sha256Matches(File file, String expectedSha256) async {
+    final digest = await sha256.bind(file.openRead()).first;
+    return digest.toString().toLowerCase() == expectedSha256;
+  }
+
   String _safeRelativePath(String value) {
     final normalized = value.replaceAll('\\', '/');
     final segments = normalized.split('/');
@@ -238,6 +294,7 @@ class ModelDownloadService {
       throw const DownloadException(
         DownloadErrorKind.integrity,
         detail: 'unsafe file path',
+        isRetryable: false,
       );
     }
     return segments.join(Platform.pathSeparator);

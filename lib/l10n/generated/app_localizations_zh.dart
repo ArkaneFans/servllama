@@ -1090,6 +1090,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String downloadProgressUnknownTotal(String received, String speed) {
+    return '已下载 $received · $speed/s';
+  }
+
+  @override
   String downloadRemaining(String duration) {
     return '剩余 $duration';
   }

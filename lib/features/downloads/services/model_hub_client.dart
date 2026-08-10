@@ -189,8 +189,8 @@ class HuggingFaceHubClient implements ModelHubClient {
           // Plain `size` is the pointer size for LFS blobs; the real byte
           // count lives inside the lfs object.
           sizeBytes:
-              (lfs is Map ? (lfs['size'] as num?)?.toInt() : null) ??
-              (item['size'] as num?)?.toInt() ??
+              (lfs is Map ? _parseNonNegativeInt(lfs['size']) : null) ??
+              _parseNonNegativeInt(item['size']) ??
               0,
           sha256: lfs is Map ? lfs['oid'] as String? : null,
         ),
@@ -494,7 +494,7 @@ class ModelScopeHubClient implements ModelHubClient {
         }
         filesByPath[path] = HubRepoFile(
           path: path,
-          sizeBytes: (item['Size'] as num?)?.toInt() ?? 0,
+          sizeBytes: _parseNonNegativeInt(item['Size']) ?? 0,
           sha256: item['Sha256'] as String?,
         );
       }
@@ -597,4 +597,13 @@ class ModelScopeHubClient implements ModelHubClient {
     };
     return labels.contains(format.libraryTag);
   }
+}
+
+int? _parseNonNegativeInt(Object? value) {
+  final parsed = switch (value) {
+    num number => number.toInt(),
+    String text => int.tryParse(text.trim()),
+    _ => null,
+  };
+  return parsed != null && parsed >= 0 ? parsed : null;
 }

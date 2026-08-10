@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
@@ -36,6 +37,7 @@ class DownloadProvider extends ChangeNotifier {
     ForegroundTaskService? foregroundTaskService,
     Future<void> Function(Duration) retryDelay = Future<void>.delayed,
     HuggingFaceRouteResolver? huggingFaceRouteResolver,
+    Future<void> Function()? onLibraryChanged,
   }) : _taskRepository = taskRepository ?? DownloadTaskRepository(),
        _downloadService = downloadService ?? ModelDownloadService(),
        _settingsStore = settingsStore ?? DownloadSettingsStore(),
@@ -48,7 +50,8 @@ class DownloadProvider extends ChangeNotifier {
            foregroundTaskService ?? ForegroundTaskService(),
        _retryDelay = retryDelay,
        _huggingFaceRouteResolver =
-           huggingFaceRouteResolver ?? HuggingFaceRouteResolver();
+           huggingFaceRouteResolver ?? HuggingFaceRouteResolver(),
+       _onLibraryChanged = onLibraryChanged;
 
   final DownloadTaskRepository _taskRepository;
   final ModelDownloadService _downloadService;
@@ -60,6 +63,7 @@ class DownloadProvider extends ChangeNotifier {
   final ForegroundTaskService _foregroundTaskService;
   final Future<void> Function(Duration) _retryDelay;
   final HuggingFaceRouteResolver _huggingFaceRouteResolver;
+  final Future<void> Function()? _onLibraryChanged;
 
   final Map<String, DownloadTaskRecord> _tasks = <String, DownloadTaskRecord>{};
   final Map<String, CancelToken> _cancelTokens = <String, CancelToken>{};
@@ -70,8 +74,12 @@ class DownloadProvider extends ChangeNotifier {
   DownloadSettings _settings = const DownloadSettings();
   bool _disposed = false;
   bool _isLoading = false;
+  bool _hasLoaded = false;
   bool _isPumping = false;
   bool _downloadForegroundActive = false;
+  bool _isSyncingDownloadForeground = false;
+  bool _downloadForegroundSyncRequested = false;
+  Future<void>? _loadFuture;
   Timer? _environmentTimer;
 
   static const List<Duration> _retryBackoff = <Duration>[
@@ -104,10 +112,16 @@ class DownloadProvider extends ChangeNotifier {
 
   int get activeTaskCount => activeTasks.length;
 
-  Future<void> load() async {
-    if (_isLoading) {
-      return;
+  Future<void> load() {
+    if (_hasLoaded) {
+      return Future<void>.value();
     }
+    return _loadFuture ??= _loadOnce().whenComplete(() {
+      _loadFuture = null;
+    });
+  }
+
+  Future<void> _loadOnce() async {
     _isLoading = true;
     _foregroundTaskService.init();
     notifyListeners();
@@ -129,6 +143,7 @@ class DownloadProvider extends ChangeNotifier {
           await _taskRepository.save(record);
         }
       }
+      _hasLoaded = true;
     } catch (error, stackTrace) {
       _logger.error(
         '加载下载任务失败',
@@ -242,20 +257,24 @@ class DownloadProvider extends ChangeNotifier {
 
   Future<void> pause(String taskId) async {
     final record = _tasks[taskId];
-    if (record == null) {
+    if (record == null ||
+        !DownloadStatus.fromName(record.statusValue).canPause) {
       return;
     }
-    _cancelTokens.remove(taskId)?.cancel('paused');
+    _cancelTokens[taskId]?.cancel('paused');
     record.statusValue = DownloadStatus.paused.name;
     record.pausedByNetwork = false;
     _throughput.remove(taskId);
     await _taskRepository.save(record);
     notifyListeners();
+    _scheduleDownloadForegroundSync();
+    unawaited(_pump());
   }
 
   Future<void> resume(String taskId) async {
     final record = _tasks[taskId];
-    if (record == null) {
+    if (record == null ||
+        !DownloadStatus.fromName(record.statusValue).isResumable) {
       return;
     }
     record.statusValue = DownloadStatus.queued.name;
@@ -267,25 +286,40 @@ class DownloadProvider extends ChangeNotifier {
   }
 
   Future<void> cancel(String taskId) async {
-    final record = _tasks.remove(taskId);
-    _cancelTokens.remove(taskId)?.cancel('cancelled');
+    final record = _tasks[taskId];
+    if (record == null ||
+        !DownloadStatus.fromName(record.statusValue).canCancel) {
+      return;
+    }
+    _cancelTokens[taskId]?.cancel('cancelled');
+    _tasks.remove(taskId);
     _throughput.remove(taskId);
     _samples.remove(taskId);
-    if (record != null) {
+    await _taskRepository.delete(taskId);
+    try {
       await _taskRepository.deleteStagingDirectory(record.stagingDirPath);
-      await _taskRepository.delete(taskId);
+    } catch (error, stackTrace) {
+      _logger.warning(
+        '清理已取消任务的暂存目录失败: ${record.modelName}',
+        channel: LogChannel.download,
+        inMemory: true,
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
     notifyListeners();
+    _scheduleDownloadForegroundSync();
+    unawaited(_pump());
   }
 
   /// Retries a failed task from the other hub, keeping whatever bytes are
   /// already on disk — the two hubs serve byte-identical files.
   Future<void> switchSource(String taskId, ModelHubSource source) async {
     final record = _tasks[taskId];
-    if (record == null) {
+    if (record == null ||
+        !DownloadStatus.fromName(record.statusValue).isResumable) {
       return;
     }
-    _cancelTokens.remove(taskId)?.cancel('source switch');
     record.sourceValue = source.storageValue;
     record.revision = source == ModelHubSource.modelScope
         ? ModelScopeHubClient.defaultRevision
@@ -307,13 +341,11 @@ class DownloadProvider extends ChangeNotifier {
       if (!await _applyNetworkPolicy()) {
         return;
       }
-      final running = _tasks.values
-          .where(
-            (record) =>
-                DownloadStatus.fromName(record.statusValue) ==
-                DownloadStatus.running,
-          )
-          .length;
+      final running = _tasks.values.where((record) {
+        final status = DownloadStatus.fromName(record.statusValue);
+        return status == DownloadStatus.running ||
+            status == DownloadStatus.downloaded;
+      }).length;
       var slots = _settings.maxConcurrentTasks - running;
       if (slots <= 0) {
         return;
@@ -327,6 +359,9 @@ class DownloadProvider extends ChangeNotifier {
             DownloadStatus.queued) {
           continue;
         }
+        if (_cancelTokens.containsKey(record.id)) {
+          continue;
+        }
         slots -= 1;
         unawaited(_runTask(record));
       }
@@ -336,21 +371,30 @@ class DownloadProvider extends ChangeNotifier {
   }
 
   Future<void> _runTask(DownloadTaskRecord record) async {
+    if (_disposed ||
+        !identical(_tasks[record.id], record) ||
+        DownloadStatus.fromName(record.statusValue) != DownloadStatus.queued ||
+        _cancelTokens.containsKey(record.id)) {
+      return;
+    }
+
     final cancelToken = CancelToken();
     _cancelTokens[record.id] = cancelToken;
     record.statusValue = DownloadStatus.running.name;
     record.errorDetail = null;
     _samples[record.id] = _ThroughputSample(DateTime.now());
     notifyListeners();
-    unawaited(_syncDownloadForeground());
-
-    final source = ModelHubSource.fromStorageValue(record.sourceValue);
-    final client = await _clientFor(source);
-    final headers = client.authHeaders(_settings.tokenFor(source));
-    final staging = Directory(record.stagingDirPath);
+    _scheduleDownloadForegroundSync();
 
     try {
+      await _taskRepository.save(record);
+      final source = ModelHubSource.fromStorageValue(record.sourceValue);
+      final client = await _clientFor(source);
+      final headers = client.authHeaders(_settings.tokenFor(source));
+      final staging = Directory(record.stagingDirPath);
+
       for (final file in record.files) {
+        _ensureCurrentRun(record, cancelToken);
         if (file.completed) {
           continue;
         }
@@ -362,17 +406,22 @@ class DownloadProvider extends ChangeNotifier {
           headers: headers,
           cancelToken: cancelToken,
         );
+        _ensureCurrentRun(record, cancelToken);
         await _taskRepository.save(record);
         notifyListeners();
       }
 
+      _ensureCurrentRun(record, cancelToken);
       record.statusValue = DownloadStatus.downloaded.name;
       await _taskRepository.save(record);
       notifyListeners();
+      _scheduleDownloadForegroundSync();
 
       await _commit(record, staging);
     } on DownloadException catch (error) {
-      if (error.kind == DownloadErrorKind.cancelled) {
+      if (error.kind == DownloadErrorKind.cancelled ||
+          cancelToken.isCancelled ||
+          !_ownsRun(record, cancelToken)) {
         // pause()/cancel() already set the terminal state.
         return;
       }
@@ -385,6 +434,9 @@ class DownloadProvider extends ChangeNotifier {
         inMemory: true,
       );
     } catch (error, stackTrace) {
+      if (cancelToken.isCancelled || !_ownsRun(record, cancelToken)) {
+        return;
+      }
       record.statusValue = DownloadStatus.failed.name;
       record.errorDetail = error.toString();
       await _taskRepository.save(record);
@@ -396,12 +448,14 @@ class DownloadProvider extends ChangeNotifier {
         stackTrace: stackTrace,
       );
     } finally {
-      _cancelTokens.remove(record.id);
-      _throughput.remove(record.id);
-      _samples.remove(record.id);
-      notifyListeners();
-      unawaited(_syncDownloadForeground());
-      unawaited(_pump());
+      if (identical(_cancelTokens[record.id], cancelToken)) {
+        _cancelTokens.remove(record.id);
+        _throughput.remove(record.id);
+        _samples.remove(record.id);
+        notifyListeners();
+        _scheduleDownloadForegroundSync();
+        unawaited(_pump());
+      }
     }
   }
 
@@ -432,20 +486,82 @@ class DownloadProvider extends ChangeNotifier {
           mmprojFile: mmprojFile,
         );
       case InferenceEngine.mnn:
+        await _ensureMnnDisplayMetadata(record, staging);
         // The plugin re-validates and takes ownership of the directory.
         await _mnnEngine.importModelFromPath(staging.path);
     }
 
+    try {
+      await _taskRepository.deleteStagingDirectory(record.stagingDirPath);
+    } catch (error, stackTrace) {
+      _logger.warning(
+        '清理下载暂存目录失败: ${record.modelName}',
+        channel: LogChannel.download,
+        inMemory: true,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    final onLibraryChanged = _onLibraryChanged;
+    if (onLibraryChanged != null) {
+      try {
+        await onLibraryChanged();
+      } catch (error, stackTrace) {
+        _logger.warning(
+          '刷新模型库失败: ${record.modelName}',
+          channel: LogChannel.download,
+          inMemory: true,
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
+    }
+
     record.statusValue = DownloadStatus.completed.name;
     await _taskRepository.save(record);
-    await _taskRepository.deleteStagingDirectory(record.stagingDirPath);
     _logger.info(
       '模型下载完成并入库: ${record.modelName}',
       channel: LogChannel.download,
       inMemory: true,
     );
     notifyListeners();
-    unawaited(_syncDownloadForeground());
+    _scheduleDownloadForegroundSync();
+  }
+
+  Future<void> _ensureMnnDisplayMetadata(
+    DownloadTaskRecord record,
+    Directory staging,
+  ) async {
+    final metadataFile = File(
+      '${staging.path}${Platform.pathSeparator}market_config.json',
+    );
+    Map<String, dynamic> metadata = <String, dynamic>{};
+    if (await metadataFile.exists()) {
+      try {
+        final decoded = jsonDecode(await metadataFile.readAsString());
+        if (decoded is Map) {
+          metadata = Map<String, dynamic>.from(decoded);
+        }
+      } on FormatException catch (_) {
+        // The plugin also treats malformed optional metadata as absent.
+      }
+    }
+
+    const displayNameKeys = <String>['modelName', 'model_name', 'name'];
+    final hasDisplayName = displayNameKeys.any((key) {
+      final value = metadata[key];
+      return value is String && value.trim().isNotEmpty;
+    });
+    if (hasDisplayName) {
+      return;
+    }
+
+    metadata['modelName'] = record.modelName;
+    await metadataFile.writeAsString(
+      const JsonEncoder.withIndent('  ').convert(metadata),
+      flush: true,
+    );
   }
 
   Future<void> _downloadFileWithRetry({
@@ -473,10 +589,17 @@ class DownloadProvider extends ChangeNotifier {
         return;
       } on DownloadException catch (error) {
         final retryable =
-            error.kind == DownloadErrorKind.network ||
-            error.kind == DownloadErrorKind.integrity;
+            error.isRetryable &&
+            (error.kind == DownloadErrorKind.network ||
+                error.kind == DownloadErrorKind.integrity);
         if (!retryable || attempt >= _retryBackoff.length) {
           rethrow;
+        }
+        if (error.restartRequired) {
+          await _downloadService.discardPartial(
+            file: file,
+            targetDirectory: staging,
+          );
         }
         _logger.warning(
           '下载重试 ${attempt + 1}/${_retryBackoff.length}: '
@@ -490,6 +613,16 @@ class DownloadProvider extends ChangeNotifier {
           throw const DownloadException(DownloadErrorKind.cancelled);
         }
       }
+    }
+  }
+
+  bool _ownsRun(DownloadTaskRecord record, CancelToken cancelToken) =>
+      identical(_tasks[record.id], record) &&
+      identical(_cancelTokens[record.id], cancelToken);
+
+  void _ensureCurrentRun(DownloadTaskRecord record, CancelToken cancelToken) {
+    if (cancelToken.isCancelled || !_ownsRun(record, cancelToken)) {
+      throw const DownloadException(DownloadErrorKind.cancelled);
     }
   }
 
@@ -537,10 +670,10 @@ class DownloadProvider extends ChangeNotifier {
     if (!allowed) {
       for (final record in _tasks.values) {
         final status = DownloadStatus.fromName(record.statusValue);
-        if (!status.isActive) {
+        if (!status.isTransferActive) {
           continue;
         }
-        _cancelTokens.remove(record.id)?.cancel('network policy');
+        _cancelTokens[record.id]?.cancel('network policy');
         record.statusValue = DownloadStatus.paused.name;
         record.pausedByNetwork = true;
         await _taskRepository.save(record);
@@ -561,18 +694,51 @@ class DownloadProvider extends ChangeNotifier {
     }
     if (changed) {
       notifyListeners();
-      unawaited(_syncDownloadForeground());
+      _scheduleDownloadForegroundSync();
     }
     return allowed;
   }
 
+  void _scheduleDownloadForegroundSync() {
+    if (_disposed) {
+      return;
+    }
+    _downloadForegroundSyncRequested = true;
+    if (_isSyncingDownloadForeground) {
+      return;
+    }
+    unawaited(_drainDownloadForegroundSync());
+  }
+
+  Future<void> _drainDownloadForegroundSync() async {
+    _isSyncingDownloadForeground = true;
+    try {
+      while (_downloadForegroundSyncRequested && !_disposed) {
+        _downloadForegroundSyncRequested = false;
+        await _syncDownloadForeground();
+      }
+    } catch (error, stackTrace) {
+      _logger.warning(
+        '更新下载前台通知失败',
+        channel: LogChannel.download,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    } finally {
+      _isSyncingDownloadForeground = false;
+      if (_downloadForegroundSyncRequested && !_disposed) {
+        _scheduleDownloadForegroundSync();
+      }
+    }
+  }
+
   Future<void> _syncDownloadForeground() async {
     final running = _tasks.values
-        .where(
-          (record) =>
-              DownloadStatus.fromName(record.statusValue) ==
-              DownloadStatus.running,
-        )
+        .where((record) {
+          final status = DownloadStatus.fromName(record.statusValue);
+          return status == DownloadStatus.running ||
+              status == DownloadStatus.downloaded;
+        })
         .toList(growable: false);
     if (running.isEmpty) {
       if (_downloadForegroundActive) {
@@ -599,7 +765,9 @@ class DownloadProvider extends ChangeNotifier {
             (value, file) => value + file.receivedBytes,
           ),
     );
-    final percent = total <= 0 ? 0 : ((received / total) * 100).round();
+    final percent = total <= 0
+        ? 0
+        : ((received / total) * 100).round().clamp(0, 100);
     final l10n = AppL10nService.instance.current;
     if (_downloadForegroundActive) {
       await _foregroundTaskService.updateOwner(
@@ -608,17 +776,32 @@ class DownloadProvider extends ChangeNotifier {
         text: l10n.downloadForegroundText(running.length, percent),
       );
     } else {
-      _downloadForegroundActive = await _foregroundTaskService.acquire(
+      final acquired = await _foregroundTaskService.acquire(
         owner: ForegroundTaskService.downloadsOwner,
         notificationTitle: l10n.downloadForegroundTitle,
         notificationText: l10n.downloadForegroundText(running.length, percent),
       );
+      if (_disposed) {
+        if (acquired) {
+          await _foregroundTaskService.release(
+            ForegroundTaskService.downloadsOwner,
+          );
+        }
+        _downloadForegroundActive = false;
+        return;
+      }
+      _downloadForegroundActive = acquired;
     }
   }
 
   void _reportProgress(String taskId, int delta) {
     final sample = _samples[taskId];
     if (sample == null) {
+      return;
+    }
+    if (delta <= 0) {
+      notifyListeners();
+      _scheduleDownloadForegroundSync();
       return;
     }
     sample.bytes += delta;
@@ -631,6 +814,7 @@ class DownloadProvider extends ChangeNotifier {
       ..bytes = 0
       ..since = DateTime.now();
     notifyListeners();
+    _scheduleDownloadForegroundSync();
   }
 
   Future<ModelHubClient> _clientFor(ModelHubSource source) async {
@@ -657,6 +841,7 @@ class DownloadProvider extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _downloadForegroundSyncRequested = false;
     _environmentTimer?.cancel();
     _environmentTimer = null;
     for (final token in _cancelTokens.values) {

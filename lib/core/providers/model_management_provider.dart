@@ -39,6 +39,7 @@ class ModelManagementProvider extends ChangeNotifier {
   bool _isImporting = false;
   bool _isImportingMmproj = false;
   bool _isRenaming = false;
+  Future<void>? _modelRefreshInFlight;
   String? _deletingModelId;
   String? _importingMmprojModelId;
   String? _renamingModelId;
@@ -107,6 +108,24 @@ class ModelManagementProvider extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  /// Refreshes the installed-model snapshot without replacing the page with a
+  /// loading state. Downloads use this before their in-progress card leaves
+  /// the model library, so the installed card appears in the same transition.
+  Future<void> refresh() async {
+    try {
+      await _refreshModelLists();
+      notifyListeners();
+    } catch (error, stackTrace) {
+      _logger.error(
+        '刷新模型列表失败',
+        channel: LogChannel.model,
+        error: error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
     }
   }
 
@@ -358,8 +377,35 @@ class ModelManagementProvider extends ChangeNotifier {
   }
 
   Future<void> _refreshModelLists() async {
-    _models = await _repository.listModels();
-    _libraryModels = await _unifiedRepository.listModels();
+    while (true) {
+      final activeRefresh = _modelRefreshInFlight;
+      if (activeRefresh == null) {
+        break;
+      }
+      try {
+        await activeRefresh;
+      } catch (_) {
+        // The caller that started it reports the failure. A queued refresh
+        // still gets its own attempt with the latest on-disk state.
+      }
+    }
+
+    final operation = _readModelLists();
+    _modelRefreshInFlight = operation;
+    try {
+      await operation;
+    } finally {
+      if (identical(_modelRefreshInFlight, operation)) {
+        _modelRefreshInFlight = null;
+      }
+    }
+  }
+
+  Future<void> _readModelLists() async {
+    final models = await _repository.listModels();
+    final libraryModels = await _unifiedRepository.listModels();
+    _models = models;
+    _libraryModels = libraryModels;
   }
 
   String _describeError(Object error) {

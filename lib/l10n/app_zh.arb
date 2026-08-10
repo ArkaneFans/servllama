@@ -513,6 +513,7 @@
   "downloadSwitchSource": "换源",
   "downloadStarted": "已开始下载 {modelName}",
   "downloadProgressDetail": "{received} / {total} · {speed}/s",
+  "downloadProgressUnknownTotal": "已下载 {received} · {speed}/s",
   "downloadRemaining": "剩余 {duration}",
   "downloadFilesProgress": "{done}/{total} 个文件",
   "downloadErrorNetwork": "连接中断",

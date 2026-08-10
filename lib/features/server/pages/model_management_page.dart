@@ -31,10 +31,9 @@ class ModelManagementPage extends StatelessWidget {
       );
     }
 
-    return ChangeNotifierProvider(
-      create: (_) => ModelManagementProvider(),
-      child: const _ModelManagementView(),
-    );
+    // Production keeps one app-scoped provider so downloads can refresh the
+    // same model snapshot used by the library, server page, and chat page.
+    return const _ModelManagementView();
   }
 }
 

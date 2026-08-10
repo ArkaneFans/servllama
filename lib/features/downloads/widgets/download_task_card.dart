@@ -34,6 +34,7 @@ class DownloadTaskCard extends StatelessWidget {
     final isLight = theme.brightness == Brightness.light;
     final status = task.status;
     final remaining = task.remaining;
+    final hasKnownProgress = task.hasKnownTotal;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -74,23 +75,27 @@ class DownloadTaskCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  '${(task.progress * 100).round()}%',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    fontFeatures: const <FontFeature>[
-                      FontFeature.tabularFigures(),
-                    ],
+                if (hasKnownProgress) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    '${(task.progress * 100).round()}%',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      fontFeatures: const <FontFeature>[
+                        FontFeature.tabularFigures(),
+                      ],
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
             const SizedBox(height: 12),
             ClipRRect(
               borderRadius: BorderRadius.circular(999),
               child: LinearProgressIndicator(
-                value: task.progress,
+                value: status == DownloadStatus.running && !hasKnownProgress
+                    ? null
+                    : task.progress,
                 minHeight: 7,
                 backgroundColor: isLight
                     ? const Color(0xFFF1F3F7)
@@ -106,11 +111,20 @@ class DownloadTaskCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     status == DownloadStatus.running
-                        ? l10n.downloadProgressDetail(
-                            FormatUtils.bytes(task.receivedBytes),
-                            FormatUtils.bytes(task.totalBytes),
-                            FormatUtils.bytesPerSecond(task.bytesPerSecond),
-                          )
+                        ? hasKnownProgress
+                              ? l10n.downloadProgressDetail(
+                                  FormatUtils.bytes(task.receivedBytes),
+                                  FormatUtils.bytes(task.totalBytes),
+                                  FormatUtils.bytesPerSecond(
+                                    task.bytesPerSecond,
+                                  ),
+                                )
+                              : l10n.downloadProgressUnknownTotal(
+                                  FormatUtils.bytes(task.receivedBytes),
+                                  FormatUtils.bytesPerSecond(
+                                    task.bytesPerSecond,
+                                  ),
+                                )
                         : RuntimeLabels.downloadStatus(l10n, status),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -148,34 +162,36 @@ class DownloadTaskCard extends StatelessWidget {
                 message: RuntimeLabels.downloadError(l10n, task.errorDetail!),
               ),
             ],
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                if (status.isResumable && onSwitchSource != null)
-                  TextButton(
-                    onPressed: onSwitchSource,
-                    child: Text(l10n.downloadSwitchSource),
-                  ),
-                if (status.isActive)
-                  TextButton(
-                    onPressed: onPause,
-                    child: Text(l10n.downloadPause),
-                  )
-                else if (status.isResumable)
-                  TextButton(
-                    onPressed: onResume,
-                    child: Text(
-                      status == DownloadStatus.failed
-                          ? l10n.downloadRetry
-                          : l10n.downloadResume,
+            if (status.canPause || status.isResumable || status.canCancel)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (status.isResumable && onSwitchSource != null)
+                    TextButton(
+                      onPressed: onSwitchSource,
+                      child: Text(l10n.downloadSwitchSource),
                     ),
-                  ),
-                TextButton(
-                  onPressed: onCancel,
-                  child: Text(l10n.downloadCancel),
-                ),
-              ],
-            ),
+                  if (status.canPause)
+                    TextButton(
+                      onPressed: onPause,
+                      child: Text(l10n.downloadPause),
+                    )
+                  else if (status.isResumable)
+                    TextButton(
+                      onPressed: onResume,
+                      child: Text(
+                        status == DownloadStatus.failed
+                            ? l10n.downloadRetry
+                            : l10n.downloadResume,
+                      ),
+                    ),
+                  if (status.canCancel)
+                    TextButton(
+                      onPressed: onCancel,
+                      child: Text(l10n.downloadCancel),
+                    ),
+                ],
+              ),
           ],
         ),
       ),

@@ -651,6 +651,17 @@
       }
     }
   },
+  "downloadProgressUnknownTotal": "{received} downloaded - {speed}/s",
+  "@downloadProgressUnknownTotal": {
+    "placeholders": {
+      "received": {
+        "type": "String"
+      },
+      "speed": {
+        "type": "String"
+      }
+    }
+  },
   "downloadRemaining": "{duration} left",
   "@downloadRemaining": {
     "placeholders": {

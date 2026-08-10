@@ -1137,6 +1137,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String downloadProgressUnknownTotal(String received, String speed) {
+    return '$received downloaded - $speed/s';
+  }
+
+  @override
   String downloadRemaining(String duration) {
     return '$duration left';
   }

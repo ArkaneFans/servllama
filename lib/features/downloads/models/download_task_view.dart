@@ -7,6 +7,7 @@ enum DownloadStatus {
   running,
   paused,
   failed,
+
   /// All bytes fetched; waiting to be committed into the model library.
   downloaded,
   completed;
@@ -20,8 +21,24 @@ enum DownloadStatus {
     return DownloadStatus.queued;
   }
 
-  bool get isActive => this == DownloadStatus.queued || this == DownloadStatus.running;
-  bool get isResumable => this == DownloadStatus.paused || this == DownloadStatus.failed;
+  /// Still belongs in the model library's in-progress section.
+  bool get isActive =>
+      this == DownloadStatus.queued ||
+      this == DownloadStatus.running ||
+      this == DownloadStatus.downloaded;
+
+  /// A transfer that can be interrupted without racing the native import.
+  bool get canPause =>
+      this == DownloadStatus.queued || this == DownloadStatus.running;
+
+  bool get isTransferActive =>
+      this == DownloadStatus.queued || this == DownloadStatus.running;
+
+  bool get isResumable =>
+      this == DownloadStatus.paused || this == DownloadStatus.failed;
+
+  /// A model-library commit is not cancellable once it has started.
+  bool get canCancel => this != DownloadStatus.downloaded;
 }
 
 /// Presentation-facing view of a [DownloadTaskRecord] with the derived
@@ -54,9 +71,15 @@ class DownloadTaskView {
   int get receivedBytes =>
       record.files.fold(0, (sum, file) => sum + file.receivedBytes);
 
+  /// Repository listings occasionally omit a file size. In that case a
+  /// percentage would be misleading until the HTTP response supplies it.
+  bool get hasKnownTotal =>
+      record.files.isNotEmpty &&
+      record.files.every((file) => file.totalBytes > 0);
+
   double get progress {
     final total = totalBytes;
-    if (total <= 0) {
+    if (!hasKnownTotal || total <= 0) {
       return 0;
     }
     return (receivedBytes / total).clamp(0.0, 1.0);
@@ -70,7 +93,7 @@ class DownloadTaskView {
   /// Null when there is no throughput sample yet, so the UI can hide the ETA
   /// instead of showing a nonsense number.
   Duration? get remaining {
-    if (bytesPerSecond <= 0) {
+    if (!hasKnownTotal || bytesPerSecond <= 0) {
       return null;
     }
     final left = totalBytes - receivedBytes;
