@@ -487,8 +487,6 @@
       }
     }
   },
-  "serverConfigRestartNotice": "Changes are saved immediately. Stop and restart the service for them to take effect.",
-  "serverConfigSavedNotice": "Changes are saved immediately.",
   "serverOpenAccessWarning": "The service listens on all interfaces without an API key, so any device on the same network can access it.",
   "modelLibraryTitle": "Models",
   "modelLibraryAddTitle": "Add a model",

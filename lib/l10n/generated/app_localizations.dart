@@ -1562,18 +1562,6 @@ abstract class AppLocalizations {
   /// **'Something went wrong: {detail}'**
   String runtimeErrorUnknown(String detail);
 
-  /// No description provided for @serverConfigRestartNotice.
-  ///
-  /// In en, this message translates to:
-  /// **'Changes are saved immediately. Stop and restart the service for them to take effect.'**
-  String get serverConfigRestartNotice;
-
-  /// No description provided for @serverConfigSavedNotice.
-  ///
-  /// In en, this message translates to:
-  /// **'Changes are saved immediately.'**
-  String get serverConfigSavedNotice;
-
   /// No description provided for @serverOpenAccessWarning.
   ///
   /// In en, this message translates to:

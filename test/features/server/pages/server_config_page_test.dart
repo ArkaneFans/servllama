@@ -258,6 +258,8 @@ void main() {
 
       expect(find.text('保存配置'), findsNothing);
       expect(find.textContaining('当前地址：http://'), findsNothing);
+      expect(find.textContaining('改动即时保存'), findsNothing);
+      expect(find.byKey(const Key('server_config_effect_notice')), findsNothing);
       expect(find.text('网络与访问'), findsOneWidget);
 
       await tester.enterText(find.widgetWithText(TextField, '8080'), '9001');

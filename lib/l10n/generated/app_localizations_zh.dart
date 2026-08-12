@@ -814,12 +814,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get serverConfigRestartNotice => '改动即时保存。服务正在运行，本页参数需停止并重新启动服务后才会生效。';
-
-  @override
-  String get serverConfigSavedNotice => '改动即时保存。';
-
-  @override
   String get serverOpenAccessWarning =>
       '当前监听所有网络接口且未设置 API Key，同一网络中的设备都可访问此服务。';
 

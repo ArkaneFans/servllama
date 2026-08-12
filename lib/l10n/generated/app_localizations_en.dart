@@ -843,13 +843,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get serverConfigRestartNotice =>
-      'Changes are saved immediately. Stop and restart the service for them to take effect.';
-
-  @override
-  String get serverConfigSavedNotice => 'Changes are saved immediately.';
-
-  @override
   String get serverOpenAccessWarning =>
       'The service listens on all interfaces without an API key, so any device on the same network can access it.';
 

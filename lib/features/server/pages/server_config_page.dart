@@ -67,11 +67,6 @@ class _ServerConfigViewState extends State<_ServerConfigView> {
     return Consumer<ServerConfigProvider>(
       builder: (context, provider, _) {
         final l10n = context.l10n;
-        // Every control here persists on change (D6 keeps the page free of a
-        // save button), so the only thing left to say is when it takes effect.
-        final isRunning = context.select<EngineRuntimeProvider, bool>(
-          (runtime) => runtime.isRunning,
-        );
         final activeEngine = context
             .select<EngineRuntimeProvider, InferenceEngine>(
               (runtime) => runtime.activeEngine,
@@ -94,19 +89,6 @@ class _ServerConfigViewState extends State<_ServerConfigView> {
                                 Align(
                                   alignment: Alignment.centerLeft,
                                   child: EngineBadge(engine: activeEngine),
-                                ),
-                                const SizedBox(height: 10),
-                                NoticeBanner(
-                                  key: const Key('server_config_effect_notice'),
-                                  tone: isRunning
-                                      ? StatusTone.warning
-                                      : StatusTone.idle,
-                                  icon: isRunning
-                                      ? Icons.restart_alt_rounded
-                                      : Icons.info_outline_rounded,
-                                  message: isRunning
-                                      ? l10n.serverConfigRestartNotice
-                                      : l10n.serverConfigSavedNotice,
                                 ),
                                 if (provider.listenMode ==
                                         ServerListenMode.allInterfaces &&
