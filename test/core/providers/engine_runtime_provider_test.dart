@@ -86,6 +86,25 @@ void main() {
       expect(mnn.startCount, 1);
     });
 
+    test('moves the saved model selection after a rename', () async {
+      final llama = _FakeEngineAdapter(InferenceEngine.llamaCpp);
+      final mnn = _FakeEngineAdapter(InferenceEngine.mnn);
+      final provider = _provider(llama: llama, mnn: mnn);
+      addTearDown(provider.dispose);
+
+      await provider.switchEngine(InferenceEngine.mnn);
+      await provider.selectModel('before');
+      await provider.handleModelRenamed(
+        engine: InferenceEngine.mnn,
+        oldModelId: 'before',
+        newModelId: 'after',
+      );
+
+      expect(provider.selectedModelId, 'after');
+      final preferences = await SharedPreferences.getInstance();
+      expect(preferences.getString('engine.mnn.selected_model'), 'after');
+    });
+
     test('allows switching engines after startup failure cleanup', () async {
       final llama = _FakeEngineAdapter(
         InferenceEngine.llamaCpp,

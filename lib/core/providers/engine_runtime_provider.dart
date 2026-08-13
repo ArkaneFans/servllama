@@ -239,6 +239,25 @@ class EngineRuntimeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Moves a saved model selection when a directory rename changes the
+  /// engine-facing runtime id. Renames are only allowed while the runtime is
+  /// stopped, so no active session needs to be migrated here.
+  Future<void> handleModelRenamed({
+    required InferenceEngine engine,
+    required String oldModelId,
+    required String newModelId,
+  }) async {
+    if (_selectedModelIds[engine] != oldModelId) {
+      return;
+    }
+    _selectedModelIds[engine] = newModelId;
+    await _kvStorage.setString(
+      EnginePrefsKeys.selectedModel(engine.storageValue),
+      newModelId,
+    );
+    notifyListeners();
+  }
+
   Future<void> toggle() async {
     if (_state.status == EngineRuntimeStatus.preparing) {
       await cancel();

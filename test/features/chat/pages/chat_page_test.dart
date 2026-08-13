@@ -1571,7 +1571,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('默认模型：alpha'), findsOneWidget);
-      expect(find.text('默认模型：Qwen MNN'), findsOneWidget);
+      expect(find.text('默认模型：mnn-default'), findsOneWidget);
     });
 
     testWidgets(

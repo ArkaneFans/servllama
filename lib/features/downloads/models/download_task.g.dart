@@ -72,6 +72,7 @@ class DownloadTaskRecordAdapter extends TypeAdapter<DownloadTaskRecord> {
       repoId: fields[3] as String,
       revision: fields[4] as String,
       modelName: fields[5] as String,
+      requestedModelName: fields[13] as String?,
       files: (fields[6] as List).cast<DownloadFileRecord>(),
       statusValue: fields[7] as String,
       createdAt: fields[8] as DateTime,
@@ -85,7 +86,7 @@ class DownloadTaskRecordAdapter extends TypeAdapter<DownloadTaskRecord> {
   @override
   void write(BinaryWriter writer, DownloadTaskRecord obj) {
     writer
-      ..writeByte(13)
+      ..writeByte(14)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -111,7 +112,9 @@ class DownloadTaskRecordAdapter extends TypeAdapter<DownloadTaskRecord> {
       ..writeByte(11)
       ..write(obj.errorDetail)
       ..writeByte(12)
-      ..write(obj.pausedByNetwork);
+      ..write(obj.pausedByNetwork)
+      ..writeByte(13)
+      ..write(obj.requestedModelName);
   }
 
   @override

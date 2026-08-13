@@ -13,6 +13,7 @@ enum DownloadErrorKind {
   diskFull,
   integrity,
   cancelled,
+  alreadyQueued,
 }
 
 class DownloadException implements Exception {

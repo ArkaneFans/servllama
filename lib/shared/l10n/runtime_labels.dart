@@ -110,6 +110,8 @@ class RuntimeLabels {
           return l10n.downloadErrorIntegrity;
         case DownloadErrorKind.cancelled:
           return l10n.downloadErrorCancelled;
+        case DownloadErrorKind.alreadyQueued:
+          return l10n.downloadErrorAlreadyQueued;
       }
     }
     return detail;

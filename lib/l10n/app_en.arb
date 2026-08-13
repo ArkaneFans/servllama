@@ -264,6 +264,17 @@
       }
     }
   },
+  "modelManagementImportAutoRenamed": "Model imported: {finalName}\n“{requestedName}” already exists and was renamed automatically.",
+  "@modelManagementImportAutoRenamed": {
+    "placeholders": {
+      "requestedName": {
+        "type": "String"
+      },
+      "finalName": {
+        "type": "String"
+      }
+    }
+  },
   "modelManagementImportFailed": "Failed to import model: {error}",
   "@modelManagementImportFailed": {
     "placeholders": {
@@ -635,6 +646,28 @@
       }
     }
   },
+  "downloadStartedAutoRenamed": "Started downloading {finalName}\n“{requestedName}” already exists and was renamed automatically.",
+  "@downloadStartedAutoRenamed": {
+    "placeholders": {
+      "requestedName": {
+        "type": "String"
+      },
+      "finalName": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadAutoRenamedNotice": "“{requestedName}” already exists and was renamed to “{finalName}” automatically.",
+  "@downloadAutoRenamedNotice": {
+    "placeholders": {
+      "requestedName": {
+        "type": "String"
+      },
+      "finalName": {
+        "type": "String"
+      }
+    }
+  },
   "downloadProgressDetail": "{received} / {total} - {speed}/s",
   "@downloadProgressDetail": {
     "placeholders": {
@@ -685,6 +718,7 @@
   "downloadErrorDiskFull": "Not enough storage",
   "downloadErrorIntegrity": "File length or checksum does not match",
   "downloadErrorCancelled": "Cancelled",
+  "downloadErrorAlreadyQueued": "The same model is already in the download queue",
   "downloadCancelDialogTitle": "Cancel download",
   "downloadCancelDialogContent": "Cancel “{modelName}”? Downloaded bytes will be discarded.",
   "@downloadCancelDialogContent": {

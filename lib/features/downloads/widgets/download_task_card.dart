@@ -154,6 +154,17 @@ class DownloadTaskCard extends StatelessWidget {
                   ),
               ],
             ),
+            if (task.wasAutoRenamed) ...[
+              const SizedBox(height: 10),
+              NoticeBanner(
+                tone: StatusTone.idle,
+                icon: Icons.drive_file_rename_outline_rounded,
+                message: l10n.downloadAutoRenamedNotice(
+                  task.requestedModelName,
+                  task.modelName,
+                ),
+              ),
+            ],
             if (task.errorDetail != null) ...[
               const SizedBox(height: 10),
               NoticeBanner(

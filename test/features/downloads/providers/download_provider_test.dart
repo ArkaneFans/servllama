@@ -6,12 +6,17 @@ import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:servllama/core/errors/model_operation_exception.dart';
 import 'package:servllama/core/logging/app_logger.dart';
+import 'package:servllama/core/models/inference_engine.dart';
 import 'package:servllama/core/models/model_descriptor.dart';
 import 'package:servllama/core/repositories/local_model_repository.dart';
+import 'package:servllama/core/repositories/unified_model_repository.dart';
 import 'package:servllama/core/services/app_l10n_service.dart';
+import 'package:servllama/core/services/model_name_coordinator.dart';
 import 'package:servllama/features/downloads/models/download_task.dart';
 import 'package:servllama/features/downloads/models/download_task_view.dart';
+import 'package:servllama/features/downloads/models/model_hub.dart';
 import 'package:servllama/features/downloads/providers/download_provider.dart';
 import 'package:servllama/features/downloads/repositories/download_task_repository.dart';
 import 'package:servllama/features/downloads/services/download_settings_store.dart';
@@ -127,21 +132,24 @@ void main() {
             .setMockMethodCallHandler(
               const MethodChannel('com.arkanefans.mnn_engine/methods'),
               (call) async {
-                if (call.method != 'importModelFromPath') {
+                if (call.method != 'importModelFromPathWithResult') {
                   return null;
                 }
                 importedMetadata = Map<String, dynamic>.from(
                   jsonDecode(await metadataFile.readAsString()) as Map,
                 );
                 return <String, Object?>{
-                  'modelId': 'local/qwen3-0-6b-mnn',
-                  'modelKey': 'qwen3-0-6b-mnn',
-                  'displayName': 'Qwen3-0.6B-MNN',
-                  'modelDirPath': '/models/qwen3-0-6b-mnn',
-                  'configPath': '/models/qwen3-0-6b-mnn/config.json',
-                  'sizeBytes': 10,
-                  'importedAt': 1,
-                  'isActive': false,
+                  'requestedModelName': 'Qwen3-0.6B-MNN',
+                  'model': <String, Object?>{
+                    'modelId': 'Qwen3-0.6B-MNN',
+                    'modelKey': 'Qwen3-0.6B-MNN',
+                    'displayName': 'Qwen3-0.6B-MNN',
+                    'modelDirPath': '/models/Qwen3-0.6B-MNN',
+                    'configPath': '/models/Qwen3-0.6B-MNN/config.json',
+                    'sizeBytes': 10,
+                    'importedAt': 1,
+                    'isActive': false,
+                  },
                 };
               },
             );
@@ -173,6 +181,146 @@ void main() {
         expect(importedMetadata?['modelName'], 'Qwen3-0.6B-MNN');
         expect(importedMetadata?['vendor'], 'MNN');
         expect(refreshCount, 1);
+        provider.dispose();
+      },
+    );
+
+    test('checks global model-name availability before queueing', () async {
+      var checkedName = '';
+      final provider = DownloadProvider(
+        taskRepository: _MemoryTaskRepository(const <DownloadTaskRecord>[]),
+        settingsStore: _MemorySettingsStore(),
+        logger: AppLogger(),
+        modelNameCoordinator: _ThrowingNameCoordinator((name) {
+          checkedName = name;
+        }),
+      );
+
+      await expectLater(
+        provider.enqueue(
+          engine: InferenceEngine.mnn,
+          source: ModelHubSource.modelScope,
+          repoId: 'MNN/model',
+          revision: 'master',
+          modelName: 'duplicate',
+          files: const <HubRepoFile>[],
+        ),
+        throwsA(isA<ModelOperationException>()),
+      );
+
+      expect(checkedName, 'duplicate');
+      expect(provider.tasks, isEmpty);
+      provider.dispose();
+    });
+
+    test(
+      'auto-renames duplicate reserved names with the smallest suffix',
+      () async {
+        final coordinator = ModelNameCoordinator(
+          unifiedRepository: UnifiedModelRepository(
+            localModelRepository: _FakeLocalModelRepository(),
+          ),
+        );
+        await coordinator.reserveAvailable(
+          ownerId: 'existing-download',
+          requestedName: 'duplicate',
+        );
+        final provider = DownloadProvider(
+          taskRepository: _MemoryTaskRepository(const <DownloadTaskRecord>[]),
+          settingsStore: _MemorySettingsStore(),
+          logger: AppLogger(),
+          modelNameCoordinator: coordinator,
+        );
+
+        final task = await provider.enqueue(
+          engine: InferenceEngine.mnn,
+          source: ModelHubSource.modelScope,
+          repoId: 'MNN/another-model',
+          revision: 'master',
+          modelName: 'Duplicate',
+          files: const <HubRepoFile>[],
+        );
+
+        expect(task.modelName, 'Duplicate (2)');
+        expect(task.requestedModelName, 'Duplicate');
+        provider.dispose();
+      },
+    );
+
+    test('does not enqueue the exact same unfinished download twice', () async {
+      final repository = _MemoryTaskRepository(<DownloadTaskRecord>[
+        _record(
+          stagingDirPath: tempDirectory.path,
+          status: DownloadStatus.paused,
+          modelName: 'model',
+        ),
+      ]);
+      final provider = DownloadProvider(
+        taskRepository: repository,
+        settingsStore: _MemorySettingsStore(),
+        logger: AppLogger(),
+      );
+      await provider.load();
+
+      await expectLater(
+        provider.enqueue(
+          engine: InferenceEngine.llamaCpp,
+          source: ModelHubSource.modelScope,
+          repoId: 'MNN/model',
+          revision: 'master',
+          modelName: 'another name',
+          files: const <HubRepoFile>[
+            HubRepoFile(path: 'model.gguf', sizeBytes: 10),
+          ],
+        ),
+        throwsA(
+          isA<DownloadException>().having(
+            (error) => error.kind,
+            'kind',
+            DownloadErrorKind.alreadyQueued,
+          ),
+        ),
+      );
+
+      expect(provider.tasks, hasLength(1));
+      provider.dispose();
+    });
+
+    test(
+      'serializes simultaneous attempts to enqueue the same download',
+      () async {
+        final provider = DownloadProvider(
+          taskRepository: _MemoryTaskRepository(const <DownloadTaskRecord>[]),
+          settingsStore: _MemorySettingsStore(),
+          logger: AppLogger(),
+        );
+        const files = <HubRepoFile>[
+          HubRepoFile(path: 'model.gguf', sizeBytes: 10),
+        ];
+
+        final results = await Future.wait<Object>(
+          List<Future<Object>>.generate(
+            2,
+            (_) => provider
+                .enqueue(
+                  engine: InferenceEngine.llamaCpp,
+                  source: ModelHubSource.modelScope,
+                  repoId: 'MNN/model',
+                  revision: 'master',
+                  modelName: 'model',
+                  files: files,
+                )
+                .then<Object>((task) => task)
+                .catchError((Object error) => error),
+          ),
+        );
+
+        expect(results.whereType<DownloadTaskView>(), hasLength(1));
+        expect(
+          results.whereType<DownloadException>().single.kind,
+          DownloadErrorKind.alreadyQueued,
+        );
+        expect(provider.tasks, hasLength(1));
         provider.dispose();
       },
     );
@@ -226,6 +374,7 @@ DownloadTaskRecord _cloneTask(DownloadTaskRecord task) {
     repoId: task.repoId,
     revision: task.revision,
     modelName: task.modelName,
+    requestedModelName: task.requestedModelName,
     files: task.files
         .map(
           (file) => DownloadFileRecord(
@@ -271,6 +420,10 @@ class _MemoryTaskRepository extends DownloadTaskRepository {
   Future<void> delete(String taskId) async {
     _tasks.remove(taskId);
   }
+
+  @override
+  Future<Directory> createStagingDirectory(String taskId) async =>
+      Directory.systemTemp;
 
   @override
   Future<void> deleteStagingDirectory(String stagingDirPath) async {}
@@ -321,6 +474,18 @@ class _BlockingDownloadService extends ModelDownloadService {
 }
 
 class _FakeLocalModelRepository extends LocalModelRepository {
+  _FakeLocalModelRepository()
+    : super(appSupportDirectory: Directory.systemTemp);
+
+  @override
+  Future<List<ModelDescriptor>> listModels() async => const <ModelDescriptor>[];
+
+  @override
+  Future<bool> isModelDirectoryOccupied(
+    String modelName, {
+    String? excludingModelId,
+  }) async => false;
+
   @override
   Future<ModelDescriptor> adoptDownloadedModel({
     required String modelName,
@@ -334,6 +499,30 @@ class _FakeLocalModelRepository extends LocalModelRepository {
       storedDirectoryPath: modelFile.parent.path,
       storedFilePath: modelFile.path,
       importedAt: DateTime(2026),
+    );
+  }
+}
+
+class _ThrowingNameCoordinator extends ModelNameCoordinator {
+  _ThrowingNameCoordinator(this.onAllocate)
+    : super(
+        unifiedRepository: UnifiedModelRepository(
+          localModelRepository: _FakeLocalModelRepository(),
+        ),
+      );
+
+  final ValueChanged<String> onAllocate;
+
+  @override
+  Future<AllocatedModelName> reserveAvailable({
+    required String ownerId,
+    required String requestedName,
+    String? preferredName,
+    String? excludingLibraryId,
+  }) async {
+    onAllocate(requestedName);
+    throw const ModelOperationException(
+      ModelOperationErrorCode.modelNameExists,
     );
   }
 }

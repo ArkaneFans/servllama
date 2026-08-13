@@ -18,12 +18,13 @@ class LibraryModel {
     this.warnings = const <String>[],
   });
 
-  /// Stable key for library operations (rename, delete). Namespaced by engine
-  /// because the two stores generate ids independently.
+  /// Key for library operations (rename, delete). Namespaced by engine because
+  /// the two stores generate ids independently. MNN renames change this key
+  /// because its directory name is also its native model id.
   final String id;
 
-  /// Identifier the engine itself uses when asked to load this model:
-  /// `llama-server`'s `--models-dir` entry name, or MNN's model id.
+  /// Identifier the engine itself uses when asked to load this model. For both
+  /// engines this is the model directory name.
   final String runtimeId;
 
   final InferenceEngine engine;

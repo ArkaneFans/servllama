@@ -1082,6 +1082,15 @@ abstract class AppLocalizations {
   /// **'Model imported: {modelName}'**
   String modelManagementImportSuccess(String modelName);
 
+  /// No description provided for @modelManagementImportAutoRenamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Model imported: {finalName}\n“{requestedName}” already exists and was renamed automatically.'**
+  String modelManagementImportAutoRenamed(
+    String requestedName,
+    String finalName,
+  );
+
   /// No description provided for @modelManagementImportFailed.
   ///
   /// In en, this message translates to:
@@ -2054,6 +2063,18 @@ abstract class AppLocalizations {
   /// **'Started downloading {modelName}'**
   String downloadStarted(String modelName);
 
+  /// No description provided for @downloadStartedAutoRenamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Started downloading {finalName}\n“{requestedName}” already exists and was renamed automatically.'**
+  String downloadStartedAutoRenamed(String requestedName, String finalName);
+
+  /// No description provided for @downloadAutoRenamedNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'“{requestedName}” already exists and was renamed to “{finalName}” automatically.'**
+  String downloadAutoRenamedNotice(String requestedName, String finalName);
+
   /// No description provided for @downloadProgressDetail.
   ///
   /// In en, this message translates to:
@@ -2113,6 +2134,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cancelled'**
   String get downloadErrorCancelled;
+
+  /// No description provided for @downloadErrorAlreadyQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'The same model is already in the download queue'**
+  String get downloadErrorAlreadyQueued;
 
   /// No description provided for @downloadCancelDialogTitle.
   ///

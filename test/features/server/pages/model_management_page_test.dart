@@ -47,13 +47,14 @@ void main() {
         logger: AppLogger(),
       );
 
-      await tester.pumpWidget(
-        _host(provider),
-      );
+      await tester.pumpWidget(_host(provider));
       await tester.pumpAndSettle();
 
       expect(find.text('还没有模型'), findsOneWidget);
-      expect(find.byKey(const Key('model_management_import_fab')), findsOneWidget);
+      expect(
+        find.byKey(const Key('model_management_import_fab')),
+        findsOneWidget,
+      );
     });
 
     testWidgets('shows model cards with modelName and size', (tester) async {
@@ -67,9 +68,7 @@ void main() {
         logger: AppLogger(),
       );
 
-      await tester.pumpWidget(
-        _host(provider),
-      );
+      await tester.pumpWidget(_host(provider));
       await tester.pumpAndSettle();
 
       expect(find.text('model'), findsOneWidget);
@@ -89,9 +88,7 @@ void main() {
         logger: AppLogger(),
       );
 
-      await tester.pumpWidget(
-        _host(provider),
-      );
+      await tester.pumpWidget(_host(provider));
       await tester.pumpAndSettle();
 
       // Capability tags are additive now: a text-only model carries none.
@@ -106,8 +103,7 @@ void main() {
             _descriptor(
               id: 'm1',
               modelName: 'vision',
-              mmprojFilePath:
-                  'C:\\models\\vision\\mmproj-projector-f16.gguf',
+              mmprojFilePath: 'C:\\models\\vision\\mmproj-projector-f16.gguf',
             ),
           ],
         ),
@@ -115,9 +111,7 @@ void main() {
         logger: AppLogger(),
       );
 
-      await tester.pumpWidget(
-        _host(provider),
-      );
+      await tester.pumpWidget(_host(provider));
       await tester.pumpAndSettle();
 
       expect(find.text('视觉'), findsOneWidget);
@@ -136,9 +130,7 @@ void main() {
         logger: AppLogger(),
       );
 
-      await tester.pumpWidget(
-        _host(provider),
-      );
+      await tester.pumpWidget(_host(provider));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip('删除'));
@@ -169,9 +161,7 @@ void main() {
         logger: AppLogger(),
       );
 
-      await tester.pumpWidget(
-        _host(provider),
-      );
+      await tester.pumpWidget(_host(provider));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip('删除'));
@@ -195,16 +185,12 @@ void main() {
         logger: AppLogger(),
       );
 
-      await tester.pumpWidget(
-        _host(provider),
-      );
+      await tester.pumpWidget(_host(provider));
       await tester.pumpAndSettle();
 
       // The FAB now offers download / GGUF file / MNN directory rather than
       // importing a GGUF straight away.
-      await tester.tap(
-        find.byKey(const Key('model_management_import_fab')),
-      );
+      await tester.tap(find.byKey(const Key('model_management_import_fab')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('导入 GGUF 文件'));
       await _settle(tester);
@@ -225,9 +211,7 @@ void main() {
         logger: AppLogger(),
       );
 
-      await tester.pumpWidget(
-        _host(provider),
-      );
+      await tester.pumpWidget(_host(provider));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip('设置'));
@@ -238,11 +222,58 @@ void main() {
       );
       // The save button stays disabled until the draft name rebuilds.
       await tester.pump();
-      await tester.tap(find.byKey(const Key('model_settings_save_name_button')));
+      await tester.tap(
+        find.byKey(const Key('model_settings_save_name_button')),
+      );
       await _settle(tester);
 
       expect(find.text('模型已重命名为: after'), findsOneWidget);
       expect(find.text('after'), findsWidgets);
+    });
+
+    testWidgets('renames an MNN model from its settings sheet', (tester) async {
+      var modelName = 'mnn-before';
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('com.arkanefans.mnn_engine/methods'),
+            (call) async {
+              switch (call.method) {
+                case 'listImportedModels':
+                  return <Object?>[_mnnModelMap(modelName)];
+                case 'renameImportedModel':
+                  final arguments = Map<Object?, Object?>.from(
+                    call.arguments! as Map,
+                  );
+                  expect(arguments['modelId'], 'mnn-before');
+                  modelName = arguments['newName']! as String;
+                  return _mnnModelMap(modelName);
+              }
+              return null;
+            },
+          );
+      final provider = ModelManagementProvider(
+        repository: FakeLocalModelRepository(),
+        filePicker: FakeGgufFilePicker(),
+        logger: AppLogger(),
+      );
+
+      await tester.pumpWidget(_host(provider));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('设置'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('mnn_model_settings_name_field')),
+        'mnn-after',
+      );
+      await tester.pump();
+      await tester.tap(
+        find.byKey(const Key('mnn_model_settings_save_name_button')),
+      );
+      await _settle(tester);
+
+      expect(find.text('模型已重命名为: mnn-after'), findsOneWidget);
+      expect(find.text('mnn-after'), findsWidgets);
     });
 
     testWidgets('imports mmproj from settings sheet', (tester) async {
@@ -261,9 +292,7 @@ void main() {
         logger: AppLogger(),
       );
 
-      await tester.pumpWidget(
-        _host(provider),
-      );
+      await tester.pumpWidget(_host(provider));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip('设置'));
@@ -298,9 +327,7 @@ void main() {
         logger: AppLogger(),
       );
 
-      await tester.pumpWidget(
-        _host(provider),
-      );
+      await tester.pumpWidget(_host(provider));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip('设置'));
@@ -338,10 +365,23 @@ class FakeLocalModelRepository extends LocalModelRepository {
       List<ModelDescriptor>.from(_models);
 
   @override
-  Future<ModelDescriptor> importModel(PickedGgufFile pickedFile) async {
+  Future<bool> isModelDirectoryOccupied(
+    String modelName, {
+    String? excludingModelId,
+  }) async => _models.any(
+    (model) =>
+        model.id != excludingModelId &&
+        model.modelName.toLowerCase() == modelName.toLowerCase(),
+  );
+
+  @override
+  Future<ModelDescriptor> importModel(
+    PickedGgufFile pickedFile, {
+    String? modelName,
+  }) async {
     final descriptor = _descriptor(
       id: 'm${_models.length + 1}',
-      modelName: _deriveModelName(pickedFile.fileName),
+      modelName: modelName ?? _deriveModelName(pickedFile.fileName),
       originalFileName: pickedFile.fileName,
     );
     _models.insert(0, descriptor);
@@ -379,7 +419,8 @@ class FakeLocalModelRepository extends LocalModelRepository {
     final updated = current.copyWith(
       modelName: newName,
       storedDirectoryPath: 'C:\\models\\$newName',
-      storedFilePath: 'C:\\models\\$newName\\${current.storedFilePath.split('\\').last}',
+      storedFilePath:
+          'C:\\models\\$newName\\${current.storedFilePath.split('\\').last}',
       mmprojFilePath: current.mmprojFilePath == null
           ? null
           : 'C:\\models\\$newName\\${current.mmprojFilePath!.split('\\').last}',
@@ -430,6 +471,17 @@ ModelDescriptor _descriptor({
     mmprojFilePath: mmprojFilePath,
   );
 }
+
+Map<String, Object?> _mnnModelMap(String name) => <String, Object?>{
+  'modelId': name,
+  'modelKey': name,
+  'displayName': name,
+  'modelDirPath': 'C:\\mnn\\models\\$name',
+  'configPath': 'C:\\mnn\\models\\$name\\config.json',
+  'sizeBytes': 1024,
+  'importedAt': DateTime(2026, 1, 1).millisecondsSinceEpoch,
+  'isActive': false,
+};
 
 /// The library page lists in-flight downloads alongside imported models, so it
 /// needs the download queue in scope even when no test exercises it.

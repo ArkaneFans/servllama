@@ -25,7 +25,9 @@ void main() {
 
   test('uses the native bind as the only port decision', () async {
     final adapter = MnnEngineAdapter(
-      settingsLoader: _FixedSettingsLoader(const ServerLaunchSettings(port: 8083)),
+      settingsLoader: _FixedSettingsLoader(
+        const ServerLaunchSettings(port: 8083),
+      ),
     );
     addTearDown(adapter.dispose);
 
@@ -37,7 +39,11 @@ void main() {
 
     expect(platform.checkPortCalls, 0);
     expect(platform.startServerCalls, 1);
-    expect(platform.snapshotCalls, 1, reason: 'prepare reads the initial snapshot once');
+    expect(
+      platform.snapshotCalls,
+      1,
+      reason: 'prepare reads the initial snapshot once',
+    );
     expect(phases, <RuntimePhase>[
       RuntimePhase.loadingModel,
       RuntimePhase.startingServer,
@@ -51,7 +57,9 @@ void main() {
       'Port 8083 is currently unavailable.',
     );
     final adapter = MnnEngineAdapter(
-      settingsLoader: _FixedSettingsLoader(const ServerLaunchSettings(port: 8083)),
+      settingsLoader: _FixedSettingsLoader(
+        const ServerLaunchSettings(port: 8083),
+      ),
     );
     addTearDown(adapter.dispose);
 
@@ -118,6 +126,12 @@ class _FakeMnnPlatform extends MnnEnginePlatform {
 
   @override
   Future<List<MnnLogEntry>> getLogSnapshot() async => const <MnnLogEntry>[];
+
+  @override
+  Future<MnnModelInfo> renameImportedModel(
+    String modelId,
+    String newName,
+  ) async => throw UnimplementedError();
 
   @override
   Future<MnnModelInfo> loadModel(String modelId) async => const MnnModelInfo(

@@ -532,6 +532,14 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String modelManagementImportAutoRenamed(
+    String requestedName,
+    String finalName,
+  ) {
+    return '模型导入成功：$finalName\n“$requestedName”与已有模型重名，已自动重命名。';
+  }
+
+  @override
   String modelManagementImportFailed(String error) {
     return '导入模型失败: $error';
   }
@@ -1079,6 +1087,16 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String downloadStartedAutoRenamed(String requestedName, String finalName) {
+    return '已开始下载 $finalName\n“$requestedName”与已有模型重名，已自动重命名。';
+  }
+
+  @override
+  String downloadAutoRenamedNotice(String requestedName, String finalName) {
+    return '“$requestedName”与已有模型重名，已自动重命名为“$finalName”。';
+  }
+
+  @override
   String downloadProgressDetail(String received, String total, String speed) {
     return '$received / $total · $speed/s';
   }
@@ -1115,6 +1133,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get downloadErrorCancelled => '已取消';
+
+  @override
+  String get downloadErrorAlreadyQueued => '相同模型已在下载队列中';
 
   @override
   String get downloadCancelDialogTitle => '取消下载';

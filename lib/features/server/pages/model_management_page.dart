@@ -118,6 +118,20 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
     );
   }
 
+  void _showMnnModelSettings(BuildContext context, LibraryModel model) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) {
+        return ChangeNotifierProvider<ModelManagementProvider>.value(
+          value: context.read<ModelManagementProvider>(),
+          child: _MnnModelSettingsSheet(model: model),
+        );
+      },
+    );
+  }
+
   Future<void> _deleteLibraryModel(
     BuildContext context,
     LibraryModel model,
@@ -359,6 +373,12 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
                                             _showModelSettings(
                                               context,
                                               descriptor,
+                                            );
+                                          } else if (model.engine ==
+                                              InferenceEngine.mnn) {
+                                            _showMnnModelSettings(
+                                              context,
+                                              model,
                                             );
                                           }
                                         },
@@ -650,9 +670,6 @@ class _LibraryModelCard extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final isLight = theme.brightness == Brightness.light;
     final l10n = context.l10n;
-    // Rename and mmproj attachment are GGUF-side concerns; MNN model metadata
-    // comes from the model's own config and is not editable here.
-    final canEditSettings = model.engine == InferenceEngine.llamaCpp;
 
     return Material(
       color: isLight ? Colors.white : colorScheme.surfaceContainerLow,
@@ -736,12 +753,11 @@ class _LibraryModelCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  if (canEditSettings)
-                    IconButton(
-                      tooltip: l10n.modelManagementSettingsTooltip,
-                      onPressed: onSettings,
-                      icon: const Icon(Icons.tune_rounded, size: 20),
-                    ),
+                  IconButton(
+                    tooltip: l10n.modelManagementSettingsTooltip,
+                    onPressed: isActive || isRuntimeBusy ? null : onSettings,
+                    icon: const Icon(Icons.tune_rounded, size: 20),
+                  ),
                   IconButton(
                     tooltip: isActive
                         ? l10n.modelLibraryActiveCannotDelete
@@ -1271,6 +1287,199 @@ class _ModelSettingsSheetState extends State<_ModelSettingsSheet> {
                       label: Text(l10n.modelSettingsImportMmproj),
                     ),
                   ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _MnnModelSettingsSheet extends StatefulWidget {
+  const _MnnModelSettingsSheet({required this.model});
+
+  final LibraryModel model;
+
+  @override
+  State<_MnnModelSettingsSheet> createState() => _MnnModelSettingsSheetState();
+}
+
+class _MnnModelSettingsSheetState extends State<_MnnModelSettingsSheet> {
+  late final TextEditingController _nameController;
+  late String _currentLibraryId;
+  late String _lastSyncedName;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentLibraryId = widget.model.id;
+    _lastSyncedName = widget.model.name;
+    _nameController = TextEditingController(text: widget.model.name);
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _renameModel(BuildContext context, LibraryModel model) async {
+    final nextName = _nameController.text.trim();
+    if (nextName.isEmpty || nextName == model.name) {
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+    final message = await context
+        .read<ModelManagementProvider>()
+        .renameLibraryModel(model, nextName);
+    if (!context.mounted || message == null || message.isEmpty) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  LibraryModel _currentModel(ModelManagementProvider provider) {
+    for (final model in provider.libraryModels) {
+      if (model.id == _currentLibraryId) {
+        return model;
+      }
+    }
+    for (final model in provider.libraryModels) {
+      if (model.engine == InferenceEngine.mnn &&
+          model.name == _nameController.text.trim()) {
+        _currentLibraryId = model.id;
+        return model;
+      }
+    }
+    return widget.model;
+  }
+
+  void _syncNameDraft(LibraryModel model) {
+    if (model.name == _lastSyncedName) {
+      return;
+    }
+    final hasUserEdited = _nameController.text.trim() != _lastSyncedName;
+    _lastSyncedName = model.name;
+    _currentLibraryId = model.id;
+    if (hasUserEdited) {
+      return;
+    }
+    _nameController.value = TextEditingValue(
+      text: model.name,
+      selection: TextSelection.collapsed(offset: model.name.length),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<ModelManagementProvider>(
+      builder: (context, provider, _) {
+        final model = _currentModel(provider);
+        _syncNameDraft(model);
+        final theme = Theme.of(context);
+        final colorScheme = theme.colorScheme;
+        final isLight = theme.brightness == Brightness.light;
+        final l10n = context.l10n;
+        final draftName = _nameController.text.trim();
+        final isRenamingThisModel =
+            provider.renamingModelId == model.id || provider.isRenaming;
+        final canSaveName =
+            draftName.isNotEmpty &&
+            draftName != model.name &&
+            !isRenamingThisModel;
+
+        return SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              8,
+              20,
+              28 + MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        model.name,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ModelFormatBadge(engine: InferenceEngine.mnn),
+                  ],
+                ),
+                const SizedBox(height: 22),
+                Text(
+                  l10n.modelSettingsNameLabel,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: colorScheme.onSurface.withAlpha(220),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  key: const Key('mnn_model_settings_name_field'),
+                  controller: _nameController,
+                  textInputAction: TextInputAction.done,
+                  onChanged: (_) => setState(() {}),
+                  onSubmitted: (_) {
+                    if (canSaveName) {
+                      _renameModel(context, model);
+                    }
+                  },
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: isLight
+                        ? const Color(0xFFF5F6F8)
+                        : colorScheme.surfaceContainerHighest.withAlpha(90),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: colorScheme.primary),
+                    ),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.icon(
+                    key: const Key('mnn_model_settings_save_name_button'),
+                    onPressed: canSaveName
+                        ? () => _renameModel(context, model)
+                        : null,
+                    icon: isRenamingThisModel
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save_outlined, size: 16),
+                    label: Text(l10n.commonSave),
+                  ),
+                ),
               ],
             ),
           ),

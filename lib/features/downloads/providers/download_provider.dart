@@ -6,11 +6,14 @@ import 'dart:math';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:mnn_engine/mnn_engine.dart';
+import 'package:servllama/core/errors/model_operation_exception.dart';
 import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/core/models/inference_engine.dart';
 import 'package:servllama/core/repositories/local_model_repository.dart';
+import 'package:servllama/core/repositories/unified_model_repository.dart';
 import 'package:servllama/core/services/app_l10n_service.dart';
 import 'package:servllama/core/services/foreground_task_service.dart';
+import 'package:servllama/core/services/model_name_coordinator.dart';
 import 'package:servllama/features/downloads/models/download_task.dart';
 import 'package:servllama/features/downloads/models/download_task_view.dart';
 import 'package:servllama/features/downloads/models/model_hub.dart';
@@ -38,6 +41,7 @@ class DownloadProvider extends ChangeNotifier {
     Future<void> Function(Duration) retryDelay = Future<void>.delayed,
     HuggingFaceRouteResolver? huggingFaceRouteResolver,
     Future<void> Function()? onLibraryChanged,
+    ModelNameCoordinator? modelNameCoordinator,
   }) : _taskRepository = taskRepository ?? DownloadTaskRepository(),
        _downloadService = downloadService ?? ModelDownloadService(),
        _settingsStore = settingsStore ?? DownloadSettingsStore(),
@@ -51,7 +55,8 @@ class DownloadProvider extends ChangeNotifier {
        _retryDelay = retryDelay,
        _huggingFaceRouteResolver =
            huggingFaceRouteResolver ?? HuggingFaceRouteResolver(),
-       _onLibraryChanged = onLibraryChanged;
+       _onLibraryChanged = onLibraryChanged,
+       _modelNameCoordinator = modelNameCoordinator;
 
   final DownloadTaskRepository _taskRepository;
   final ModelDownloadService _downloadService;
@@ -64,6 +69,7 @@ class DownloadProvider extends ChangeNotifier {
   final Future<void> Function(Duration) _retryDelay;
   final HuggingFaceRouteResolver _huggingFaceRouteResolver;
   final Future<void> Function()? _onLibraryChanged;
+  final ModelNameCoordinator? _modelNameCoordinator;
 
   final Map<String, DownloadTaskRecord> _tasks = <String, DownloadTaskRecord>{};
   final Map<String, CancelToken> _cancelTokens = <String, CancelToken>{};
@@ -80,6 +86,7 @@ class DownloadProvider extends ChangeNotifier {
   bool _isSyncingDownloadForeground = false;
   bool _downloadForegroundSyncRequested = false;
   Future<void>? _loadFuture;
+  Future<void> _queueMutationTail = Future<void>.value();
   Timer? _environmentTimer;
 
   static const List<Duration> _retryBackoff = <Duration>[
@@ -136,6 +143,18 @@ class DownloadProvider extends ChangeNotifier {
       // Transfers are range-resumable, so work that was interrupted by a
       // process death returns to the queue instead of requiring a manual tap.
       for (final record in _tasks.values) {
+        if (DownloadStatus.fromName(record.statusValue) !=
+            DownloadStatus.completed) {
+          final allocation = await _allocateName(
+            taskId: record.id,
+            requestedName: record.requestedModelName,
+            preferredName: record.modelName,
+          );
+          if (record.modelName != allocation.name) {
+            record.modelName = allocation.name;
+            await _taskRepository.save(record);
+          }
+        }
         final status = DownloadStatus.fromName(record.statusValue);
         if (status.isActive) {
           record.statusValue = DownloadStatus.queued.name;
@@ -217,42 +236,74 @@ class DownloadProvider extends ChangeNotifier {
     required List<HubRepoFile> files,
     String? quantLabel,
   }) async {
+    await load();
     await _ensureStorageCapacity(engine, files);
-    final taskId =
-        'dl_${DateTime.now().microsecondsSinceEpoch}_${_random.nextInt(1 << 20)}';
-    final staging = await _taskRepository.createStagingDirectory(taskId);
+    return _mutateQueue(() async {
+      if (_hasEquivalentTask(
+        engine: engine,
+        source: source,
+        repoId: repoId,
+        revision: revision,
+        files: files,
+      )) {
+        throw const DownloadException(
+          DownloadErrorKind.alreadyQueued,
+          isRetryable: false,
+        );
+      }
+      final taskId =
+          'dl_${DateTime.now().microsecondsSinceEpoch}_${_random.nextInt(1 << 20)}';
+      final allocation = await _allocateName(
+        taskId: taskId,
+        requestedName: modelName,
+      );
+      late final Directory staging;
+      try {
+        staging = await _taskRepository.createStagingDirectory(taskId);
+      } catch (_) {
+        await _modelNameCoordinator?.release(_reservationId(taskId));
+        rethrow;
+      }
 
-    final record = DownloadTaskRecord(
-      id: taskId,
-      engineValue: engine.storageValue,
-      sourceValue: source.storageValue,
-      repoId: repoId,
-      revision: revision,
-      modelName: modelName,
-      quantLabel: quantLabel,
-      stagingDirPath: staging.path,
-      statusValue: DownloadStatus.queued.name,
-      createdAt: DateTime.now(),
-      files: files
-          .map(
-            (file) => DownloadFileRecord(
-              remotePath: file.path,
-              // MNN repos nest files in subdirectories; flattening would
-              // collide, so the relative layout is preserved on disk.
-              fileName: file.path,
-              totalBytes: file.sizeBytes,
-              sha256: file.sha256,
-            ),
-          )
-          .toList(growable: false),
-    );
+      final record = DownloadTaskRecord(
+        id: taskId,
+        engineValue: engine.storageValue,
+        sourceValue: source.storageValue,
+        repoId: repoId,
+        revision: revision,
+        modelName: allocation.name,
+        requestedModelName: allocation.requestedName,
+        quantLabel: quantLabel,
+        stagingDirPath: staging.path,
+        statusValue: DownloadStatus.queued.name,
+        createdAt: DateTime.now(),
+        files: files
+            .map(
+              (file) => DownloadFileRecord(
+                remotePath: file.path,
+                // MNN repos nest files in subdirectories; flattening would
+                // collide, so the relative layout is preserved on disk.
+                fileName: file.path,
+                totalBytes: file.sizeBytes,
+                sha256: file.sha256,
+              ),
+            )
+            .toList(growable: false),
+      );
 
-    _tasks[taskId] = record;
-    await _taskRepository.save(record);
-    notifyListeners();
+      _tasks[taskId] = record;
+      try {
+        await _taskRepository.save(record);
+      } catch (_) {
+        _tasks.remove(taskId);
+        await _modelNameCoordinator?.release(_reservationId(taskId));
+        rethrow;
+      }
+      notifyListeners();
 
-    unawaited(_pump());
-    return DownloadTaskView(record);
+      unawaited(_pump());
+      return DownloadTaskView(record);
+    });
   }
 
   Future<void> pause(String taskId) async {
@@ -296,6 +347,7 @@ class DownloadProvider extends ChangeNotifier {
     _throughput.remove(taskId);
     _samples.remove(taskId);
     await _taskRepository.delete(taskId);
+    await _modelNameCoordinator?.release(_reservationId(taskId));
     try {
       await _taskRepository.deleteStagingDirectory(record.stagingDirPath);
     } catch (error, stackTrace) {
@@ -461,6 +513,22 @@ class DownloadProvider extends ChangeNotifier {
 
   /// Moves the staged bytes into whichever store owns this engine's format.
   Future<void> _commit(DownloadTaskRecord record, Directory staging) async {
+    final allocation = await _allocateName(
+      taskId: record.id,
+      requestedName: record.requestedModelName,
+      preferredName: record.modelName,
+    );
+    if (record.modelName != allocation.name) {
+      final previousName = record.modelName;
+      record.modelName = allocation.name;
+      await _taskRepository.save(record);
+      notifyListeners();
+      _logger.info(
+        '入库前检测到模型重名，已自动重命名: $previousName -> ${record.modelName}',
+        channel: LogChannel.download,
+        inMemory: true,
+      );
+    }
     final engine = InferenceEngine.fromStorageValue(record.engineValue);
     switch (engine) {
       case InferenceEngine.llamaCpp:
@@ -480,15 +548,62 @@ class DownloadProvider extends ChangeNotifier {
         if (modelFile == null) {
           throw StateError('download produced no model file');
         }
-        await _localModelRepository.adoptDownloadedModel(
-          modelName: record.modelName,
+        await _commitGguf(
+          record: record,
           modelFile: modelFile,
           mmprojFile: mmprojFile,
         );
       case InferenceEngine.mnn:
         await _ensureMnnDisplayMetadata(record, staging);
         // The plugin re-validates and takes ownership of the directory.
-        await _mnnEngine.importModelFromPath(staging.path);
+        final result = await _mnnEngine.importModelFromPathWithResult(
+          staging.path,
+          replaceExisting: false,
+          autoRename: true,
+          unavailableNames: await _unavailableNamesFor(record.id),
+        );
+        var importedModel = result.model;
+        try {
+          final coordinator = _modelNameCoordinator;
+          final allocation = coordinator == null
+              ? AllocatedModelName(
+                  requestedName: record.requestedModelName,
+                  name: importedModel.modelKey,
+                )
+              : await coordinator.reserveCommitted(
+                  ownerId: _reservationId(record.id),
+                  requestedName: record.requestedModelName,
+                  committedName: importedModel.modelKey,
+                  excludingLibraryId: UnifiedModelRepository.libraryIdFor(
+                    InferenceEngine.mnn,
+                    importedModel.modelId,
+                  ),
+                );
+          if (allocation.name != importedModel.modelKey) {
+            importedModel = await _mnnEngine.renameImportedModel(
+              importedModel.modelId,
+              allocation.name,
+            );
+          }
+          if (importedModel.modelKey != record.modelName) {
+            record.modelName = importedModel.modelKey;
+            await _taskRepository.save(record);
+            notifyListeners();
+          }
+        } catch (error) {
+          try {
+            await _mnnEngine.deleteImportedModel(importedModel.modelId);
+          } catch (cleanupError, stackTrace) {
+            _logger.warning(
+              '回滚未完成的 MNN 模型入库失败: ${importedModel.modelKey}',
+              channel: LogChannel.download,
+              inMemory: true,
+              error: cleanupError,
+              stackTrace: stackTrace,
+            );
+          }
+          rethrow;
+        }
     }
 
     try {
@@ -520,6 +635,7 @@ class DownloadProvider extends ChangeNotifier {
 
     record.statusValue = DownloadStatus.completed.name;
     await _taskRepository.save(record);
+    await _modelNameCoordinator?.release(_reservationId(record.id));
     _logger.info(
       '模型下载完成并入库: ${record.modelName}',
       channel: LogChannel.download,
@@ -548,15 +664,9 @@ class DownloadProvider extends ChangeNotifier {
       }
     }
 
-    const displayNameKeys = <String>['modelName', 'model_name', 'name'];
-    final hasDisplayName = displayNameKeys.any((key) {
-      final value = metadata[key];
-      return value is String && value.trim().isNotEmpty;
-    });
-    if (hasDisplayName) {
-      return;
-    }
-
+    // The plugin uses modelName as the destination directory and runtime id.
+    // Keep the completed download's visible name identical across the app and
+    // the OpenAI-compatible API, even if the hub ships its own display label.
     metadata['modelName'] = record.modelName;
     await metadataFile.writeAsString(
       const JsonEncoder.withIndent('  ').convert(metadata),
@@ -652,6 +762,106 @@ class DownloadProvider extends ChangeNotifier {
         detail: '$requiredBytes',
       );
     }
+  }
+
+  Future<AllocatedModelName> _allocateName({
+    required String taskId,
+    required String requestedName,
+    String? preferredName,
+  }) async {
+    final coordinator = _modelNameCoordinator;
+    if (coordinator == null) {
+      return AllocatedModelName(
+        requestedName: requestedName.trim(),
+        name: preferredName?.trim() ?? requestedName.trim(),
+      );
+    }
+    return coordinator.reserveAvailable(
+      ownerId: _reservationId(taskId),
+      requestedName: requestedName,
+      preferredName: preferredName,
+    );
+  }
+
+  Future<List<String>> _unavailableNamesFor(String taskId) async {
+    final coordinator = _modelNameCoordinator;
+    if (coordinator == null) {
+      return const <String>[];
+    }
+    return coordinator.unavailableNames(
+      excludingOwnerId: _reservationId(taskId),
+    );
+  }
+
+  Future<void> _commitGguf({
+    required DownloadTaskRecord record,
+    required File modelFile,
+    required File? mmprojFile,
+  }) async {
+    while (true) {
+      try {
+        await _localModelRepository.adoptDownloadedModel(
+          modelName: record.modelName,
+          modelFile: modelFile,
+          mmprojFile: mmprojFile,
+        );
+        return;
+      } on ModelOperationException catch (error) {
+        if (error.code != ModelOperationErrorCode.duplicateModelName &&
+            error.code != ModelOperationErrorCode.modelNameExists &&
+            error.code != ModelOperationErrorCode.modelDirectoryExists) {
+          rethrow;
+        }
+        final allocation = await _allocateName(
+          taskId: record.id,
+          requestedName: record.requestedModelName,
+        );
+        if (allocation.name == record.modelName) {
+          rethrow;
+        }
+        record.modelName = allocation.name;
+        await _taskRepository.save(record);
+        notifyListeners();
+      }
+    }
+  }
+
+  String _reservationId(String taskId) => 'download:$taskId';
+
+  bool _hasEquivalentTask({
+    required InferenceEngine engine,
+    required ModelHubSource source,
+    required String repoId,
+    required String revision,
+    required List<HubRepoFile> files,
+  }) {
+    final requestedFiles = <String, HubRepoFile>{
+      for (final file in files) file.path: file,
+    };
+    return _tasks.values.any((record) {
+      if (DownloadStatus.fromName(record.statusValue) ==
+          DownloadStatus.completed) {
+        return false;
+      }
+      return record.engineValue == engine.storageValue &&
+          record.sourceValue == source.storageValue &&
+          record.repoId == repoId &&
+          record.revision == revision &&
+          record.files.length == requestedFiles.length &&
+          record.files.every((file) {
+            final requested = requestedFiles[file.remotePath];
+            return requested != null &&
+                requested.sizeBytes == file.totalBytes &&
+                requested.sha256 == file.sha256;
+          });
+    });
+  }
+
+  Future<T> _mutateQueue<T>(Future<T> Function() operation) {
+    final previous = _queueMutationTail;
+    final completer = Completer<void>();
+    _queueMutationTail = completer.future;
+    return previous.then((_) => operation()).whenComplete(completer.complete);
   }
 
   void _ensureEnvironmentMonitor() {

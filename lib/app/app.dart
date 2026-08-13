@@ -53,8 +53,20 @@ class ServLlamaApp extends StatelessWidget {
             },
           ),
           ChangeNotifierProvider(
-            create: (_) {
-              final provider = ModelManagementProvider();
+            create: (context) {
+              final runtime = context.read<EngineRuntimeProvider>();
+              final provider = ModelManagementProvider(
+                onModelRenamed:
+                    ({
+                      required engine,
+                      required oldModelId,
+                      required newModelId,
+                    }) => runtime.handleModelRenamed(
+                      engine: engine,
+                      oldModelId: oldModelId,
+                      newModelId: newModelId,
+                    ),
+              );
               unawaited(provider.load());
               return provider;
             },
@@ -64,6 +76,7 @@ class ServLlamaApp extends StatelessWidget {
               final modelManagement = context.read<ModelManagementProvider>();
               final provider = DownloadProvider(
                 onLibraryChanged: modelManagement.refresh,
+                modelNameCoordinator: modelManagement.nameCoordinator,
               );
               unawaited(provider.load());
               return provider;
@@ -97,22 +110,24 @@ class ServLlamaApp extends StatelessWidget {
           ),
         ],
         child: Consumer2<AppThemeModeProvider, AppLocaleProvider>(
-          builder: (context, themeModeProvider, localeProvider, _) => MaterialApp(
-            onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.light(),
-            darkTheme: AppTheme.dark(),
-            themeMode: themeModeProvider.themeMode,
-            locale: localeProvider.locale,
-            localizationsDelegates: [
-              AppLocalizations.delegate,
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
-            ],
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: const MainScaffold(),
-          ),
+          builder: (context, themeModeProvider, localeProvider, _) =>
+              MaterialApp(
+                onGenerateTitle: (context) =>
+                    AppLocalizations.of(context)!.appTitle,
+                debugShowCheckedModeBanner: false,
+                theme: AppTheme.light(),
+                darkTheme: AppTheme.dark(),
+                themeMode: themeModeProvider.themeMode,
+                locale: localeProvider.locale,
+                localizationsDelegates: [
+                  AppLocalizations.delegate,
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                ],
+                supportedLocales: AppLocalizations.supportedLocales,
+                home: const MainScaffold(),
+              ),
         ),
       ),
     );

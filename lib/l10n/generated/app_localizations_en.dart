@@ -551,6 +551,14 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String modelManagementImportAutoRenamed(
+    String requestedName,
+    String finalName,
+  ) {
+    return 'Model imported: $finalName\n“$requestedName” already exists and was renamed automatically.';
+  }
+
+  @override
   String modelManagementImportFailed(String error) {
     return 'Failed to import model: $error';
   }
@@ -1125,6 +1133,16 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String downloadStartedAutoRenamed(String requestedName, String finalName) {
+    return 'Started downloading $finalName\n“$requestedName” already exists and was renamed automatically.';
+  }
+
+  @override
+  String downloadAutoRenamedNotice(String requestedName, String finalName) {
+    return '“$requestedName” already exists and was renamed to “$finalName” automatically.';
+  }
+
+  @override
   String downloadProgressDetail(String received, String total, String speed) {
     return '$received / $total - $speed/s';
   }
@@ -1162,6 +1180,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get downloadErrorCancelled => 'Cancelled';
+
+  @override
+  String get downloadErrorAlreadyQueued =>
+      'The same model is already in the download queue';
 
   @override
   String get downloadCancelDialogTitle => 'Cancel download';

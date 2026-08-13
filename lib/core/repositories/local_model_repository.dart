@@ -72,7 +72,10 @@ class LocalModelRepository {
     return validModels;
   }
 
-  Future<ModelDescriptor> importModel(PickedGgufFile pickedFile) async {
+  Future<ModelDescriptor> importModel(
+    PickedGgufFile pickedFile, {
+    String? modelName,
+  }) async {
     if (!_isGgufFileName(pickedFile.fileName)) {
       throw const ModelOperationException(
         ModelOperationErrorCode.unsupportedGgufFile,
@@ -86,16 +89,17 @@ class LocalModelRepository {
       );
     }
 
-    final modelName = _deriveModelName(pickedFile.fileName);
-    if (modelName.isEmpty) {
+    final resolvedModelName =
+        modelName?.trim() ?? modelNameFromFileName(pickedFile.fileName);
+    if (resolvedModelName.isEmpty) {
       throw const ModelOperationException(
         ModelOperationErrorCode.invalidModelName,
       );
     }
-    _validateModelName(modelName);
+    _validateModelName(resolvedModelName);
 
     final models = await listModels();
-    final normalizedModelName = _normalizeModelKey(modelName);
+    final normalizedModelName = _normalizeModelKey(resolvedModelName);
     final hasDuplicate = models.any(
       (model) => _normalizeModelKey(model.modelName) == normalizedModelName,
     );
@@ -105,7 +109,9 @@ class LocalModelRepository {
       );
     }
 
-    final modelDirectory = await _storagePaths.getModelDirectory(modelName);
+    final modelDirectory = await _storagePaths.getModelDirectory(
+      resolvedModelName,
+    );
     if (await modelDirectory.exists()) {
       throw const ModelOperationException(
         ModelOperationErrorCode.duplicateModelName,
@@ -120,7 +126,7 @@ class LocalModelRepository {
       final fileSize = await copiedFile.length();
       final descriptor = ModelDescriptor(
         id: _generateModelId(),
-        modelName: modelName,
+        modelName: resolvedModelName,
         sizeBytes: fileSize,
         storedDirectoryPath: modelDirectory.path,
         storedFilePath: copiedFile.path,
@@ -142,7 +148,9 @@ class LocalModelRepository {
     final box = await _box();
     final descriptor = box.get(modelId);
     if (descriptor == null) {
-      throw const ModelOperationException(ModelOperationErrorCode.modelNotFound);
+      throw const ModelOperationException(
+        ModelOperationErrorCode.modelNotFound,
+      );
     }
 
     final sourceFile = File(pickedFile.path);
@@ -168,7 +176,8 @@ class LocalModelRepository {
     }
 
     final existingMmprojPath = descriptor.mmprojFilePath;
-    if (existingMmprojPath != null && !_sameFilePath(existingMmprojPath, mmprojDestPath)) {
+    if (existingMmprojPath != null &&
+        !_sameFilePath(existingMmprojPath, mmprojDestPath)) {
       final existingMmprojFile = File(existingMmprojPath);
       if (await existingMmprojFile.exists()) {
         await existingMmprojFile.delete();
@@ -190,7 +199,9 @@ class LocalModelRepository {
     final box = await _box();
     final descriptor = box.get(modelId);
     if (descriptor == null) {
-      throw const ModelOperationException(ModelOperationErrorCode.modelNotFound);
+      throw const ModelOperationException(
+        ModelOperationErrorCode.modelNotFound,
+      );
     }
 
     final currentPath = descriptor.mmprojFilePath;
@@ -210,7 +221,9 @@ class LocalModelRepository {
     final box = await _box();
     final descriptor = box.get(modelId);
     if (descriptor == null) {
-      throw const ModelOperationException(ModelOperationErrorCode.modelNotFound);
+      throw const ModelOperationException(
+        ModelOperationErrorCode.modelNotFound,
+      );
     }
 
     final trimmed = newName.trim();
@@ -245,12 +258,15 @@ class LocalModelRepository {
       await oldDir.rename(newDir.path);
     }
 
-    final oldFileName = descriptor.storedFilePath.split(Platform.pathSeparator).last;
+    final oldFileName = descriptor.storedFilePath
+        .split(Platform.pathSeparator)
+        .last;
     final newStoredFilePath = _joinPath(newDir.path, oldFileName);
     String? newMmprojPath;
     if (descriptor.mmprojFilePath != null) {
-      final mmprojFileName =
-          descriptor.mmprojFilePath!.split(Platform.pathSeparator).last;
+      final mmprojFileName = descriptor.mmprojFilePath!
+          .split(Platform.pathSeparator)
+          .last;
       newMmprojPath = _joinPath(newDir.path, mmprojFileName);
     }
 
@@ -346,9 +362,46 @@ class LocalModelRepository {
     }
   }
 
+  Future<bool> isModelDirectoryOccupied(
+    String modelName, {
+    String? excludingModelId,
+  }) async {
+    ModelDescriptor? excluded;
+    if (excludingModelId != null) {
+      for (final model in await listModels()) {
+        if (model.id == excludingModelId) {
+          excluded = model;
+          break;
+        }
+      }
+    }
+    final directory = await _storagePaths.getModelDirectory(modelName);
+    if (await directory.exists() &&
+        !_sameDirectoryPath(directory.path, excluded?.storedDirectoryPath)) {
+      return true;
+    }
+    final parent = directory.parent;
+    if (!await parent.exists()) {
+      return false;
+    }
+    final normalized = _normalizeModelKey(modelName.trim());
+    await for (final entity in parent.list(followLinks: false)) {
+      if (entity is Directory &&
+          !_sameDirectoryPath(entity.path, excluded?.storedDirectoryPath) &&
+          _normalizeModelKey(_fileName(entity.path)) == normalized) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /// Rename first; falls back to copy+delete when the source sits on another
   /// volume (rename fails with EXDEV there).
-  Future<File> _moveInto(File source, String directoryPath, String fileName) async {
+  Future<File> _moveInto(
+    File source,
+    String directoryPath,
+    String fileName,
+  ) async {
     final targetPath = _joinPath(directoryPath, fileName);
     try {
       return await source.rename(targetPath);
@@ -408,7 +461,7 @@ class LocalModelRepository {
     return 'model_${DateTime.now().microsecondsSinceEpoch}_${_random.nextInt(1 << 32)}';
   }
 
-  String _deriveModelName(String sourceValue) {
+  static String modelNameFromFileName(String sourceValue) {
     final trimmed = sourceValue.trim();
     if (trimmed.isEmpty) {
       return '';
@@ -422,11 +475,14 @@ class LocalModelRepository {
 
   String _normalizeModelKey(String modelName) => modelName.toLowerCase();
 
+  String _fileName(String path) => path.split(RegExp(r'[\\/]')).last;
+
+  bool _sameDirectoryPath(String path, String? other) =>
+      other != null && _normalizeFilePath(path) == _normalizeFilePath(other);
+
   // Model names become directory names under models/; anything that could
   // escape that directory or is invalid as a single path segment is rejected.
-  static final RegExp _invalidModelNameChars = RegExp(
-    r'[\\/\x00-\x1F]',
-  );
+  static final RegExp _invalidModelNameChars = RegExp(r'[\\/\x00-\x1F]');
 
   void _validateModelName(String modelName) {
     if (modelName == '.' ||
@@ -453,10 +509,9 @@ class LocalModelRepository {
   }
 
   String _normalizeFilePath(String path) {
-    final normalized = path.replaceAll('/', Platform.pathSeparator).replaceAll(
-      '\\',
-      Platform.pathSeparator,
-    );
+    final normalized = path
+        .replaceAll('/', Platform.pathSeparator)
+        .replaceAll('\\', Platform.pathSeparator);
     return Platform.isWindows ? normalized.toLowerCase() : normalized;
   }
 

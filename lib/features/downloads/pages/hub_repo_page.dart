@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:servllama/core/errors/model_operation_exception.dart';
 import 'package:servllama/app/app_palette.dart';
 import 'package:servllama/core/models/inference_engine.dart';
 import 'package:servllama/core/utils/format_utils.dart';
@@ -60,7 +61,7 @@ class _HubRepoPageState extends State<HubRepoPage> {
   }) async {
     final downloads = context.read<DownloadProvider>();
     try {
-      await downloads.enqueue(
+      final task = await downloads.enqueue(
         engine: widget.engine,
         source: widget.source,
         repoId: widget.repoId,
@@ -69,6 +70,20 @@ class _HubRepoPageState extends State<HubRepoPage> {
         files: files,
         quantLabel: quantLabel,
       );
+      if (!mounted) {
+        return;
+      }
+      final l10n = context.l10n;
+      final message = task.wasAutoRenamed
+          ? l10n.downloadStartedAutoRenamed(
+              task.requestedModelName,
+              task.modelName,
+            )
+          : l10n.downloadStarted(task.modelName);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+      Navigator.of(context).pop();
     } on DownloadException catch (error) {
       if (!mounted) {
         return;
@@ -81,15 +96,22 @@ class _HubRepoPageState extends State<HubRepoPage> {
         ),
       );
       return;
-    }
-    if (!mounted) {
+    } on ModelOperationException catch (error) {
+      if (!mounted) {
+        return;
+      }
+      final message = switch (error.code) {
+        ModelOperationErrorCode.invalidModelName =>
+          context.l10n.modelErrorInvalidModelName,
+        ModelOperationErrorCode.emptyModelName =>
+          context.l10n.modelErrorEmptyModelName,
+        _ => context.l10n.modelErrorModelNameExists,
+      };
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
       return;
     }
-    final l10n = context.l10n;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(l10n.downloadStarted(modelName))));
-    Navigator.of(context).pop();
   }
 
   @override

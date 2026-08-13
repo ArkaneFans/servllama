@@ -41,6 +41,7 @@ class DownloadTaskRecord {
     required this.repoId,
     required this.revision,
     required this.modelName,
+    String? requestedModelName,
     required this.files,
     required this.statusValue,
     required this.createdAt,
@@ -48,7 +49,7 @@ class DownloadTaskRecord {
     this.quantLabel,
     this.errorDetail,
     this.pausedByNetwork = false,
-  });
+  }) : requestedModelName = requestedModelName ?? modelName;
 
   @HiveField(0)
   String id;
@@ -96,4 +97,8 @@ class DownloadTaskRecord {
 
   @HiveField(12, defaultValue: false)
   bool pausedByNetwork;
+
+  /// The name derived from the hub before automatic conflict resolution.
+  @HiveField(13)
+  String requestedModelName;
 }

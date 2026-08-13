@@ -264,6 +264,17 @@
       }
     }
   },
+  "modelManagementImportAutoRenamed": "模型导入成功：{finalName}\n“{requestedName}”与已有模型重名，已自动重命名。",
+  "@modelManagementImportAutoRenamed": {
+    "placeholders": {
+      "requestedName": {
+        "type": "String"
+      },
+      "finalName": {
+        "type": "String"
+      }
+    }
+  },
   "modelManagementImportFailed": "导入模型失败: {error}",
   "@modelManagementImportFailed": {
     "placeholders": {
@@ -510,6 +521,8 @@
   "downloadRetry": "重试",
   "downloadSwitchSource": "换源",
   "downloadStarted": "已开始下载 {modelName}",
+  "downloadStartedAutoRenamed": "已开始下载 {finalName}\n“{requestedName}”与已有模型重名，已自动重命名。",
+  "downloadAutoRenamedNotice": "“{requestedName}”与已有模型重名，已自动重命名为“{finalName}”。",
   "downloadProgressDetail": "{received} / {total} · {speed}/s",
   "downloadProgressUnknownTotal": "已下载 {received} · {speed}/s",
   "downloadRemaining": "剩余 {duration}",
@@ -520,6 +533,7 @@
   "downloadErrorDiskFull": "存储空间不足",
   "downloadErrorIntegrity": "文件长度或校验值不匹配",
   "downloadErrorCancelled": "已取消",
+  "downloadErrorAlreadyQueued": "相同模型已在下载队列中",
   "downloadCancelDialogTitle": "取消下载",
   "downloadCancelDialogContent": "取消「{modelName}」？已下载的数据将被丢弃。",
   "downloadForegroundTitle": "ServLlama 正在下载模型",

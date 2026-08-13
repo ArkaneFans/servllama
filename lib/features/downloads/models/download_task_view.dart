@@ -54,6 +54,8 @@ class DownloadTaskView {
 
   String get id => record.id;
   String get modelName => record.modelName;
+  String get requestedModelName => record.requestedModelName;
+  bool get wasAutoRenamed => requestedModelName != modelName;
   String get repoId => record.repoId;
   String? get quantLabel => record.quantLabel;
 
