@@ -522,7 +522,6 @@
   "downloadSwitchSource": "换源",
   "downloadStarted": "已开始下载 {modelName}",
   "downloadStartedAutoRenamed": "已开始下载 {finalName}\n“{requestedName}”与已有模型重名，已自动重命名。",
-  "downloadAutoRenamedNotice": "“{requestedName}”与已有模型重名，已自动重命名为“{finalName}”。",
   "downloadProgressDetail": "{received} / {total} · {speed}/s",
   "downloadProgressUnknownTotal": "已下载 {received} · {speed}/s",
   "downloadRemaining": "剩余 {duration}",

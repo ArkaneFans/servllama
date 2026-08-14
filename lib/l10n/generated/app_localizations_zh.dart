@@ -1092,11 +1092,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String downloadAutoRenamedNotice(String requestedName, String finalName) {
-    return '“$requestedName”与已有模型重名，已自动重命名为“$finalName”。';
-  }
-
-  @override
   String downloadProgressDetail(String received, String total, String speed) {
     return '$received / $total · $speed/s';
   }

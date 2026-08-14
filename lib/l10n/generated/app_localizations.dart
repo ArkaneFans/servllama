@@ -2069,12 +2069,6 @@ abstract class AppLocalizations {
   /// **'Started downloading {finalName}\n“{requestedName}” already exists and was renamed automatically.'**
   String downloadStartedAutoRenamed(String requestedName, String finalName);
 
-  /// No description provided for @downloadAutoRenamedNotice.
-  ///
-  /// In en, this message translates to:
-  /// **'“{requestedName}” already exists and was renamed to “{finalName}” automatically.'**
-  String downloadAutoRenamedNotice(String requestedName, String finalName);
-
   /// No description provided for @downloadProgressDetail.
   ///
   /// In en, this message translates to:

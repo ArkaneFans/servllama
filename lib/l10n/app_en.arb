@@ -657,17 +657,6 @@
       }
     }
   },
-  "downloadAutoRenamedNotice": "“{requestedName}” already exists and was renamed to “{finalName}” automatically.",
-  "@downloadAutoRenamedNotice": {
-    "placeholders": {
-      "requestedName": {
-        "type": "String"
-      },
-      "finalName": {
-        "type": "String"
-      }
-    }
-  },
   "downloadProgressDetail": "{received} / {total} - {speed}/s",
   "@downloadProgressDetail": {
     "placeholders": {

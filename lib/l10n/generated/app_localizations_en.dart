@@ -1138,11 +1138,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String downloadAutoRenamedNotice(String requestedName, String finalName) {
-    return '“$requestedName” already exists and was renamed to “$finalName” automatically.';
-  }
-
-  @override
   String downloadProgressDetail(String received, String total, String speed) {
     return '$received / $total - $speed/s';
   }
