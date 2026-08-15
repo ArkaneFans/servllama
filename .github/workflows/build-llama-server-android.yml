@@ -1,0 +1,275 @@
+name: Build llama-server for Android
+
+on:
+  workflow_dispatch:
+    inputs:
+      llama_cpp_tag:
+        description: llama.cpp tag to build, for example b9873
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: llama-server-android-${{ github.ref }}-${{ inputs.llama_cpp_tag }}
+  cancel-in-progress: false
+
+env:
+  ANDROID_ABI: arm64-v8a
+  ANDROID_API_LEVEL: "28"
+  ANDROID_CMAKE_VERSION: "3.22.1"
+  ANDROID_NDK_VERSION: "27.3.13750724"
+
+jobs:
+  build-arm64:
+    name: Android arm64-v8a (${{ inputs.llama_cpp_tag }})
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+
+    steps:
+      - name: Check out ServLlama
+        uses: actions/checkout@v4
+
+      - name: Check out llama.cpp
+        uses: actions/checkout@v4
+        with:
+          repository: ggml-org/llama.cpp
+          ref: ${{ inputs.llama_cpp_tag }}
+          fetch-depth: 1
+          path: llama.cpp
+
+      - name: Record llama.cpp source revision
+        id: source
+        shell: bash
+        env:
+          LLAMA_CPP_TAG: ${{ inputs.llama_cpp_tag }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "${LLAMA_CPP_TAG}" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ ]]; then
+            echo "Invalid llama.cpp tag: ${LLAMA_CPP_TAG}" >&2
+            exit 1
+          fi
+
+          if ! git -C llama.cpp tag --points-at HEAD | grep -Fxq "${LLAMA_CPP_TAG}"; then
+            echo "The checked-out revision is not tagged ${LLAMA_CPP_TAG}." >&2
+            exit 1
+          fi
+
+          commit="$(git -C llama.cpp rev-parse HEAD)"
+          safe_tag="$(printf '%s' "${LLAMA_CPP_TAG}" | sed -E 's/[^A-Za-z0-9._-]+/-/g')"
+
+          echo "commit=${commit}" >> "${GITHUB_OUTPUT}"
+          echo "safe_tag=${safe_tag}" >> "${GITHUB_OUTPUT}"
+
+          {
+            echo "## llama.cpp source"
+            echo
+            echo "- Tag: \`${LLAMA_CPP_TAG}\`"
+            echo "- Commit: \`${commit}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android native toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager \
+            "cmake;${ANDROID_CMAKE_VERSION}" \
+            "ndk;${ANDROID_NDK_VERSION}"
+
+          android_ndk="${ANDROID_SDK_ROOT}/ndk/${ANDROID_NDK_VERSION}"
+          cmake_bin="${ANDROID_SDK_ROOT}/cmake/${ANDROID_CMAKE_VERSION}/bin/cmake"
+          ninja_bin="${ANDROID_SDK_ROOT}/cmake/${ANDROID_CMAKE_VERSION}/bin/ninja"
+          llvm_bin="${android_ndk}/toolchains/llvm/prebuilt/linux-x86_64/bin"
+
+          test -x "${cmake_bin}"
+          test -x "${ninja_bin}"
+          test -x "${llvm_bin}/llvm-strip"
+          test -x "${llvm_bin}/llvm-readelf"
+
+          echo "ANDROID_NDK_ROOT=${android_ndk}" >> "${GITHUB_ENV}"
+          echo "LLAMA_CMAKE=${cmake_bin}" >> "${GITHUB_ENV}"
+          echo "LLAMA_NINJA=${ninja_bin}" >> "${GITHUB_ENV}"
+          echo "LLVM_READELF=${llvm_bin}/llvm-readelf" >> "${GITHUB_ENV}"
+          echo "LLVM_STRIP=${llvm_bin}/llvm-strip" >> "${GITHUB_ENV}"
+
+      - name: Configure llama.cpp
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          "${LLAMA_CMAKE}" \
+            -S "${GITHUB_WORKSPACE}/llama.cpp" \
+            -B "${GITHUB_WORKSPACE}/llama.cpp/build-android" \
+            -G Ninja \
+            -DCMAKE_MAKE_PROGRAM="${LLAMA_NINJA}" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="${ANDROID_NDK_ROOT}/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI="${ANDROID_ABI}" \
+            -DANDROID_PLATFORM="android-${ANDROID_API_LEVEL}" \
+            -DANDROID_STL=c++_static \
+            -DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON \
+            -DBUILD_SHARED_LIBS=ON \
+            -DGGML_BACKEND_DL=ON \
+            -DGGML_CPU_ALL_VARIANTS=ON \
+            -DGGML_SYSTEM_ARCH=ARM \
+            -DGGML_OPENMP=OFF \
+            -DGGML_LLAMAFILE=OFF \
+            -DLLAMA_BUILD_APP=OFF \
+            -DLLAMA_BUILD_EXAMPLES=OFF \
+            -DLLAMA_BUILD_SERVER=ON \
+            -DLLAMA_BUILD_TESTS=OFF \
+            -DLLAMA_BUILD_TOOLS=ON
+
+      - name: Build llama-server
+        shell: bash
+        run: |
+          set -euo pipefail
+          "${LLAMA_CMAKE}" \
+            --build "${GITHUB_WORKSPACE}/llama.cpp/build-android" \
+            --config Release \
+            --target llama-server \
+            --parallel "$(nproc)"
+
+      - name: Package and verify Android libraries
+        id: bundle
+        shell: bash
+        env:
+          LLAMA_CPP_TAG: ${{ inputs.llama_cpp_tag }}
+          LLAMA_CPP_COMMIT: ${{ steps.source.outputs.commit }}
+          SAFE_TAG: ${{ steps.source.outputs.safe_tag }}
+        run: |
+          set -euo pipefail
+
+          build_dir="${GITHUB_WORKSPACE}/llama.cpp/build-android"
+          server_binary="${build_dir}/bin/llama-server"
+          bundle_name="llama-server-${SAFE_TAG}-android-${ANDROID_ABI}"
+          bundle_root="${GITHUB_WORKSPACE}/dist/${bundle_name}"
+          jni_dir="${bundle_root}/android/app/src/main/jniLibs/${ANDROID_ABI}"
+          manifest_dir="${bundle_root}/assets/bin"
+
+          test -f "${server_binary}"
+          mkdir -p "${jni_dir}" "${manifest_dir}"
+
+          cp "${server_binary}" "${jni_dir}/libllama-server.so"
+
+          while IFS= read -r -d '' library; do
+            destination="${jni_dir}/$(basename "${library}")"
+            if [[ -e "${destination}" ]] && ! cmp -s "${library}" "${destination}"; then
+              echo "Conflicting library outputs named $(basename "${library}")." >&2
+              exit 1
+            fi
+            cp -L "${library}" "${destination}"
+          done < <(find "${build_dir}" \( -type f -o -type l \) -name '*.so' -print0)
+
+          test -f "${jni_dir}/libggml.so"
+          test -f "${jni_dir}/libggml-base.so"
+          test -f "${jni_dir}/libllama.so"
+          test -f "${jni_dir}/libllama-common.so"
+          test -f "${jni_dir}/libllama-server-impl.so"
+          test -f "${jni_dir}/libmtmd.so"
+          compgen -G "${jni_dir}/libggml-cpu-*.so" >/dev/null
+
+          while IFS= read -r -d '' binary; do
+            "${LLVM_STRIP}" --strip-unneeded "${binary}"
+
+            machine="$("${LLVM_READELF}" -h "${binary}" | awk -F: '/Machine:/{gsub(/^[[:space:]]+/, "", $2); print $2}')"
+            if [[ "${machine}" != "AArch64" ]]; then
+              echo "Unexpected ELF architecture for ${binary}: ${machine}" >&2
+              exit 1
+            fi
+
+            while read -r alignment; do
+              if (( alignment < 0x4000 )); then
+                echo "${binary} has a LOAD segment aligned below 16 KiB: ${alignment}" >&2
+                exit 1
+              fi
+            done < <("${LLVM_READELF}" -lW "${binary}" | awk '$1 == "LOAD" { print $NF }')
+          done < <(find "${jni_dir}" -type f -name '*.so' -print0)
+
+          while IFS= read -r -d '' binary; do
+            while read -r dependency; do
+              case "${dependency}" in
+                libc.so|libdl.so|libm.so|liblog.so|libandroid.so|libz.so)
+                  continue
+                  ;;
+              esac
+              if [[ ! -f "${jni_dir}/${dependency}" ]]; then
+                echo "Missing runtime dependency ${dependency}, required by $(basename "${binary}")." >&2
+                exit 1
+              fi
+            done < <(
+              "${LLVM_READELF}" -dW "${binary}" \
+                | sed -n 's/.*Shared library: \[\([^]]*\)\].*/\1/p'
+            )
+          done < <(find "${jni_dir}" -type f -name '*.so' -print0)
+
+          chmod 755 "${jni_dir}/libllama-server.so"
+
+          cat > "${manifest_dir}/llama_server_manifest.json" <<EOF
+          {
+            "version": "${LLAMA_CPP_TAG}"
+          }
+          EOF
+
+          cat > "${bundle_root}/BUILD_INFO.json" <<EOF
+          {
+            "llamaCppTag": "${LLAMA_CPP_TAG}",
+            "llamaCppCommit": "${LLAMA_CPP_COMMIT}",
+            "androidAbi": "${ANDROID_ABI}",
+            "androidApiLevel": ${ANDROID_API_LEVEL},
+            "ndkVersion": "${ANDROID_NDK_VERSION}",
+            "cmakeVersion": "${ANDROID_CMAKE_VERSION}",
+            "buildType": "Release"
+          }
+          EOF
+
+          cp "${GITHUB_WORKSPACE}/llama.cpp/LICENSE" "${bundle_root}/LLAMA_CPP_LICENSE"
+
+          (
+            cd "${bundle_root}"
+            find . -type f ! -name SHA256SUMS -print0 \
+              | sort -z \
+              | xargs -0 sha256sum > SHA256SUMS
+          )
+
+          archive="${GITHUB_WORKSPACE}/dist/${bundle_name}.tar.gz"
+          tar -czf "${archive}" -C "${bundle_root}" .
+
+          echo "archive=${archive}" >> "${GITHUB_OUTPUT}"
+          echo "bundle_name=${bundle_name}" >> "${GITHUB_OUTPUT}"
+
+          {
+            echo
+            echo "## Android artifact"
+            echo
+            echo "- ABI: \`${ANDROID_ABI}\`"
+            echo "- Minimum Android API: \`${ANDROID_API_LEVEL}\`"
+            echo "- Archive: \`${bundle_name}.tar.gz\`"
+            echo
+            echo "The archive contains directories that can be copied directly over the ServLlama repository."
+            echo
+            echo "### Bundled native files"
+            echo
+            find "${jni_dir}" -maxdepth 1 -type f -printf '%f\n' | sort | sed 's/^/- `/' | sed 's/$/`/'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload llama-server bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.bundle.outputs.bundle_name }}
+          retention-days: 30
+          if-no-files-found: error
+          path: ${{ steps.bundle.outputs.archive }}
