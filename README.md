@@ -1,3 +1,5 @@
+
+
 <div align="center">
   <img src="assets/app_icon.png" alt="ServLlama icon" width="120" />
   <h1>ServLlama</h1>
@@ -38,6 +40,7 @@ At its core, ServLlama runs a cross-compiled `llama-server` directly on Android,
 - 💬 Chat experience: Streaming responses, collapsible reasoning content, code block rendering, and session history management.
 - ⚙️ Runtime configuration: Visually configure host, port, API key, context size, thread count, and other key parameters.
 - 🎨 Theme support: Switch between light, dark, and follow-system appearance modes.
+- 🔋 Background execution: Leverages Android's foreground service to keep the LLM server running reliably in the background.
 - 🌍 Internationalization: Switch between Chinese and English in-app.
 
 ## 🚀 How to Use
