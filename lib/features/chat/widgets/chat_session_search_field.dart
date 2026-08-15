@@ -50,7 +50,6 @@ class _ChatSessionSearchFieldState extends State<ChatSessionSearchField> {
     }
 
     return Container(
-      key: widget.key,
       height: 40,
       alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 12),

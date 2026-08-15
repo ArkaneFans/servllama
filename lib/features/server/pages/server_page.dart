@@ -1,12 +1,28 @@
-import 'package:flutter/services.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:servllama/core/providers/server_provider.dart';
+import 'package:servllama/app/app_palette.dart';
+import 'package:servllama/core/models/inference_engine.dart';
+import 'package:servllama/core/models/library_model.dart';
+import 'package:servllama/core/providers/engine_runtime_provider.dart';
+import 'package:servllama/core/providers/model_management_provider.dart';
+import 'package:servllama/core/utils/format_utils.dart';
+import 'package:servllama/features/downloads/pages/model_discovery_page.dart';
 import 'package:servllama/features/server/pages/model_management_page.dart';
 import 'package:servllama/features/server/pages/server_config_page.dart';
 import 'package:servllama/features/server/pages/server_logs_page.dart';
+import 'package:servllama/features/server/widgets/engine_selector.dart';
+import 'package:servllama/features/server/widgets/runtime_hero_card.dart';
 import 'package:servllama/l10n/l10n.dart';
+import 'package:servllama/shared/l10n/runtime_labels.dart';
+import 'package:servllama/shared/widgets/engine_badge.dart';
 
+/// Runtime control center: pick an engine, pick a model, start or stop. The
+/// two engines' opposite startup orders are absorbed by
+/// [EngineRuntimeProvider]; this page reports whichever phase is current in
+/// the service status pill.
 class ServerPage extends StatefulWidget {
   const ServerPage({super.key});
 
@@ -15,6 +31,8 @@ class ServerPage extends StatefulWidget {
 }
 
 class _ServerPageState extends State<ServerPage> {
+  Timer? _uptimeTicker;
+
   @override
   void initState() {
     super.initState();
@@ -22,23 +40,94 @@ class _ServerPageState extends State<ServerPage> {
       if (!mounted) {
         return;
       }
-      context.read<ServerProvider>().refresh();
+      unawaited(context.read<EngineRuntimeProvider>().refresh());
+      unawaited(context.read<ModelManagementProvider>().load());
+      _syncUptimeTicker();
     });
+  }
+
+  /// The uptime line is the only thing on this page that changes without a
+  /// state update, so it gets its own low-frequency tick — and only while
+  /// there is an uptime to show, so an idle page schedules no timers at all.
+  void _syncUptimeTicker() {
+    final shouldTick = context.read<EngineRuntimeProvider>().isRunning;
+    if (shouldTick == (_uptimeTicker != null)) {
+      return;
+    }
+    if (shouldTick) {
+      _uptimeTicker = Timer.periodic(const Duration(seconds: 30), (_) {
+        if (mounted) {
+          setState(() {});
+        }
+      });
+    } else {
+      _uptimeTicker?.cancel();
+      _uptimeTicker = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _uptimeTicker?.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final runtime = context.watch<EngineRuntimeProvider>();
+    final library = context.watch<ModelManagementProvider>();
+    final state = runtime.state;
+    _syncUptimeTicker();
+
     return Scaffold(
       appBar: AppBar(title: Text(l10n.serverTitle)),
       body: SafeArea(
         top: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
           children: [
-            _ServerCard(
-              onToggle: () => context.read<ServerProvider>().toggle(),
+            EngineSelector(
+              selected: state.engine,
+              enabled: runtime.canSwitchEngine,
+              onChanged: runtime.switchEngine,
             ),
+            const SizedBox(height: 18),
+            RuntimeHeroCard(
+              state: state,
+              displayUrl: runtime.displayUrl,
+              selectedModelId: runtime.selectedModelId,
+              selectedModelName: _modelNameFor(
+                library,
+                state.engine,
+                runtime.selectedModelId,
+              ),
+              canStart: runtime.canStart,
+              onSelectModel: () => _openModelPicker(context, runtime, library),
+              onToggle: runtime.toggle,
+              onCopyUrl: () => _copyBaseUrl(context, runtime.displayUrl),
+            ),
+            if (runtime.exposesLanWithoutApiKey) ...[
+              const SizedBox(height: 12),
+              NoticeBanner(
+                key: const Key('server_open_access_warning'),
+                tone: StatusTone.warning,
+                icon: Icons.security_rounded,
+                message: l10n.serverOpenAccessWarning,
+              ),
+            ],
+            if (state.error != null) ...[
+              const SizedBox(height: 16),
+              NoticeBanner(
+                tone: StatusTone.danger,
+                icon: Icons.error_outline_rounded,
+                message: RuntimeLabels.runtimeError(
+                  l10n,
+                  state.error!,
+                  runtime.port,
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
             _MenuGroupCard(
               items: [
@@ -55,86 +144,63 @@ class _ServerPageState extends State<ServerPage> {
                 _MenuItemData(
                   icon: Icons.inventory_2_outlined,
                   title: l10n.serverMenuModels,
+                  trailing: '${library.libraryModels.length}',
                   onTap: () => _push(context, const ModelManagementPage()),
                 ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static Future<void> _push(BuildContext context, Widget page) async {
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute<void>(builder: (_) => page));
-  }
-}
-
-class _ServerCard extends StatelessWidget {
-  const _ServerCard({required this.onToggle});
-
-  final VoidCallback onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    final provider = context.watch<ServerProvider>();
-    final isRunning = provider.isRunning;
-    final isBusy = provider.isBusy;
-    final l10n = context.l10n;
-    final statusText = isRunning
-        ? l10n.serverStatusRunning
-        : l10n.serverStatusStopped;
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isLight = theme.brightness == Brightness.light;
-
-    return DecoratedBox(
-      key: const Key('server_page_status_card'),
-      decoration: BoxDecoration(
-        color: isLight ? Colors.white : colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: colorScheme.outlineVariant.withAlpha(110)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                _StatusChip(label: statusText, isRunning: isRunning),
-                const Spacer(),
-                _ServerActionButton(
-                  isRunning: isRunning,
-                  isBusy: isBusy,
-                  onPressed: isBusy ? null : onToggle,
+                _MenuItemData(
+                  icon: Icons.travel_explore_rounded,
+                  title: l10n.discoverTitle,
+                  onTap: () => _push(context, const ModelDiscoveryPage()),
                 ),
               ],
             ),
-            const SizedBox(height: 18),
-            Text(
-              l10n.serverBaseUrlLabel,
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 10),
-            _BaseUrlPanel(
-              baseUrl: provider.displayUrl,
-              onCopy: () => _copyBaseUrl(context, provider.displayUrl),
-            ),
-            if (provider.lastError != null) ...[
-              const SizedBox(height: 14),
-              _ErrorMessage(message: provider.lastError!),
-            ],
           ],
         ),
       ),
     );
+  }
+
+  String? _modelNameFor(
+    ModelManagementProvider library,
+    InferenceEngine engine,
+    String? runtimeId,
+  ) {
+    if (runtimeId == null) {
+      return null;
+    }
+    for (final model in library.libraryModelsFor(engine)) {
+      if (model.runtimeId == runtimeId) {
+        return model.name;
+      }
+    }
+    return runtimeId;
+  }
+
+  Future<void> _openModelPicker(
+    BuildContext context,
+    EngineRuntimeProvider runtime,
+    ModelManagementProvider library,
+  ) async {
+    final engine = runtime.activeEngine;
+    final selection = await showModalBottomSheet<_ModelPick>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _ModelPickerSheet(
+        engine: engine,
+        models: library.libraryModelsFor(engine),
+        selectedRuntimeId: runtime.selectedModelId,
+      ),
+    );
+    if (selection == null) {
+      return;
+    }
+    // While idle this only records the choice; the start button brings the
+    // runtime up. While running it triggers a same-engine swap.
+    if (runtime.isRunning && selection.runtimeId != null) {
+      await runtime.activateModel(selection.runtimeId!);
+    } else if (!runtime.isRunning) {
+      await runtime.selectModel(selection.runtimeId);
+    }
   }
 
   Future<void> _copyBaseUrl(BuildContext context, String baseUrl) async {
@@ -146,195 +212,114 @@ class _ServerCard extends StatelessWidget {
       context,
     ).showSnackBar(SnackBar(content: Text(context.l10n.serverBaseUrlCopied)));
   }
-}
 
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.label, required this.isRunning});
-
-  final String label;
-  final bool isRunning;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isLight = theme.brightness == Brightness.light;
-    final backgroundColor = isRunning
-        ? colorScheme.primaryContainer.withAlpha(isLight ? 220 : 180)
-        : (isLight
-              ? const Color(0xFFF1F4F9)
-              : colorScheme.surfaceContainerHighest);
-    final foregroundColor = isRunning
-        ? colorScheme.primary
-        : colorScheme.onSurfaceVariant;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 9,
-            height: 9,
-            decoration: BoxDecoration(
-              color: foregroundColor.withAlpha(220),
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: theme.textTheme.titleSmall?.copyWith(
-              color: foregroundColor,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
+  static Future<void> _push(BuildContext context, Widget page) async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => page));
   }
 }
 
-class _ServerActionButton extends StatelessWidget {
-  const _ServerActionButton({
-    required this.isRunning,
-    required this.isBusy,
-    required this.onPressed,
+class _ModelPick {
+  const _ModelPick(this.runtimeId);
+
+  final String? runtimeId;
+}
+
+class _ModelPickerSheet extends StatelessWidget {
+  const _ModelPickerSheet({
+    required this.engine,
+    required this.models,
+    required this.selectedRuntimeId,
   });
 
-  final bool isRunning;
-  final bool isBusy;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final colorScheme = Theme.of(context).colorScheme;
-    final icon = isRunning ? Icons.stop_rounded : Icons.play_arrow_rounded;
-    final label = isRunning ? l10n.serverStop : l10n.serverStart;
-
-    return FilledButton.icon(
-      key: const Key('server_page_toggle_button'),
-      onPressed: onPressed,
-      icon: isBusy
-          ? SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.2,
-                color: isRunning
-                    ? colorScheme.onErrorContainer
-                    : colorScheme.onPrimary,
-              ),
-            )
-          : Icon(icon, size: 18),
-      label: Text(label),
-      style: FilledButton.styleFrom(
-        backgroundColor: isRunning
-            ? colorScheme.errorContainer
-            : colorScheme.primary,
-        foregroundColor: isRunning
-            ? colorScheme.onErrorContainer
-            : colorScheme.onPrimary,
-        disabledBackgroundColor: isRunning
-            ? colorScheme.errorContainer
-            : colorScheme.primary,
-        disabledForegroundColor: isRunning
-            ? colorScheme.onErrorContainer
-            : colorScheme.onPrimary,
-        minimumSize: const Size(104, 48),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        textStyle: Theme.of(
-          context,
-        ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-      ),
-    );
-  }
-}
-
-class _BaseUrlPanel extends StatelessWidget {
-  const _BaseUrlPanel({required this.baseUrl, required this.onCopy});
-
-  final String baseUrl;
-  final VoidCallback onCopy;
+  final InferenceEngine engine;
+  final List<LibraryModel> models;
+  final String? selectedRuntimeId;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isLight = theme.brightness == Brightness.light;
     final l10n = context.l10n;
 
-    return DecoratedBox(
-      key: const Key('server_page_base_url_panel'),
-      decoration: BoxDecoration(
-        color: isLight
-            ? const Color(0xFFF2F4FA)
-            : colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colorScheme.outlineVariant.withAlpha(80)),
-      ),
+    return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 4, 8),
-        child: Row(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
-              child: Text(
-                baseUrl,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    l10n.serverSelectModelTitle,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                EngineBadge(engine: engine),
+              ],
+            ),
+            const SizedBox(height: 14),
+            // llama.cpp serves fine with nothing resident (design D6), so
+            // "none" is a real option there and absent for MNN.
+            if (!engine.requiresModelBeforeStart)
+              ListTile(
+                key: const Key('server_model_picker_none'),
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.blur_off_rounded),
+                title: Text(l10n.serverSelectModelNone),
+                subtitle: Text(l10n.serverNoModelSelectedHint),
+                selected: selectedRuntimeId == null,
+                onTap: () => Navigator.of(context).pop(const _ModelPick(null)),
+              ),
+            if (models.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Text(
+                  l10n.serverNoModelsForEngine(engine.displayName),
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              )
+            else
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: models.length,
+                  itemBuilder: (_, index) {
+                    final model = models[index];
+                    final isSelected = model.runtimeId == selectedRuntimeId;
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: ModelFormatBadge(engine: model.engine, size: 40),
+                      title: Text(
+                        model.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text(FormatUtils.bytes(model.sizeBytes)),
+                      selected: isSelected,
+                      trailing: isSelected
+                          ? Icon(
+                              Icons.check_circle_rounded,
+                              color: theme.palette.okMark,
+                            )
+                          : null,
+                      onTap: () => Navigator.of(
+                        context,
+                      ).pop(_ModelPick(model.runtimeId)),
+                    );
+                  },
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            IconButton(
-              onPressed: onCopy,
-              tooltip: l10n.serverCopyBaseUrl,
-              style: IconButton.styleFrom(
-                foregroundColor: colorScheme.onSurfaceVariant,
-                minimumSize: const Size(40, 40),
-              ),
-              icon: const Icon(Icons.content_copy_outlined),
-            ),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _ErrorMessage extends StatelessWidget {
-  const _ErrorMessage({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(Icons.error_outline_rounded, size: 18, color: colorScheme.error),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            message,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: colorScheme.error,
-              height: 1.5,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
@@ -441,6 +426,15 @@ class _MenuCardState extends State<_MenuCard> {
                     ),
                   ),
                 ),
+                if (widget.item.trailing != null) ...[
+                  Text(
+                    widget.item.trailing!,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                ],
                 Icon(
                   Icons.chevron_right_rounded,
                   color: colorScheme.onSurfaceVariant,
@@ -460,9 +454,11 @@ class _MenuItemData {
     required this.icon,
     required this.title,
     required this.onTap,
+    this.trailing,
   });
 
   final IconData icon;
   final String title;
   final VoidCallback onTap;
+  final String? trailing;
 }

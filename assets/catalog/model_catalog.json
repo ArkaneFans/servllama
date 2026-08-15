@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "updatedAt": "2026-07-29",
+  "entries": [
+    {
+      "id": "qwen3-0.6b-gguf",
+      "engine": "llama_cpp",
+      "displayName": "Qwen3-0.6B-Instruct",
+      "vendor": "Qwen",
+      "parameterLabel": "0.6B",
+      "summary": "verifiedSmallGeneralist",
+      "capabilities": ["chinese", "toolCalling"],
+      "sources": {
+        "huggingface": "Qwen/Qwen3-0.6B-GGUF",
+        "modelscope": "Qwen/Qwen3-0.6B-GGUF"
+      },
+      "recommendedQuant": "Q4_K_M"
+    },
+    {
+      "id": "qwen2.5-0.5b-instruct-gguf",
+      "engine": "llama_cpp",
+      "displayName": "Qwen2.5-0.5B-Instruct",
+      "vendor": "Qwen",
+      "parameterLabel": "0.5B",
+      "summary": "verifiedEntryLevel",
+      "capabilities": ["chinese"],
+      "sources": {
+        "huggingface": "Qwen/Qwen2.5-0.5B-Instruct-GGUF",
+        "modelscope": "Qwen/Qwen2.5-0.5B-Instruct-GGUF"
+      },
+      "recommendedQuant": "Q4_K_M"
+    },
+    {
+      "id": "llama-3.2-1b-instruct-gguf",
+      "engine": "llama_cpp",
+      "displayName": "Llama-3.2-1B-Instruct",
+      "vendor": "Meta",
+      "parameterLabel": "1B",
+      "summary": "verifiedBalanced",
+      "capabilities": ["english"],
+      "sources": {
+        "huggingface": "bartowski/Llama-3.2-1B-Instruct-GGUF",
+        "modelscope": "LLM-Research/Llama-3.2-1B-Instruct-GGUF"
+      },
+      "recommendedQuant": "Q4_K_M"
+    },
+    {
+      "id": "gemma-3-1b-it-gguf",
+      "engine": "llama_cpp",
+      "displayName": "Gemma-3-1B-IT",
+      "vendor": "Google",
+      "parameterLabel": "1B",
+      "summary": "verifiedBalanced",
+      "capabilities": ["english"],
+      "sources": {
+        "huggingface": "unsloth/gemma-3-1b-it-GGUF",
+        "modelscope": "unsloth/gemma-3-1b-it-GGUF"
+      },
+      "recommendedQuant": "Q4_K_M"
+    },
+    {
+      "id": "qwen3-0.6b-mnn",
+      "engine": "mnn",
+      "displayName": "Qwen3-0.6B-MNN",
+      "vendor": "MNN",
+      "parameterLabel": "0.6B",
+      "summary": "verifiedMnnDefault",
+      "capabilities": ["chinese", "toolCalling"],
+      "sources": {
+        "huggingface": "taobao-mnn/Qwen3-0.6B-MNN",
+        "modelscope": "MNN/Qwen3-0.6B-MNN"
+      }
+    },
+    {
+      "id": "qwen2.5-1.5b-instruct-mnn",
+      "engine": "mnn",
+      "displayName": "Qwen2.5-1.5B-Instruct-MNN",
+      "vendor": "MNN",
+      "parameterLabel": "1.5B",
+      "summary": "verifiedMnnBalanced",
+      "capabilities": ["chinese"],
+      "sources": {
+        "huggingface": "taobao-mnn/Qwen2.5-1.5B-Instruct-MNN",
+        "modelscope": "MNN/Qwen2.5-1.5B-Instruct-MNN"
+      }
+    },
+    {
+      "id": "qwen2-vl-2b-instruct-mnn",
+      "engine": "mnn",
+      "displayName": "Qwen2-VL-2B-Instruct-MNN",
+      "vendor": "MNN",
+      "parameterLabel": "2B",
+      "summary": "verifiedMnnVision",
+      "capabilities": ["chinese", "vision"],
+      "sources": {
+        "huggingface": "taobao-mnn/Qwen2-VL-2B-Instruct-MNN",
+        "modelscope": "MNN/Qwen2-VL-2B-Instruct-MNN"
+      }
+    }
+  ]
+}

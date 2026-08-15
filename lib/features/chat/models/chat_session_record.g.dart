@@ -16,23 +16,10 @@ class ChatSessionRecordAdapter extends TypeAdapter<ChatSessionRecord> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    final storedMessages = fields[2];
-    final legacyMessages =
-        storedMessages is List &&
-            storedMessages.whereType<ChatMessageRecord>().length ==
-                storedMessages.length
-        ? storedMessages.cast<ChatMessageRecord>()
-        : const <ChatMessageRecord>[];
-    final messageIds =
-        storedMessages is List &&
-            storedMessages.whereType<String>().length == storedMessages.length
-        ? storedMessages.cast<String>()
-        : legacyMessages.map((message) => message.id).toList(growable: false);
     return ChatSessionRecord(
       id: fields[0] as String,
       title: fields[1] as String,
-      messageIds: messageIds,
-      legacyMessages: legacyMessages,
+      messageIds: (fields[2] as List?)?.cast<String>(),
       createdAt: fields[3] as DateTime,
       updatedAt: fields[4] as DateTime,
     );

@@ -15,7 +15,7 @@ class ChatInputBar extends StatelessWidget {
     required this.hasLoadedModel,
     required this.canSend,
     required this.isSending,
-    required this.onToggleServer,
+    required this.onServerAction,
     required this.onOpenModels,
     required this.onSend,
     required this.onStop,
@@ -34,7 +34,7 @@ class ChatInputBar extends StatelessWidget {
   final bool hasLoadedModel;
   final bool canSend;
   final bool isSending;
-  final VoidCallback? onToggleServer;
+  final VoidCallback? onServerAction;
   final VoidCallback onOpenModels;
   final VoidCallback onSend;
   final VoidCallback onStop;
@@ -183,7 +183,7 @@ class ChatInputBar extends StatelessWidget {
                             : l10n.serverStart,
                         child: IconButton(
                           key: const Key('chat_server_toggle_button'),
-                          onPressed: isServerBusy ? null : onToggleServer,
+                          onPressed: isServerBusy ? null : onServerAction,
                           style: IconButton.styleFrom(
                             backgroundColor: Colors.transparent,
                             disabledBackgroundColor: Colors.transparent,

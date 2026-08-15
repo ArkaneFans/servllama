@@ -9,8 +9,11 @@ import 'package:servllama/app/providers/app_locale_provider.dart';
 import 'package:servllama/app/providers/app_theme_mode_provider.dart';
 import 'package:servllama/app/app_theme.dart';
 import 'package:servllama/app/main_scaffold.dart';
-import 'package:servllama/core/providers/server_provider.dart';
+import 'package:servllama/core/providers/engine_runtime_provider.dart';
+import 'package:servllama/core/providers/model_management_provider.dart';
 import 'package:servllama/features/chat/providers/chat_provider.dart';
+import 'package:servllama/features/downloads/providers/download_provider.dart';
+import 'package:servllama/features/downloads/providers/model_discovery_provider.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
 
 class ServLlamaApp extends StatelessWidget {
@@ -44,22 +47,62 @@ class ServLlamaApp extends StatelessWidget {
           ),
           ChangeNotifierProvider(
             create: (_) {
-              final provider = ServerProvider()..refresh();
-              unawaited(provider.loadSavedEndpoint());
+              final provider = EngineRuntimeProvider();
+              unawaited(provider.restore());
+              return provider;
+            },
+          ),
+          ChangeNotifierProvider(
+            create: (context) {
+              final runtime = context.read<EngineRuntimeProvider>();
+              final provider = ModelManagementProvider(
+                onModelRenamed:
+                    ({
+                      required engine,
+                      required oldModelId,
+                      required newModelId,
+                    }) => runtime.handleModelRenamed(
+                      engine: engine,
+                      oldModelId: oldModelId,
+                      newModelId: newModelId,
+                    ),
+              );
+              unawaited(provider.load());
+              return provider;
+            },
+          ),
+          ChangeNotifierProvider(
+            create: (context) {
+              final modelManagement = context.read<ModelManagementProvider>();
+              final provider = DownloadProvider(
+                onLibraryChanged: modelManagement.refresh,
+                modelNameCoordinator: modelManagement.nameCoordinator,
+              );
+              unawaited(provider.load());
+              return provider;
+            },
+          ),
+          ChangeNotifierProvider(
+            create: (_) {
+              final provider = ModelDiscoveryProvider();
+              unawaited(provider.load());
               return provider;
             },
           ),
           ChangeNotifierProxyProvider2<
-            ServerProvider,
+            EngineRuntimeProvider,
             ChatTimeoutProvider,
             ChatProvider
           >(
             create: (_) => ChatProvider(),
-            update: (_, serverProvider, chatTimeoutProvider, chatProvider) {
+            update: (_, runtimeProvider, chatTimeoutProvider, chatProvider) {
               final provider = chatProvider ?? ChatProvider();
               provider.updateServerState(
-                baseUrl: serverProvider.baseUrl,
-                isServerRunning: serverProvider.isRunning,
+                baseUrl: runtimeProvider.baseUrl,
+                isServerRunning: runtimeProvider.isRunning,
+                engine: runtimeProvider.activeEngine,
+                activeModelId: runtimeProvider.activeModelId,
+                activeModelName: runtimeProvider.activeModelName,
               );
               provider.updateChatTimeout(chatTimeoutProvider.timeout);
               return provider;
@@ -67,22 +110,24 @@ class ServLlamaApp extends StatelessWidget {
           ),
         ],
         child: Consumer2<AppThemeModeProvider, AppLocaleProvider>(
-          builder: (context, themeModeProvider, localeProvider, _) => MaterialApp(
-            onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.light(),
-            darkTheme: AppTheme.dark(),
-            themeMode: themeModeProvider.themeMode,
-            locale: localeProvider.locale,
-            localizationsDelegates: [
-              AppLocalizations.delegate,
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
-            ],
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: const MainScaffold(),
-          ),
+          builder: (context, themeModeProvider, localeProvider, _) =>
+              MaterialApp(
+                onGenerateTitle: (context) =>
+                    AppLocalizations.of(context)!.appTitle,
+                debugShowCheckedModeBanner: false,
+                theme: AppTheme.light(),
+                darkTheme: AppTheme.dark(),
+                themeMode: themeModeProvider.themeMode,
+                locale: localeProvider.locale,
+                localizationsDelegates: [
+                  AppLocalizations.delegate,
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                ],
+                supportedLocales: AppLocalizations.supportedLocales,
+                home: const MainScaffold(),
+              ),
         ),
       ),
     );

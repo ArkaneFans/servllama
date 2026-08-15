@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:servllama/app/app_palette.dart';
 
 class AppTheme {
   const AppTheme._();
@@ -30,6 +31,9 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
+      extensions: <ThemeExtension<dynamic>>[
+        brightness == Brightness.light ? AppPalette.light : AppPalette.dark,
+      ],
       scaffoldBackgroundColor: background,
       canvasColor: background,
       bottomSheetTheme: BottomSheetThemeData(

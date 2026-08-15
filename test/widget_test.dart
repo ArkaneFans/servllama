@@ -8,8 +8,15 @@ import 'package:provider/provider.dart';
 import 'package:servllama/app/providers/app_locale_provider.dart';
 import 'package:servllama/app/providers/app_theme_mode_provider.dart';
 import 'package:servllama/app/main_scaffold.dart';
+import 'package:servllama/l10n/generated/app_localizations.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
-import 'package:servllama/core/providers/server_provider.dart';
+import 'package:servllama/core/providers/engine_runtime_provider.dart';
+import 'package:servllama/core/providers/model_management_provider.dart';
+import 'package:servllama/features/downloads/providers/download_provider.dart';
+import 'package:servllama/app/providers/chat_timeout_provider.dart';
+import 'package:servllama/core/services/engines/llama_cpp_engine_adapter.dart';
+
+import 'support/stub_engine_adapter.dart';
 import 'package:servllama/core/services/llama_server_service.dart';
 import 'package:servllama/core/services/model_storage_paths.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
@@ -51,12 +58,18 @@ void main() {
     await chatProvider.load();
 
     final serverService = _FakeLlamaServerService();
-    final serverProvider = ServerProvider(
-      serverService: serverService,
+    final serverProvider = EngineRuntimeProvider(
+      llamaCppAdapter: LlamaCppEngineAdapter(
+        serverService: serverService,
+        settingsLoader: _FixedServerLaunchSettingsLoader(
+        const ServerLaunchSettings(),
+      ),
+        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+      ),
+      mnnAdapter: StubEngineAdapter(),
       settingsLoader: _FixedServerLaunchSettingsLoader(
         const ServerLaunchSettings(),
       ),
-      modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
     );
     addTearDown(() {
       serverProvider.dispose();
@@ -69,7 +82,7 @@ void main() {
     await tester.pump();
 
     expect(
-      find.descendant(of: find.byType(AppBar), matching: find.text('新会话')),
+      find.descendant(of: find.byType(AppBar), matching: find.text('新对话')),
       findsOneWidget,
     );
 
@@ -103,15 +116,23 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.pageBack();
+    await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
 
     expect(
-      find.descendant(of: find.byType(AppBar), matching: find.text('新会话')),
+      find.descendant(of: find.byType(AppBar), matching: find.text('新对话')),
       findsOneWidget,
     );
 
-    await tester.tap(find.byIcon(Icons.menu));
+    // Returning from the server page restores the sidebar in whatever state it
+    // was left in, so only reopen it when it actually closed.
+    if (find.byKey(const Key('drawer_search_input')).evaluate().isEmpty) {
+      await tester.tap(find.byIcon(Icons.menu));
+      await tester.pumpAndSettle();
+    }
+    // The filter lives on the provider and survives the round trip, so it
+    // still hides s2 until it is cleared.
+    await tester.enterText(find.byKey(const Key('drawer_search_input')), '');
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('chat_session_item_s2')));
     await tester.pumpAndSettle();
@@ -148,12 +169,18 @@ void main() {
     await chatProvider.load();
 
     final serverService = _FakeLlamaServerService();
-    final serverProvider = ServerProvider(
-      serverService: serverService,
+    final serverProvider = EngineRuntimeProvider(
+      llamaCppAdapter: LlamaCppEngineAdapter(
+        serverService: serverService,
+        settingsLoader: _FixedServerLaunchSettingsLoader(
+        const ServerLaunchSettings(),
+      ),
+        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+      ),
+      mnnAdapter: StubEngineAdapter(),
       settingsLoader: _FixedServerLaunchSettingsLoader(
         const ServerLaunchSettings(),
       ),
-      modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
     );
     addTearDown(() {
       serverProvider.dispose();
@@ -166,14 +193,14 @@ void main() {
     await tester.pump();
 
     expect(
-      find.descendant(of: find.byType(AppBar), matching: find.text('新会话')),
+      find.descendant(of: find.byType(AppBar), matching: find.text('新对话')),
       findsOneWidget,
     );
 
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
 
-    expect(find.text('暂无会话'), findsOneWidget);
+    expect(find.text('暂无对话'), findsOneWidget);
     expect(find.text('设置'), findsOneWidget);
     expect(find.byKey(const Key('drawer_settings_action')), findsOneWidget);
 
@@ -185,11 +212,11 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.pageBack();
+    await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
 
     expect(
-      find.descendant(of: find.byType(AppBar), matching: find.text('新会话')),
+      find.descendant(of: find.byType(AppBar), matching: find.text('新对话')),
       findsOneWidget,
     );
   });
@@ -207,12 +234,18 @@ void main() {
     await chatProvider.load();
 
     final serverService = _FakeLlamaServerService();
-    final serverProvider = ServerProvider(
-      serverService: serverService,
+    final serverProvider = EngineRuntimeProvider(
+      llamaCppAdapter: LlamaCppEngineAdapter(
+        serverService: serverService,
+        settingsLoader: _FixedServerLaunchSettingsLoader(
+        const ServerLaunchSettings(),
+      ),
+        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+      ),
+      mnnAdapter: StubEngineAdapter(),
       settingsLoader: _FixedServerLaunchSettingsLoader(
         const ServerLaunchSettings(),
       ),
-      modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
     );
     addTearDown(() {
       serverProvider.dispose();
@@ -249,12 +282,18 @@ void main() {
     await chatProvider.load();
 
     final serverService = _FakeLlamaServerService();
-    final serverProvider = ServerProvider(
-      serverService: serverService,
+    final serverProvider = EngineRuntimeProvider(
+      llamaCppAdapter: LlamaCppEngineAdapter(
+        serverService: serverService,
+        settingsLoader: _FixedServerLaunchSettingsLoader(
+        const ServerLaunchSettings(),
+      ),
+        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+      ),
+      mnnAdapter: StubEngineAdapter(),
       settingsLoader: _FixedServerLaunchSettingsLoader(
         const ServerLaunchSettings(),
       ),
-      modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
     );
     addTearDown(() {
       serverProvider.dispose();
@@ -295,12 +334,18 @@ void main() {
     await chatProvider.load();
 
     final serverService = _FakeLlamaServerService();
-    final serverProvider = ServerProvider(
-      serverService: serverService,
+    final serverProvider = EngineRuntimeProvider(
+      llamaCppAdapter: LlamaCppEngineAdapter(
+        serverService: serverService,
+        settingsLoader: _FixedServerLaunchSettingsLoader(
+        const ServerLaunchSettings(),
+      ),
+        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+      ),
+      mnnAdapter: StubEngineAdapter(),
       settingsLoader: _FixedServerLaunchSettingsLoader(
         const ServerLaunchSettings(),
       ),
-      modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
     );
     addTearDown(() {
       serverProvider.dispose();
@@ -334,7 +379,7 @@ class _TestApp extends StatelessWidget {
   const _TestApp({required this.chatProvider, required this.serverProvider});
 
   final ChatProvider chatProvider;
-  final ServerProvider serverProvider;
+  final EngineRuntimeProvider serverProvider;
 
   @override
   Widget build(BuildContext context) {
@@ -346,10 +391,27 @@ class _TestApp extends StatelessWidget {
         ChangeNotifierProvider<AppLocaleProvider>(
           create: (_) => AppLocaleProvider(),
         ),
-        ChangeNotifierProvider<ServerProvider>.value(value: serverProvider),
+        ChangeNotifierProvider<EngineRuntimeProvider>.value(value: serverProvider),
+        // The chat empty state asks the library whether there is anything to
+        // pick before offering "choose a model" (FR-C1).
+        ChangeNotifierProvider<ModelManagementProvider>(
+          create: (_) => ModelManagementProvider(),
+        ),
+        ChangeNotifierProvider<DownloadProvider>(
+          create: (_) => DownloadProvider(),
+        ),
+        ChangeNotifierProvider<ChatTimeoutProvider>(
+          create: (_) => ChatTimeoutProvider(),
+        ),
         ChangeNotifierProvider<ChatProvider>.value(value: chatProvider),
       ],
-      child: MaterialApp(home: _withPhoneViewport(const MainScaffold())),
+      child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        // Pinned so the Chinese assertions do not depend on the host locale.
+        locale: const Locale('zh'),
+        home: _withPhoneViewport(const MainScaffold()),
+      ),
     );
   }
 }

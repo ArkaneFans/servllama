@@ -2,9 +2,19 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:servllama/core/models/inference_engine.dart';
+import 'package:servllama/core/models/library_model.dart';
 import 'package:servllama/core/models/model_descriptor.dart';
 import 'package:servllama/core/providers/model_management_provider.dart';
+import 'package:servllama/core/providers/engine_runtime_provider.dart';
+import 'package:servllama/core/repositories/unified_model_repository.dart';
+import 'package:servllama/core/utils/format_utils.dart';
+import 'package:servllama/features/downloads/pages/downloads_page.dart';
+import 'package:servllama/features/downloads/pages/model_discovery_page.dart';
+import 'package:servllama/features/downloads/providers/download_provider.dart';
+import 'package:servllama/features/downloads/widgets/download_task_card.dart';
 import 'package:servllama/l10n/l10n.dart';
+import 'package:servllama/shared/widgets/engine_badge.dart';
 
 class ModelManagementPage extends StatelessWidget {
   const ModelManagementPage({super.key, this.provider});
@@ -21,10 +31,9 @@ class ModelManagementPage extends StatelessWidget {
       );
     }
 
-    return ChangeNotifierProvider(
-      create: (_) => ModelManagementProvider(),
-      child: const _ModelManagementView(),
-    );
+    // Production keeps one app-scoped provider so downloads can refresh the
+    // same model snapshot used by the library, server page, and chat page.
+    return const _ModelManagementView();
   }
 }
 
@@ -36,6 +45,8 @@ class _ModelManagementView extends StatefulWidget {
 }
 
 class _ModelManagementViewState extends State<_ModelManagementView> {
+  _LibraryFilter _filter = _LibraryFilter.all;
+
   @override
   void initState() {
     super.initState();
@@ -44,11 +55,47 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
         return;
       }
       context.read<ModelManagementProvider>().load();
+      context.read<DownloadProvider>().load();
     });
   }
 
-  Future<void> _importModel(BuildContext context) async {
-    final message = await context.read<ModelManagementProvider>().importModel();
+  Future<void> _openAddSheet(BuildContext context) async {
+    final choice = await showModalBottomSheet<_AddModelChoice>(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => const _AddModelSheet(),
+    );
+    if (choice == null || !context.mounted) {
+      return;
+    }
+
+    switch (choice) {
+      case _AddModelChoice.download:
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const ModelDiscoveryPage()),
+        );
+        if (context.mounted) {
+          await context.read<ModelManagementProvider>().load();
+        }
+      case _AddModelChoice.ggufFile:
+        await _runImport(
+          context,
+          () => context.read<ModelManagementProvider>().importModel(),
+        );
+      case _AddModelChoice.mnnDirectory:
+        await _runImport(
+          context,
+          () =>
+              context.read<ModelManagementProvider>().importMnnModelDirectory(),
+        );
+    }
+  }
+
+  Future<void> _runImport(
+    BuildContext context,
+    Future<String?> Function() action,
+  ) async {
+    final message = await action();
     if (!context.mounted || message == null || message.isEmpty) {
       return;
     }
@@ -71,9 +118,23 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
     );
   }
 
-  Future<void> _deleteModel(
+  void _showMnnModelSettings(BuildContext context, LibraryModel model) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) {
+        return ChangeNotifierProvider<ModelManagementProvider>.value(
+          value: context.read<ModelManagementProvider>(),
+          child: _MnnModelSettingsSheet(model: model),
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteLibraryModel(
     BuildContext context,
-    ModelDescriptor descriptor,
+    LibraryModel model,
   ) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -81,9 +142,7 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
         final l10n = dialogContext.l10n;
         return AlertDialog(
           title: Text(l10n.modelManagementDeleteDialogTitle),
-          content: Text(
-            l10n.modelManagementDeleteDialogContent(descriptor.modelName),
-          ),
+          content: Text(l10n.modelLibraryDeleteDialogContent(model.name)),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -102,9 +161,9 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
       return;
     }
 
-    final message = await context.read<ModelManagementProvider>().deleteModel(
-      descriptor.id,
-    );
+    final message = await context
+        .read<ModelManagementProvider>()
+        .deleteLibraryModel(model);
     if (!context.mounted || message.isEmpty) {
       return;
     }
@@ -113,27 +172,90 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  String _formatSizeGb(int sizeBytes) {
-    final sizeGb = sizeBytes / (1024 * 1024 * 1024);
-    return '${sizeGb.toStringAsFixed(2)} GB';
+  Future<void> _activateLibraryModel(
+    BuildContext context,
+    LibraryModel model,
+  ) async {
+    final runtime = context.read<EngineRuntimeProvider?>();
+    if (runtime == null || runtime.isBusy) {
+      return;
+    }
+    if (runtime.activeEngine != model.engine) {
+      if (!runtime.canSwitchEngine) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.modelLibrarySwitchEngineBlocked)),
+        );
+        return;
+      }
+      await runtime.switchEngine(model.engine);
+    }
+    await runtime.activateModel(model.runtimeId);
+    if (!context.mounted || runtime.lastError == null) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.l10n.modelLibraryActivationFailed)),
+    );
+  }
+
+  ModelDescriptor? _descriptorFor(
+    ModelManagementProvider provider,
+    LibraryModel model,
+  ) {
+    if (model.engine != InferenceEngine.llamaCpp) {
+      return null;
+    }
+    final rawId = UnifiedModelRepository.rawIdOf(model.id);
+    for (final descriptor in provider.models) {
+      if (descriptor.id == rawId) {
+        return descriptor;
+      }
+    }
+    return null;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ModelManagementProvider>(
-      builder: (context, provider, _) {
+    return Consumer2<ModelManagementProvider, DownloadProvider>(
+      builder: (context, provider, downloads, _) {
         final theme = Theme.of(context);
         final colorScheme = theme.colorScheme;
         final isLight = theme.brightness == Brightness.light;
         final l10n = context.l10n;
+        final runtime = context.watch<EngineRuntimeProvider?>();
+
+        final models = _filteredModels(provider.libraryModels, _filter);
+        // In-flight downloads sit in the library rather than hiding on another
+        // page — the model is on its way here, so this is where it belongs.
+        final activeDownloads = downloads.activeTasks
+            .where((task) => _downloadMatches(task.engine, _filter))
+            .toList(growable: false);
 
         return Scaffold(
-          appBar: AppBar(title: Text(l10n.modelManagementTitle)),
+          appBar: AppBar(
+            title: Text(l10n.modelLibraryTitle),
+            actions: [
+              IconButton(
+                key: const Key('model_management_downloads_button'),
+                tooltip: l10n.downloadsTitle,
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const DownloadsPage(),
+                  ),
+                ),
+                icon: Badge(
+                  isLabelVisible: downloads.activeTaskCount > 0,
+                  label: Text('${downloads.activeTaskCount}'),
+                  child: const Icon(Icons.download_rounded),
+                ),
+              ),
+            ],
+          ),
           floatingActionButton: FloatingActionButton.extended(
             key: const Key('model_management_import_fab'),
             onPressed: provider.isImporting
                 ? null
-                : () => _importModel(context),
+                : () => _openAddSheet(context),
             icon: provider.isImporting
                 ? SizedBox(
                     width: 18,
@@ -143,11 +265,11 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
                       color: colorScheme.onPrimaryContainer,
                     ),
                   )
-                : const Icon(Icons.file_download_outlined),
+                : const Icon(Icons.add_rounded),
             label: Text(
               provider.isImporting
                   ? l10n.modelManagementImporting
-                  : l10n.modelManagementImport,
+                  : l10n.modelLibraryAddTitle,
             ),
             backgroundColor: isLight
                 ? colorScheme.primaryContainer
@@ -168,34 +290,522 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
               ? const Center(child: CircularProgressIndicator())
               : SafeArea(
                   top: false,
-                  child: provider.isEmpty
-                      ? const _EmptyState()
-                      : ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 112),
-                          itemCount: provider.models.length,
-                          itemBuilder: (context, index) {
-                            final model = provider.models[index];
-                            final isDeleting =
-                                provider.deletingModelId == model.id;
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 14),
-                              child: _ModelCard(
-                                descriptor: model,
-                                subtitle:
-                                    '${_formatSizeGb(model.sizeBytes)} · GGUF',
-                                isDeleting: isDeleting,
-                                onDelete: isDeleting
-                                    ? null
-                                    : () => _deleteModel(context, model),
-                                onSettings: () =>
-                                    _showModelSettings(context, model),
+                  child: Column(
+                    children: [
+                      _EngineFilterBar(
+                        selected: _filter,
+                        counts: <InferenceEngine, int>{
+                          for (final engine in InferenceEngine.values)
+                            engine: provider.countFor(engine),
+                        },
+                        visionCount: provider.libraryModels
+                            .where((model) => model.supportsVision)
+                            .length,
+                        toolsCount: provider.libraryModels
+                            .where((model) => model.supportsToolCalling)
+                            .length,
+                        onChanged: (filter) => setState(() => _filter = filter),
+                      ),
+                      Expanded(
+                        child: models.isEmpty && activeDownloads.isEmpty
+                            ? const _EmptyState()
+                            : ListView(
+                                padding: const EdgeInsets.fromLTRB(
+                                  20,
+                                  4,
+                                  20,
+                                  112,
+                                ),
+                                children: [
+                                  if (activeDownloads.isNotEmpty) ...[
+                                    _SectionLabel(
+                                      text: l10n.modelLibraryDownloadingSection,
+                                    ),
+                                    for (final task in activeDownloads)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 12,
+                                        ),
+                                        child: DownloadTaskCard(
+                                          task: task,
+                                          onPause: () =>
+                                              downloads.pause(task.id),
+                                          onResume: () =>
+                                              downloads.resume(task.id),
+                                          onCancel: () =>
+                                              downloads.cancel(task.id),
+                                        ),
+                                      ),
+                                    const SizedBox(height: 8),
+                                    _SectionLabel(
+                                      text: l10n.modelLibraryInstalledSection,
+                                    ),
+                                  ],
+                                  for (final model in models)
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 14,
+                                      ),
+                                      child: _LibraryModelCard(
+                                        model: model,
+                                        isActive:
+                                            runtime?.isRunning == true &&
+                                            runtime?.activeEngine ==
+                                                model.engine &&
+                                            runtime?.activeModelId ==
+                                                model.runtimeId,
+                                        isRuntimeBusy: runtime?.isBusy == true,
+                                        isDeleting:
+                                            provider.deletingModelId ==
+                                            model.id,
+                                        onActivate: () => _activateLibraryModel(
+                                          context,
+                                          model,
+                                        ),
+                                        onDelete: () =>
+                                            _deleteLibraryModel(context, model),
+                                        onSettings: () {
+                                          final descriptor = _descriptorFor(
+                                            provider,
+                                            model,
+                                          );
+                                          if (descriptor != null) {
+                                            _showModelSettings(
+                                              context,
+                                              descriptor,
+                                            );
+                                          } else if (model.engine ==
+                                              InferenceEngine.mnn) {
+                                            _showMnnModelSettings(
+                                              context,
+                                              model,
+                                            );
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                ],
                               ),
-                            );
-                          },
-                        ),
+                      ),
+                    ],
+                  ),
                 ),
         );
       },
+    );
+  }
+
+  List<LibraryModel> _filteredModels(
+    List<LibraryModel> models,
+    _LibraryFilter filter,
+  ) {
+    return models
+        .where((model) {
+          switch (filter) {
+            case _LibraryFilter.all:
+              return true;
+            case _LibraryFilter.llamaCpp:
+              return model.engine == InferenceEngine.llamaCpp;
+            case _LibraryFilter.mnn:
+              return model.engine == InferenceEngine.mnn;
+            case _LibraryFilter.vision:
+              return model.supportsVision;
+            case _LibraryFilter.tools:
+              return model.supportsToolCalling;
+          }
+        })
+        .toList(growable: false);
+  }
+
+  bool _downloadMatches(InferenceEngine engine, _LibraryFilter filter) {
+    switch (filter) {
+      case _LibraryFilter.all:
+        return true;
+      case _LibraryFilter.llamaCpp:
+        return engine == InferenceEngine.llamaCpp;
+      case _LibraryFilter.mnn:
+        return engine == InferenceEngine.mnn;
+      case _LibraryFilter.vision:
+      case _LibraryFilter.tools:
+        return false;
+    }
+  }
+}
+
+enum _LibraryFilter { all, llamaCpp, mnn, vision, tools }
+
+enum _AddModelChoice { download, ggufFile, mnnDirectory }
+
+class _AddModelSheet extends StatelessWidget {
+  const _AddModelSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = context.l10n;
+
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              l10n.modelLibraryAddTitle,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _AddOption(
+              icon: Icons.cloud_download_outlined,
+              title: l10n.modelAddDownload,
+              subtitle: l10n.modelAddDownloadDesc,
+              onTap: () => Navigator.of(context).pop(_AddModelChoice.download),
+            ),
+            _AddOption(
+              icon: Icons.insert_drive_file_outlined,
+              title: l10n.modelAddGguf,
+              subtitle: l10n.modelAddGgufDesc,
+              onTap: () => Navigator.of(context).pop(_AddModelChoice.ggufFile),
+            ),
+            _AddOption(
+              icon: Icons.folder_open_rounded,
+              title: l10n.modelAddMnnDir,
+              subtitle: l10n.modelAddMnnDirDesc,
+              onTap: () =>
+                  Navigator.of(context).pop(_AddModelChoice.mnnDirectory),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AddOption extends StatelessWidget {
+  const _AddOption({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon, size: 24, color: theme.colorScheme.onSurfaceVariant),
+      title: Text(
+        title,
+        style: theme.textTheme.titleSmall?.copyWith(
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      subtitle: Text(subtitle),
+      trailing: const Icon(Icons.chevron_right_rounded),
+      onTap: onTap,
+    );
+  }
+}
+
+class _EngineFilterBar extends StatelessWidget {
+  const _EngineFilterBar({
+    required this.selected,
+    required this.counts,
+    required this.visionCount,
+    required this.toolsCount,
+    required this.onChanged,
+  });
+
+  final _LibraryFilter selected;
+  final Map<InferenceEngine, int> counts;
+  final int visionCount;
+  final int toolsCount;
+  final ValueChanged<_LibraryFilter> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final total = counts.values.fold(0, (sum, value) => sum + value);
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+      child: Row(
+        children: [
+          _FilterChip(
+            label: '${l10n.modelLibraryFilterAll} · $total',
+            isSelected: selected == _LibraryFilter.all,
+            onTap: () => onChanged(_LibraryFilter.all),
+          ),
+          const SizedBox(width: 8),
+          _FilterChip(
+            label:
+                '${InferenceEngine.llamaCpp.displayName} · '
+                '${counts[InferenceEngine.llamaCpp] ?? 0}',
+            isSelected: selected == _LibraryFilter.llamaCpp,
+            onTap: () => onChanged(_LibraryFilter.llamaCpp),
+          ),
+          const SizedBox(width: 8),
+          _FilterChip(
+            label:
+                '${InferenceEngine.mnn.displayName} · '
+                '${counts[InferenceEngine.mnn] ?? 0}',
+            isSelected: selected == _LibraryFilter.mnn,
+            onTap: () => onChanged(_LibraryFilter.mnn),
+          ),
+          const SizedBox(width: 8),
+          _FilterChip(
+            label: '${l10n.modelCapabilityVision} · $visionCount',
+            isSelected: selected == _LibraryFilter.vision,
+            onTap: () => onChanged(_LibraryFilter.vision),
+          ),
+          const SizedBox(width: 8),
+          _FilterChip(
+            label: '${l10n.modelCapabilityToolCalling} · $toolsCount',
+            isSelected: selected == _LibraryFilter.tools,
+            onTap: () => onChanged(_LibraryFilter.tools),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isLight = theme.brightness == Brightness.light;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? colorScheme.onSurface
+              : (isLight
+                    ? const Color(0xFFF1F3F7)
+                    : colorScheme.surfaceContainerHighest),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          label,
+          style: theme.textTheme.labelLarge?.copyWith(
+            color: isSelected ? colorScheme.surface : colorScheme.onSurface,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 10),
+      child: Text(
+        text,
+        style: theme.textTheme.titleSmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _LibraryModelCard extends StatelessWidget {
+  const _LibraryModelCard({
+    required this.model,
+    required this.isActive,
+    required this.isRuntimeBusy,
+    required this.isDeleting,
+    required this.onActivate,
+    required this.onDelete,
+    required this.onSettings,
+  });
+
+  final LibraryModel model;
+  final bool isActive;
+  final bool isRuntimeBusy;
+  final bool isDeleting;
+  final VoidCallback onActivate;
+  final VoidCallback onDelete;
+  final VoidCallback onSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isLight = theme.brightness == Brightness.light;
+    final l10n = context.l10n;
+
+    return Material(
+      color: isLight ? Colors.white : colorScheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(22),
+        side: BorderSide(
+          color: isActive
+              ? colorScheme.primary
+              : colorScheme.outlineVariant.withAlpha(96),
+        ),
+      ),
+      child: InkWell(
+        key: Key('model_library_card_${model.id}'),
+        borderRadius: BorderRadius.circular(22),
+        onTap: isActive || isRuntimeBusy ? null : onActivate,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 8, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  ModelFormatBadge(engine: model.engine),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          model.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          isActive
+                              ? l10n.modelLibraryStatusRunning
+                              : l10n.modelLibraryStatusIdle,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: isActive
+                                ? colorScheme.primary
+                                : colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${model.engine.displayName} · '
+                          '${FormatUtils.bytes(model.sizeBytes)}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (model.supportsVision || model.supportsToolCalling) ...[
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 6,
+                  children: [
+                    if (model.supportsVision)
+                      _Tag(label: l10n.modelCapabilityVision),
+                    if (model.supportsToolCalling)
+                      _Tag(label: l10n.modelCapabilityToolCalling),
+                  ],
+                ),
+              ],
+              if (model.warnings.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                NoticeBanner(
+                  tone: StatusTone.warning,
+                  message: model.warnings.first,
+                ),
+              ],
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  IconButton(
+                    tooltip: l10n.modelManagementSettingsTooltip,
+                    onPressed: isActive || isRuntimeBusy ? null : onSettings,
+                    icon: const Icon(Icons.tune_rounded, size: 20),
+                  ),
+                  IconButton(
+                    tooltip: isActive
+                        ? l10n.modelLibraryActiveCannotDelete
+                        : l10n.modelManagementDeleteTooltip,
+                    onPressed: isDeleting || isActive ? null : onDelete,
+                    icon: isDeleting
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.delete_outline_rounded, size: 20),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Tag extends StatelessWidget {
+  const _Tag({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isLight = theme.brightness == Brightness.light;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: isLight
+            ? const Color(0xFFF1F3F7)
+            : theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }
@@ -220,15 +830,6 @@ class _EmptyState extends StatelessWidget {
             border: Border.all(
               color: colorScheme.outlineVariant.withAlpha(110),
             ),
-            boxShadow: isLight
-                ? const [
-                    BoxShadow(
-                      color: Color(0x08000000),
-                      blurRadius: 18,
-                      offset: Offset(0, 8),
-                    ),
-                  ]
-                : null,
           ),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(24, 30, 24, 30),
@@ -254,14 +855,14 @@ class _EmptyState extends StatelessWidget {
                 ),
                 const SizedBox(height: 18),
                 Text(
-                  l10n.modelManagementEmptyTitle,
+                  l10n.modelLibraryEmptyTitle,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  l10n.modelManagementEmptyDescription,
+                  l10n.modelLibraryEmptyDescription,
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: colorScheme.onSurfaceVariant,
@@ -277,131 +878,8 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-class _ModelCard extends StatelessWidget {
-  const _ModelCard({
-    required this.descriptor,
-    required this.subtitle,
-    required this.isDeleting,
-    required this.onDelete,
-    required this.onSettings,
-  });
-
-  final ModelDescriptor descriptor;
-  final String subtitle;
-  final bool isDeleting;
-  final VoidCallback? onDelete;
-  final VoidCallback onSettings;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isLight = theme.brightness == Brightness.light;
-    final l10n = context.l10n;
-    final typeLabel = descriptor.mmprojFilePath != null
-        ? l10n.modelMmprojBadgeLabel
-        : l10n.modelTextBadgeLabel;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: isLight ? Colors.white : colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: colorScheme.outlineVariant.withAlpha(96)),
-        boxShadow: isLight
-            ? const [
-                BoxShadow(
-                  color: Color(0x05000000),
-                  blurRadius: 14,
-                  offset: Offset(0, 6),
-                ),
-              ]
-            : null,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 16, 8, 8),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    descriptor.modelName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      height: 1.1,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: Wrap(
-                          spacing: 8,
-                          runSpacing: 6,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            _ModelTypeBadge(
-                              tooltip: typeLabel,
-                              isMultimodal: descriptor.mmprojFilePath != null,
-                            ),
-                            Text(
-                              subtitle,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                                fontWeight: FontWeight.w500,
-                                height: 1.2,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      _ModelActionButton(
-                        key: Key('model_card_settings_${descriptor.id}'),
-                        tooltip: l10n.modelManagementSettingsTooltip,
-                        onPressed: isDeleting ? null : onSettings,
-                        icon: Icons.settings_outlined,
-                      ),
-                      const SizedBox(width: 2),
-                      _ModelActionButton(
-                        tooltip: l10n.modelManagementDeleteTooltip,
-                        onPressed: onDelete,
-                        icon: Icons.delete_outline_rounded,
-                        foregroundColor: colorScheme.error,
-                        child: isDeleting
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : null,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _ModelTypeBadge extends StatelessWidget {
-  const _ModelTypeBadge({
-    required this.tooltip,
-    required this.isMultimodal,
-  });
+  const _ModelTypeBadge({required this.tooltip, required this.isMultimodal});
 
   final String tooltip;
   final bool isMultimodal;
@@ -437,48 +915,9 @@ class _ModelTypeBadge extends StatelessWidget {
         ),
         child: Padding(
           padding: const EdgeInsets.all(7),
-          child: Icon(
-            icon,
-            size: 16,
-            color: foregroundColor,
-          ),
+          child: Icon(icon, size: 16, color: foregroundColor),
         ),
       ),
-    );
-  }
-}
-
-class _ModelActionButton extends StatelessWidget {
-  const _ModelActionButton({
-    super.key,
-    required this.tooltip,
-    required this.onPressed,
-    required this.icon,
-    this.foregroundColor,
-    this.child,
-  });
-
-  final String tooltip;
-  final VoidCallback? onPressed;
-  final IconData icon;
-  final Color? foregroundColor;
-  final Widget? child;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return IconButton(
-      key: key,
-      tooltip: tooltip,
-      onPressed: onPressed,
-      style: IconButton.styleFrom(
-        foregroundColor: foregroundColor ?? colorScheme.onSurfaceVariant,
-        minimumSize: const Size(36, 36),
-        padding: const EdgeInsets.all(8),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      ),
-      icon: child ?? Icon(icon, size: 20),
     );
   }
 }
@@ -509,7 +948,10 @@ class _ModelSettingsSheetState extends State<_ModelSettingsSheet> {
     super.dispose();
   }
 
-  Future<void> _renameModel(BuildContext context, ModelDescriptor descriptor) async {
+  Future<void> _renameModel(
+    BuildContext context,
+    ModelDescriptor descriptor,
+  ) async {
     final nextName = _nameController.text.trim();
     if (nextName.isEmpty || nextName == descriptor.modelName) {
       return;
@@ -734,9 +1176,7 @@ class _ModelSettingsSheetState extends State<_ModelSettingsSheet> {
                         ? const SizedBox(
                             width: 16,
                             height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.save_outlined, size: 16),
                     label: Text(l10n.commonSave),
@@ -769,7 +1209,9 @@ class _ModelSettingsSheetState extends State<_ModelSettingsSheet> {
                             decoration: BoxDecoration(
                               color: isLight
                                   ? const Color(0xFFFCE7F3)
-                                  : colorScheme.tertiaryContainer.withAlpha(150),
+                                  : colorScheme.tertiaryContainer.withAlpha(
+                                      150,
+                                    ),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Icon(
@@ -839,14 +1281,205 @@ class _ModelSettingsSheetState extends State<_ModelSettingsSheet> {
                           ? const SizedBox(
                               width: 16,
                               height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                              ),
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.upload_file_outlined),
                       label: Text(l10n.modelSettingsImportMmproj),
                     ),
                   ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _MnnModelSettingsSheet extends StatefulWidget {
+  const _MnnModelSettingsSheet({required this.model});
+
+  final LibraryModel model;
+
+  @override
+  State<_MnnModelSettingsSheet> createState() => _MnnModelSettingsSheetState();
+}
+
+class _MnnModelSettingsSheetState extends State<_MnnModelSettingsSheet> {
+  late final TextEditingController _nameController;
+  late String _currentLibraryId;
+  late String _lastSyncedName;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentLibraryId = widget.model.id;
+    _lastSyncedName = widget.model.name;
+    _nameController = TextEditingController(text: widget.model.name);
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _renameModel(BuildContext context, LibraryModel model) async {
+    final nextName = _nameController.text.trim();
+    if (nextName.isEmpty || nextName == model.name) {
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+    final message = await context
+        .read<ModelManagementProvider>()
+        .renameLibraryModel(model, nextName);
+    if (!context.mounted || message == null || message.isEmpty) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  LibraryModel _currentModel(ModelManagementProvider provider) {
+    for (final model in provider.libraryModels) {
+      if (model.id == _currentLibraryId) {
+        return model;
+      }
+    }
+    for (final model in provider.libraryModels) {
+      if (model.engine == InferenceEngine.mnn &&
+          model.name == _nameController.text.trim()) {
+        _currentLibraryId = model.id;
+        return model;
+      }
+    }
+    return widget.model;
+  }
+
+  void _syncNameDraft(LibraryModel model) {
+    if (model.name == _lastSyncedName) {
+      return;
+    }
+    final hasUserEdited = _nameController.text.trim() != _lastSyncedName;
+    _lastSyncedName = model.name;
+    _currentLibraryId = model.id;
+    if (hasUserEdited) {
+      return;
+    }
+    _nameController.value = TextEditingValue(
+      text: model.name,
+      selection: TextSelection.collapsed(offset: model.name.length),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<ModelManagementProvider>(
+      builder: (context, provider, _) {
+        final model = _currentModel(provider);
+        _syncNameDraft(model);
+        final theme = Theme.of(context);
+        final colorScheme = theme.colorScheme;
+        final isLight = theme.brightness == Brightness.light;
+        final l10n = context.l10n;
+        final draftName = _nameController.text.trim();
+        final isRenamingThisModel =
+            provider.renamingModelId == model.id || provider.isRenaming;
+        final canSaveName =
+            draftName.isNotEmpty &&
+            draftName != model.name &&
+            !isRenamingThisModel;
+
+        return SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              8,
+              20,
+              28 + MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        model.name,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ModelFormatBadge(engine: InferenceEngine.mnn),
+                  ],
+                ),
+                const SizedBox(height: 22),
+                Text(
+                  l10n.modelSettingsNameLabel,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: colorScheme.onSurface.withAlpha(220),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  key: const Key('mnn_model_settings_name_field'),
+                  controller: _nameController,
+                  textInputAction: TextInputAction.done,
+                  onChanged: (_) => setState(() {}),
+                  onSubmitted: (_) {
+                    if (canSaveName) {
+                      _renameModel(context, model);
+                    }
+                  },
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: isLight
+                        ? const Color(0xFFF5F6F8)
+                        : colorScheme.surfaceContainerHighest.withAlpha(90),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: colorScheme.primary),
+                    ),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.icon(
+                    key: const Key('mnn_model_settings_save_name_button'),
+                    onPressed: canSaveName
+                        ? () => _renameModel(context, model)
+                        : null,
+                    icon: isRenamingThisModel
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save_outlined, size: 16),
+                    label: Text(l10n.commonSave),
+                  ),
+                ),
               ],
             ),
           ),
@@ -870,7 +1503,9 @@ ModelDescriptor? _findDescriptorById(
 
 String _fileNameFromPath(String path) {
   final separator = Platform.pathSeparator;
-  final normalized = path.replaceAll('/', separator).replaceAll('\\', separator);
+  final normalized = path
+      .replaceAll('/', separator)
+      .replaceAll('\\', separator);
   final segments = normalized.split(separator);
   return segments.isEmpty ? path : segments.last;
 }

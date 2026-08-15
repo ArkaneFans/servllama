@@ -1,107 +1,46 @@
 import 'package:flutter/material.dart';
-import 'package:servllama/features/chat/models/chat_model_option.dart';
-import 'package:servllama/features/chat/providers/chat_provider.dart';
+import 'package:servllama/app/app_palette.dart';
+import 'package:servllama/core/models/inference_engine.dart';
+import 'package:servllama/core/models/library_model.dart';
+import 'package:servllama/core/utils/format_utils.dart';
+import 'package:servllama/features/downloads/models/download_task_view.dart';
 import 'package:servllama/l10n/l10n.dart';
+import 'package:servllama/shared/widgets/engine_badge.dart';
 
-class ChatModelSheetContent extends StatelessWidget {
-  const ChatModelSheetContent({
+/// Model picker for the chat page.
+///
+/// Only the active engine's models are listed. Engine selection belongs to the
+/// server action beside the model button, keeping this sheet focused on model
+/// loading within the selected runtime.
+class ChatModelSheet extends StatelessWidget {
+  const ChatModelSheet({
     super.key,
-    required this.provider,
-    required this.onRefresh,
-    required this.children,
-    this.errorText,
+    required this.engine,
+    required this.models,
+    required this.activeModelId,
+    required this.pendingModelId,
+    required this.downloading,
+    required this.errorText,
+    required this.onSelect,
+    required this.onDiscover,
   });
 
-  final ChatProvider provider;
-  final VoidCallback onRefresh;
-  final List<Widget> children;
+  final InferenceEngine engine;
+
+  /// Library models belonging to [engine] only.
+  final List<LibraryModel> models;
+
+  /// The model the runtime is currently serving, if any.
+  final String? activeModelId;
+
+  /// The model an in-flight `activateModel` call is switching to.
+  final String? pendingModelId;
+
+  final List<DownloadTaskView> downloading;
   final String? errorText;
 
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final showInitialLoading =
-        provider.isRefreshingModels && provider.models.isEmpty;
-    final titleStyle = Theme.of(
-      context,
-    ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700);
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Row(
-            children: [
-              Text(l10n.chatSelectModel, style: titleStyle),
-              const Spacer(),
-              IconButton(
-                onPressed: provider.isRefreshingModels ? null : onRefresh,
-                tooltip: l10n.chatRefreshModels,
-                icon: const Icon(Icons.refresh),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        if (errorText != null) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            child: Row(
-              key: const Key('chat_model_sheet_error'),
-              children: [
-                Icon(
-                  Icons.error_outline,
-                  size: 18,
-                  color: Theme.of(context).colorScheme.error,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    errorText!,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-        if (showInitialLoading)
-          const SizedBox(
-            height: 180,
-            child: Center(
-              child: CircularProgressIndicator(
-                key: Key('chat_model_sheet_loading_indicator'),
-              ),
-            ),
-          )
-        else
-          ...children,
-      ],
-    );
-  }
-}
-
-class ChatModelSection extends StatelessWidget {
-  const ChatModelSection({
-    super.key,
-    required this.title,
-    required this.models,
-    required this.currentModelId,
-    required this.loadingModelId,
-    required this.onTap,
-    this.onSecondaryAction,
-  });
-
-  final String title;
-  final List<ChatModelOption> models;
-  final String? currentModelId;
-  final String? loadingModelId;
-  final ValueChanged<ChatModelOption>? onTap;
-  final ValueChanged<ChatModelOption>? onSecondaryAction;
+  final ValueChanged<LibraryModel> onSelect;
+  final VoidCallback onDiscover;
 
   @override
   Widget build(BuildContext context) {
@@ -109,106 +48,212 @@ class ChatModelSection extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    if (models.isEmpty) {
-      return const SizedBox.shrink();
-    }
+    final active = _findActive();
+    final switchable = models
+        .where((model) => model.runtimeId != activeModelId)
+        .toList(growable: false);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text(
-            title,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: colorScheme.onSurfaceVariant.withAlpha(170),
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        ...models.map((model) {
-          final isBusy = loadingModelId == model.id;
-          final isSelected = currentModelId == model.id;
-          return Material(
-            color: isSelected
-                ? colorScheme.primaryContainer.withAlpha(40)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: onTap == null || isBusy ? null : () => onTap!(model),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 12,
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    l10n.chatSelectModel,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        model.displayName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          fontWeight: isSelected
-                              ? FontWeight.w600
-                              : FontWeight.w500,
-                          color: isSelected
-                              ? colorScheme.primary
-                              : colorScheme.onSurface,
-                        ),
+                EngineBadge(engine: engine),
+              ],
+            ),
+            if (errorText != null) ...[
+              const SizedBox(height: 12),
+              NoticeBanner(
+                key: const Key('chat_model_sheet_error'),
+                tone: StatusTone.danger,
+                icon: Icons.error_outline_rounded,
+                message: errorText!,
+              ),
+            ],
+            const SizedBox(height: 6),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  if (active != null) ...[
+                    _SectionLabel(l10n.chatCurrentRunning),
+                    _ModelRow(
+                      model: active,
+                      isActive: true,
+                      isPending: pendingModelId == active.runtimeId,
+                      onTap: null,
+                    ),
+                  ],
+                  if (switchable.isNotEmpty) ...[
+                    _SectionLabel(l10n.chatModelStatusAvailable),
+                    ...switchable.map(
+                      (model) => _ModelRow(
+                        model: model,
+                        isActive: false,
+                        isPending: pendingModelId == model.runtimeId,
+                        onTap: pendingModelId == null
+                            ? () => onSelect(model)
+                            : null,
                       ),
                     ),
-                    if (onSecondaryAction != null && model.isLoaded)
-                      IconButton(
-                        key: Key('chat_model_unload_button_${model.id}'),
-                        tooltip: l10n.chatUnloadModel,
-                        onPressed: isBusy
-                            ? null
-                            : () => onSecondaryAction!(model),
-                        icon: const Icon(Icons.eject_outlined, size: 18),
-                        visualDensity: VisualDensity.compact,
-                        constraints: const BoxConstraints.tightFor(
-                          width: 32,
-                          height: 32,
-                        ),
-                      ),
-                    const SizedBox(width: 4),
-                    _StatusDot(isBusy: isBusy, isLoaded: model.isLoaded),
                   ],
-                ),
+                  if (models.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      child: Column(
+                        children: [
+                          Text(
+                            l10n.serverNoModelsForEngine(engine.displayName),
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton.icon(
+                            key: const Key('chat_model_sheet_discover'),
+                            onPressed: onDiscover,
+                            icon: const Icon(Icons.travel_explore_rounded),
+                            label: Text(l10n.discoverTitle),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (downloading.isNotEmpty) ...[
+                    _SectionLabel(l10n.downloadStatusRunning),
+                    ...downloading.map(
+                      (task) => _DownloadingRow(
+                        key: Key('chat_model_sheet_downloading_${task.id}'),
+                        task: task,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
-          );
-        }),
-      ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  LibraryModel? _findActive() {
+    if (activeModelId == null) {
+      return null;
+    }
+    for (final model in models) {
+      if (model.runtimeId == activeModelId) {
+        return model;
+      }
+    }
+    return null;
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 14, 0, 6),
+      child: Text(
+        text,
+        style: theme.textTheme.labelLarge?.copyWith(
+          fontWeight: FontWeight.w600,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
     );
   }
 }
 
-class _StatusDot extends StatelessWidget {
-  const _StatusDot({required this.isBusy, required this.isLoaded});
+class _ModelRow extends StatelessWidget {
+  const _ModelRow({
+    required this.model,
+    required this.isActive,
+    required this.isPending,
+    required this.onTap,
+  });
 
-  final bool isBusy;
-  final bool isLoaded;
+  final LibraryModel model;
+  final bool isActive;
+  final bool isPending;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    if (isBusy) {
-      return const SizedBox(
-        width: 16,
-        height: 16,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      );
-    }
-    return Container(
-      width: 10,
-      height: 10,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: isLoaded ? const Color(0xFF10B981) : colorScheme.outlineVariant,
+    final theme = Theme.of(context);
+    final l10n = context.l10n;
+
+    return ListTile(
+      key: Key('chat_model_sheet_row_${model.runtimeId}'),
+      contentPadding: EdgeInsets.zero,
+      leading: ModelFormatBadge(engine: model.engine, size: 40),
+      title: Text(model.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(FormatUtils.bytes(model.sizeBytes)),
+      selected: isActive,
+      enabled: onTap != null,
+      onTap: onTap,
+      trailing: isPending
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : isActive
+          ? Icon(Icons.check_circle_rounded, color: theme.palette.okMark)
+          : Text(
+              l10n.chatLoadModelAction,
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+    );
+  }
+}
+
+class _DownloadingRow extends StatelessWidget {
+  const _DownloadingRow({super.key, required this.task});
+
+  final DownloadTaskView task;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      enabled: false,
+      leading: ModelFormatBadge(engine: task.engine, size: 40),
+      title: Text(task.modelName, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: LinearProgressIndicator(
+          value: task.totalBytes > 0 ? task.progress : null,
+          minHeight: 4,
+        ),
+      ),
+      trailing: Text(
+        '${(task.progress * 100).round()}%',
+        style: theme.textTheme.labelMedium?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
       ),
     );
   }

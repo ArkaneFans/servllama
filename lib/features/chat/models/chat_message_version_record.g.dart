@@ -24,7 +24,7 @@ class ChatMessageVersionRecordAdapter
       createdAt: fields[3] as DateTime,
       modelName: fields[4] as String?,
       reasoningContent: fields[5] as String?,
-      imageFilePaths: (fields[6] as List?)?.cast<String>() ?? const [],
+      imageFilePaths: (fields[6] as List).cast<String>(),
     );
   }
 

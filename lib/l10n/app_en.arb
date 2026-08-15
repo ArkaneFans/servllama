@@ -59,7 +59,7 @@
   "chatUnloadModel": "Unload model",
   "chatModelStatusLoaded": "Loaded",
   "chatModelStatusLoading": "Loading",
-  "chatModelStatusAvailable": "Available",
+  "chatModelStatusAvailable": "Available to load",
   "chatModelStatusFailed": "Load failed",
   "chatModelLoadTimeout": "Model load timed out: {model}",
   "@chatModelLoadTimeout": {
@@ -240,9 +240,9 @@
   "serverConfigUseMmapSubtitle": "Improves model loading performance",
   "serverConfigSectionLogging": "Logs",
   "serverConfigLogEnabled": "Enable logs",
-  "serverConfigLogEnabledSubtitle": "Controls llama-server runtime log output",
+  "serverConfigLogEnabledSubtitle": "Controls whether inference engine runtime logs are displayed and recorded in the app",
   "serverConfigLogLevel": "Log level",
-  "serverConfigLogLevelDescription": "Controls the granularity of log output information",
+  "serverConfigLogLevelDescription": "Controls the detail level of inference engine logs",
   "serverConfigLogLevelError": "Error",
   "serverConfigLogLevelWarning": "Warning",
   "serverConfigLogLevelInfo": "Info",
@@ -260,6 +260,17 @@
   "@modelManagementImportSuccess": {
     "placeholders": {
       "modelName": {
+        "type": "String"
+      }
+    }
+  },
+  "modelManagementImportAutoRenamed": "Model imported: {finalName}\n“{requestedName}” already exists and was renamed automatically.",
+  "@modelManagementImportAutoRenamed": {
+    "placeholders": {
+      "requestedName": {
+        "type": "String"
+      },
+      "finalName": {
         "type": "String"
       }
     }
@@ -389,5 +400,378 @@
       }
     }
   },
-  "serverLogsEmpty": "No logs yet"
+  "serverLogsEmpty": "No logs yet",
+  "serverLogsExport": "Export logs",
+  "serverLogsExported": "Logs exported to {path}",
+  "@serverLogsExported": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "serverLogsExportFailed": "Export failed: {error}",
+  "@serverLogsExportFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "serverLogsAutoScroll": "Auto-scroll",
+  "serverLogsFilterAll": "All",
+  "serverLogsFilterEngine": "Engine",
+  "serverLogsFilterServer": "Service",
+  "serverLogsFilterModel": "Model",
+  "serverLogsFilterDownload": "Download",
+  "serverLogsFilterErrors": "Errors only",
+  "engineSectionTitle": "Inference engine",
+  "serverStatusIdle": "Stopped",
+  "serverStatusPreparing": "Starting",
+  "serverStatusStopping": "Stopping",
+  "serverStatusError": "Failed",
+  "serverCancelPreparation": "Cancel",
+  "serverUptime": "Running for {duration}",
+  "@serverUptime": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "serverUptimeHoursMinutes": "{hours} h {minutes} min",
+  "@serverUptimeHoursMinutes": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "serverUptimeMinutes": "{minutes} min",
+  "@serverUptimeMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "serverActiveModelLabel": "Active model",
+  "serverNoModelSelected": "No model selected",
+  "serverNoModelSelectedHint": "Optional - loaded on demand after start",
+  "serverModelRequiredHint": "MNN needs a model before it can start",
+  "serverSelectModelTitle": "Select model",
+  "serverSelectModelNone": "Start without a model",
+  "serverNoModelsForEngine": "No {engine} models in the library yet",
+  "@serverNoModelsForEngine": {
+    "placeholders": {
+      "engine": {
+        "type": "String"
+      }
+    }
+  },
+  "serverPhaseLoadingModel": "Loading model",
+  "serverPhaseStartingServer": "Starting service",
+  "serverPhaseVerifying": "Health check",
+  "serverPhaseUnloadingModel": "Unloading model",
+  "serverPhaseStoppingServer": "Stopping service",
+  "runtimeErrorPortInUse": "Port {port} is currently unavailable; another service may still be using it.",
+  "@runtimeErrorPortInUse": {
+    "placeholders": {
+      "port": {
+        "type": "int"
+      }
+    }
+  },
+  "runtimeErrorModelLoadFailed": "Failed to load the model.",
+  "runtimeErrorServerStartFailed": "The service failed to start. Check the logs.",
+  "runtimeErrorServerStopFailed": "The service failed to stop.",
+  "runtimeErrorModelRequired": "Select a model first.",
+  "runtimeErrorEngineUnavailable": "This engine is unavailable on this device.",
+  "runtimeErrorUnknown": "Something went wrong: {detail}",
+  "@runtimeErrorUnknown": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "serverOpenAccessWarning": "The service listens on all interfaces without an API key, so any device on the same network can access it.",
+  "modelLibraryTitle": "Models",
+  "modelLibraryAddTitle": "Add a model",
+  "modelLibraryFilterAll": "All",
+  "modelLibraryDownloadingSection": "Downloading",
+  "modelLibraryInstalledSection": "Installed",
+  "modelAddDownload": "Download from a hub",
+  "modelAddDownloadDesc": "Hugging Face and ModelScope, with resume support",
+  "modelAddGguf": "Import a GGUF file",
+  "modelAddGgufDesc": "A single .gguf file for llama.cpp",
+  "modelAddMnnDir": "Import an MNN directory",
+  "modelAddMnnDirDesc": "A whole model folder for the MNN engine",
+  "modelFormatExplainer": "GGUF is a single file; MNN models are whole directories. The engine badge on each card tells them apart.",
+  "modelLibraryEmptyTitle": "No models yet",
+  "modelLibraryEmptyDescription": "Download one, or import a file you already have.",
+  "modelLibraryDeleteDialogContent": "Delete “{modelName}”? The files will be removed from this device.",
+  "@modelLibraryDeleteDialogContent": {
+    "placeholders": {
+      "modelName": {
+        "type": "String"
+      }
+    }
+  },
+  "modelLibraryStatusRunning": "Running",
+  "modelLibraryStatusIdle": "Idle",
+  "modelLibraryActiveCannotDelete": "The running model cannot be deleted",
+  "modelLibrarySwitchEngineBlocked": "Stop the running service before switching engines.",
+  "modelLibraryActivationFailed": "Could not activate the model. Check the server logs.",
+  "modelCapabilityChinese": "Chinese",
+  "modelCapabilityEnglish": "English",
+  "modelCapabilityVision": "Vision",
+  "modelCapabilityToolCalling": "Tool calling",
+  "discoverTitle": "Discover models",
+  "discoverTabFeatured": "Featured",
+  "discoverTabSearch": "Search",
+  "discoverDeviceMemory": "{available} of {total} RAM available",
+  "@discoverDeviceMemory": {
+    "placeholders": {
+      "available": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "discoverDeviceMemoryUnknown": "Device memory unknown; feasibility is not checked.",
+  "discoverSearchHint": "Search repositories",
+  "discoverSearchDisclaimer": "Search results come straight from the hub and have not been verified on a device.",
+  "discoverBackToFeatured": "View device-verified picks",
+  "discoverSortTrending": "Trending",
+  "discoverSortDownloads": "Downloads",
+  "discoverSortLikes": "Likes",
+  "discoverSortUpdated": "Recently updated",
+  "discoverFormatAll": "All formats",
+  "discoverFeaturedNote": "Every model here has been run on a real device.",
+  "discoverNoResults": "No matching repositories",
+  "discoverSearchPrompt": "Type a model name to search both hubs.",
+  "discoverErrorNetwork": "Network unreachable. Check the connection or switch route.",
+  "discoverErrorUnauthorized": "This repository needs a token. Add one in Settings.",
+  "discoverErrorNotFound": "Repository not found.",
+  "discoverErrorMalformed": "The hub returned an unexpected response.",
+  "discoverResultCount": "{count} results",
+  "@discoverResultCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "discoverDownloadsCount": "{count} downloads",
+  "@discoverDownloadsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "discoverUpdatedUnknown": "Update time unknown",
+  "discoverUpdatedAt": "Updated {date}",
+  "@discoverUpdatedAt": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "discoverFileCountUnknown": "File count available after opening",
+  "discoverFileCount": "{count} files",
+  "@discoverFileCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "repoQuantSectionTitle": "Quantization",
+  "repoFilesSectionTitle": "Files",
+  "repoDownloadAction": "Download",
+  "repoEstimatedMemory": "Needs about {size}",
+  "@repoEstimatedMemory": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "repoNoGgufFiles": "This repository has no GGUF files.",
+  "repoNoMnnFiles": "This repository has no MNN model files.",
+  "repoMnnWholeDirectory": "MNN models download as a whole directory ({count} files).",
+  "@repoMnnWholeDirectory": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "feasibilityComfortable": "Runs comfortably",
+  "feasibilityTight": "Tight on memory",
+  "feasibilityNotEnoughMemory": "Not enough memory",
+  "feasibilityUnknown": "Unknown",
+  "catalogSummaryVerifiedSmallGeneralist": "Small all-rounder, quick to load",
+  "catalogSummaryVerifiedEntryLevel": "Entry level, runs on almost anything",
+  "catalogSummaryVerifiedBalanced": "Balanced quality and speed",
+  "catalogSummaryVerifiedMnnDefault": "The MNN engine's default pick",
+  "catalogSummaryVerifiedMnnBalanced": "Stronger MNN model for capable phones",
+  "catalogSummaryVerifiedMnnVision": "MNN model with image understanding",
+  "downloadsTitle": "Downloads",
+  "downloadsEmpty": "No download tasks",
+  "downloadStatusQueued": "Queued",
+  "downloadStatusRunning": "Downloading",
+  "downloadStatusPaused": "Paused",
+  "downloadStatusFailed": "Failed",
+  "downloadStatusDownloaded": "Importing",
+  "downloadStatusCompleted": "Done",
+  "downloadPause": "Pause",
+  "downloadResume": "Resume",
+  "downloadCancel": "Cancel",
+  "downloadRetry": "Retry",
+  "downloadSwitchSource": "Switch source",
+  "downloadStarted": "Started downloading {modelName}",
+  "@downloadStarted": {
+    "placeholders": {
+      "modelName": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadStartedAutoRenamed": "Started downloading {finalName}\n“{requestedName}” already exists and was renamed automatically.",
+  "@downloadStartedAutoRenamed": {
+    "placeholders": {
+      "requestedName": {
+        "type": "String"
+      },
+      "finalName": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadProgressDetail": "{received} / {total} - {speed}/s",
+  "@downloadProgressDetail": {
+    "placeholders": {
+      "received": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      },
+      "speed": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadProgressUnknownTotal": "{received} downloaded - {speed}/s",
+  "@downloadProgressUnknownTotal": {
+    "placeholders": {
+      "received": {
+        "type": "String"
+      },
+      "speed": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadRemaining": "{duration} left",
+  "@downloadRemaining": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadFilesProgress": "{done} of {total} files",
+  "@downloadFilesProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadErrorNetwork": "Connection interrupted",
+  "downloadErrorUnauthorized": "Access denied, a token may be required",
+  "downloadErrorNotFound": "File no longer exists on the hub",
+  "downloadErrorDiskFull": "Not enough storage",
+  "downloadErrorIntegrity": "File length or checksum does not match",
+  "downloadErrorCancelled": "Cancelled",
+  "downloadErrorAlreadyQueued": "The same model is already in the download queue",
+  "downloadCancelDialogTitle": "Cancel download",
+  "downloadCancelDialogContent": "Cancel “{modelName}”? Downloaded bytes will be discarded.",
+  "@downloadCancelDialogContent": {
+    "placeholders": {
+      "modelName": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadForegroundTitle": "ServLlama is downloading models",
+  "downloadForegroundText": "{count} tasks - {percent}%",
+  "@downloadForegroundText": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsSectionDownload": "Downloads",
+  "settingsHuggingFaceRoute": "Hugging Face route",
+  "settingsHuggingFaceRouteDescription": "The mirror helps when the official host is unreachable.",
+  "settingsRouteAuto": "Auto",
+  "settingsRouteOfficial": "Official",
+  "settingsRouteMirror": "Mirror",
+  "settingsHuggingFaceToken": "Hugging Face token",
+  "settingsModelScopeToken": "ModelScope token",
+  "settingsTokenDescription": "Stored on this device only. Never written to logs or exported files.",
+  "settingsTokenNotSet": "Not set",
+  "settingsTokenSheetTitle": "Access token",
+  "settingsWifiOnly": "Download over Wi-Fi only",
+  "settingsWifiOnlySubtitle": "Pause tasks when the network switches to cellular",
+  "settingsMaxConcurrentDownloads": "Parallel downloads",
+  "settingsMaxConcurrentDownloadsDescription": "How many tasks may run at once",
+  "settingsSectionStorage": "Storage",
+  "settingsStorageModels": "Models",
+  "settingsStorageDownloads": "Unfinished downloads",
+  "settingsClearStaging": "Clear unfinished downloads",
+  "settingsClearStagingDone": "Cleared unfinished downloads",
+  "aboutMnnVersion": "MNN version",
+  "aboutMnnVersionDetail": "MNN version: {value}",
+  "@aboutMnnVersionDetail": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "chatEmptyTitle": "Pick a model to start",
+  "chatEmptyDescription": "The service starts on its own once a model is chosen.",
+  "chatEmptyAction": "Choose a model",
+  "chatChooseEngineToStart": "Choose the inference engine to start",
+  "chatEngineDefaultModel": "Default model: {model}",
+  "@chatEngineDefaultModel": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
+  },
+  "chatCurrentRunning": "Running now",
+  "chatLoadModelAction": "Load",
+  "chatPreparingModel": "Preparing model",
+  "chatEmptyNoModelsDescription": "Download a model first. Everything runs on this device afterwards."
 }

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:servllama/core/models/inference_engine.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
 import 'package:servllama/features/chat/controllers/chat_model_controller.dart';
@@ -304,6 +305,30 @@ void main() {
         expect(apiClient.fetchModelsCallCount, 0);
       },
     );
+
+    test('MNN runtime snapshot becomes the loaded chat model', () async {
+      final repository = _FakeChatSessionRepository();
+      final apiClient = _FakeLlamaChatApiClient();
+      final provider = ChatProvider(
+        repository: repository,
+        apiClient: apiClient,
+      );
+
+      await provider.load();
+      provider.updateServerState(
+        baseUrl: 'http://127.0.0.1:8080',
+        isServerRunning: true,
+        engine: InferenceEngine.mnn,
+        activeModelId: 'mnn-qwen',
+        activeModelName: 'Qwen MNN',
+      );
+
+      expect(provider.currentModelId, 'mnn-qwen');
+      expect(provider.currentModel?.displayName, 'Qwen MNN');
+      expect(provider.currentModel?.isLoaded, isTrue);
+      expect(provider.canSend, isTrue);
+      expect(apiClient.fetchModelsCallCount, 0);
+    });
 
     test('updateChatTimeout forwards receive timeout to api client', () {
       provider.updateChatTimeout(const Duration(seconds: 300));
@@ -716,31 +741,28 @@ void main() {
       },
     );
 
-    test(
-      'sendMessage resets sending state when persistence throws',
-      () async {
-        apiClient.models = <ChatModelOption>[
-          const ChatModelOption(
-            id: 'alpha',
-            displayName: 'alpha',
-            status: ChatModelStatus.loaded,
-          ),
-        ];
+    test('sendMessage resets sending state when persistence throws', () async {
+      apiClient.models = <ChatModelOption>[
+        const ChatModelOption(
+          id: 'alpha',
+          displayName: 'alpha',
+          status: ChatModelStatus.loaded,
+        ),
+      ];
 
-        await provider.load();
-        await provider.refreshModels();
-        provider.selectLoadedModel('alpha');
-        repository.loadAllMessagesError = StateError('storage failure');
+      await provider.load();
+      await provider.refreshModels();
+      provider.selectLoadedModel('alpha');
+      repository.loadAllMessagesError = StateError('storage failure');
 
-        await expectLater(
-          provider.sendMessage('hello'),
-          throwsA(isA<StateError>()),
-        );
+      await expectLater(
+        provider.sendMessage('hello'),
+        throwsA(isA<StateError>()),
+      );
 
-        expect(provider.isSending, isFalse);
-        expect(provider.canSend, isTrue);
-      },
-    );
+      expect(provider.isSending, isFalse);
+      expect(provider.canSend, isTrue);
+    });
 
     test(
       'regenerate restores the original message when the stream returns nothing',
@@ -787,10 +809,7 @@ void main() {
         expect(repository.messages['a1']?.content, '原回答');
         expect(provider.visibleMessages.last.content, '原回答');
         expect(provider.isSending, isFalse);
-        expect(
-          provider.streamingMessages.listenableFor('a1'),
-          isNull,
-        );
+        expect(provider.streamingMessages.listenableFor('a1'), isNull);
       },
     );
 
