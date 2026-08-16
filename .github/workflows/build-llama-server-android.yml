@@ -130,8 +130,15 @@ jobs:
             -DLLAMA_BUILD_APP=OFF \
             -DLLAMA_BUILD_EXAMPLES=OFF \
             -DLLAMA_BUILD_SERVER=ON \
+            -DLLAMA_SUBPROCESS=ON \
             -DLLAMA_BUILD_TESTS=OFF \
             -DLLAMA_BUILD_TOOLS=ON
+
+      - name: Verify router subprocess support
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Eq '^LLAMA_SUBPROCESS:BOOL=ON$' "${GITHUB_WORKSPACE}/llama.cpp/build-android/CMakeCache.txt"
 
       - name: Build llama-server
         shell: bash
