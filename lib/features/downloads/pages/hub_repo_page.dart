@@ -175,8 +175,7 @@ class _HubRepoPageState extends State<HubRepoPage> {
     );
   }
 
-  /// llama-server names each `--models-dir` entry after its folder, so the
-  /// download folder name is what the user will see as the model id.
+  /// The single-model server uses the downloaded model name as its API alias.
   String _deriveModelName(HubRepoFile file) {
     final fileName = file.fileName;
     return fileName.toLowerCase().endsWith('.gguf')

@@ -7,46 +7,26 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
-import 'package:servllama/features/chat/models/chat_model_option.dart';
 import 'package:servllama/features/chat/models/chat_stream_delta.dart';
 import 'package:servllama/features/chat/services/llama_chat_api_client.dart';
 
 void main() {
   group('LlamaChatApiClient', () {
-    late _TestRouterServer server;
+    late _TestChatServer server;
     late LlamaChatApiClient client;
 
     setUp(() async {
-      server = _TestRouterServer();
+      server = _TestChatServer();
       await server.start();
       client = LlamaChatApiClient(
         settingsLoader: _FixedServerLaunchSettingsLoader(
           const ServerLaunchSettings(apiKey: 'secret'),
         ),
-        modelLoadPollInterval: const Duration(milliseconds: 10),
-        modelLoadTimeout: const Duration(milliseconds: 150),
       )..updateBaseUrl(server.baseUrl);
     });
 
     tearDown(() async {
       await server.close();
-    });
-
-    test('fetchModels maps model states', () async {
-      server.models = <Map<String, Object?>>[
-        _modelJson('alpha', 'loaded'),
-        _modelJson('beta', 'unloaded'),
-        _modelJson('gamma', 'failed'),
-      ];
-
-      final models = await client.fetchModels();
-
-      expect(models, hasLength(3));
-      expect(models.first.id, 'alpha');
-      expect(models.first.status, ChatModelStatus.loaded);
-      expect(models[1].status, ChatModelStatus.unloaded);
-      expect(models[2].status, ChatModelStatus.failed);
-      expect(server.lastAuthorization, 'Bearer secret');
     });
 
     test('uses 120 seconds receive timeout by default', () {
@@ -72,153 +52,6 @@ void main() {
       client.updateReceiveTimeout(const Duration(seconds: 300));
 
       expect(client.dio.options.receiveTimeout, const Duration(seconds: 300));
-    });
-
-    test('loadModel polls until model becomes loaded', () async {
-      server.models = <Map<String, Object?>>[
-        _modelJson('alpha', 'loaded'),
-        _modelJson('beta', 'unloaded'),
-      ];
-      server.loadBehavior = (String modelId) {
-        server.models = <Map<String, Object?>>[
-          _modelJson('alpha', 'loaded'),
-          _modelJson('beta', 'loading'),
-        ];
-      };
-      server.onModelsRequested = () {
-        if (server.modelRequestCount >= 2) {
-          server.models = <Map<String, Object?>>[
-            _modelJson('alpha', 'loaded'),
-            _modelJson('beta', 'loaded'),
-          ];
-        }
-      };
-
-      await client.loadModel('beta');
-
-      expect(server.loadRequestCount, 1);
-      expect(server.modelRequestCount, greaterThanOrEqualTo(2));
-    });
-
-    test('loadModel surfaces API errors', () async {
-      server.models = <Map<String, Object?>>[_modelJson('beta', 'unloaded')];
-      server.loadErrorMessage = 'cannot load beta';
-
-      expect(
-        () => client.loadModel('beta'),
-        throwsA(
-          isA<LlamaChatApiException>().having(
-            (error) => error.message,
-            'message',
-            'cannot load beta',
-          ),
-        ),
-      );
-    });
-
-    test('unloadModel polls until model becomes unloaded', () async {
-      server.models = <Map<String, Object?>>[
-        _modelJson('alpha', 'loaded'),
-        _modelJson('beta', 'loaded'),
-      ];
-      server.unloadBehavior = (String modelId) {
-        server.models = <Map<String, Object?>>[
-          _modelJson('alpha', 'loaded'),
-          _modelJson('beta', 'loading'),
-        ];
-      };
-      server.onModelsRequested = () {
-        if (server.modelRequestCount >= 2) {
-          server.models = <Map<String, Object?>>[
-            _modelJson('alpha', 'loaded'),
-            _modelJson('beta', 'unloaded'),
-          ];
-        }
-      };
-
-      await client.unloadModel('beta');
-
-      expect(server.unloadRequestCount, 1);
-      expect(server.lastUnloadedModelId, 'beta');
-      expect(server.modelRequestCount, greaterThanOrEqualTo(2));
-    });
-
-    test('unloadModel surfaces API errors', () async {
-      server.unloadErrorMessage = 'cannot unload beta';
-
-      expect(
-        () => client.unloadModel('beta'),
-        throwsA(
-          isA<LlamaChatApiException>().having(
-            (error) => error.message,
-            'message',
-            'cannot unload beta',
-          ),
-        ),
-      );
-    });
-
-    test('model load timeout defaults to 60 seconds', () {
-      expect(
-        LlamaChatApiClient.defaultModelLoadTimeout,
-        const Duration(seconds: 60),
-      );
-    });
-
-    test('loadModel throws a typed timeout when the model never loads', () async {
-      server.models = <Map<String, Object?>>[_modelJson('beta', 'unloaded')];
-      server.loadBehavior = (String modelId) {
-        server.models = <Map<String, Object?>>[_modelJson('beta', 'loading')];
-      };
-
-      await expectLater(
-        client.loadModel('beta'),
-        throwsA(
-          isA<LlamaChatApiException>().having(
-            (error) => error.code,
-            'code',
-            LlamaChatApiErrorCode.modelLoadTimeout,
-          ),
-        ),
-      );
-    });
-
-    test('loadModel throws a typed failure when the server reports failed',
-        () async {
-      server.models = <Map<String, Object?>>[_modelJson('beta', 'unloaded')];
-      server.loadBehavior = (String modelId) {
-        server.models = <Map<String, Object?>>[_modelJson('beta', 'failed')];
-      };
-
-      await expectLater(
-        client.loadModel('beta'),
-        throwsA(
-          isA<LlamaChatApiException>().having(
-            (error) => error.code,
-            'code',
-            LlamaChatApiErrorCode.modelLoadFailed,
-          ),
-        ),
-      );
-    });
-
-    test('unloadModel throws a typed timeout when the model never unloads',
-        () async {
-      server.models = <Map<String, Object?>>[_modelJson('beta', 'loaded')];
-      server.unloadBehavior = (String modelId) {
-        server.models = <Map<String, Object?>>[_modelJson('beta', 'loading')];
-      };
-
-      await expectLater(
-        client.unloadModel('beta'),
-        throwsA(
-          isA<LlamaChatApiException>().having(
-            (error) => error.code,
-            'code',
-            LlamaChatApiErrorCode.modelUnloadTimeout,
-          ),
-        ),
-      );
     });
 
     test('streamChatCompletion parses content and reasoning SSE chunks', () async {
@@ -266,89 +99,98 @@ void main() {
         const ChatStreamDelta(content: '好', reasoningContent: '再组织答案。'),
       ]);
       expect(server.lastChatRequestBody?['model'], 'alpha');
+      expect(server.lastAuthorization, 'Bearer secret');
       expect(server.lastChatRequestBody?['messages'], <Map<String, Object?>>[
         <String, Object?>{'role': 'user', 'content': 'hello'},
       ]);
     });
 
-    test('streamChatCompletion inlines image attachments as data URLs',
-        () async {
-      final tempDir = await Directory.systemTemp.createTemp('servllama_test');
-      addTearDown(() => tempDir.delete(recursive: true));
-      final imageFile = File('${tempDir.path}${Platform.pathSeparator}photo.png');
-      const imageBytes = <int>[1, 2, 3, 4];
-      await imageFile.writeAsBytes(imageBytes);
-
-      server.chatResponder = (request) async {
-        request.response.statusCode = 200;
-        request.response.headers.contentType = ContentType(
-          'text',
-          'event-stream',
+    test(
+      'streamChatCompletion inlines image attachments as data URLs',
+      () async {
+        final tempDir = await Directory.systemTemp.createTemp('servllama_test');
+        addTearDown(() => tempDir.delete(recursive: true));
+        final imageFile = File(
+          '${tempDir.path}${Platform.pathSeparator}photo.png',
         );
-        request.response.add(utf8.encode('data: [DONE]\n\n'));
-        await request.response.close();
-      };
+        const imageBytes = <int>[1, 2, 3, 4];
+        await imageFile.writeAsBytes(imageBytes);
 
-      await client
-          .streamChatCompletion(
-            modelId: 'alpha',
-            messages: <ChatMessageRecord>[
-              ChatMessageRecord(
-                id: 'm1',
-                role: ChatRole.user,
-                content: 'look',
-                createdAt: DateTime(2026, 3, 25),
-                imageFilePaths: <String>[
-                  imageFile.path,
-                  '${tempDir.path}${Platform.pathSeparator}missing.png',
-                ],
-              ),
-            ],
-            cancelToken: CancelToken(),
-          )
-          .toList();
+        server.chatResponder = (request) async {
+          request.response.statusCode = 200;
+          request.response.headers.contentType = ContentType(
+            'text',
+            'event-stream',
+          );
+          request.response.add(utf8.encode('data: [DONE]\n\n'));
+          await request.response.close();
+        };
 
-      final messages = server.lastChatRequestBody?['messages'] as List<Object?>;
-      final content = (messages.single as Map)['content'] as List<Object?>;
-      // Text part plus the existing image; the missing file is skipped.
-      expect(content, hasLength(2));
-      expect((content[0] as Map)['type'], 'text');
-      final imagePart = content[1] as Map;
-      expect(imagePart['type'], 'image_url');
-      expect(
-        (imagePart['image_url'] as Map)['url'],
-        'data:image/png;base64,${base64Encode(imageBytes)}',
-      );
-    });
+        await client
+            .streamChatCompletion(
+              modelId: 'alpha',
+              messages: <ChatMessageRecord>[
+                ChatMessageRecord(
+                  id: 'm1',
+                  role: ChatRole.user,
+                  content: 'look',
+                  createdAt: DateTime(2026, 3, 25),
+                  imageFilePaths: <String>[
+                    imageFile.path,
+                    '${tempDir.path}${Platform.pathSeparator}missing.png',
+                  ],
+                ),
+              ],
+              cancelToken: CancelToken(),
+            )
+            .toList();
 
-    test('streamChatCompletion decodes multi-byte characters split across chunks', () async {
-      server.chatResponder = (request) async {
-        request.response.statusCode = 200;
-        request.response.headers.contentType = ContentType(
-          'text',
-          'event-stream',
+        final messages =
+            server.lastChatRequestBody?['messages'] as List<Object?>;
+        final content = (messages.single as Map)['content'] as List<Object?>;
+        // Text part plus the existing image; the missing file is skipped.
+        expect(content, hasLength(2));
+        expect((content[0] as Map)['type'], 'text');
+        final imagePart = content[1] as Map;
+        expect(imagePart['type'], 'image_url');
+        expect(
+          (imagePart['image_url'] as Map)['url'],
+          'data:image/png;base64,${base64Encode(imageBytes)}',
         );
-        // "你好" split mid-character across two network chunks.
-        final bytes = utf8.encode(
-          'data: {"choices":[{"delta":{"content":"你好"}}]}\n\n',
-        );
-        request.response.add(bytes.sublist(0, 40));
-        await request.response.flush();
-        request.response.add(bytes.sublist(40));
-        request.response.add(utf8.encode('data: [DONE]\n\n'));
-        await request.response.close();
-      };
+      },
+    );
 
-      final chunks = await client
-          .streamChatCompletion(
-            modelId: 'alpha',
-            messages: const <ChatMessageRecord>[],
-            cancelToken: CancelToken(),
-          )
-          .toList();
+    test(
+      'streamChatCompletion decodes multi-byte characters split across chunks',
+      () async {
+        server.chatResponder = (request) async {
+          request.response.statusCode = 200;
+          request.response.headers.contentType = ContentType(
+            'text',
+            'event-stream',
+          );
+          // "你好" split mid-character across two network chunks.
+          final bytes = utf8.encode(
+            'data: {"choices":[{"delta":{"content":"你好"}}]}\n\n',
+          );
+          request.response.add(bytes.sublist(0, 40));
+          await request.response.flush();
+          request.response.add(bytes.sublist(40));
+          request.response.add(utf8.encode('data: [DONE]\n\n'));
+          await request.response.close();
+        };
 
-      expect(chunks, <ChatStreamDelta>[const ChatStreamDelta(content: '你好')]);
-    });
+        final chunks = await client
+            .streamChatCompletion(
+              modelId: 'alpha',
+              messages: const <ChatMessageRecord>[],
+              cancelToken: CancelToken(),
+            )
+            .toList();
+
+        expect(chunks, <ChatStreamDelta>[const ChatStreamDelta(content: '你好')]);
+      },
+    );
 
     test('streamChatCompletion skips malformed SSE data lines', () async {
       server.chatResponder = (request) async {
@@ -382,29 +224,32 @@ void main() {
       ]);
     });
 
-    test('streamChatCompletion parses a trailing line without a newline', () async {
-      server.chatResponder = (request) async {
-        request.response.statusCode = 200;
-        request.response.headers.contentType = ContentType(
-          'text',
-          'event-stream',
-        );
-        request.response.add(
-          utf8.encode('data: {"choices":[{"delta":{"content":"尾行"}}]}'),
-        );
-        await request.response.close();
-      };
+    test(
+      'streamChatCompletion parses a trailing line without a newline',
+      () async {
+        server.chatResponder = (request) async {
+          request.response.statusCode = 200;
+          request.response.headers.contentType = ContentType(
+            'text',
+            'event-stream',
+          );
+          request.response.add(
+            utf8.encode('data: {"choices":[{"delta":{"content":"尾行"}}]}'),
+          );
+          await request.response.close();
+        };
 
-      final chunks = await client
-          .streamChatCompletion(
-            modelId: 'alpha',
-            messages: const <ChatMessageRecord>[],
-            cancelToken: CancelToken(),
-          )
-          .toList();
+        final chunks = await client
+            .streamChatCompletion(
+              modelId: 'alpha',
+              messages: const <ChatMessageRecord>[],
+              cancelToken: CancelToken(),
+            )
+            .toList();
 
-      expect(chunks, <ChatStreamDelta>[const ChatStreamDelta(content: '尾行')]);
-    });
+        expect(chunks, <ChatStreamDelta>[const ChatStreamDelta(content: '尾行')]);
+      },
+    );
 
     test('streamChatCompletion surfaces JSON error responses', () async {
       server.chatResponder = (request) async {
@@ -438,13 +283,6 @@ void main() {
   });
 }
 
-Map<String, Object?> _modelJson(String id, String status) {
-  return <String, Object?>{
-    'id': id,
-    'status': <String, Object?>{'value': status},
-  };
-}
-
 class _FixedServerLaunchSettingsLoader extends ServerLaunchSettingsLoader {
   _FixedServerLaunchSettingsLoader(this.settings);
 
@@ -454,22 +292,12 @@ class _FixedServerLaunchSettingsLoader extends ServerLaunchSettingsLoader {
   Future<ServerLaunchSettings> load() async => settings;
 }
 
-class _TestRouterServer {
+class _TestChatServer {
   HttpServer? _server;
 
-  int modelRequestCount = 0;
-  int loadRequestCount = 0;
-  int unloadRequestCount = 0;
-  String? loadErrorMessage;
-  String? unloadErrorMessage;
   String? lastAuthorization;
-  String? lastUnloadedModelId;
   Map<String, Object?>? lastChatRequestBody;
-  void Function()? onModelsRequested;
-  void Function(String modelId)? loadBehavior;
-  void Function(String modelId)? unloadBehavior;
   Future<void> Function(HttpRequest request)? chatResponder;
-  List<Map<String, Object?>> models = <Map<String, Object?>>[];
 
   String get baseUrl => 'http://127.0.0.1:$port';
   int get port => _server!.port;
@@ -485,61 +313,6 @@ class _TestRouterServer {
 
   Future<void> _handleRequest(HttpRequest request) async {
     lastAuthorization = request.headers.value('authorization');
-
-    if (request.method == 'GET' && request.uri.path == '/models') {
-      modelRequestCount += 1;
-      onModelsRequested?.call();
-      request.response.headers.contentType = ContentType.json;
-      request.response.write(jsonEncode(<String, Object?>{'data': models}));
-      await request.response.close();
-      return;
-    }
-
-    if (request.method == 'POST' && request.uri.path == '/models/load') {
-      loadRequestCount += 1;
-      final body = await utf8.decoder.bind(request).join();
-      final decoded = jsonDecode(body) as Map<String, dynamic>;
-      final modelId = decoded['model'] as String;
-      if (loadErrorMessage != null) {
-        request.response.statusCode = 400;
-        request.response.headers.contentType = ContentType.json;
-        request.response.write(
-          jsonEncode(<String, Object?>{
-            'error': <String, Object?>{'message': loadErrorMessage},
-          }),
-        );
-        await request.response.close();
-        return;
-      }
-      loadBehavior?.call(modelId);
-      request.response.headers.contentType = ContentType.json;
-      request.response.write(jsonEncode(<String, Object?>{'success': true}));
-      await request.response.close();
-      return;
-    }
-
-    if (request.method == 'POST' && request.uri.path == '/models/unload') {
-      unloadRequestCount += 1;
-      final body = await utf8.decoder.bind(request).join();
-      final decoded = jsonDecode(body) as Map<String, dynamic>;
-      lastUnloadedModelId = decoded['model'] as String;
-      if (unloadErrorMessage != null) {
-        request.response.statusCode = 400;
-        request.response.headers.contentType = ContentType.json;
-        request.response.write(
-          jsonEncode(<String, Object?>{
-            'error': <String, Object?>{'message': unloadErrorMessage},
-          }),
-        );
-        await request.response.close();
-        return;
-      }
-      unloadBehavior?.call(lastUnloadedModelId!);
-      request.response.headers.contentType = ContentType.json;
-      request.response.write(jsonEncode(<String, Object?>{'success': true}));
-      await request.response.close();
-      return;
-    }
 
     if (request.method == 'POST' &&
         request.uri.path == '/v1/chat/completions' &&

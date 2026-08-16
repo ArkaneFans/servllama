@@ -141,8 +141,8 @@ class UnifiedModelRepository {
         .map(
           (descriptor) => LibraryModel(
             id: libraryIdFor(InferenceEngine.llamaCpp, descriptor.id),
-            // llama-server names each `--models-dir` entry after its
-            // subdirectory, which is exactly the stored model name.
+            // The single-model server receives this name through `--alias`,
+            // so the API id stays equal to the stored model name.
             runtimeId: descriptor.modelName,
             engine: InferenceEngine.llamaCpp,
             name: descriptor.modelName,

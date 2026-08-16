@@ -64,11 +64,6 @@ class EngineRuntimeState {
   bool get canSwitchEngine =>
       status == EngineRuntimeStatus.idle || status == EngineRuntimeStatus.error;
 
-  /// MNN refuses to start without a resident model; llama.cpp does not.
-  bool get canStart =>
-      status == EngineRuntimeStatus.idle &&
-      (!engine.requiresModelBeforeStart || activeModelId != null);
-
   static const Object _unset = Object();
 
   EngineRuntimeState copyWith({

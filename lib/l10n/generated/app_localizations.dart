@@ -1469,16 +1469,10 @@ abstract class AppLocalizations {
   /// **'No model selected'**
   String get serverNoModelSelected;
 
-  /// No description provided for @serverNoModelSelectedHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Optional - loaded on demand after start'**
-  String get serverNoModelSelectedHint;
-
   /// No description provided for @serverModelRequiredHint.
   ///
   /// In en, this message translates to:
-  /// **'MNN needs a model before it can start'**
+  /// **'Select a model before starting'**
   String get serverModelRequiredHint;
 
   /// No description provided for @serverSelectModelTitle.
@@ -1486,12 +1480,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Select model'**
   String get serverSelectModelTitle;
-
-  /// No description provided for @serverSelectModelNone.
-  ///
-  /// In en, this message translates to:
-  /// **'Start without a model'**
-  String get serverSelectModelNone;
 
   /// No description provided for @serverNoModelsForEngine.
   ///

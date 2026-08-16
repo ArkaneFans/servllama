@@ -83,7 +83,7 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
 
   @override
   Future<EngineStartResult> start({
-    String? modelId,
+    required String modelId,
     required RuntimePhaseCallback onPhase,
   }) async {
     _cancelRequested = false;
@@ -91,14 +91,10 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
   }
 
   Future<EngineStartResult> _startInternal({
-    required String? modelId,
+    required String modelId,
     required RuntimePhaseCallback onPhase,
   }) async {
     await prepare();
-    if (modelId == null) {
-      throw const EngineAdapterException(EngineRuntimeErrorKind.modelRequired);
-    }
-
     final settings = await _settingsLoader.load();
     _logsEnabled = settings.logEnabled;
     _minimumLogLevel = settings.logLevel;

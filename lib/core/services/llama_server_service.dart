@@ -10,7 +10,19 @@ import 'package:servllama/core/services/foreground_task_service.dart';
 import 'package:servllama/core/services/native_library_dir_service.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
 
-class LlamaServerService {
+abstract interface class LlamaServerProcessService {
+  bool get isRunning;
+
+  Stream<bool> get runningStateStream;
+
+  void initForegroundTask();
+
+  Future<bool> startServer({List<String>? args});
+
+  Future<bool> stopServer();
+}
+
+class LlamaServerService implements LlamaServerProcessService {
   static final LlamaServerService _instance = LlamaServerService._internal();
 
   factory LlamaServerService() => _instance;
@@ -46,8 +58,10 @@ class LlamaServerService {
   Stream<String> get logStream => _logger
       .streamFor(LogChannel.server)
       .map((entry) => entry.formattedMessage);
+  @override
   Stream<bool> get runningStateStream => _runningStateController.stream;
 
+  @override
   bool get isRunning => _process != null;
 
   /// Version of the bundled llama-server build, as declared in the
@@ -70,15 +84,21 @@ class LlamaServerService {
     return version;
   }
 
+  @override
   void initForegroundTask() {
     if (_foregroundTaskInitialized) return;
     _foregroundTaskService.init();
     _foregroundTaskInitialized = true;
   }
 
+  @override
   Future<bool> startServer({List<String>? args}) async {
     if (_process != null || _isStarting) {
-      _logger.warning('Server is already running', channel: LogChannel.server, inMemory: true);
+      _logger.warning(
+        'Server is already running',
+        channel: LogChannel.server,
+        inMemory: true,
+      );
       return false;
     }
     _isStarting = true;
@@ -86,12 +106,16 @@ class LlamaServerService {
     unawaited(_cleanupLegacyInstall());
 
     try {
-      final nativeLibraryDir =
-          await _nativeLibraryDirService.getNativeLibraryDir();
+      final nativeLibraryDir = await _nativeLibraryDirService
+          .getNativeLibraryDir();
       final binaryPath = '$nativeLibraryDir/$_binaryFileName';
       final arguments = args ?? <String>[];
 
-      _logger.info('Starting llama-server...', channel: LogChannel.server, inMemory: true);
+      _logger.info(
+        'Starting llama-server...',
+        channel: LogChannel.server,
+        inMemory: true,
+      );
       _logger.info(
         'Command: $binaryPath ${arguments.join(' ')}',
         channel: LogChannel.server,
@@ -118,7 +142,8 @@ class LlamaServerService {
       _emitRunningState(true);
 
       await _foregroundTaskService.start(
-        notificationTitle: _l10nService.current.serverForegroundNotificationTitle,
+        notificationTitle:
+            _l10nService.current.serverForegroundNotificationTitle,
         notificationText: _l10nService.current.serverForegroundNotificationText,
       );
 
@@ -150,7 +175,11 @@ class LlamaServerService {
         if (_process != process) {
           return;
         }
-        _logger.info('Server exited with code: $code', channel: LogChannel.server, inMemory: true);
+        _logger.info(
+          'Server exited with code: $code',
+          channel: LogChannel.server,
+          inMemory: true,
+        );
         _process = null;
         _emitRunningState(false);
 
@@ -164,7 +193,12 @@ class LlamaServerService {
       );
       return true;
     } catch (error) {
-      _logger.error('Server started failed', channel: LogChannel.server, inMemory: true, error: error);
+      _logger.error(
+        'Server started failed',
+        channel: LogChannel.server,
+        inMemory: true,
+        error: error,
+      );
       _process = null;
       _emitRunningState(false);
 
@@ -221,14 +255,23 @@ class LlamaServerService {
     }
   }
 
+  @override
   Future<bool> stopServer() async {
     final process = _process;
     if (process == null) {
-      _logger.warning('Server is not running', channel: LogChannel.server, inMemory: true);
+      _logger.warning(
+        'Server is not running',
+        channel: LogChannel.server,
+        inMemory: true,
+      );
       return false;
     }
 
-    _logger.info('Stopping service...', channel: LogChannel.server, inMemory: true);
+    _logger.info(
+      'Stopping service...',
+      channel: LogChannel.server,
+      inMemory: true,
+    );
     try {
       // Ask for a graceful shutdown first; escalate to SIGKILL if the server
       // does not exit in time. State cleanup (clearing _process, emitting
@@ -254,7 +297,12 @@ class LlamaServerService {
       }
       return true;
     } catch (error) {
-      _logger.error('Failed to stop service', channel: LogChannel.server, inMemory: true, error: error);
+      _logger.error(
+        'Failed to stop service',
+        channel: LogChannel.server,
+        inMemory: true,
+        error: error,
+      );
       // The process state is unknown; force-clear so the UI is not stuck on
       // a phantom "running" state.
       if (_process == process) {

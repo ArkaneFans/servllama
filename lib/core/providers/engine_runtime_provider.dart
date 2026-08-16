@@ -76,14 +76,14 @@ class EngineRuntimeProvider extends ChangeNotifier {
   bool get canStart =>
       (_state.status == EngineRuntimeStatus.idle ||
           _state.status == EngineRuntimeStatus.error) &&
-      (!activeEngine.requiresModelBeforeStart || selectedModelId != null);
+      selectedModelId != null;
   EngineRuntimeError? get lastError => _state.error;
   RuntimePhase? get currentPhase => _state.phase;
   String? get activeModelId => _state.activeModelId;
   String? get activeModelName => _state.activeModelName;
 
   /// Model the user has picked for [activeEngine], whether or not it is
-  /// loaded yet. Null means "no default model", which only llama.cpp allows.
+  /// loaded yet. Null means the engine cannot be started yet.
   String? get selectedModelId => selectedModelIdFor(_state.engine);
 
   /// The saved default model for [engine], including engines that are not
@@ -280,7 +280,7 @@ class EngineRuntimeProvider extends ChangeNotifier {
 
     final engine = _state.engine;
     final modelId = _selectedModelIds[engine];
-    if (engine.requiresModelBeforeStart && modelId == null) {
+    if (modelId == null) {
       _state = _state.copyWith(
         status: EngineRuntimeStatus.error,
         error: const EngineRuntimeError(
@@ -382,8 +382,8 @@ class EngineRuntimeProvider extends ChangeNotifier {
   }
 
   /// Makes [modelId] the serving model for the active engine. Starts the
-  /// runtime if it is down; otherwise swaps within the running engine, which
-  /// for MNN means a full stop/unload/load/start round trip.
+  /// runtime if it is down; otherwise replaces the running engine's resident
+  /// model using the lifecycle its adapter owns.
   Future<void> activateModel(String modelId) async {
     if (_state.isBusy) {
       return;

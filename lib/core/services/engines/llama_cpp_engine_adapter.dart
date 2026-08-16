@@ -2,34 +2,35 @@ import 'dart:async';
 
 import 'package:servllama/core/models/engine_runtime_state.dart';
 import 'package:servllama/core/models/inference_engine.dart';
+import 'package:servllama/core/models/model_descriptor.dart';
+import 'package:servllama/core/repositories/local_model_repository.dart';
 import 'package:servllama/core/services/engines/inference_engine_adapter.dart';
 import 'package:servllama/core/services/llama_server_control_client.dart';
 import 'package:servllama/core/services/llama_server_service.dart';
-import 'package:servllama/core/services/model_storage_paths.dart';
 import 'package:servllama/core/services/server_launch_args_builder.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
 
-/// Server-first lifecycle: spawn `llama-server` with `--models-dir`, wait for
-/// it to answer, then optionally load a model. Models can be swapped without
-/// restarting the process.
+/// Runs one model-specific `llama-server` process. Since Android builds do not
+/// support llama.cpp's subprocess router, changing models means replacing the
+/// process with one launched using the new model path.
 class LlamaCppEngineAdapter implements InferenceEngineAdapter {
   LlamaCppEngineAdapter({
-    LlamaServerService? serverService,
+    LlamaServerProcessService? serverService,
     ServerLaunchSettingsLoader? settingsLoader,
     ServerLaunchArgsBuilder? launchArgsBuilder,
-    ModelStoragePaths? modelStoragePaths,
+    LocalModelRepository? modelRepository,
     LlamaServerControlClient? controlClient,
   }) : _serverService = serverService ?? LlamaServerService(),
        _settingsLoader = settingsLoader ?? ServerLaunchSettingsLoader(),
        _launchArgsBuilder =
            launchArgsBuilder ?? const ServerLaunchArgsBuilder(),
-       _modelStoragePaths = modelStoragePaths ?? ModelStoragePaths(),
+       _modelRepository = modelRepository ?? LocalModelRepository(),
        _controlClient = controlClient ?? LlamaServerControlClient();
 
-  final LlamaServerService _serverService;
+  final LlamaServerProcessService _serverService;
   final ServerLaunchSettingsLoader _settingsLoader;
   final ServerLaunchArgsBuilder _launchArgsBuilder;
-  final ModelStoragePaths _modelStoragePaths;
+  final LocalModelRepository _modelRepository;
   final LlamaServerControlClient _controlClient;
   bool _cancelRequested = false;
 
@@ -49,24 +50,35 @@ class LlamaCppEngineAdapter implements InferenceEngineAdapter {
 
   @override
   Future<EngineStartResult> start({
-    String? modelId,
+    required String modelId,
     required RuntimePhaseCallback onPhase,
   }) async {
     _cancelRequested = false;
+    return _startInternal(modelId: modelId, onPhase: onPhase);
+  }
+
+  Future<EngineStartResult> _startInternal({
+    required String modelId,
+    required RuntimePhaseCallback onPhase,
+  }) async {
     try {
+      await prepare();
+      final model = await _findModel(modelId);
+      _throwIfCancelled();
       final settings = await _settingsLoader.load();
-      final modelsDirectoryPath = await _modelStoragePaths
-          .getModelsDirectoryPath();
+      _throwIfCancelled();
 
       onPhase(RuntimePhase.startingServer);
       final started = await _serverService.startServer(
         args: _launchArgsBuilder.build(
           settings,
-          modelsDirectoryPath: modelsDirectoryPath,
+          modelPath: model.storedFilePath,
+          modelAlias: model.modelName,
+          mmprojPath: model.mmprojFilePath,
         ),
       );
       _throwIfCancelled();
-      if (!started && !_serverService.isRunning) {
+      if (!started) {
         throw const EngineAdapterException(
           EngineRuntimeErrorKind.serverStartFailed,
         );
@@ -74,34 +86,25 @@ class LlamaCppEngineAdapter implements InferenceEngineAdapter {
 
       _controlClient.updateBaseUrl('http://127.0.0.1:${settings.port}');
 
-      onPhase(RuntimePhase.verifying);
-      final reachable = await _controlClient.waitUntilReachable();
+      onPhase(RuntimePhase.loadingModel);
+      final ready = await _controlClient.waitUntilReady(
+        shouldContinue: () => !_cancelRequested && _serverService.isRunning,
+      );
       _throwIfCancelled();
-      if (!reachable) {
-        throw const EngineAdapterException(
-          EngineRuntimeErrorKind.serverStartFailed,
+      if (!ready) {
+        throw EngineAdapterException(
+          _serverService.isRunning
+              ? EngineRuntimeErrorKind.modelLoadFailed
+              : EngineRuntimeErrorKind.serverStartFailed,
+          detail: modelId,
         );
-      }
-
-      // Loading a model is optional here (design decision D6): llama-server
-      // serves `/models` fine while empty and loads on first use.
-      if (modelId != null) {
-        onPhase(RuntimePhase.loadingModel);
-        final loaded = await _controlClient.loadModel(modelId);
-        _throwIfCancelled();
-        if (!loaded) {
-          throw EngineAdapterException(
-            EngineRuntimeErrorKind.modelLoadFailed,
-            detail: modelId,
-          );
-        }
       }
 
       return EngineStartResult(
         host: settings.host,
         port: settings.port,
         activeModelId: modelId,
-        activeModelName: modelId,
+        activeModelName: model.modelName,
       );
     } catch (_) {
       if (_serverService.isRunning) {
@@ -113,8 +116,16 @@ class LlamaCppEngineAdapter implements InferenceEngineAdapter {
 
   @override
   Future<void> stop({required RuntimePhaseCallback onPhase}) async {
+    if (!_serverService.isRunning) {
+      return;
+    }
     onPhase(RuntimePhase.stoppingServer);
-    await _serverService.stopServer();
+    final stopped = await _serverService.stopServer();
+    if (!stopped) {
+      throw const EngineAdapterException(
+        EngineRuntimeErrorKind.serverStopFailed,
+      );
+    }
   }
 
   @override
@@ -123,25 +134,17 @@ class LlamaCppEngineAdapter implements InferenceEngineAdapter {
     required RuntimePhaseCallback onPhase,
   }) async {
     _cancelRequested = false;
-    final settings = await _settingsLoader.load();
-    _controlClient.updateBaseUrl('http://127.0.0.1:${settings.port}');
-
-    onPhase(RuntimePhase.loadingModel);
-    final loaded = await _controlClient.loadModel(modelId);
-    _throwIfCancelled();
-    if (!loaded) {
-      throw EngineAdapterException(
-        EngineRuntimeErrorKind.modelLoadFailed,
-        detail: modelId,
-      );
+    if (_serverService.isRunning) {
+      onPhase(RuntimePhase.stoppingServer);
+      final stopped = await _serverService.stopServer();
+      if (!stopped) {
+        throw const EngineAdapterException(
+          EngineRuntimeErrorKind.serverStopFailed,
+        );
+      }
+      _throwIfCancelled();
     }
-
-    return EngineStartResult(
-      host: settings.host,
-      port: settings.port,
-      activeModelId: modelId,
-      activeModelName: modelId,
-    );
+    return _startInternal(modelId: modelId, onPhase: onPhase);
   }
 
   @override
@@ -157,6 +160,18 @@ class LlamaCppEngineAdapter implements InferenceEngineAdapter {
     if (_cancelRequested) {
       throw const EngineOperationCancelledException();
     }
+  }
+
+  Future<ModelDescriptor> _findModel(String modelId) async {
+    for (final model in await _modelRepository.listModels()) {
+      if (model.modelName == modelId) {
+        return model;
+      }
+    }
+    throw EngineAdapterException(
+      EngineRuntimeErrorKind.modelLoadFailed,
+      detail: modelId,
+    );
   }
 
   @override

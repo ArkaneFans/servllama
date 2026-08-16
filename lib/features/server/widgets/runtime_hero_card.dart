@@ -142,13 +142,9 @@ class _ModelRow extends StatelessWidget {
     final l10n = context.l10n;
     final isLight = theme.brightness == Brightness.light;
 
-    // Without a model, llama.cpp still starts and loads on demand, while MNN
-    // cannot start at all — so the same empty row means different things.
     final subtitle = hasModel
         ? l10n.serverActiveModelLabel
-        : (engine.requiresModelBeforeStart
-              ? l10n.serverModelRequiredHint
-              : l10n.serverNoModelSelectedHint);
+        : l10n.serverModelRequiredHint;
 
     return Material(
       color: isLight

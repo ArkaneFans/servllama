@@ -460,10 +460,8 @@
   },
   "serverActiveModelLabel": "Active model",
   "serverNoModelSelected": "No model selected",
-  "serverNoModelSelectedHint": "Optional - loaded on demand after start",
-  "serverModelRequiredHint": "MNN needs a model before it can start",
+  "serverModelRequiredHint": "Select a model before starting",
   "serverSelectModelTitle": "Select model",
-  "serverSelectModelNone": "Start without a model",
   "serverNoModelsForEngine": "No {engine} models in the library yet",
   "@serverNoModelsForEngine": {
     "placeholders": {

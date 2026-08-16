@@ -5,15 +5,19 @@ class ServerLaunchArgsBuilder {
 
   List<String> build(
     ServerLaunchSettings settings, {
-    required String modelsDirectoryPath,
+    required String modelPath,
+    required String modelAlias,
+    String? mmprojPath,
   }) {
     final args = <String>[
       '--host',
       settings.host,
       '--port',
       '${settings.port}',
-      '--models-dir',
-      modelsDirectoryPath,
+      '--model',
+      modelPath,
+      '--alias',
+      modelAlias,
       '--ctx-size',
       '${settings.contextSize}',
       '--batch-size',
@@ -27,6 +31,11 @@ class ServerLaunchArgsBuilder {
       '--flash-attn',
       settings.flashAttentionMode.cliValue,
     ];
+    if (mmprojPath != null && mmprojPath.isNotEmpty) {
+      args
+        ..add('--mmproj')
+        ..add(mmprojPath);
+    }
     if (!settings.useMmap) {
       args.add('--no-mmap');
     }

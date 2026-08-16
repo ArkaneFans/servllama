@@ -21,7 +21,6 @@ import 'package:servllama/core/services/engines/llama_cpp_engine_adapter.dart';
 
 import '../../../support/stub_engine_adapter.dart';
 import 'package:servllama/core/services/llama_server_service.dart';
-import 'package:servllama/core/services/model_storage_paths.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
@@ -81,7 +80,7 @@ void main() {
         llamaCppAdapter: LlamaCppEngineAdapter(
           serverService: serverService,
           settingsLoader: _FixedServerLaunchSettingsLoader(),
-          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+          modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
           controlClient: StubServerControlClient(),
         ),
         mnnAdapter: StubEngineAdapter(),
@@ -128,7 +127,7 @@ void main() {
         llamaCppAdapter: LlamaCppEngineAdapter(
           serverService: serverService,
           settingsLoader: _FixedServerLaunchSettingsLoader(),
-          modelStoragePaths: _FixedModelStoragePaths('C:/app/models'),
+          modelRepository: _FixedModelStoragePaths('C:/app/models'),
           controlClient: StubServerControlClient(),
         ),
         mnnAdapter: StubEngineAdapter(),
@@ -184,7 +183,7 @@ void main() {
         llamaCppAdapter: LlamaCppEngineAdapter(
           serverService: serverService,
           settingsLoader: _FixedServerLaunchSettingsLoader(),
-          modelStoragePaths: _FixedModelStoragePaths('C:/app/models'),
+          modelRepository: _FixedModelStoragePaths('C:/app/models'),
           controlClient: StubServerControlClient(),
         ),
         mnnAdapter: StubEngineAdapter(),
@@ -251,21 +250,21 @@ void main() {
           llamaCppAdapter: LlamaCppEngineAdapter(
             serverService: serverService,
             settingsLoader: _FixedServerLaunchSettingsLoader(),
-            modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+            modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
             controlClient: StubServerControlClient(),
           ),
           mnnAdapter: StubEngineAdapter(),
           settingsLoader: _FixedServerLaunchSettingsLoader(),
           kvStorage: KvStorage(),
         );
+        await serverProvider.selectModel('alpha');
         await tester.runAsync(() => serverProvider.start());
         chatProvider.updateServerState(
           baseUrl: serverProvider.baseUrl,
           isServerRunning: serverProvider.isRunning,
         );
         await chatProvider.load();
-        await chatProvider.refreshModels();
-        chatProvider.selectLoadedModel('alpha');
+        _setActiveModel(chatProvider, 'alpha');
 
         addTearDown(() {
           serverProvider.dispose();
@@ -392,7 +391,7 @@ void main() {
         llamaCppAdapter: LlamaCppEngineAdapter(
           serverService: serverService,
           settingsLoader: _FixedServerLaunchSettingsLoader(),
-          modelStoragePaths: _FixedModelStoragePaths('C:/app/models'),
+          modelRepository: _FixedModelStoragePaths('C:/app/models'),
           controlClient: StubServerControlClient(),
         ),
         mnnAdapter: StubEngineAdapter(),
@@ -467,7 +466,7 @@ void main() {
         llamaCppAdapter: LlamaCppEngineAdapter(
           serverService: serverService,
           settingsLoader: _FixedServerLaunchSettingsLoader(),
-          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+          modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
           controlClient: StubServerControlClient(),
         ),
         mnnAdapter: StubEngineAdapter(),
@@ -591,8 +590,7 @@ void main() {
           isServerRunning: true,
         );
         await provider.load();
-        await provider.refreshModels();
-        provider.selectLoadedModel('alpha');
+        _setActiveModel(provider, 'alpha');
         await provider.selectSession('s1');
 
         await tester.pumpWidget(
@@ -681,8 +679,7 @@ void main() {
         isServerRunning: true,
       );
       await provider.load();
-      await provider.refreshModels();
-      provider.selectLoadedModel('alpha');
+      _setActiveModel(provider, 'alpha');
 
       await tester.pumpWidget(
         ChangeNotifierProvider<ChatProvider>.value(
@@ -964,8 +961,7 @@ void main() {
         isServerRunning: true,
       );
       await provider.load();
-      await provider.refreshModels();
-      provider.selectLoadedModel('alpha');
+      _setActiveModel(provider, 'alpha');
       await provider.selectSession('s1');
 
       await tester.pumpWidget(
@@ -1053,8 +1049,7 @@ void main() {
         isServerRunning: true,
       );
       await provider.load();
-      await provider.refreshModels();
-      provider.selectLoadedModel('alpha');
+      _setActiveModel(provider, 'alpha');
       await provider.selectSession('s1');
 
       await tester.pumpWidget(
@@ -1130,8 +1125,7 @@ void main() {
         isServerRunning: true,
       );
       await provider.load();
-      await provider.refreshModels();
-      provider.selectLoadedModel('alpha');
+      _setActiveModel(provider, 'alpha');
       await provider.selectSession('s1');
 
       await tester.pumpWidget(
@@ -1196,8 +1190,7 @@ void main() {
         isServerRunning: true,
       );
       await provider.load();
-      await provider.refreshModels();
-      provider.selectLoadedModel('alpha');
+      _setActiveModel(provider, 'alpha');
       await provider.selectSession('s1');
 
       String? clipboardText;
@@ -1267,8 +1260,7 @@ void main() {
         isServerRunning: true,
       );
       await provider.load();
-      await provider.refreshModels();
-      provider.selectLoadedModel('alpha');
+      _setActiveModel(provider, 'alpha');
       await provider.selectSession('s1');
 
       await tester.pumpWidget(
@@ -1351,8 +1343,7 @@ void main() {
           isServerRunning: true,
         );
         await provider.load();
-        await provider.refreshModels();
-        provider.selectLoadedModel('alpha');
+        _setActiveModel(provider, 'alpha');
         await provider.selectSession('s1');
 
         await tester.pumpWidget(
@@ -1460,8 +1451,7 @@ void main() {
         isServerRunning: true,
       );
       await provider.load();
-      await provider.refreshModels();
-      provider.selectLoadedModel('alpha');
+      _setActiveModel(provider, 'alpha');
       await provider.selectSession('s1');
 
       await tester.pumpWidget(
@@ -1542,7 +1532,7 @@ void main() {
         llamaCppAdapter: LlamaCppEngineAdapter(
           serverService: serverService,
           settingsLoader: _FixedServerLaunchSettingsLoader(),
-          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+          modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
           controlClient: StubServerControlClient(),
         ),
         mnnAdapter: StubEngineAdapter(),
@@ -1591,7 +1581,7 @@ void main() {
           llamaCppAdapter: LlamaCppEngineAdapter(
             serverService: serverService,
             settingsLoader: _FixedServerLaunchSettingsLoader(),
-            modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+            modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
             controlClient: StubServerControlClient(),
           ),
           mnnAdapter: mnnAdapter,
@@ -1639,12 +1629,19 @@ void main() {
         );
         await chatProvider.load();
 
+        final library = ModelManagementProvider(
+          repository: FakeLocalModelRepository(
+            initialModels: <ModelDescriptor>[_libraryDescriptor('alpha')],
+          ),
+        );
+        await library.load();
+
         final serverService = _FakeLlamaServerService();
         final serverProvider = EngineRuntimeProvider(
           llamaCppAdapter: LlamaCppEngineAdapter(
             serverService: serverService,
             settingsLoader: _FixedServerLaunchSettingsLoader(),
-            modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+            modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
             controlClient: StubServerControlClient(),
           ),
           mnnAdapter: StubEngineAdapter(),
@@ -1660,6 +1657,7 @@ void main() {
           _TestChatApp(
             chatProvider: chatProvider,
             serverProvider: serverProvider,
+            library: library,
           ),
         );
         await tester.pumpAndSettle();
@@ -1703,6 +1701,12 @@ void main() {
         await tester.tap(
           find.byKey(const Key('chat_engine_start_option_llama_cpp')),
         );
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const Key('chat_model_sheet_row_alpha')),
+          findsOneWidget,
+        );
+        await tester.tap(find.byKey(const Key('chat_model_sheet_row_alpha')));
         await tester.runAsync(
           () => _waitForRuntime(
             () => serverProvider.isRunning || serverProvider.lastError != null,
@@ -1739,6 +1743,15 @@ void main() {
       },
     );
   });
+}
+
+void _setActiveModel(ChatProvider provider, String modelId, {String? name}) {
+  provider.updateServerState(
+    baseUrl: 'http://127.0.0.1:8080',
+    isServerRunning: true,
+    activeModelId: modelId,
+    activeModelName: name,
+  );
 }
 
 class _TestChatApp extends StatelessWidget {
@@ -1989,54 +2002,9 @@ class _FakeLlamaChatApiClient extends LlamaChatApiClient {
     : super(settingsLoader: _FixedServerLaunchSettingsLoader());
 
   List<ChatModelOption> models;
-  int fetchModelsCallCount = 0;
-  Completer<void>? fetchModelsCompleter;
   Completer<void>? streamStartedCompleter;
   StreamController<ChatStreamDelta>? streamController;
   List<ChatStreamDelta> streamDeltas = const <ChatStreamDelta>[];
-  Object? loadError;
-
-  @override
-  Future<List<ChatModelOption>> fetchModels() async {
-    fetchModelsCallCount += 1;
-    if (fetchModelsCompleter != null) {
-      await fetchModelsCompleter!.future;
-    }
-    return List<ChatModelOption>.from(models);
-  }
-
-  @override
-  Future<void> loadModel(String modelId) async {
-    if (loadError != null) {
-      throw loadError!;
-    }
-    models = models
-        .map(
-          (model) => model.id == modelId
-              ? ChatModelOption(
-                  id: model.id,
-                  displayName: model.displayName,
-                  status: ChatModelStatus.loaded,
-                )
-              : model,
-        )
-        .toList(growable: false);
-  }
-
-  @override
-  Future<void> unloadModel(String modelId) async {
-    models = models
-        .map(
-          (model) => model.id == modelId
-              ? ChatModelOption(
-                  id: model.id,
-                  displayName: model.displayName,
-                  status: ChatModelStatus.unloaded,
-                )
-              : model,
-        )
-        .toList(growable: false);
-  }
 
   @override
   Stream<ChatStreamDelta> streamChatCompletion({
@@ -2103,13 +2071,23 @@ class _FakeLlamaServerService implements LlamaServerService {
   }
 }
 
-class _FixedModelStoragePaths extends ModelStoragePaths {
+class _FixedModelStoragePaths extends LocalModelRepository {
   _FixedModelStoragePaths(this.modelsDirectoryPath);
 
   final String modelsDirectoryPath;
 
   @override
-  Future<String> getModelsDirectoryPath() async => modelsDirectoryPath;
+  Future<List<ModelDescriptor>> listModels() async => <ModelDescriptor>[
+    for (final name in const <String>['test-model', 'alpha', 'beta'])
+      ModelDescriptor(
+        id: name,
+        modelName: name,
+        sizeBytes: 1,
+        storedDirectoryPath: '$modelsDirectoryPath/$name',
+        storedFilePath: '$modelsDirectoryPath/$name/model.gguf',
+        importedAt: DateTime(2026),
+      ),
+  ];
 }
 
 ChatSessionRecord _session({

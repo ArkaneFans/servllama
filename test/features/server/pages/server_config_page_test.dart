@@ -4,14 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/core/models/inference_engine.dart';
+import 'package:servllama/core/models/model_descriptor.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/providers/server_config_provider.dart';
 import 'package:servllama/core/providers/engine_runtime_provider.dart';
+import 'package:servllama/core/repositories/local_model_repository.dart';
 import 'package:servllama/core/services/engines/llama_cpp_engine_adapter.dart';
 
 import '../../../support/stub_engine_adapter.dart';
 import 'package:servllama/core/services/llama_server_service.dart';
-import 'package:servllama/core/services/model_storage_paths.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
 import 'package:servllama/core/storage/server_prefs_keys.dart';
@@ -42,7 +43,7 @@ void main() {
           settingsLoader: _FixedServerLaunchSettingsLoader(
             const ServerLaunchSettings(),
           ),
-          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+          modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
         ),
         mnnAdapter: StubEngineAdapter(),
         settingsLoader: _FixedServerLaunchSettingsLoader(
@@ -94,7 +95,7 @@ void main() {
           settingsLoader: _FixedServerLaunchSettingsLoader(
             const ServerLaunchSettings(),
           ),
-          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+          modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
         ),
         mnnAdapter: StubEngineAdapter(),
         settingsLoader: _FixedServerLaunchSettingsLoader(
@@ -148,7 +149,7 @@ void main() {
           settingsLoader: _FixedServerLaunchSettingsLoader(
             const ServerLaunchSettings(),
           ),
-          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+          modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
         ),
         mnnAdapter: StubEngineAdapter(),
         settingsLoader: _FixedServerLaunchSettingsLoader(
@@ -194,7 +195,7 @@ void main() {
           settingsLoader: _FixedServerLaunchSettingsLoader(
             const ServerLaunchSettings(),
           ),
-          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+          modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
         ),
         mnnAdapter: StubEngineAdapter(),
         settingsLoader: _FixedServerLaunchSettingsLoader(
@@ -235,7 +236,7 @@ void main() {
           settingsLoader: _FixedServerLaunchSettingsLoader(
             const ServerLaunchSettings(),
           ),
-          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+          modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
         ),
         mnnAdapter: StubEngineAdapter(),
         settingsLoader: _FixedServerLaunchSettingsLoader(
@@ -259,7 +260,10 @@ void main() {
       expect(find.text('保存配置'), findsNothing);
       expect(find.textContaining('当前地址：http://'), findsNothing);
       expect(find.textContaining('改动即时保存'), findsNothing);
-      expect(find.byKey(const Key('server_config_effect_notice')), findsNothing);
+      expect(
+        find.byKey(const Key('server_config_effect_notice')),
+        findsNothing,
+      );
       expect(find.text('网络与访问'), findsOneWidget);
 
       await tester.enterText(find.widgetWithText(TextField, '8080'), '9001');
@@ -293,7 +297,7 @@ void main() {
           settingsLoader: _FixedServerLaunchSettingsLoader(
             const ServerLaunchSettings(),
           ),
-          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+          modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
         ),
         mnnAdapter: StubEngineAdapter(),
         settingsLoader: _FixedServerLaunchSettingsLoader(
@@ -447,11 +451,20 @@ class _FakeLlamaServerService implements LlamaServerService {
   Future<bool> stopServer() async => true;
 }
 
-class _FixedModelStoragePaths extends ModelStoragePaths {
+class _FixedModelStoragePaths extends LocalModelRepository {
   _FixedModelStoragePaths(this.modelsDirectoryPath);
 
   final String modelsDirectoryPath;
 
   @override
-  Future<String> getModelsDirectoryPath() async => modelsDirectoryPath;
+  Future<List<ModelDescriptor>> listModels() async => <ModelDescriptor>[
+    ModelDescriptor(
+      id: 'test-model',
+      modelName: 'test-model',
+      sizeBytes: 1,
+      storedDirectoryPath: '$modelsDirectoryPath/test-model',
+      storedFilePath: '$modelsDirectoryPath/test-model/model.gguf',
+      importedAt: DateTime(2026),
+    ),
+  ];
 }

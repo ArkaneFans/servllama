@@ -8,7 +8,6 @@ import 'package:provider/provider.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
-import 'package:servllama/features/chat/models/chat_model_option.dart';
 import 'package:servllama/features/chat/models/chat_session_record.dart';
 import 'package:servllama/features/chat/models/chat_stream_delta.dart';
 import 'package:servllama/features/chat/providers/chat_provider.dart';
@@ -474,13 +473,6 @@ class _PendingChatSessionRepository extends ChatSessionRepository {
 class _FakeLlamaChatApiClient extends LlamaChatApiClient {
   _FakeLlamaChatApiClient()
     : super(settingsLoader: _FixedServerLaunchSettingsLoader());
-
-  @override
-  Future<List<ChatModelOption>> fetchModels() async =>
-      const <ChatModelOption>[];
-
-  @override
-  Future<void> loadModel(String modelId) async {}
 
   @override
   Stream<ChatStreamDelta> streamChatCompletion({

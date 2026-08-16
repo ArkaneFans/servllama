@@ -7,16 +7,18 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:servllama/core/models/engine_runtime_state.dart';
 import 'package:servllama/core/models/inference_engine.dart';
+import 'package:servllama/core/models/model_descriptor.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/providers/engine_runtime_provider.dart';
 import 'package:servllama/core/providers/model_management_provider.dart';
+import 'package:servllama/core/repositories/local_model_repository.dart';
 import 'package:servllama/core/services/engines/llama_cpp_engine_adapter.dart';
 
 import '../../../support/stub_engine_adapter.dart';
 import 'package:servllama/core/services/app_l10n_service.dart';
 import 'package:servllama/core/services/llama_server_service.dart';
-import 'package:servllama/core/services/model_storage_paths.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
+import 'package:servllama/core/storage/kv_storage.dart';
 import 'package:servllama/features/server/pages/server_page.dart';
 import 'package:servllama/features/server/widgets/runtime_hero_card.dart';
 
@@ -51,7 +53,7 @@ void main() {
         llamaCppAdapter: LlamaCppEngineAdapter(
           serverService: serverService,
           settingsLoader: _FixedServerLaunchSettingsLoader(settings),
-          modelStoragePaths: _FixedModelStoragePaths(r'C:\app\models'),
+          modelRepository: _FixedModelStoragePaths(r'C:\app\models'),
           controlClient: StubServerControlClient(),
         ),
         mnnAdapter: StubEngineAdapter(),
@@ -117,7 +119,7 @@ void main() {
               port: 11434,
             ),
           ),
-          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+          modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
         ),
         mnnAdapter: StubEngineAdapter(),
         settingsLoader: _FixedServerLaunchSettingsLoader(
@@ -133,6 +135,7 @@ void main() {
         serverService.dispose();
       });
 
+      await serverProvider.selectModel('test-model');
       await tester.runAsync(() => serverProvider.start());
 
       await tester.pumpWidget(_TestApp(serverProvider: serverProvider));
@@ -176,12 +179,13 @@ void main() {
           settingsLoader: _FixedServerLaunchSettingsLoader(
             const ServerLaunchSettings(),
           ),
-          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+          modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
         ),
         mnnAdapter: StubEngineAdapter(),
         settingsLoader: _FixedServerLaunchSettingsLoader(
           const ServerLaunchSettings(),
         ),
+        kvStorage: KvStorage(),
       );
       addTearDown(() {
         serverProvider.dispose();
@@ -216,12 +220,13 @@ void main() {
           settingsLoader: _FixedServerLaunchSettingsLoader(
             const ServerLaunchSettings(),
           ),
-          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+          modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
         ),
         mnnAdapter: StubEngineAdapter(),
         settingsLoader: _FixedServerLaunchSettingsLoader(
           const ServerLaunchSettings(),
         ),
+        kvStorage: KvStorage(),
       );
       addTearDown(() async {
         if (!completer.isCompleted) {
@@ -234,6 +239,8 @@ void main() {
       await tester.pumpWidget(_TestApp(serverProvider: serverProvider));
       await tester.pumpAndSettle();
 
+      await serverProvider.selectModel('test-model');
+      await tester.pump();
       await tester.tap(find.byKey(const Key('server_page_toggle_button')));
       await tester.pump();
 
@@ -250,16 +257,26 @@ void main() {
       );
       final statusCard = find.byKey(const Key('server_page_status_card'));
       expect(
-        find.descendant(of: statusCard, matching: find.text('准备中')),
+        find.descendant(of: statusCard, matching: find.text('启动服务')),
         findsOneWidget,
       );
       expect(find.byKey(const Key('server_page_phase_list')), findsNothing);
       expect(find.text('编排期间锁定，完成后仍需停止服务才能切换引擎。'), findsNothing);
       expect(find.text('服务运行中不可切换引擎，需先停止服务。'), findsNothing);
 
-      completer.complete(false);
+      await tester.tap(find.byKey(const Key('server_page_toggle_button')));
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+      completer.complete(false);
+      await tester.runAsync(() async {
+        for (
+          var attempt = 0;
+          attempt < 30 && serverProvider.isBusy;
+          attempt++
+        ) {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+      });
+      await tester.pump();
     });
 
     testWidgets('shows the current orchestration phase in the status pill', (
@@ -303,7 +320,7 @@ void main() {
           settingsLoader: _FixedServerLaunchSettingsLoader(
             const ServerLaunchSettings(),
           ),
-          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+          modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
         ),
         mnnAdapter: StubEngineAdapter(),
         settingsLoader: _FixedServerLaunchSettingsLoader(
@@ -337,7 +354,7 @@ void main() {
           settingsLoader: _FixedServerLaunchSettingsLoader(
             const ServerLaunchSettings(),
           ),
-          modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+          modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
         ),
         mnnAdapter: StubEngineAdapter(),
         settingsLoader: _FixedServerLaunchSettingsLoader(
@@ -468,11 +485,21 @@ class _FailingLlamaServerService extends _ControllableLlamaServerService {
   Future<bool> startServer({List<String>? args}) async => false;
 }
 
-class _FixedModelStoragePaths extends ModelStoragePaths {
+class _FixedModelStoragePaths extends LocalModelRepository {
   _FixedModelStoragePaths(this.modelsDirectoryPath);
 
   final String modelsDirectoryPath;
 
   @override
-  Future<String> getModelsDirectoryPath() async => modelsDirectoryPath;
+  Future<List<ModelDescriptor>> listModels() async => <ModelDescriptor>[
+    for (final name in const <String>['test-model', 'alpha', 'beta'])
+      ModelDescriptor(
+        id: name,
+        modelName: name,
+        sizeBytes: 1,
+        storedDirectoryPath: '$modelsDirectoryPath/$name',
+        storedFilePath: '$modelsDirectoryPath/$name/model.gguf',
+        importedAt: DateTime(2026),
+      ),
+  ];
 }

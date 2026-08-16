@@ -9,16 +9,17 @@ import 'package:servllama/app/providers/app_locale_provider.dart';
 import 'package:servllama/app/providers/app_theme_mode_provider.dart';
 import 'package:servllama/app/main_scaffold.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
+import 'package:servllama/core/models/model_descriptor.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/providers/engine_runtime_provider.dart';
 import 'package:servllama/core/providers/model_management_provider.dart';
+import 'package:servllama/core/repositories/local_model_repository.dart';
 import 'package:servllama/features/downloads/providers/download_provider.dart';
 import 'package:servllama/app/providers/chat_timeout_provider.dart';
 import 'package:servllama/core/services/engines/llama_cpp_engine_adapter.dart';
 
 import 'support/stub_engine_adapter.dart';
 import 'package:servllama/core/services/llama_server_service.dart';
-import 'package:servllama/core/services/model_storage_paths.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/models/chat_model_option.dart';
@@ -62,9 +63,9 @@ void main() {
       llamaCppAdapter: LlamaCppEngineAdapter(
         serverService: serverService,
         settingsLoader: _FixedServerLaunchSettingsLoader(
-        const ServerLaunchSettings(),
-      ),
-        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+          const ServerLaunchSettings(),
+        ),
+        modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
       ),
       mnnAdapter: StubEngineAdapter(),
       settingsLoader: _FixedServerLaunchSettingsLoader(
@@ -173,9 +174,9 @@ void main() {
       llamaCppAdapter: LlamaCppEngineAdapter(
         serverService: serverService,
         settingsLoader: _FixedServerLaunchSettingsLoader(
-        const ServerLaunchSettings(),
-      ),
-        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+          const ServerLaunchSettings(),
+        ),
+        modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
       ),
       mnnAdapter: StubEngineAdapter(),
       settingsLoader: _FixedServerLaunchSettingsLoader(
@@ -238,9 +239,9 @@ void main() {
       llamaCppAdapter: LlamaCppEngineAdapter(
         serverService: serverService,
         settingsLoader: _FixedServerLaunchSettingsLoader(
-        const ServerLaunchSettings(),
-      ),
-        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+          const ServerLaunchSettings(),
+        ),
+        modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
       ),
       mnnAdapter: StubEngineAdapter(),
       settingsLoader: _FixedServerLaunchSettingsLoader(
@@ -286,9 +287,9 @@ void main() {
       llamaCppAdapter: LlamaCppEngineAdapter(
         serverService: serverService,
         settingsLoader: _FixedServerLaunchSettingsLoader(
-        const ServerLaunchSettings(),
-      ),
-        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+          const ServerLaunchSettings(),
+        ),
+        modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
       ),
       mnnAdapter: StubEngineAdapter(),
       settingsLoader: _FixedServerLaunchSettingsLoader(
@@ -338,9 +339,9 @@ void main() {
       llamaCppAdapter: LlamaCppEngineAdapter(
         serverService: serverService,
         settingsLoader: _FixedServerLaunchSettingsLoader(
-        const ServerLaunchSettings(),
-      ),
-        modelStoragePaths: _FixedModelStoragePaths('C:\\app\\models'),
+          const ServerLaunchSettings(),
+        ),
+        modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
       ),
       mnnAdapter: StubEngineAdapter(),
       settingsLoader: _FixedServerLaunchSettingsLoader(
@@ -391,7 +392,9 @@ class _TestApp extends StatelessWidget {
         ChangeNotifierProvider<AppLocaleProvider>(
           create: (_) => AppLocaleProvider(),
         ),
-        ChangeNotifierProvider<EngineRuntimeProvider>.value(value: serverProvider),
+        ChangeNotifierProvider<EngineRuntimeProvider>.value(
+          value: serverProvider,
+        ),
         // The chat empty state asks the library whether there is anything to
         // pick before offering "choose a model" (FR-C1).
         ChangeNotifierProvider<ModelManagementProvider>(
@@ -549,13 +552,6 @@ class _FakeLlamaChatApiClient extends LlamaChatApiClient {
   List<ChatModelOption> models;
 
   @override
-  Future<List<ChatModelOption>> fetchModels() async =>
-      List<ChatModelOption>.from(models);
-
-  @override
-  Future<void> loadModel(String modelId) async {}
-
-  @override
   Stream<ChatStreamDelta> streamChatCompletion({
     required String modelId,
     required List<ChatMessageRecord> messages,
@@ -605,13 +601,22 @@ class _FakeLlamaServerService implements LlamaServerService {
   Future<bool> stopServer() async => true;
 }
 
-class _FixedModelStoragePaths extends ModelStoragePaths {
+class _FixedModelStoragePaths extends LocalModelRepository {
   _FixedModelStoragePaths(this.modelsDirectoryPath);
 
   final String modelsDirectoryPath;
 
   @override
-  Future<String> getModelsDirectoryPath() async => modelsDirectoryPath;
+  Future<List<ModelDescriptor>> listModels() async => <ModelDescriptor>[
+    ModelDescriptor(
+      id: 'test-model',
+      modelName: 'test-model',
+      sizeBytes: 1,
+      storedDirectoryPath: '$modelsDirectoryPath/test-model',
+      storedFilePath: '$modelsDirectoryPath/test-model/model.gguf',
+      importedAt: DateTime(2026),
+    ),
+  ];
 }
 
 ChatSessionRecord _session({required String id, required String title}) {

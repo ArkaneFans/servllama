@@ -172,10 +172,9 @@ class _ChatViewState extends State<_ChatView> {
       return;
     }
 
-    // MNN cannot bind its server without a resident model. Continue directly
-    // into the current-engine model picker instead of failing with a dead-end
-    // error; choosing a model owns the remaining start sequence.
-    if (engine.requiresModelBeforeStart && runtime.selectedModelId == null) {
+    // Both engines are model-specific. Choosing a model owns the remaining
+    // start sequence when the selected engine has no saved default.
+    if (runtime.selectedModelId == null) {
       await _showModels(context);
       return;
     }
@@ -680,12 +679,12 @@ class _ChatInputPanel extends StatelessWidget {
     return ChatInputBar(
       key: const Key('chat_input_bar'),
       controller: controller,
-      hintText: _inputHintText(context, snapshot),
+      hintText: _inputHintText(context, snapshot, isServerBusy: isServerBusy),
       isServerRunning: isServerRunning,
       isServerBusy: isServerBusy,
       modelLabel: _modelSelectorLabel(context, snapshot),
-      canOpenModels: snapshot.canOpenModels,
-      isModelLoading: snapshot.isModelLoading,
+      canOpenModels: snapshot.canOpenModels && !isServerBusy,
+      isModelLoading: isServerBusy,
       hasLoadedModel: snapshot.hasLoadedModel,
       onServerAction: serverProvider == null ? null : onServerAction,
       onOpenModels: onOpenModels,
@@ -979,7 +978,6 @@ class _ChatBodySnapshot {
     required this.visibleMessages,
     required this.visibleMessagesRevision,
     required this.isServerRunning,
-    required this.isModelLoading,
     required this.hasLoadedModel,
     required this.streamingMessages,
     required this.draftMessageId,
@@ -993,7 +991,6 @@ class _ChatBodySnapshot {
       visibleMessages: provider.visibleMessages,
       visibleMessagesRevision: provider.visibleMessagesRevision,
       isServerRunning: provider.isServerRunning,
-      isModelLoading: provider.loadingModelId != null,
       hasLoadedModel: provider.currentModel?.isLoaded == true,
       streamingMessages: provider.streamingMessages,
       draftMessageId: provider.draftMessageId,
@@ -1006,7 +1003,6 @@ class _ChatBodySnapshot {
   final List<ChatMessageRecord> visibleMessages;
   final int visibleMessagesRevision;
   final bool isServerRunning;
-  final bool isModelLoading;
   final bool hasLoadedModel;
   final StreamingChatMessageNotifier streamingMessages;
   final String? draftMessageId;
@@ -1019,7 +1015,6 @@ class _ChatBodySnapshot {
         other.isLoadingMessages == isLoadingMessages &&
         other.visibleMessagesRevision == visibleMessagesRevision &&
         other.isServerRunning == isServerRunning &&
-        other.isModelLoading == isModelLoading &&
         other.hasLoadedModel == hasLoadedModel &&
         identical(other.streamingMessages, streamingMessages) &&
         other.draftMessageId == draftMessageId &&
@@ -1032,7 +1027,6 @@ class _ChatBodySnapshot {
     isLoadingMessages,
     visibleMessagesRevision,
     isServerRunning,
-    isModelLoading,
     hasLoadedModel,
     streamingMessages,
     draftMessageId,
@@ -1046,7 +1040,6 @@ class _ChatInputSnapshot {
     required this.isServerRunning,
     required this.currentModelId,
     required this.loadedModelDisplayName,
-    required this.isModelLoading,
     required this.hasLoadedModel,
     required this.canOpenModels,
     required this.canSend,
@@ -1062,7 +1055,6 @@ class _ChatInputSnapshot {
       loadedModelDisplayName: currentModel?.isLoaded == true
           ? currentModel?.displayName
           : null,
-      isModelLoading: provider.loadingModelId != null,
       hasLoadedModel: currentModel?.isLoaded == true,
       canOpenModels: provider.canSelectModels,
       canSend: provider.canSend,
@@ -1076,7 +1068,6 @@ class _ChatInputSnapshot {
   final bool isServerRunning;
   final String? currentModelId;
   final String? loadedModelDisplayName;
-  final bool isModelLoading;
   final bool hasLoadedModel;
   final bool canOpenModels;
   final bool canSend;
@@ -1089,7 +1080,6 @@ class _ChatInputSnapshot {
         other.isServerRunning == isServerRunning &&
         other.currentModelId == currentModelId &&
         other.loadedModelDisplayName == loadedModelDisplayName &&
-        other.isModelLoading == isModelLoading &&
         other.hasLoadedModel == hasLoadedModel &&
         other.canOpenModels == canOpenModels &&
         other.canSend == canSend &&
@@ -1102,7 +1092,6 @@ class _ChatInputSnapshot {
     isServerRunning,
     currentModelId,
     loadedModelDisplayName,
-    isModelLoading,
     hasLoadedModel,
     canOpenModels,
     canSend,
@@ -1111,12 +1100,16 @@ class _ChatInputSnapshot {
   );
 }
 
-String _inputHintText(BuildContext context, _ChatInputSnapshot snapshot) {
+String _inputHintText(
+  BuildContext context,
+  _ChatInputSnapshot snapshot, {
+  required bool isServerBusy,
+}) {
   final l10n = context.l10n;
   if (!snapshot.isServerRunning) {
     return l10n.chatInputHintStartServer;
   }
-  if (snapshot.isModelLoading) {
+  if (isServerBusy) {
     return l10n.chatInputHintLoadingModel;
   }
   if (snapshot.currentModelId == null) {

@@ -28,7 +28,7 @@ class StubEngineAdapter implements InferenceEngineAdapter {
 
   @override
   Future<EngineStartResult> start({
-    String? modelId,
+    required String modelId,
     required RuntimePhaseCallback onPhase,
   }) async {
     _isRunning = true;
@@ -64,40 +64,19 @@ class StubEngineAdapter implements InferenceEngineAdapter {
   }
 }
 
-/// Answers the adapter's health probe and model calls immediately. Without it
-/// `LlamaCppEngineAdapter.start` polls a real socket for 30 s before failing.
+/// Answers the adapter's health probe immediately.
 class StubServerControlClient implements LlamaServerControlClient {
   StubServerControlClient({this.reachable = true});
 
   final bool reachable;
-  final List<String> loadedModelIds = <String>[];
-
   @override
   void updateBaseUrl(String baseUrl) {}
 
   @override
-  Future<bool> waitUntilReachable({Duration timeout = Duration.zero}) async =>
-      reachable;
-
-  @override
-  Future<List<LlamaServerModelState>> fetchModels() async =>
-      <LlamaServerModelState>[
-        for (final id in loadedModelIds)
-          LlamaServerModelState(id: id, isLoaded: true),
-      ];
-
-  @override
-  Future<bool> loadModel(String modelId) async {
-    loadedModelIds
-      ..clear()
-      ..add(modelId);
-    return true;
-  }
-
-  @override
-  Future<void> unloadModel(String modelId) async {
-    loadedModelIds.remove(modelId);
-  }
+  Future<bool> waitUntilReady({
+    Duration timeout = Duration.zero,
+    bool Function()? shouldContinue,
+  }) async => reachable && (shouldContinue?.call() ?? true);
 
   @override
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

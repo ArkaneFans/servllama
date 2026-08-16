@@ -35,12 +35,4 @@ enum InferenceEngine {
 
   /// Model container shape: GGUF ships as a single file, MNN as a directory.
   bool get usesDirectoryModels => this == InferenceEngine.mnn;
-
-  /// MNN has to have a model resident before its server can bind; llama-server
-  /// starts empty with `--models-dir` and loads on demand (design decision D6).
-  bool get requiresModelBeforeStart => this == InferenceEngine.mnn;
-
-  /// MNN cannot swap the resident model while its server is up, so changing
-  /// models means stop → unload → load → start.
-  bool get restartsOnModelSwap => this == InferenceEngine.mnn;
 }

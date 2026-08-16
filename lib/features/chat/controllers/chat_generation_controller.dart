@@ -51,15 +51,13 @@ class ChatGenerationController extends ChangeNotifier {
   List<String> get pendingImageAttachments =>
       List<String>.unmodifiable(_pendingImageAttachments);
 
-  bool get canManageSessions => !_isSending && _models.loadingModelId == null;
-  bool get canSelectModels =>
-      _models.isServerRunning && !_isSending && _models.loadingModelId == null;
+  bool get canManageSessions => !_isSending;
+  bool get canSelectModels => _models.isServerRunning && !_isSending;
   bool get canSend =>
       !_isSending &&
-      _models.loadingModelId == null &&
       _models.isServerRunning &&
       _models.currentModel?.isLoaded == true;
-  bool get canManageMessages => !_isSending && _models.loadingModelId == null;
+  bool get canManageMessages => !_isSending;
 
   bool canRegenerateMessage(String messageId) {
     if (!canSend) {

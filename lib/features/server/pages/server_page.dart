@@ -20,9 +20,8 @@ import 'package:servllama/shared/l10n/runtime_labels.dart';
 import 'package:servllama/shared/widgets/engine_badge.dart';
 
 /// Runtime control center: pick an engine, pick a model, start or stop. The
-/// two engines' opposite startup orders are absorbed by
-/// [EngineRuntimeProvider]; this page reports whichever phase is current in
-/// the service status pill.
+/// two engines' native startup details are absorbed by [EngineRuntimeProvider];
+/// this page reports whichever phase is current in the service status pill.
 class ServerPage extends StatefulWidget {
   const ServerPage({super.key});
 
@@ -196,8 +195,8 @@ class _ServerPageState extends State<ServerPage> {
     }
     // While idle this only records the choice; the start button brings the
     // runtime up. While running it triggers a same-engine swap.
-    if (runtime.isRunning && selection.runtimeId != null) {
-      await runtime.activateModel(selection.runtimeId!);
+    if (runtime.isRunning) {
+      await runtime.activateModel(selection.runtimeId);
     } else if (!runtime.isRunning) {
       await runtime.selectModel(selection.runtimeId);
     }
@@ -223,7 +222,7 @@ class _ServerPageState extends State<ServerPage> {
 class _ModelPick {
   const _ModelPick(this.runtimeId);
 
-  final String? runtimeId;
+  final String runtimeId;
 }
 
 class _ModelPickerSheet extends StatelessWidget {
@@ -263,18 +262,6 @@ class _ModelPickerSheet extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 14),
-            // llama.cpp serves fine with nothing resident (design D6), so
-            // "none" is a real option there and absent for MNN.
-            if (!engine.requiresModelBeforeStart)
-              ListTile(
-                key: const Key('server_model_picker_none'),
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.blur_off_rounded),
-                title: Text(l10n.serverSelectModelNone),
-                subtitle: Text(l10n.serverNoModelSelectedHint),
-                selected: selectedRuntimeId == null,
-                onTap: () => Navigator.of(context).pop(const _ModelPick(null)),
-              ),
             if (models.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 24),

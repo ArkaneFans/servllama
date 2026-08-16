@@ -765,16 +765,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get serverNoModelSelected => '未选择模型';
 
   @override
-  String get serverNoModelSelectedHint => '可选 · 启动后按需加载';
-
-  @override
-  String get serverModelRequiredHint => 'MNN 需要先选择模型才能启动';
+  String get serverModelRequiredHint => '请先选择模型再启动';
 
   @override
   String get serverSelectModelTitle => '选择模型';
-
-  @override
-  String get serverSelectModelNone => '不选择模型直接启动';
 
   @override
   String serverNoModelsForEngine(String engine) {

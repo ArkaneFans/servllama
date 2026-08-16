@@ -38,11 +38,9 @@ class EngineStartResult {
   final String? activeModelName;
 }
 
-/// Hides the structurally opposite lifecycles of the two engines behind one
-/// interface: `llama.cpp` starts its server first and loads models on demand,
-/// while MNN must have a model resident before its server can bind. Each
-/// adapter reports its current phase through [RuntimePhaseCallback] so the UI
-/// can show one concise status component for either lifecycle.
+/// Hides the engine-specific process and model-loading details behind one
+/// model-first lifecycle. Each adapter reports its current phase through
+/// [RuntimePhaseCallback] so the UI can show one concise status component.
 abstract class InferenceEngineAdapter {
   InferenceEngine get engine;
 
@@ -56,10 +54,8 @@ abstract class InferenceEngineAdapter {
   /// One-time initialization. Safe to call repeatedly.
   Future<void> prepare();
 
-  /// Brings the engine up. [modelId] may be null only when
-  /// [InferenceEngine.requiresModelBeforeStart] is false.
   Future<EngineStartResult> start({
-    String? modelId,
+    required String modelId,
     required RuntimePhaseCallback onPhase,
   });
 

@@ -69,12 +69,9 @@ class ChatProvider extends ChangeNotifier {
   bool get isLoading => _sessionList.isLoading;
   bool get isLoadingMessages => _conversation.isLoadingMessages;
   bool get isLoadingOlderMessages => _conversation.isLoadingOlderMessages;
-  bool get isRefreshingModels => _models.isRefreshingModels;
   bool get isServerRunning => _models.isServerRunning;
   bool get isSending => _generation.isSending;
   String get sessionQuery => _sessionList.query;
-  String? get loadingModelId => _models.loadingModelId;
-  ChatModelOperationError? get modelOperationError => _models.lastOperationError;
   String? get currentModelId => _models.currentModelId;
   String? get draftMessageId => _generation.draftMessageId;
   String? get lastErrorMessage => _generation.lastErrorMessage;
@@ -94,15 +91,9 @@ class ChatProvider extends ChangeNotifier {
   bool get hasOlderMessages => _conversation.hasOlderMessages;
 
   ChatModelOption? get currentModel => _models.currentModel;
-  String get currentModelDisplayName => _models.currentModelDisplayName;
-  String get modelSelectorLabel => _models.modelSelectorLabel;
-  String get currentModelStatusLabel => _models.currentModelStatusLabel;
-  List<ChatModelOption> get loadedModels => _models.loadedModels;
-  List<ChatModelOption> get availableModels => _models.availableModels;
   List<ChatMessageRecord> get visibleMessages => _conversation.visibleMessages;
   int get visibleMessagesRevision => _conversation.visibleMessagesRevision;
   List<ChatSessionRecord> get filteredSessions => _sessionList.filteredSessions;
-  String get inputHintText => _models.inputHintText;
 
   Future<void> load() async {
     await _sessionList.load();
@@ -130,7 +121,6 @@ class ChatProvider extends ChangeNotifier {
     final stopped = _models.updateServerState(
       baseUrl: baseUrl,
       isServerRunning: isServerRunning,
-      engine: engine,
       activeModelId: activeModelId,
       activeModelName: activeModelName,
     );
@@ -141,10 +131,6 @@ class ChatProvider extends ChangeNotifier {
 
   void updateChatTimeout(Duration timeout) {
     _models.updateChatTimeout(timeout);
-  }
-
-  Future<void> refreshModels() async {
-    await _models.refreshModels();
   }
 
   Future<void> createSession() async {
@@ -208,35 +194,6 @@ class ChatProvider extends ChangeNotifier {
 
   Future<void> loadOlderMessages() async {
     await _conversation.loadOlderMessages();
-  }
-
-  void selectLoadedModel(String modelId) {
-    if (!canSelectModels) {
-      return;
-    }
-    _models.selectLoadedModel(modelId);
-  }
-
-  Future<void> loadAndSelectModel(String modelId) async {
-    if (!canSelectModels) {
-      return;
-    }
-    await _models.loadAndSelectModel(modelId);
-  }
-
-  Future<void> loadCurrentModel() async {
-    await _models.loadCurrentModel();
-  }
-
-  Future<void> unloadModel(String modelId) async {
-    if (!canSelectModels) {
-      return;
-    }
-    await _models.unloadModel(modelId);
-  }
-
-  void clearModelOperationError() {
-    _models.clearOperationError();
   }
 
   Future<void> sendMessage(

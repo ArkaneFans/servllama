@@ -20,7 +20,7 @@ void main() {
     });
 
     test(
-      'MNN selection enables start and reaches ready with active model',
+      'model selection enables start and reaches ready with active model',
       () async {
         final llama = _FakeEngineAdapter(InferenceEngine.llamaCpp);
         final mnn = _FakeEngineAdapter(InferenceEngine.mnn);
@@ -116,6 +116,7 @@ void main() {
       final provider = _provider(llama: llama, mnn: mnn);
       addTearDown(provider.dispose);
 
+      await provider.selectModel('test-model');
       await provider.start();
 
       expect(provider.status, EngineRuntimeStatus.error);
@@ -140,6 +141,7 @@ void main() {
         final provider = _provider(llama: llama, mnn: mnn);
         addTearDown(provider.dispose);
 
+        await provider.selectModel('test-model');
         await provider.start();
         await provider.stop();
 
@@ -209,7 +211,7 @@ class _FakeEngineAdapter implements InferenceEngineAdapter {
 
   @override
   Future<EngineStartResult> start({
-    String? modelId,
+    required String modelId,
     required RuntimePhaseCallback onPhase,
   }) async {
     startCount += 1;

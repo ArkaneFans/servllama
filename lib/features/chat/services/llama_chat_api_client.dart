@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -6,7 +5,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
-import 'package:servllama/features/chat/models/chat_model_option.dart';
 import 'package:servllama/features/chat/models/chat_stream_delta.dart';
 import 'package:servllama/features/chat/services/image_attachment_service.dart';
 
@@ -22,15 +20,10 @@ Future<String?> _encodeImageDataUrl(String filePath) async {
   return 'data:$mimeType;base64,${base64Encode(bytes)}';
 }
 
-/// Typed causes for model lifecycle failures. UI layers map these to
-/// localized text; the exception message is debug-only for coded errors.
-enum LlamaChatApiErrorCode { modelLoadTimeout, modelLoadFailed, modelUnloadTimeout }
-
 class LlamaChatApiException implements Exception {
-  const LlamaChatApiException(this.message, {this.code});
+  const LlamaChatApiException(this.message);
 
   final String message;
-  final LlamaChatApiErrorCode? code;
 
   @override
   String toString() => message;
@@ -38,34 +31,25 @@ class LlamaChatApiException implements Exception {
 
 class LlamaChatApiClient {
   static const Duration defaultChatReceiveTimeout = Duration(minutes: 2);
-  static const Duration defaultModelLoadTimeout = Duration(seconds: 60);
 
   LlamaChatApiClient({
     Dio? dio,
     ServerLaunchSettingsLoader? settingsLoader,
     Duration? chatReceiveTimeout,
-    Duration? modelLoadPollInterval,
-    Duration? modelLoadTimeout,
   }) : _dio =
            dio ??
            Dio(
              BaseOptions(
                connectTimeout: const Duration(seconds: 10),
-               receiveTimeout:
-                   chatReceiveTimeout ?? defaultChatReceiveTimeout,
+               receiveTimeout: chatReceiveTimeout ?? defaultChatReceiveTimeout,
                sendTimeout: const Duration(seconds: 30),
                validateStatus: (_) => true,
              ),
            ),
-       _settingsLoader = settingsLoader ?? ServerLaunchSettingsLoader(),
-       _modelLoadPollInterval =
-           modelLoadPollInterval ?? const Duration(milliseconds: 500),
-       _modelLoadTimeout = modelLoadTimeout ?? defaultModelLoadTimeout;
+       _settingsLoader = settingsLoader ?? ServerLaunchSettingsLoader();
 
   final Dio _dio;
   final ServerLaunchSettingsLoader _settingsLoader;
-  final Duration _modelLoadPollInterval;
-  final Duration _modelLoadTimeout;
 
   String _baseUrl = 'http://127.0.0.1:8080';
 
@@ -78,145 +62,6 @@ class LlamaChatApiClient {
 
   void updateReceiveTimeout(Duration timeout) {
     _dio.options.receiveTimeout = timeout;
-  }
-
-  Future<List<ChatModelOption>> fetchModels() async {
-    try {
-      final response = await _dio.get<Map<String, dynamic>>(
-        '$_baseUrl/models',
-        options: Options(headers: await _headers()),
-      );
-      final body = response.data;
-      if (response.statusCode != 200 || body == null) {
-        throw await _exceptionFromResponse(
-          statusCode: response.statusCode,
-          body: body,
-        );
-      }
-
-      final data = body['data'];
-      if (data is! List) {
-        throw const LlamaChatApiException('模型列表格式无效。');
-      }
-
-      final models = <ChatModelOption>[];
-      for (final item in data) {
-        if (item is! Map) {
-          continue;
-        }
-        final normalized = Map<String, dynamic>.from(
-          item.cast<Object?, Object?>(),
-        );
-        final id = '${normalized['id'] ?? ''}'.trim();
-        if (id.isEmpty) {
-          continue;
-        }
-        final statusValue =
-            (normalized['status'] as Map?)?['value']?.toString() ?? '';
-        models.add(
-          ChatModelOption(
-            id: id,
-            displayName: id,
-            status: _parseStatus(statusValue),
-          ),
-        );
-      }
-
-      models.sort(
-        (left, right) => left.displayName.toLowerCase().compareTo(
-          right.displayName.toLowerCase(),
-        ),
-      );
-      return models;
-    } on DioException catch (error) {
-      throw _exceptionFromDio(error);
-    }
-  }
-
-  Future<void> loadModel(String modelId) async {
-    try {
-      final response = await _dio.post<Map<String, dynamic>>(
-        '$_baseUrl/models/load',
-        data: <String, dynamic>{'model': modelId},
-        options: Options(headers: await _headers()),
-      );
-      final body = response.data;
-      if (response.statusCode != 200 ||
-          body == null ||
-          body['success'] != true) {
-        throw await _exceptionFromResponse(
-          statusCode: response.statusCode,
-          body: body,
-        );
-      }
-
-      final stopwatch = Stopwatch()..start();
-      while (stopwatch.elapsed < _modelLoadTimeout) {
-        final models = await fetchModels();
-        for (final model in models) {
-          if (model.id != modelId) {
-            continue;
-          }
-          if (model.status == ChatModelStatus.loaded) {
-            return;
-          }
-          if (model.status == ChatModelStatus.failed) {
-            throw LlamaChatApiException(
-              'Model failed to load: ${model.displayName}',
-              code: LlamaChatApiErrorCode.modelLoadFailed,
-            );
-          }
-        }
-        await Future<void>.delayed(_modelLoadPollInterval);
-      }
-
-      throw const LlamaChatApiException(
-        'Model load timed out.',
-        code: LlamaChatApiErrorCode.modelLoadTimeout,
-      );
-    } on DioException catch (error) {
-      throw _exceptionFromDio(error);
-    }
-  }
-
-  Future<void> unloadModel(String modelId) async {
-    try {
-      final response = await _dio.post<Map<String, dynamic>>(
-        '$_baseUrl/models/unload',
-        data: <String, dynamic>{'model': modelId},
-        options: Options(headers: await _headers()),
-      );
-      final body = response.data;
-      if (response.statusCode != 200 ||
-          body == null ||
-          body['success'] != true) {
-        throw await _exceptionFromResponse(
-          statusCode: response.statusCode,
-          body: body,
-        );
-      }
-
-      final stopwatch = Stopwatch()..start();
-      while (stopwatch.elapsed < _modelLoadTimeout) {
-        final models = await fetchModels();
-        for (final model in models) {
-          if (model.id != modelId) {
-            continue;
-          }
-          if (model.status == ChatModelStatus.unloaded) {
-            return;
-          }
-        }
-        await Future<void>.delayed(_modelLoadPollInterval);
-      }
-
-      throw const LlamaChatApiException(
-        'Model unload timed out.',
-        code: LlamaChatApiErrorCode.modelUnloadTimeout,
-      );
-    } on DioException catch (error) {
-      throw _exceptionFromDio(error);
-    }
   }
 
   Stream<ChatStreamDelta> streamChatCompletion({
@@ -280,20 +125,6 @@ class LlamaChatApiClient {
         return;
       }
       throw _exceptionFromDio(error);
-    }
-  }
-
-  ChatModelStatus _parseStatus(String statusValue) {
-    switch (statusValue.trim().toLowerCase()) {
-      case 'loaded':
-        return ChatModelStatus.loaded;
-      case 'loading':
-        return ChatModelStatus.loading;
-      case 'failed':
-        return ChatModelStatus.failed;
-      case 'unloaded':
-      default:
-        return ChatModelStatus.unloaded;
     }
   }
 
@@ -401,10 +232,7 @@ class LlamaChatApiClient {
     final serialized = <Map<String, dynamic>>[];
     for (final message in messages) {
       final content = await _buildMessageContent(message);
-      serialized.add({
-        'role': message.role.name,
-        'content': content,
-      });
+      serialized.add({'role': message.role.name, 'content': content});
     }
     return serialized;
   }

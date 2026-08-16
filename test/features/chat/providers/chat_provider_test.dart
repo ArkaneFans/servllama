@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/core/models/inference_engine.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
-import 'package:servllama/features/chat/controllers/chat_model_controller.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/models/chat_message_version_record.dart';
 import 'package:servllama/features/chat/models/chat_model_option.dart';
@@ -58,8 +57,7 @@ void main() {
       expect(provider.currentSessionTitle, ChatProvider.defaultSessionTitle);
       expect(provider.visibleMessages, isEmpty);
       expect(provider.currentModelId, isNull);
-      expect(provider.modelSelectorLabel, '选择模型');
-      expect(apiClient.fetchModelsCallCount, 0);
+      expect(provider.models, isEmpty);
     });
 
     test(
@@ -109,8 +107,7 @@ void main() {
 
         expect(provider.selectedSession?.id, 's2');
         expect(provider.currentModelId, isNull);
-        expect(provider.modelSelectorLabel, '选择模型');
-        expect(apiClient.fetchModelsCallCount, 0);
+        expect(provider.models, isEmpty);
       },
     );
 
@@ -262,8 +259,7 @@ void main() {
         ];
 
         await provider.load();
-        await provider.refreshModels();
-        provider.selectLoadedModel('alpha');
+        _setActiveModel(provider, 'alpha');
         await provider.selectSession('s1');
         await provider.sendMessage('next');
 
@@ -302,7 +298,6 @@ void main() {
 
         expect(provider.isServerRunning, isTrue);
         expect(provider.models, isEmpty);
-        expect(apiClient.fetchModelsCallCount, 0);
       },
     );
 
@@ -327,7 +322,6 @@ void main() {
       expect(provider.currentModel?.displayName, 'Qwen MNN');
       expect(provider.currentModel?.isLoaded, isTrue);
       expect(provider.canSend, isTrue);
-      expect(apiClient.fetchModelsCallCount, 0);
     });
 
     test('updateChatTimeout forwards receive timeout to api client', () {
@@ -338,263 +332,6 @@ void main() {
         const Duration(seconds: 300),
       );
     });
-
-    test(
-      'loadAndSelectModel exposes loading state and selects loaded model',
-      () async {
-        repository.sessions = <ChatSessionRecord>[
-          _session(id: 's1', title: '会话'),
-        ];
-        apiClient.models = <ChatModelOption>[
-          const ChatModelOption(
-            id: 'alpha',
-            displayName: 'alpha',
-            status: ChatModelStatus.loaded,
-          ),
-          const ChatModelOption(
-            id: 'beta',
-            displayName: 'beta',
-            status: ChatModelStatus.unloaded,
-          ),
-        ];
-        apiClient.loadCompleter = Completer<void>();
-
-        await provider.load();
-        await provider.refreshModels();
-
-        final future = provider.loadAndSelectModel('beta');
-
-        expect(provider.loadingModelId, 'beta');
-
-        apiClient.models = <ChatModelOption>[
-          const ChatModelOption(
-            id: 'alpha',
-            displayName: 'alpha',
-            status: ChatModelStatus.loaded,
-          ),
-          const ChatModelOption(
-            id: 'beta',
-            displayName: 'beta',
-            status: ChatModelStatus.loaded,
-          ),
-        ];
-        apiClient.loadCompleter!.complete();
-        await future;
-
-        expect(provider.loadingModelId, isNull);
-        expect(provider.currentModelId, 'beta');
-        expect(
-          provider.loadedModels.map((model) => model.id),
-          contains('beta'),
-        );
-        expect(provider.modelSelectorLabel, 'beta');
-      },
-    );
-
-    test(
-      'loadAndSelectModel exposes a typed error when loading times out',
-      () async {
-        apiClient.models = <ChatModelOption>[
-          const ChatModelOption(
-            id: 'beta',
-            displayName: 'beta',
-            status: ChatModelStatus.unloaded,
-          ),
-        ];
-        apiClient.loadError = const LlamaChatApiException(
-          'Model load timed out.',
-          code: LlamaChatApiErrorCode.modelLoadTimeout,
-        );
-
-        await provider.load();
-        await provider.refreshModels();
-        await provider.loadAndSelectModel('beta');
-
-        expect(provider.loadingModelId, isNull);
-        expect(provider.currentModelId, isNull);
-        final error = provider.modelOperationError;
-        expect(error, isNotNull);
-        expect(error!.kind, ChatModelOperationErrorKind.loadTimeout);
-        expect(error.modelName, 'beta');
-
-        provider.clearModelOperationError();
-        expect(provider.modelOperationError, isNull);
-      },
-    );
-
-    test(
-      'loadAndSelectModel clears a previous error before retrying',
-      () async {
-        apiClient.models = <ChatModelOption>[
-          const ChatModelOption(
-            id: 'beta',
-            displayName: 'beta',
-            status: ChatModelStatus.unloaded,
-          ),
-        ];
-        apiClient.loadError = const LlamaChatApiException(
-          'Model failed to load: beta',
-          code: LlamaChatApiErrorCode.modelLoadFailed,
-        );
-
-        await provider.load();
-        await provider.refreshModels();
-        await provider.loadAndSelectModel('beta');
-        expect(
-          provider.modelOperationError?.kind,
-          ChatModelOperationErrorKind.loadFailed,
-        );
-
-        apiClient.loadError = null;
-        await provider.loadAndSelectModel('beta');
-
-        expect(provider.modelOperationError, isNull);
-        expect(provider.currentModelId, 'beta');
-      },
-    );
-
-    test(
-      'unloadModel exposes a typed error when unloading times out',
-      () async {
-        apiClient.models = <ChatModelOption>[
-          const ChatModelOption(
-            id: 'alpha',
-            displayName: 'alpha',
-            status: ChatModelStatus.loaded,
-          ),
-        ];
-        apiClient.unloadError = const LlamaChatApiException(
-          'Model unload timed out.',
-          code: LlamaChatApiErrorCode.modelUnloadTimeout,
-        );
-
-        await provider.load();
-        await provider.refreshModels();
-        await provider.unloadModel('alpha');
-
-        expect(provider.loadingModelId, isNull);
-        final error = provider.modelOperationError;
-        expect(error, isNotNull);
-        expect(error!.kind, ChatModelOperationErrorKind.unloadTimeout);
-        expect(error.modelName, 'alpha');
-      },
-    );
-
-    test(
-      'load errors without a typed code map to requestFailed with detail',
-      () async {
-        apiClient.models = <ChatModelOption>[
-          const ChatModelOption(
-            id: 'beta',
-            displayName: 'beta',
-            status: ChatModelStatus.unloaded,
-          ),
-        ];
-        apiClient.loadError = const LlamaChatApiException('server exploded');
-
-        await provider.load();
-        await provider.refreshModels();
-        await provider.loadAndSelectModel('beta');
-
-        final error = provider.modelOperationError;
-        expect(error, isNotNull);
-        expect(error!.kind, ChatModelOperationErrorKind.requestFailed);
-        expect(error.detail, 'server exploded');
-      },
-    );
-
-    test(
-      'unloadModel clears current selection when unloading current model',
-      () async {
-        apiClient.models = <ChatModelOption>[
-          const ChatModelOption(
-            id: 'alpha',
-            displayName: 'alpha',
-            status: ChatModelStatus.loaded,
-          ),
-          const ChatModelOption(
-            id: 'beta',
-            displayName: 'beta',
-            status: ChatModelStatus.loaded,
-          ),
-        ];
-        apiClient.unloadCompleter = Completer<void>();
-
-        await provider.load();
-        await provider.refreshModels();
-        provider.selectLoadedModel('alpha');
-
-        final future = provider.unloadModel('alpha');
-
-        expect(provider.loadingModelId, 'alpha');
-
-        apiClient.models = <ChatModelOption>[
-          const ChatModelOption(
-            id: 'alpha',
-            displayName: 'alpha',
-            status: ChatModelStatus.unloaded,
-          ),
-          const ChatModelOption(
-            id: 'beta',
-            displayName: 'beta',
-            status: ChatModelStatus.loaded,
-          ),
-        ];
-        apiClient.unloadCompleter!.complete();
-        await future;
-
-        expect(provider.loadingModelId, isNull);
-        expect(provider.currentModelId, isNull);
-        expect(provider.modelSelectorLabel, '选择模型');
-        expect(
-          provider.availableModels.map((model) => model.id),
-          contains('alpha'),
-        );
-      },
-    );
-
-    test(
-      'unloadModel keeps selection when unloading another loaded model',
-      () async {
-        apiClient.models = <ChatModelOption>[
-          const ChatModelOption(
-            id: 'alpha',
-            displayName: 'alpha',
-            status: ChatModelStatus.loaded,
-          ),
-          const ChatModelOption(
-            id: 'beta',
-            displayName: 'beta',
-            status: ChatModelStatus.loaded,
-          ),
-        ];
-
-        await provider.load();
-        await provider.refreshModels();
-        provider.selectLoadedModel('alpha');
-
-        apiClient.models = <ChatModelOption>[
-          const ChatModelOption(
-            id: 'alpha',
-            displayName: 'alpha',
-            status: ChatModelStatus.loaded,
-          ),
-          const ChatModelOption(
-            id: 'beta',
-            displayName: 'beta',
-            status: ChatModelStatus.unloaded,
-          ),
-        ];
-        await provider.unloadModel('beta');
-
-        expect(provider.currentModelId, 'alpha');
-        expect(provider.modelSelectorLabel, 'alpha');
-        expect(
-          provider.availableModels.map((model) => model.id),
-          contains('beta'),
-        );
-      },
-    );
 
     test(
       'sendMessage stores content and reasoning after selecting a loaded model',
@@ -613,8 +350,7 @@ void main() {
         ];
 
         await provider.load();
-        await provider.refreshModels();
-        provider.selectLoadedModel('alpha');
+        _setActiveModel(provider, 'alpha');
         await provider.sendMessage('hello');
 
         expect(provider.sessions, hasLength(1));
@@ -666,8 +402,7 @@ void main() {
         ];
 
         await provider.load();
-        await provider.refreshModels();
-        provider.selectLoadedModel('alpha');
+        _setActiveModel(provider, 'alpha');
         await provider.sendMessage('hello');
 
         final assistantMessage = provider.visibleMessages.last;
@@ -694,8 +429,7 @@ void main() {
         ];
 
         await provider.load();
-        await provider.refreshModels();
-        provider.selectLoadedModel('alpha');
+        _setActiveModel(provider, 'alpha');
         await provider.sendMessage('hello');
 
         expect(provider.sessions, hasLength(1));
@@ -719,8 +453,7 @@ void main() {
         apiClient.streamDeltas = const <ChatStreamDelta>[];
 
         await provider.load();
-        await provider.refreshModels();
-        provider.selectLoadedModel('alpha');
+        _setActiveModel(provider, 'alpha');
         await provider.sendMessage('hello');
 
         final messages = provider.visibleMessages;
@@ -751,8 +484,7 @@ void main() {
       ];
 
       await provider.load();
-      await provider.refreshModels();
-      provider.selectLoadedModel('alpha');
+      _setActiveModel(provider, 'alpha');
       repository.loadAllMessagesError = StateError('storage failure');
 
       await expectLater(
@@ -798,8 +530,7 @@ void main() {
         apiClient.streamDeltas = const <ChatStreamDelta>[];
 
         await provider.load();
-        await provider.refreshModels();
-        provider.selectLoadedModel('alpha');
+        _setActiveModel(provider, 'alpha');
         await provider.selectSession('s1');
 
         await provider.regenerateFromMessage('a1');
@@ -982,8 +713,7 @@ void main() {
         ];
 
         await provider.load();
-        await provider.refreshModels();
-        provider.selectLoadedModel('alpha');
+        _setActiveModel(provider, 'alpha');
         await provider.selectSession('s1');
 
         await provider.regenerateFromMessage('a2');
@@ -1049,8 +779,7 @@ void main() {
       ];
 
       await provider.load();
-      await provider.refreshModels();
-      provider.selectLoadedModel('alpha');
+      _setActiveModel(provider, 'alpha');
       await provider.selectSession('s1');
       provider.addImageAttachment('C:\\mock\\pending.png');
 
@@ -1074,8 +803,7 @@ void main() {
       apiClient.streamController = controller;
 
       await provider.load();
-      await provider.refreshModels();
-      provider.selectLoadedModel('alpha');
+      _setActiveModel(provider, 'alpha');
 
       final pendingSend = provider.sendMessage('你好');
       await Future<void>.delayed(Duration.zero);
@@ -1124,8 +852,7 @@ void main() {
       ];
 
       await provider.load();
-      await provider.refreshModels();
-      provider.selectLoadedModel('alpha');
+      _setActiveModel(provider, 'alpha');
       await provider.selectSession('s1');
       await provider.regenerateFromMessage('a1');
 
@@ -1307,6 +1034,15 @@ void main() {
       expect(provider.filteredSessions, isEmpty);
     });
   });
+}
+
+void _setActiveModel(ChatProvider provider, String modelId, {String? name}) {
+  provider.updateServerState(
+    baseUrl: 'http://127.0.0.1:8080',
+    isServerRunning: true,
+    activeModelId: modelId,
+    activeModelName: name,
+  );
 }
 
 class _FakeChatSessionRepository extends ChatSessionRepository {
@@ -1570,16 +1306,11 @@ class _FakeLlamaChatApiClient extends LlamaChatApiClient {
     : super(settingsLoader: _FixedServerLaunchSettingsLoader());
 
   List<ChatModelOption> models = <ChatModelOption>[];
-  Completer<void>? loadCompleter;
-  Completer<void>? unloadCompleter;
   StreamController<ChatStreamDelta>? streamController;
   List<ChatStreamDelta> streamDeltas = const <ChatStreamDelta>[];
   List<ChatMessageRecord> lastStreamMessages = const <ChatMessageRecord>[];
   String? lastBaseUrl;
   Duration? lastReceiveTimeout;
-  int fetchModelsCallCount = 0;
-  Object? loadError;
-  Object? unloadError;
 
   @override
   void updateBaseUrl(String baseUrl) {
@@ -1590,54 +1321,6 @@ class _FakeLlamaChatApiClient extends LlamaChatApiClient {
   void updateReceiveTimeout(Duration timeout) {
     lastReceiveTimeout = timeout;
     super.updateReceiveTimeout(timeout);
-  }
-
-  @override
-  Future<List<ChatModelOption>> fetchModels() async {
-    fetchModelsCallCount += 1;
-    return List<ChatModelOption>.from(models);
-  }
-
-  @override
-  Future<void> loadModel(String modelId) async {
-    if (loadCompleter != null) {
-      await loadCompleter!.future;
-    }
-    if (loadError != null) {
-      throw loadError!;
-    }
-    models = models
-        .map(
-          (model) => model.id == modelId
-              ? ChatModelOption(
-                  id: model.id,
-                  displayName: model.displayName,
-                  status: ChatModelStatus.loaded,
-                )
-              : model,
-        )
-        .toList(growable: false);
-  }
-
-  @override
-  Future<void> unloadModel(String modelId) async {
-    if (unloadCompleter != null) {
-      await unloadCompleter!.future;
-    }
-    if (unloadError != null) {
-      throw unloadError!;
-    }
-    models = models
-        .map(
-          (model) => model.id == modelId
-              ? ChatModelOption(
-                  id: model.id,
-                  displayName: model.displayName,
-                  status: ChatModelStatus.unloaded,
-                )
-              : model,
-        )
-        .toList(growable: false);
   }
 
   @override

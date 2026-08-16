@@ -791,17 +791,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get serverNoModelSelected => 'No model selected';
 
   @override
-  String get serverNoModelSelectedHint =>
-      'Optional - loaded on demand after start';
-
-  @override
-  String get serverModelRequiredHint => 'MNN needs a model before it can start';
+  String get serverModelRequiredHint => 'Select a model before starting';
 
   @override
   String get serverSelectModelTitle => 'Select model';
-
-  @override
-  String get serverSelectModelNone => 'Start without a model';
 
   @override
   String serverNoModelsForEngine(String engine) {

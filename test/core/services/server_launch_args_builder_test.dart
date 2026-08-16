@@ -5,21 +5,25 @@ import 'package:servllama/core/services/server_launch_args_builder.dart';
 void main() {
   group('ServerLaunchArgsBuilder', () {
     const builder = ServerLaunchArgsBuilder();
-    const modelsDirectoryPath = '/app/models';
+    const modelPath = '/app/models/qwen/model.gguf';
+    const modelAlias = 'qwen';
 
     test('builds default args without optional flags', () {
       expect(
         builder.build(
           const ServerLaunchSettings(),
-          modelsDirectoryPath: modelsDirectoryPath,
+          modelPath: modelPath,
+          modelAlias: modelAlias,
         ),
         <String>[
           '--host',
           '127.0.0.1',
           '--port',
           '8080',
-          '--models-dir',
-          modelsDirectoryPath,
+          '--model',
+          modelPath,
+          '--alias',
+          modelAlias,
           '--ctx-size',
           '4096',
           '--batch-size',
@@ -54,14 +58,21 @@ void main() {
       );
 
       expect(
-        builder.build(settings, modelsDirectoryPath: modelsDirectoryPath),
+        builder.build(
+          settings,
+          modelPath: modelPath,
+          modelAlias: modelAlias,
+          mmprojPath: '/app/models/qwen/mmproj.gguf',
+        ),
         <String>[
           '--host',
           '0.0.0.0',
           '--port',
           '11434',
-          '--models-dir',
-          modelsDirectoryPath,
+          '--model',
+          modelPath,
+          '--alias',
+          modelAlias,
           '--ctx-size',
           '8192',
           '--batch-size',
@@ -74,6 +85,8 @@ void main() {
           '2048',
           '--flash-attn',
           'on',
+          '--mmproj',
+          '/app/models/qwen/mmproj.gguf',
           '--no-mmap',
           '--api-key',
           'secret',
@@ -83,33 +96,38 @@ void main() {
       );
     });
 
-    test('disables llama-server logs without passing a verbosity threshold', () {
-      const settings = ServerLaunchSettings(logEnabled: false);
+    test(
+      'disables llama-server logs without passing a verbosity threshold',
+      () {
+        const settings = ServerLaunchSettings(logEnabled: false);
 
-      expect(
-        builder.build(settings, modelsDirectoryPath: modelsDirectoryPath),
-        <String>[
-          '--host',
-          '127.0.0.1',
-          '--port',
-          '8080',
-          '--models-dir',
-          modelsDirectoryPath,
-          '--ctx-size',
-          '4096',
-          '--batch-size',
-          '2048',
-          '--threads',
-          '2',
-          '--parallel',
-          '1',
-          '--image-max-tokens',
-          '${ServerLaunchSettings.defaultImageMaxTokens}',
-          '--flash-attn',
-          'off',
-          '--log-disable',
-        ],
-      );
-    });
+        expect(
+          builder.build(settings, modelPath: modelPath, modelAlias: modelAlias),
+          <String>[
+            '--host',
+            '127.0.0.1',
+            '--port',
+            '8080',
+            '--model',
+            modelPath,
+            '--alias',
+            modelAlias,
+            '--ctx-size',
+            '4096',
+            '--batch-size',
+            '2048',
+            '--threads',
+            '2',
+            '--parallel',
+            '1',
+            '--image-max-tokens',
+            '${ServerLaunchSettings.defaultImageMaxTokens}',
+            '--flash-attn',
+            'off',
+            '--log-disable',
+          ],
+        );
+      },
+    );
   });
 }
