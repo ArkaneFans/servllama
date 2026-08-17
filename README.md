@@ -120,3 +120,6 @@ Maintainers can update llama-server from the [Build llama-server for Android](ht
 ## License
 
 ServLlama is released under the [GNU Affero General Public License v3.0](LICENSE).
+
+---
+Acknowledgements [`Linux DO Community`](https://linux.do/).

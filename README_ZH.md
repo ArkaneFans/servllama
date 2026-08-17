@@ -120,3 +120,6 @@ flutter build apk --release
 ## 开源许可
 
 ServLlama 基于 [GNU Affero General Public License v3.0](LICENSE) 发布。
+
+---
+致谢 [`Linux DO Community`](https://linux.do/).
