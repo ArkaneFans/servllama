@@ -171,6 +171,18 @@ class RuntimeLabels {
         return l10n.catalogSummaryVerifiedMnnBalanced;
       case 'verifiedMnnVision':
         return l10n.catalogSummaryVerifiedMnnVision;
+      case 'verifiedStrong':
+        return l10n.catalogSummaryVerifiedStrong;
+      case 'verifiedLfm25':
+        return l10n.catalogSummaryVerifiedLfm25;
+      case 'verifiedMnnSmall':
+        return l10n.catalogSummaryVerifiedMnnSmall;
+      case 'verifiedMnnEveryday':
+        return l10n.catalogSummaryVerifiedMnnEveryday;
+      case 'verifiedGemma4E2B':
+        return l10n.catalogSummaryVerifiedGemma4E2B;
+      case 'verifiedGemma4E4B':
+        return l10n.catalogSummaryVerifiedGemma4E4B;
       default:
         return '';
     }

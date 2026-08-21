@@ -1067,7 +1067,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'Entry level, runs on almost anything';
 
   @override
-  String get catalogSummaryVerifiedBalanced => 'Balanced quality and speed';
+  String get catalogSummaryVerifiedBalanced =>
+      'Balanced quality and speed for everyday use';
 
   @override
   String get catalogSummaryVerifiedMnnDefault =>
@@ -1080,6 +1081,30 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get catalogSummaryVerifiedMnnVision =>
       'MNN model with image understanding';
+
+  @override
+  String get catalogSummaryVerifiedStrong =>
+      'Better quality, for capable devices';
+
+  @override
+  String get catalogSummaryVerifiedLfm25 =>
+      '2.6B multilingual model for everyday use';
+
+  @override
+  String get catalogSummaryVerifiedMnnSmall =>
+      'Compact MNN pick, easy on most phones';
+
+  @override
+  String get catalogSummaryVerifiedMnnEveryday =>
+      'Everyday MNN model, balanced quality and speed';
+
+  @override
+  String get catalogSummaryVerifiedGemma4E2B =>
+      'Lightweight vision model for mid-range phones';
+
+  @override
+  String get catalogSummaryVerifiedGemma4E4B =>
+      'Stronger vision model for capable phones';
 
   @override
   String get downloadsTitle => 'Downloads';

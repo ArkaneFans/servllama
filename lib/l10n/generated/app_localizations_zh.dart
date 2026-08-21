@@ -1025,7 +1025,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get catalogSummaryVerifiedEntryLevel => '入门级，几乎所有设备都能跑';
 
   @override
-  String get catalogSummaryVerifiedBalanced => '质量与速度均衡';
+  String get catalogSummaryVerifiedBalanced => '质量与速度均衡，适合日常使用';
 
   @override
   String get catalogSummaryVerifiedMnnDefault => 'MNN 引擎的默认选择';
@@ -1035,6 +1035,24 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get catalogSummaryVerifiedMnnVision => '支持图片理解的 MNN 模型';
+
+  @override
+  String get catalogSummaryVerifiedStrong => '效果更好，适合性能较好的设备';
+
+  @override
+  String get catalogSummaryVerifiedLfm25 => '2.6B 多语言模型，适合日常使用';
+
+  @override
+  String get catalogSummaryVerifiedMnnSmall => '体积小、加载快，适合大多数手机';
+
+  @override
+  String get catalogSummaryVerifiedMnnEveryday => '日常使用更均衡，适合中端设备';
+
+  @override
+  String get catalogSummaryVerifiedGemma4E2B => '轻量视觉模型，适合中端设备';
+
+  @override
+  String get catalogSummaryVerifiedGemma4E4B => '更强的视觉模型，适合性能较好的手机';
 
   @override
   String get downloadsTitle => '下载任务';

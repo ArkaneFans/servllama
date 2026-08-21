@@ -1,100 +1,126 @@
 {
   "version": 1,
-  "updatedAt": "2026-07-29",
+  "updatedAt": "2026-08-21",
   "entries": [
     {
-      "id": "qwen3-0.6b-gguf",
+      "id": "qwen3.5-0.8b-gguf",
       "engine": "llama_cpp",
-      "displayName": "Qwen3-0.6B-Instruct",
+      "displayName": "Qwen3.5-0.8B",
       "vendor": "Qwen",
-      "parameterLabel": "0.6B",
+      "parameterLabel": "0.8B",
       "summary": "verifiedSmallGeneralist",
-      "capabilities": ["chinese", "toolCalling"],
+      "capabilities": ["chinese", "vision", "toolCalling"],
       "sources": {
-        "huggingface": "Qwen/Qwen3-0.6B-GGUF",
-        "modelscope": "Qwen/Qwen3-0.6B-GGUF"
+        "huggingface": "unsloth/Qwen3.5-0.8B-GGUF",
+        "modelscope": "unsloth/Qwen3.5-0.8B-GGUF"
       },
       "recommendedQuant": "Q4_K_M"
     },
     {
-      "id": "qwen2.5-0.5b-instruct-gguf",
+      "id": "qwen3.5-2b-gguf",
       "engine": "llama_cpp",
-      "displayName": "Qwen2.5-0.5B-Instruct",
+      "displayName": "Qwen3.5-2B",
       "vendor": "Qwen",
-      "parameterLabel": "0.5B",
-      "summary": "verifiedEntryLevel",
-      "capabilities": ["chinese"],
-      "sources": {
-        "huggingface": "Qwen/Qwen2.5-0.5B-Instruct-GGUF",
-        "modelscope": "Qwen/Qwen2.5-0.5B-Instruct-GGUF"
-      },
-      "recommendedQuant": "Q4_K_M"
-    },
-    {
-      "id": "llama-3.2-1b-instruct-gguf",
-      "engine": "llama_cpp",
-      "displayName": "Llama-3.2-1B-Instruct",
-      "vendor": "Meta",
-      "parameterLabel": "1B",
-      "summary": "verifiedBalanced",
-      "capabilities": ["english"],
-      "sources": {
-        "huggingface": "bartowski/Llama-3.2-1B-Instruct-GGUF",
-        "modelscope": "LLM-Research/Llama-3.2-1B-Instruct-GGUF"
-      },
-      "recommendedQuant": "Q4_K_M"
-    },
-    {
-      "id": "gemma-3-1b-it-gguf",
-      "engine": "llama_cpp",
-      "displayName": "Gemma-3-1B-IT",
-      "vendor": "Google",
-      "parameterLabel": "1B",
-      "summary": "verifiedBalanced",
-      "capabilities": ["english"],
-      "sources": {
-        "huggingface": "unsloth/gemma-3-1b-it-GGUF",
-        "modelscope": "unsloth/gemma-3-1b-it-GGUF"
-      },
-      "recommendedQuant": "Q4_K_M"
-    },
-    {
-      "id": "qwen3-0.6b-mnn",
-      "engine": "mnn",
-      "displayName": "Qwen3-0.6B-MNN",
-      "vendor": "MNN",
-      "parameterLabel": "0.6B",
-      "summary": "verifiedMnnDefault",
-      "capabilities": ["chinese", "toolCalling"],
-      "sources": {
-        "huggingface": "taobao-mnn/Qwen3-0.6B-MNN",
-        "modelscope": "MNN/Qwen3-0.6B-MNN"
-      }
-    },
-    {
-      "id": "qwen2.5-1.5b-instruct-mnn",
-      "engine": "mnn",
-      "displayName": "Qwen2.5-1.5B-Instruct-MNN",
-      "vendor": "MNN",
-      "parameterLabel": "1.5B",
-      "summary": "verifiedMnnBalanced",
-      "capabilities": ["chinese"],
-      "sources": {
-        "huggingface": "taobao-mnn/Qwen2.5-1.5B-Instruct-MNN",
-        "modelscope": "MNN/Qwen2.5-1.5B-Instruct-MNN"
-      }
-    },
-    {
-      "id": "qwen2-vl-2b-instruct-mnn",
-      "engine": "mnn",
-      "displayName": "Qwen2-VL-2B-Instruct-MNN",
-      "vendor": "MNN",
       "parameterLabel": "2B",
-      "summary": "verifiedMnnVision",
-      "capabilities": ["chinese", "vision"],
+      "summary": "verifiedBalanced",
+      "capabilities": ["chinese", "vision", "toolCalling"],
       "sources": {
-        "huggingface": "taobao-mnn/Qwen2-VL-2B-Instruct-MNN",
-        "modelscope": "MNN/Qwen2-VL-2B-Instruct-MNN"
+        "huggingface": "unsloth/Qwen3.5-2B-GGUF",
+        "modelscope": "unsloth/Qwen3.5-2B-GGUF"
+      },
+      "recommendedQuant": "Q4_K_M"
+    },
+    {
+      "id": "qwen3.5-4b-gguf",
+      "engine": "llama_cpp",
+      "displayName": "Qwen3.5-4B",
+      "vendor": "Qwen",
+      "parameterLabel": "4B",
+      "summary": "verifiedStrong",
+      "capabilities": ["chinese", "vision", "toolCalling"],
+      "sources": {
+        "huggingface": "unsloth/Qwen3.5-4B-GGUF",
+        "modelscope": "unsloth/Qwen3.5-4B-GGUF"
+      },
+      "recommendedQuant": "Q4_K_M"
+    },
+    {
+      "id": "lfm2.5-2.6b-gguf",
+      "engine": "llama_cpp",
+      "displayName": "LFM2.5-2.6B",
+      "vendor": "Liquid AI",
+      "parameterLabel": "2.6B",
+      "summary": "verifiedLfm25",
+      "capabilities": ["chinese", "english"],
+      "sources": {
+        "huggingface": "LiquidAI/LFM2.5-2.6B-GGUF",
+        "modelscope": "LiquidAI/LFM2.5-2.6B-GGUF"
+      },
+      "recommendedQuant": "Q4_K_M"
+    },
+    {
+      "id": "qwen3.5-0.8b-mnn",
+      "engine": "mnn",
+      "displayName": "Qwen3.5-0.8B-MNN",
+      "vendor": "Qwen",
+      "parameterLabel": "0.8B",
+      "summary": "verifiedMnnSmall",
+      "capabilities": ["chinese", "vision", "toolCalling"],
+      "sources": {
+        "huggingface": "taobao-mnn/Qwen3.5-0.8B-MNN",
+        "modelscope": "MNN/Qwen3.5-0.8B-MNN"
+      }
+    },
+    {
+      "id": "qwen3.5-2b-mnn",
+      "engine": "mnn",
+      "displayName": "Qwen3.5-2B-MNN",
+      "vendor": "Qwen",
+      "parameterLabel": "2B",
+      "summary": "verifiedMnnEveryday",
+      "capabilities": ["chinese", "vision", "toolCalling"],
+      "sources": {
+        "huggingface": "taobao-mnn/Qwen3.5-2B-MNN",
+        "modelscope": "MNN/Qwen3.5-2B-MNN"
+      }
+    },
+    {
+      "id": "qwen3.5-4b-mnn",
+      "engine": "mnn",
+      "displayName": "Qwen3.5-4B-MNN",
+      "vendor": "Qwen",
+      "parameterLabel": "4B",
+      "summary": "verifiedMnnBalanced",
+      "capabilities": ["chinese", "vision", "toolCalling"],
+      "sources": {
+        "huggingface": "taobao-mnn/Qwen3.5-4B-MNN",
+        "modelscope": "MNN/Qwen3.5-4B-MNN"
+      }
+    },
+    {
+      "id": "gemma-4-e2b-it-mnn",
+      "engine": "mnn",
+      "displayName": "Gemma-4-E2B-IT-MNN",
+      "vendor": "Google",
+      "parameterLabel": "E2B",
+      "summary": "verifiedGemma4E2B",
+      "capabilities": ["english", "vision"],
+      "sources": {
+        "huggingface": "taobao-mnn/gemma-4-E2B-it-MNN",
+        "modelscope": "MNN/gemma-4-E2B-it-MNN"
+      }
+    },
+    {
+      "id": "gemma-4-e4b-it-mnn",
+      "engine": "mnn",
+      "displayName": "Gemma-4-E4B-IT-MNN",
+      "vendor": "Google",
+      "parameterLabel": "E4B",
+      "summary": "verifiedGemma4E4B",
+      "capabilities": ["english", "vision"],
+      "sources": {
+        "huggingface": "taobao-mnn/gemma-4-E4B-it-MNN",
+        "modelscope": "MNN/gemma-4-E4B-it-MNN"
       }
     }
   ]

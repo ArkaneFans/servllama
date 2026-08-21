@@ -1946,7 +1946,7 @@ abstract class AppLocalizations {
   /// No description provided for @catalogSummaryVerifiedBalanced.
   ///
   /// In en, this message translates to:
-  /// **'Balanced quality and speed'**
+  /// **'Balanced quality and speed for everyday use'**
   String get catalogSummaryVerifiedBalanced;
 
   /// No description provided for @catalogSummaryVerifiedMnnDefault.
@@ -1966,6 +1966,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'MNN model with image understanding'**
   String get catalogSummaryVerifiedMnnVision;
+
+  /// No description provided for @catalogSummaryVerifiedStrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Better quality, for capable devices'**
+  String get catalogSummaryVerifiedStrong;
+
+  /// No description provided for @catalogSummaryVerifiedLfm25.
+  ///
+  /// In en, this message translates to:
+  /// **'2.6B multilingual model for everyday use'**
+  String get catalogSummaryVerifiedLfm25;
+
+  /// No description provided for @catalogSummaryVerifiedMnnSmall.
+  ///
+  /// In en, this message translates to:
+  /// **'Compact MNN pick, easy on most phones'**
+  String get catalogSummaryVerifiedMnnSmall;
+
+  /// No description provided for @catalogSummaryVerifiedMnnEveryday.
+  ///
+  /// In en, this message translates to:
+  /// **'Everyday MNN model, balanced quality and speed'**
+  String get catalogSummaryVerifiedMnnEveryday;
+
+  /// No description provided for @catalogSummaryVerifiedGemma4E2B.
+  ///
+  /// In en, this message translates to:
+  /// **'Lightweight vision model for mid-range phones'**
+  String get catalogSummaryVerifiedGemma4E2B;
+
+  /// No description provided for @catalogSummaryVerifiedGemma4E4B.
+  ///
+  /// In en, this message translates to:
+  /// **'Stronger vision model for capable phones'**
+  String get catalogSummaryVerifiedGemma4E4B;
 
   /// No description provided for @downloadsTitle.
   ///
