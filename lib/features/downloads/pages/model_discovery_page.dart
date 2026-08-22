@@ -436,9 +436,6 @@ class _RepoResultCard extends StatelessWidget {
               context,
             ).formatCompactDate(repo.lastModified!.toLocal()),
           );
-    final fileCount = repo.fileCount == null
-        ? l10n.discoverFileCountUnknown
-        : l10n.discoverFileCount(repo.fileCount!);
 
     return Material(
       color: isLight ? Colors.white : colorScheme.surfaceContainerLow,
@@ -478,13 +475,7 @@ class _RepoResultCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        EngineBadge(engine: repo.likelyEngine, compact: true),
-                        const SizedBox(width: 8),
-                        _MiniTag(label: fileCount),
-                      ],
-                    ),
+                    EngineBadge(engine: repo.likelyEngine, compact: true),
                   ],
                 ),
               ),

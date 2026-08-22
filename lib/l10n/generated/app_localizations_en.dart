@@ -1014,14 +1014,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get discoverFileCountUnknown => 'File count available after opening';
-
-  @override
-  String discoverFileCount(int count) {
-    return '$count files';
-  }
-
-  @override
   String get repoQuantSectionTitle => 'Quantization';
 
   @override

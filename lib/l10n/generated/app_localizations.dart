@@ -1853,18 +1853,6 @@ abstract class AppLocalizations {
   /// **'Updated {date}'**
   String discoverUpdatedAt(String date);
 
-  /// No description provided for @discoverFileCountUnknown.
-  ///
-  /// In en, this message translates to:
-  /// **'File count available after opening'**
-  String get discoverFileCountUnknown;
-
-  /// No description provided for @discoverFileCount.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} files'**
-  String discoverFileCount(int count);
-
   /// No description provided for @repoQuantSectionTitle.
   ///
   /// In en, this message translates to:

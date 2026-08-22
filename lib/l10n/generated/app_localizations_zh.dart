@@ -974,14 +974,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get discoverFileCountUnknown => '文件数待打开后获取';
-
-  @override
-  String discoverFileCount(int count) {
-    return '$count 个文件';
-  }
-
-  @override
   String get repoQuantSectionTitle => '量化档位';
 
   @override

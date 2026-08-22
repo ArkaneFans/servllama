@@ -486,8 +486,6 @@
   "discoverDownloadsCount": "{count} 次下载",
   "discoverUpdatedUnknown": "更新时间未知",
   "discoverUpdatedAt": "{date} 更新",
-  "discoverFileCountUnknown": "文件数待打开后获取",
-  "discoverFileCount": "{count} 个文件",
   "repoQuantSectionTitle": "量化档位",
   "repoFilesSectionTitle": "文件",
   "repoDownloadAction": "下载",

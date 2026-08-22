@@ -583,15 +583,6 @@
       }
     }
   },
-  "discoverFileCountUnknown": "File count available after opening",
-  "discoverFileCount": "{count} files",
-  "@discoverFileCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "repoQuantSectionTitle": "Quantization",
   "repoFilesSectionTitle": "Files",
   "repoDownloadAction": "Download",
