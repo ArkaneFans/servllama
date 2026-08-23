@@ -8,6 +8,7 @@ import 'package:servllama/core/providers/engine_runtime_provider.dart';
 import 'package:servllama/shared/widgets/outlined_text_setting.dart';
 import 'package:servllama/shared/widgets/segmented_setting.dart';
 import 'package:servllama/shared/widgets/settings_section.dart';
+import 'package:servllama/shared/widgets/settings_tile_list.dart';
 import 'package:servllama/shared/widgets/slider_number_setting.dart';
 import 'package:servllama/shared/widgets/switch_setting_tile.dart';
 import 'package:servllama/shared/widgets/engine_badge.dart';
@@ -108,7 +109,7 @@ class _ServerConfigViewState extends State<_ServerConfigView> {
                           ),
                           SettingsSection(
                             title: l10n.serverConfigSectionNetwork,
-                            child: _SectionItems(
+                            child: SettingsTileList(
                               children: [
                                 SegmentedSetting<ServerListenMode>(
                                   label: l10n.serverConfigListenMode,
@@ -174,7 +175,7 @@ class _ServerConfigViewState extends State<_ServerConfigView> {
                             const SizedBox(height: 18),
                             SettingsSection(
                               title: l10n.serverConfigSectionInference,
-                              child: _SectionItems(
+                              child: SettingsTileList(
                                 children: [
                                   SliderNumberSetting(
                                     label: l10n.serverConfigContextSize,
@@ -221,7 +222,7 @@ class _ServerConfigViewState extends State<_ServerConfigView> {
                             const SizedBox(height: 18),
                             SettingsSection(
                               title: l10n.serverConfigSectionPerformance,
-                              child: _SectionItems(
+                              child: SettingsTileList(
                                 children: [
                                   SliderNumberSetting(
                                     label: l10n.serverConfigCpuThreads,
@@ -249,7 +250,7 @@ class _ServerConfigViewState extends State<_ServerConfigView> {
                             const SizedBox(height: 18),
                             SettingsSection(
                               title: l10n.serverConfigSectionAdvanced,
-                              child: _SectionItems(
+                              child: SettingsTileList(
                                 children: [
                                   SegmentedSetting<FlashAttentionMode>(
                                     label: l10n.serverConfigFlashAttention,
@@ -286,7 +287,7 @@ class _ServerConfigViewState extends State<_ServerConfigView> {
                           const SizedBox(height: 18),
                           SettingsSection(
                             title: l10n.serverConfigSectionLogging,
-                            child: _SectionItems(
+                            child: SettingsTileList(
                               children: [
                                 SwitchSettingTile(
                                   title: l10n.serverConfigLogEnabled,
@@ -394,30 +395,5 @@ class _ServerConfigViewState extends State<_ServerConfigView> {
   static int _roundToStep(int value, int step) {
     final roundedValue = (value / step).round() * step;
     return roundedValue < step ? step : roundedValue;
-  }
-}
-
-class _SectionItems extends StatelessWidget {
-  const _SectionItems({required this.children});
-
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (var index = 0; index < children.length; index++) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: children[index],
-          ),
-          if (index != children.length - 1)
-            Divider(height: 1, color: colorScheme.outlineVariant.withAlpha(90)),
-        ],
-      ],
-    );
   }
 }

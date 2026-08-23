@@ -5,8 +5,9 @@ import 'package:servllama/features/downloads/models/model_hub.dart';
 import 'package:servllama/features/downloads/providers/download_provider.dart';
 import 'package:servllama/features/downloads/services/download_settings_store.dart';
 import 'package:servllama/l10n/l10n.dart';
+import 'package:servllama/shared/widgets/settings_menu_tile.dart';
 import 'package:servllama/shared/widgets/settings_section.dart';
-import 'package:servllama/shared/widgets/switch_setting_tile.dart';
+import 'package:servllama/shared/widgets/settings_tile_list.dart';
 
 /// Download route, credentials and storage cleanup. Tokens live here rather
 /// than on the discovery page because they are account settings, not part of
@@ -26,16 +27,16 @@ class DownloadSettingsSection extends StatelessWidget {
           children: [
             SettingsSection(
               title: l10n.settingsSectionDownload,
-              child: Column(
+              child: SettingsTileList(
                 children: [
-                  _ValueTile(
+                  SettingsMenuTile(
                     key: const Key('settings_hf_route_tile'),
                     icon: Icons.alt_route_rounded,
                     title: l10n.settingsHuggingFaceRoute,
                     value: _routeLabel(context, settings.huggingFaceRoute),
                     onTap: () => _showRouteSheet(context, downloads),
                   ),
-                  _ValueTile(
+                  SettingsMenuTile(
                     key: const Key('settings_hf_token_tile'),
                     icon: Icons.key_outlined,
                     title: l10n.settingsHuggingFaceToken,
@@ -47,7 +48,7 @@ class DownloadSettingsSection extends StatelessWidget {
                       settings.huggingFaceToken,
                     ),
                   ),
-                  _ValueTile(
+                  SettingsMenuTile(
                     key: const Key('settings_ms_token_tile'),
                     icon: Icons.key_outlined,
                     title: l10n.settingsModelScopeToken,
@@ -59,14 +60,17 @@ class DownloadSettingsSection extends StatelessWidget {
                       settings.modelScopeToken,
                     ),
                   ),
-                  SwitchSettingTile(
+                  SettingsMenuTile(
                     key: const Key('settings_wifi_only_tile'),
+                    icon: Icons.wifi_rounded,
                     title: l10n.settingsWifiOnly,
-                    subtitle: l10n.settingsWifiOnlySubtitle,
-                    value: settings.wifiOnly,
-                    onChanged: downloads.setWifiOnly,
+                    trailing: Switch.adaptive(
+                      value: settings.wifiOnly,
+                      onChanged: downloads.setWifiOnly,
+                    ),
+                    onTap: () => downloads.setWifiOnly(!settings.wifiOnly),
                   ),
-                  _ValueTile(
+                  SettingsMenuTile(
                     key: const Key('settings_max_concurrent_tile'),
                     icon: Icons.layers_outlined,
                     title: l10n.settingsMaxConcurrentDownloads,
@@ -79,7 +83,9 @@ class DownloadSettingsSection extends StatelessWidget {
             const SizedBox(height: 18),
             SettingsSection(
               title: l10n.settingsSectionStorage,
-              child: _StorageTile(downloads: downloads),
+              child: SettingsTileList(
+                children: [_StorageTile(downloads: downloads)],
+              ),
             ),
           ],
         );
@@ -289,70 +295,15 @@ class _StorageTileState extends State<_StorageTile> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final bytes = _orphanedBytes;
+    final hasOrphans = bytes != null && bytes > 0;
 
-    return _ValueTile(
+    return SettingsMenuTile(
       key: const Key('settings_clear_staging_tile'),
       icon: Icons.cleaning_services_outlined,
       title: l10n.settingsClearStaging,
       value: bytes == null ? '' : FormatUtils.bytes(bytes),
-      onTap: bytes == null || bytes == 0 ? null : _clear,
-    );
-  }
-}
-
-class _ValueTile extends StatelessWidget {
-  const _ValueTile({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.value,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String value;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      leading: Icon(icon, size: 22, color: colorScheme.onSurfaceVariant),
-      title: Text(
-        title,
-        style: theme.textTheme.titleSmall?.copyWith(
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (value.isNotEmpty)
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 150),
-              child: Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.end,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          const SizedBox(width: 4),
-          Icon(
-            Icons.chevron_right_rounded,
-            size: 20,
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ],
-      ),
-      onTap: onTap,
+      enabled: hasOrphans,
+      onTap: hasOrphans ? _clear : null,
     );
   }
 }
