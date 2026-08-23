@@ -9,6 +9,7 @@ import 'package:servllama/features/downloads/providers/download_provider.dart';
 import 'package:servllama/features/downloads/providers/model_discovery_provider.dart';
 import 'package:servllama/features/downloads/services/device_capability_service.dart';
 import 'package:servllama/features/downloads/services/model_download_service.dart';
+import 'package:servllama/features/downloads/widgets/download_wifi_only_gate.dart';
 import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/l10n/runtime_labels.dart';
 import 'package:servllama/shared/widgets/engine_badge.dart';
@@ -59,6 +60,9 @@ class _HubRepoPageState extends State<HubRepoPage> {
     required String modelName,
     String? quantLabel,
   }) async {
+    if (!await confirmDownloadOnMeteredNetwork(context) || !mounted) {
+      return;
+    }
     final downloads = context.read<DownloadProvider>();
     try {
       final task = await downloads.enqueue(

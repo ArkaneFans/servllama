@@ -1249,6 +1249,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'Pause tasks when the network switches to cellular';
 
   @override
+  String get downloadWifiOnlyDialogTitle => 'On a mobile network';
+
+  @override
+  String get downloadWifiOnlyDialogMessage =>
+      '“Download over Wi-Fi only” is on, so downloads are paused on mobile networks. Continue over mobile data anyway?';
+
+  @override
+  String get downloadWifiOnlyDialogAllow => 'Allow mobile data';
+
+  @override
   String get settingsMaxConcurrentDownloads => 'Parallel downloads';
 
   @override

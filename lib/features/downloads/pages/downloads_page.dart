@@ -4,6 +4,7 @@ import 'package:servllama/features/downloads/models/download_task_view.dart';
 import 'package:servllama/features/downloads/models/model_hub.dart';
 import 'package:servllama/features/downloads/providers/download_provider.dart';
 import 'package:servllama/features/downloads/widgets/download_task_card.dart';
+import 'package:servllama/features/downloads/widgets/download_wifi_only_gate.dart';
 import 'package:servllama/l10n/l10n.dart';
 
 class DownloadsPage extends StatefulWidget {
@@ -96,7 +97,11 @@ class _DownloadsPageState extends State<DownloadsPage> {
                   child: DownloadTaskCard(
                     task: task,
                     onPause: () => downloads.pause(task.id),
-                    onResume: () => downloads.resume(task.id),
+                    onResume: () async {
+                      if (await confirmDownloadOnMeteredNetwork(context)) {
+                        downloads.resume(task.id);
+                      }
+                    },
                     onCancel: () => _confirmCancel(context, task),
                     onSwitchSource: () => downloads.switchSource(
                       task.id,

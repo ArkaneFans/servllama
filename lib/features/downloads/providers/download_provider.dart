@@ -215,6 +215,20 @@ class DownloadProvider extends ChangeNotifier {
     unawaited(_pump());
   }
 
+  /// Whether the current network is blocked by the Wi-Fi-only policy, i.e. the
+  /// user has Wi-Fi-only downloads on and is on a metered connection. Used by
+  /// the UI to prompt before starting or resuming a download on cellular.
+  Future<bool> isBlockedByWifiOnlyPolicy() async {
+    if (!_settings.wifiOnly) {
+      return false;
+    }
+    final transport = await _environmentService.networkTransport();
+    return !_environmentService.allowsDownload(
+      wifiOnly: true,
+      transport: transport,
+    );
+  }
+
   /// Bytes left behind by downloads that were cancelled or orphaned by a
   /// crash. Surfaced in settings so the user can reclaim them.
   Future<int> orphanedStagingBytes() => _taskRepository.orphanedStagingBytes();

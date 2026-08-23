@@ -2249,6 +2249,24 @@ abstract class AppLocalizations {
   /// **'Pause tasks when the network switches to cellular'**
   String get settingsWifiOnlySubtitle;
 
+  /// No description provided for @downloadWifiOnlyDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'On a mobile network'**
+  String get downloadWifiOnlyDialogTitle;
+
+  /// No description provided for @downloadWifiOnlyDialogMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'“Download over Wi-Fi only” is on, so downloads are paused on mobile networks. Continue over mobile data anyway?'**
+  String get downloadWifiOnlyDialogMessage;
+
+  /// No description provided for @downloadWifiOnlyDialogAllow.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow mobile data'**
+  String get downloadWifiOnlyDialogAllow;
+
   /// No description provided for @settingsMaxConcurrentDownloads.
   ///
   /// In en, this message translates to:

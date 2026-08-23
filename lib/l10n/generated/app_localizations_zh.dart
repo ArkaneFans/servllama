@@ -1192,6 +1192,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsWifiOnlySubtitle => '切换到移动网络时暂停任务';
 
   @override
+  String get downloadWifiOnlyDialogTitle => '当前为移动网络';
+
+  @override
+  String get downloadWifiOnlyDialogMessage =>
+      '“仅在 Wi-Fi 下下载”已开启，因此下载在移动网络下会自动暂停。是否仍然使用移动数据继续下载？';
+
+  @override
+  String get downloadWifiOnlyDialogAllow => '使用移动数据下载';
+
+  @override
   String get settingsMaxConcurrentDownloads => '并行下载数';
 
   @override

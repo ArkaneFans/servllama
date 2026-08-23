@@ -13,6 +13,7 @@ import 'package:servllama/features/downloads/pages/downloads_page.dart';
 import 'package:servllama/features/downloads/pages/model_discovery_page.dart';
 import 'package:servllama/features/downloads/providers/download_provider.dart';
 import 'package:servllama/features/downloads/widgets/download_task_card.dart';
+import 'package:servllama/features/downloads/widgets/download_wifi_only_gate.dart';
 import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/widgets/engine_badge.dart';
 
@@ -330,8 +331,13 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
                                           task: task,
                                           onPause: () =>
                                               downloads.pause(task.id),
-                                          onResume: () =>
-                                              downloads.resume(task.id),
+                                          onResume: () async {
+                                            if (await confirmDownloadOnMeteredNetwork(
+                                              context,
+                                            )) {
+                                              downloads.resume(task.id);
+                                            }
+                                          },
                                           onCancel: () =>
                                               downloads.cancel(task.id),
                                         ),
