@@ -77,9 +77,9 @@ void main() {
       expect(downloadService.callCount, 1);
 
       downloadService.release.complete();
-      await _waitFor(
-        () => provider.tasks.single.status == DownloadStatus.completed,
-      );
+      // Completed downloads are pruned from the task list once committed to
+      // the model library, so completion is observable as the list going empty.
+      await _waitFor(() => provider.tasks.isEmpty);
 
       expect(downloadService.callCount, 1);
       expect(refreshCount, 1);
@@ -174,9 +174,9 @@ void main() {
         );
 
         await provider.load();
-        await _waitFor(
-          () => provider.tasks.single.status == DownloadStatus.completed,
-        );
+        // Completed downloads are pruned from the task list once committed to
+        // the model library, so completion is observable as the list going empty.
+        await _waitFor(() => provider.tasks.isEmpty);
 
         expect(importedMetadata?['modelName'], 'Qwen3-0.6B-MNN');
         expect(importedMetadata?['vendor'], 'MNN');

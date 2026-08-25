@@ -142,25 +142,34 @@ class DownloadProvider extends ChangeNotifier {
 
       // Transfers are range-resumable, so work that was interrupted by a
       // process death returns to the queue instead of requiring a manual tap.
-      for (final record in _tasks.values) {
-        if (DownloadStatus.fromName(record.statusValue) !=
-            DownloadStatus.completed) {
-          final allocation = await _allocateName(
-            taskId: record.id,
-            requestedName: record.requestedModelName,
-            preferredName: record.modelName,
-          );
-          if (record.modelName != allocation.name) {
-            record.modelName = allocation.name;
-            await _taskRepository.save(record);
-          }
-        }
+      // Completed records are already part of the model library, so they are
+      // stale history here — drop them so the downloads page only surfaces work
+      // that still needs attention.
+      final completedIds = <String>[];
+      for (final record in _tasks.values.toList(growable: false)) {
         final status = DownloadStatus.fromName(record.statusValue);
-        if (status.isActive) {
+        if (status == DownloadStatus.completed) {
+          completedIds.add(record.id);
+          continue;
+        }
+        final allocation = await _allocateName(
+          taskId: record.id,
+          requestedName: record.requestedModelName,
+          preferredName: record.modelName,
+        );
+        if (record.modelName != allocation.name) {
+          record.modelName = allocation.name;
+          await _taskRepository.save(record);
+        }
+        if (DownloadStatus.fromName(record.statusValue).isActive) {
           record.statusValue = DownloadStatus.queued.name;
           record.pausedByNetwork = false;
           await _taskRepository.save(record);
         }
+      }
+      for (final id in completedIds) {
+        _tasks.remove(id);
+        await _taskRepository.delete(id);
       }
       _hasLoaded = true;
     } catch (error, stackTrace) {
@@ -648,7 +657,10 @@ class DownloadProvider extends ChangeNotifier {
     }
 
     record.statusValue = DownloadStatus.completed.name;
-    await _taskRepository.save(record);
+    // The finished download is now in the model library; remove it from the
+    // downloads page so only work that still needs attention stays visible.
+    _tasks.remove(record.id);
+    await _taskRepository.delete(record.id);
     await _modelNameCoordinator?.release(_reservationId(record.id));
     _logger.info(
       '模型下载完成并入库: ${record.modelName}',
