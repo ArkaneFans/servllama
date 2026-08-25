@@ -262,26 +262,31 @@ class _ServerLogsViewState extends State<_ServerLogsView> {
                           ],
                         ),
                       )
-                    : ListView.builder(
+                    : SingleChildScrollView(
+                        key: const Key('serverLogsScrollView'),
                         controller: _scrollController,
                         reverse: true,
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                        itemCount: logs.length,
-                        itemBuilder: (context, index) {
-                          final entry = logs[logs.length - 1 - index];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
-                            child: SelectableText(
-                              provider.formatEntry(entry),
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    fontFamily: 'monospace',
-                                    height: 1.4,
-                                    color: _resolveLogColor(context, entry),
+                        child: SelectableText.rich(
+                          TextSpan(
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  fontFamily: 'monospace',
+                                  height: 1.4,
+                                ),
+                            children: [
+                              for (var i = 0; i < logs.length; i++)
+                                TextSpan(
+                                  text: i == logs.length - 1
+                                      ? provider.formatEntry(logs[i])
+                                      : '${provider.formatEntry(logs[i])}\n',
+                                  style: TextStyle(
+                                    color: _resolveLogColor(context, logs[i]),
                                   ),
-                            ),
-                          );
-                        },
+                                ),
+                            ],
+                          ),
+                        ),
                       ),
               ),
             ],

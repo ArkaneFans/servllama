@@ -47,8 +47,30 @@ void main() {
       );
       await tester.pump();
 
-      final listView = tester.widget<ListView>(find.byType(ListView));
-      expect(listView.reverse, isTrue);
+      final logView = tester.widget<SingleChildScrollView>(
+        find.byKey(const Key('serverLogsScrollView')),
+      );
+      expect(logView.reverse, isTrue);
+    });
+
+    testWidgets('keeps log entries in one selectable block', (tester) async {
+      final logger = AppLogger();
+      logger.info('first', channel: LogChannel.server, inMemory: true);
+      logger.info('second', channel: LogChannel.server, inMemory: true);
+
+      await tester.pumpWidget(
+        MaterialApp(home: ServerLogsPage(logger: logger)),
+      );
+      await tester.pump();
+
+      expect(find.byType(SelectableText), findsOneWidget);
+      final selectable = tester.widget<SelectableText>(
+        find.byType(SelectableText),
+      );
+      final plain = selectable.textSpan!.toPlainText();
+      expect(plain.split('\n'), hasLength(2));
+      expect(plain, contains('[server] first'));
+      expect(plain, contains('[server] second'));
     });
 
     testWidgets('wraps long log entries instead of scrolling horizontally', (
@@ -96,10 +118,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final scrollable = tester.state<ScrollableState>(
-        find.byType(Scrollable).first,
+      final logView = tester.widget<SingleChildScrollView>(
+        find.byKey(const Key('serverLogsScrollView')),
       );
-      expect(scrollable.position.pixels, 0);
+      expect(logView.controller!.offset, 0);
     });
 
     testWidgets('clear returns page to empty state', (tester) async {
