@@ -7,6 +7,29 @@ import 'package:servllama/features/server/pages/server_logs_page.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  ScrollController logsScrollController(WidgetTester tester) {
+    return tester
+        .widget<SingleChildScrollView>(
+          find.byKey(const Key('serverLogsScrollView')),
+        )
+        .controller!;
+  }
+
+  void seedLogs(AppLogger logger, int count) {
+    for (var index = 0; index < count; index++) {
+      logger.info(
+        'log-$index ' * 6,
+        channel: LogChannel.server,
+        inMemory: true,
+      );
+    }
+  }
+
+  Future<void> pumpThrottledLogs(WidgetTester tester) async {
+    await tester.pump(const Duration(milliseconds: 120));
+    await tester.pump();
+  }
+
   group('ServerLogsPage', () {
     testWidgets('shows empty state when there are no logs', (tester) async {
       final logger = AppLogger();
@@ -35,7 +58,7 @@ void main() {
       expect(find.textContaining('[server] failed'), findsOneWidget);
     });
 
-    testWidgets('uses a reversed list for bottom-anchored logs', (
+    testWidgets('lays out a few logs from the top in a forward list', (
       tester,
     ) async {
       final logger = AppLogger();
@@ -50,7 +73,15 @@ void main() {
       final logView = tester.widget<SingleChildScrollView>(
         find.byKey(const Key('serverLogsScrollView')),
       );
-      expect(logView.reverse, isTrue);
+      expect(logView.reverse, isFalse);
+
+      final scrollTop = tester
+          .getTopLeft(find.byKey(const Key('serverLogsScrollView')))
+          .dy;
+      final textTop = tester.getTopLeft(find.byType(SelectableText)).dy;
+      expect(textTop, closeTo(scrollTop + 8, 0.5));
+      expect(logView.controller!.offset, 0);
+      expect(logView.controller!.position.maxScrollExtent, 0);
     });
 
     testWidgets('keeps log entries in one selectable block', (tester) async {
@@ -101,27 +132,129 @@ void main() {
       );
     });
 
-    testWidgets('opens at the bottom without scrolling to max extent', (
+    testWidgets('opens at the latest logs without a reverse list', (
       tester,
     ) async {
       final logger = AppLogger();
-      for (var index = 0; index < 60; index++) {
-        logger.info(
-          'log-$index ' * 6,
-          channel: LogChannel.server,
-          inMemory: true,
-        );
-      }
+      seedLogs(logger, 60);
 
       await tester.pumpWidget(
         MaterialApp(home: ServerLogsPage(logger: logger)),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
 
-      final logView = tester.widget<SingleChildScrollView>(
-        find.byKey(const Key('serverLogsScrollView')),
+      final controller = logsScrollController(tester);
+      expect(controller.offset, greaterThan(0));
+      expect(
+        controller.offset,
+        closeTo(controller.position.maxScrollExtent, 1),
       );
-      expect(logView.controller!.offset, 0);
+    });
+
+    testWidgets('follows new logs while stuck to the bottom', (tester) async {
+      final logger = AppLogger();
+      seedLogs(logger, 60);
+
+      await tester.pumpWidget(
+        MaterialApp(home: ServerLogsPage(logger: logger)),
+      );
+      await tester.pump();
+
+      final controller = logsScrollController(tester);
+      final previousMax = controller.position.maxScrollExtent;
+      expect(controller.offset, closeTo(previousMax, 1));
+
+      logger.info('fresh-bottom', channel: LogChannel.server, inMemory: true);
+      await pumpThrottledLogs(tester);
+
+      expect(find.textContaining('fresh-bottom'), findsOneWidget);
+      expect(controller.position.maxScrollExtent, greaterThan(previousMax));
+      expect(
+        controller.offset,
+        closeTo(controller.position.maxScrollExtent, 1),
+      );
+    });
+
+    testWidgets('does not follow new logs after scrolling away from bottom', (
+      tester,
+    ) async {
+      final logger = AppLogger();
+      seedLogs(logger, 60);
+
+      await tester.pumpWidget(
+        MaterialApp(home: ServerLogsPage(logger: logger)),
+      );
+      await tester.pump();
+
+      final controller = logsScrollController(tester);
+      controller.jumpTo(0);
+      await tester.pump();
+      expect(controller.offset, 0);
+
+      logger.info('history-view', channel: LogChannel.server, inMemory: true);
+      await pumpThrottledLogs(tester);
+
+      expect(find.textContaining('history-view'), findsOneWidget);
+      expect(controller.offset, closeTo(0, 1));
+      expect(
+        controller.offset,
+        lessThan(controller.position.maxScrollExtent - 72),
+      );
+    });
+
+    testWidgets('does not follow new logs when auto-scroll is off', (
+      tester,
+    ) async {
+      final logger = AppLogger();
+      seedLogs(logger, 60);
+
+      await tester.pumpWidget(
+        MaterialApp(home: ServerLogsPage(logger: logger)),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byType(Switch));
+      await tester.pump();
+
+      final controller = logsScrollController(tester);
+      final offsetBefore = controller.offset;
+      expect(offsetBefore, closeTo(controller.position.maxScrollExtent, 1));
+
+      logger.info('no-follow', channel: LogChannel.server, inMemory: true);
+      await pumpThrottledLogs(tester);
+
+      expect(find.textContaining('no-follow'), findsOneWidget);
+      expect(controller.offset, closeTo(offsetBefore, 1));
+      expect(controller.position.maxScrollExtent, greaterThan(offsetBefore));
+    });
+
+    testWidgets('turning auto-scroll back on jumps to the latest logs', (
+      tester,
+    ) async {
+      final logger = AppLogger();
+      seedLogs(logger, 60);
+
+      await tester.pumpWidget(
+        MaterialApp(home: ServerLogsPage(logger: logger)),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byType(Switch));
+      await tester.pump();
+
+      final controller = logsScrollController(tester);
+      controller.jumpTo(0);
+      await tester.pump();
+      expect(controller.offset, 0);
+
+      await tester.tap(find.byType(Switch));
+      await tester.pump();
+      await tester.pump();
+
+      expect(
+        controller.offset,
+        closeTo(controller.position.maxScrollExtent, 1),
+      );
     });
 
     testWidgets('clear returns page to empty state', (tester) async {

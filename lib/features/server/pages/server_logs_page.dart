@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -29,13 +30,33 @@ class _ServerLogsView extends StatefulWidget {
   State<_ServerLogsView> createState() => _ServerLogsViewState();
 }
 
-class _ServerLogsViewState extends State<_ServerLogsView> {
+class _ServerLogsViewState extends State<_ServerLogsView>
+    with WidgetsBindingObserver {
+  static const double _bottomStickTolerance = 72;
+
   final ScrollController _scrollController = ScrollController();
   _LogFilter _filter = _LogFilter.all;
   bool _autoScroll = true;
 
+  // Forward list: stick to the latest logs with jumpTo (no animation).
+  // Hide the viewport until the first pin so opening the page does not
+  // flash the oldest entries at the top.
+  bool _stuckToBottom = true;
+  bool _ready = false;
+  bool _pinning = false;
+  bool _selecting = false;
+  bool _pinScheduled = false;
+  bool _forcePin = false;
+
   ServerLogsProvider? _provider;
-  int _lastCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _scrollController.addListener(_handleUserScroll);
+    _schedulePinToBottom(force: true);
+  }
 
   @override
   void didChangeDependencies() {
@@ -46,12 +67,21 @@ class _ServerLogsViewState extends State<_ServerLogsView> {
     }
     _provider?.removeListener(_handleLogsChanged);
     _provider = provider;
-    _lastCount = provider.count;
     provider.addListener(_handleLogsChanged);
   }
 
   @override
+  void didChangeMetrics() {
+    super.didChangeMetrics();
+    if (_autoScroll && _stuckToBottom && !_selecting && _ready) {
+      _schedulePinToBottom();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _scrollController.removeListener(_handleUserScroll);
     _provider?.removeListener(_handleLogsChanged);
     _scrollController.dispose();
     super.dispose();
@@ -114,27 +144,112 @@ class _ServerLogsViewState extends State<_ServerLogsView> {
     if (provider == null) {
       return;
     }
-    final shouldAutoScroll = _isNearBottom();
-    final countIncreased = provider.count > _lastCount;
-    _lastCount = provider.count;
-    if (countIncreased && _autoScroll && shouldAutoScroll) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _jumpToBottom());
+    if (provider.count == 0) {
+      _stuckToBottom = true;
+      _ready = false;
+      _selecting = false;
+      return;
+    }
+    if (!_ready || (_autoScroll && _stuckToBottom && !_selecting)) {
+      _schedulePinToBottom();
     }
   }
 
-  bool _isNearBottom() {
+  void _handleUserScroll() {
+    if (_pinning || !_scrollController.hasClients) {
+      return;
+    }
+    _stuckToBottom = _isAtBottom();
+  }
+
+  bool _handleScrollNotification(ScrollNotification notification) {
+    if (_pinning || notification.depth != 0) {
+      return false;
+    }
+    if (notification.metrics.axis != Axis.vertical) {
+      return false;
+    }
+    if (notification is UserScrollNotification &&
+        notification.direction == ScrollDirection.forward) {
+      _stuckToBottom = _isAtBottom();
+    } else if (notification is ScrollEndNotification) {
+      _stuckToBottom = _isAtBottom();
+    }
+    return false;
+  }
+
+  void _handleSelectionChanged(
+    TextSelection selection,
+    SelectionChangedCause? cause,
+  ) {
+    final selecting = !selection.isCollapsed;
+    if (_selecting == selecting) {
+      return;
+    }
+    _selecting = selecting;
+    if (!selecting && _autoScroll && _stuckToBottom) {
+      _schedulePinToBottom();
+    }
+  }
+
+  bool _isAtBottom() {
     if (!_scrollController.hasClients) {
       return true;
     }
     final position = _scrollController.position;
-    return position.pixels <= 72;
+    if (!position.hasContentDimensions || position.maxScrollExtent <= 0) {
+      return true;
+    }
+    return position.pixels >= position.maxScrollExtent - _bottomStickTolerance;
   }
 
-  void _jumpToBottom() {
+  void _schedulePinToBottom({bool force = false}) {
+    _forcePin = _forcePin || force;
+    if (_pinScheduled) {
+      return;
+    }
+    _pinScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _pinScheduled = false;
+      final forcePin = _forcePin;
+      _forcePin = false;
+      if (!mounted) {
+        return;
+      }
+      if (!_scrollController.hasClients) {
+        _ready = false;
+        return;
+      }
+      if (forcePin ||
+          !_ready ||
+          (_autoScroll && _stuckToBottom && !_selecting)) {
+        _pinToBottom();
+      }
+      if (!_ready) {
+        setState(() => _ready = true);
+      }
+    });
+  }
+
+  void _pinToBottom() {
     if (!_scrollController.hasClients) {
       return;
     }
-    _scrollController.jumpTo(0);
+    final position = _scrollController.position;
+    if (!position.hasContentDimensions) {
+      return;
+    }
+    final target = position.maxScrollExtent;
+    _stuckToBottom = true;
+    if ((position.pixels - target).abs() < 0.5) {
+      return;
+    }
+    _pinning = true;
+    try {
+      _scrollController.jumpTo(target);
+    } finally {
+      _pinning = false;
+    }
   }
 
   Color _resolveLogColor(BuildContext context, AppLogEntry entry) {
@@ -208,7 +323,15 @@ class _ServerLogsViewState extends State<_ServerLogsView> {
                       FilterChip(
                         selected: _filter == filter,
                         label: Text(_filterLabel(context, filter)),
-                        onSelected: (_) => setState(() => _filter = filter),
+                        onSelected: (_) {
+                          setState(() => _filter = filter);
+                          if (_autoScroll) {
+                            _stuckToBottom = true;
+                            _schedulePinToBottom(force: true);
+                          } else {
+                            _schedulePinToBottom();
+                          }
+                        },
                       ),
                       if (filter != _LogFilter.values.last)
                         const SizedBox(width: 8),
@@ -231,7 +354,17 @@ class _ServerLogsViewState extends State<_ServerLogsView> {
                     Text(l10n.serverLogsAutoScroll),
                     Switch(
                       value: _autoScroll,
-                      onChanged: (value) => setState(() => _autoScroll = value),
+                      onChanged: (value) {
+                        setState(() {
+                          _autoScroll = value;
+                          if (value) {
+                            _stuckToBottom = true;
+                          }
+                        });
+                        if (value) {
+                          _schedulePinToBottom(force: true);
+                        }
+                      },
                     ),
                   ],
                 ),
@@ -262,29 +395,42 @@ class _ServerLogsViewState extends State<_ServerLogsView> {
                           ],
                         ),
                       )
-                    : SingleChildScrollView(
-                        key: const Key('serverLogsScrollView'),
-                        controller: _scrollController,
-                        reverse: true,
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                        child: SelectableText.rich(
-                          TextSpan(
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(
-                                  fontFamily: 'monospace',
-                                  height: 1.4,
-                                ),
-                            children: [
-                              for (var i = 0; i < logs.length; i++)
+                    : NotificationListener<ScrollNotification>(
+                        onNotification: _handleScrollNotification,
+                        child: IgnorePointer(
+                          ignoring: !_ready,
+                          child: Opacity(
+                            opacity: _ready ? 1 : 0,
+                            child: SingleChildScrollView(
+                              key: const Key('serverLogsScrollView'),
+                              controller: _scrollController,
+                              reverse: false,
+                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                              child: SelectableText.rich(
                                 TextSpan(
-                                  text: i == logs.length - 1
-                                      ? provider.formatEntry(logs[i])
-                                      : '${provider.formatEntry(logs[i])}\n',
-                                  style: TextStyle(
-                                    color: _resolveLogColor(context, logs[i]),
-                                  ),
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        fontFamily: 'monospace',
+                                        height: 1.4,
+                                      ),
+                                  children: [
+                                    for (var i = 0; i < logs.length; i++)
+                                      TextSpan(
+                                        text: i == logs.length - 1
+                                            ? provider.formatEntry(logs[i])
+                                            : '${provider.formatEntry(logs[i])}\n',
+                                        style: TextStyle(
+                                          color: _resolveLogColor(
+                                            context,
+                                            logs[i],
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
-                            ],
+                                onSelectionChanged: _handleSelectionChanged,
+                              ),
+                            ),
                           ),
                         ),
                       ),
