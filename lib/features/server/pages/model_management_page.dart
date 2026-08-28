@@ -173,32 +173,6 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _activateLibraryModel(
-    BuildContext context,
-    LibraryModel model,
-  ) async {
-    final runtime = context.read<EngineRuntimeProvider?>();
-    if (runtime == null || runtime.isBusy) {
-      return;
-    }
-    if (runtime.activeEngine != model.engine) {
-      if (!runtime.canSwitchEngine) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.modelLibrarySwitchEngineBlocked)),
-        );
-        return;
-      }
-      await runtime.switchEngine(model.engine);
-    }
-    await runtime.activateModel(model.runtimeId);
-    if (!context.mounted || runtime.lastError == null) {
-      return;
-    }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.l10n.modelLibraryActivationFailed)),
-    );
-  }
-
   ModelDescriptor? _descriptorFor(
     ModelManagementProvider provider,
     LibraryModel model,
@@ -364,10 +338,6 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
                                         isDeleting:
                                             provider.deletingModelId ==
                                             model.id,
-                                        onActivate: () => _activateLibraryModel(
-                                          context,
-                                          model,
-                                        ),
                                         onDelete: () =>
                                             _deleteLibraryModel(context, model),
                                         onSettings: () {
@@ -657,7 +627,6 @@ class _LibraryModelCard extends StatelessWidget {
     required this.isActive,
     required this.isRuntimeBusy,
     required this.isDeleting,
-    required this.onActivate,
     required this.onDelete,
     required this.onSettings,
   });
@@ -666,7 +635,6 @@ class _LibraryModelCard extends StatelessWidget {
   final bool isActive;
   final bool isRuntimeBusy;
   final bool isDeleting;
-  final VoidCallback onActivate;
   final VoidCallback onDelete;
   final VoidCallback onSettings;
 
@@ -678,6 +646,7 @@ class _LibraryModelCard extends StatelessWidget {
     final l10n = context.l10n;
 
     return Material(
+      key: Key('model_library_card_${model.id}'),
       color: isLight ? Colors.white : colorScheme.surfaceContainerLow,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(22),
@@ -687,100 +656,95 @@ class _LibraryModelCard extends StatelessWidget {
               : colorScheme.outlineVariant.withAlpha(96),
         ),
       ),
-      child: InkWell(
-        key: Key('model_library_card_${model.id}'),
-        borderRadius: BorderRadius.circular(22),
-        onTap: isActive || isRuntimeBusy ? null : onActivate,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 8, 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  ModelFormatBadge(engine: model.engine),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          model.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 8, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                ModelFormatBadge(engine: model.engine),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        model.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          isActive
-                              ? l10n.modelLibraryStatusRunning
-                              : l10n.modelLibraryStatusIdle,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: isActive
-                                ? colorScheme.primary
-                                : colorScheme.onSurfaceVariant,
-                            fontWeight: FontWeight.w700,
-                          ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        isActive
+                            ? l10n.modelLibraryStatusRunning
+                            : l10n.modelLibraryStatusIdle,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: isActive
+                              ? colorScheme.primary
+                              : colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w700,
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${model.engine.displayName} · '
-                          '${FormatUtils.bytes(model.sizeBytes)}',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${model.engine.displayName} · '
+                        '${FormatUtils.bytes(model.sizeBytes)}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              if (model.supportsVision || model.supportsToolCalling) ...[
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 6,
-                  children: [
-                    if (model.supportsVision)
-                      _Tag(label: l10n.modelCapabilityVision),
-                    if (model.supportsToolCalling)
-                      _Tag(label: l10n.modelCapabilityToolCalling),
-                  ],
                 ),
               ],
-              if (model.warnings.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                NoticeBanner(
-                  tone: StatusTone.warning,
-                  message: model.warnings.first,
-                ),
-              ],
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+            ),
+            if (model.supportsVision || model.supportsToolCalling) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 6,
                 children: [
-                  IconButton(
-                    tooltip: l10n.modelManagementSettingsTooltip,
-                    onPressed: isActive || isRuntimeBusy ? null : onSettings,
-                    icon: const Icon(Icons.tune_rounded, size: 20),
-                  ),
-                  IconButton(
-                    tooltip: isActive
-                        ? l10n.modelLibraryActiveCannotDelete
-                        : l10n.modelManagementDeleteTooltip,
-                    onPressed: isDeleting || isActive ? null : onDelete,
-                    icon: isDeleting
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.delete_outline_rounded, size: 20),
-                  ),
+                  if (model.supportsVision)
+                    _Tag(label: l10n.modelCapabilityVision),
+                  if (model.supportsToolCalling)
+                    _Tag(label: l10n.modelCapabilityToolCalling),
                 ],
               ),
             ],
-          ),
+            if (model.warnings.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              NoticeBanner(
+                tone: StatusTone.warning,
+                message: model.warnings.first,
+              ),
+            ],
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                  tooltip: l10n.modelManagementSettingsTooltip,
+                  onPressed: isActive || isRuntimeBusy ? null : onSettings,
+                  icon: const Icon(Icons.tune_rounded, size: 20),
+                ),
+                IconButton(
+                  tooltip: isActive
+                      ? l10n.modelLibraryActiveCannotDelete
+                      : l10n.modelManagementDeleteTooltip,
+                  onPressed: isDeleting || isActive ? null : onDelete,
+                  icon: isDeleting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.delete_outline_rounded, size: 20),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

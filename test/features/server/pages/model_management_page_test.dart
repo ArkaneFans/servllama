@@ -4,14 +4,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:servllama/core/logging/app_logger.dart';
+import 'package:servllama/core/models/engine_runtime_state.dart';
+import 'package:servllama/core/models/inference_engine.dart';
 import 'package:servllama/core/models/model_descriptor.dart';
+import 'package:servllama/core/providers/engine_runtime_provider.dart';
 import 'package:servllama/core/providers/model_management_provider.dart';
 import 'package:servllama/core/services/app_l10n_service.dart';
 import 'package:servllama/features/downloads/providers/download_provider.dart';
 import 'package:servllama/core/repositories/local_model_repository.dart';
 import 'package:servllama/core/services/gguf_file_picker.dart';
 import 'package:servllama/features/server/pages/model_management_page.dart';
+
+import '../../../support/stub_engine_adapter.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -75,6 +81,42 @@ void main() {
       expect(find.text('llama.cpp · 2.00 GB'), findsOneWidget);
       expect(find.byTooltip('设置'), findsOneWidget);
       expect(find.byTooltip('删除'), findsOneWidget);
+    });
+
+    testWidgets('tapping a model card does not start the runtime', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'flutter.server.foreground_notification_permission_prompted': true,
+      });
+      final runtime = EngineRuntimeProvider(
+        llamaCppAdapter: StubEngineAdapter(engine: InferenceEngine.llamaCpp),
+        mnnAdapter: StubEngineAdapter(),
+        localIpResolver: () async => null,
+      );
+      addTearDown(runtime.dispose);
+
+      final provider = ModelManagementProvider(
+        repository: FakeLocalModelRepository(
+          initialModels: <ModelDescriptor>[
+            _descriptor(id: 'm1', modelName: 'model'),
+          ],
+        ),
+        filePicker: FakeGgufFilePicker(),
+        logger: AppLogger(),
+      );
+
+      await tester.pumpWidget(_host(provider, runtime: runtime));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('model'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(runtime.isRunning, isFalse);
+      expect(runtime.status, EngineRuntimeStatus.idle);
+      expect(runtime.activeModelId, isNull);
+      expect(find.text('空闲'), findsOneWidget);
     });
 
     testWidgets('shows text badge when mmproj does not exist', (tester) async {
@@ -485,7 +527,10 @@ Map<String, Object?> _mnnModelMap(String name) => <String, Object?>{
 
 /// The library page lists in-flight downloads alongside imported models, so it
 /// needs the download queue in scope even when no test exercises it.
-Widget _host(ModelManagementProvider provider) {
+Widget _host(
+  ModelManagementProvider provider, {
+  EngineRuntimeProvider? runtime,
+}) {
   return MultiProvider(
     providers: [
       // Above MaterialApp on purpose: the settings sheet builds under the
@@ -495,6 +540,8 @@ Widget _host(ModelManagementProvider provider) {
       ChangeNotifierProvider<DownloadProvider>(
         create: (_) => DownloadProvider(),
       ),
+      if (runtime != null)
+        ChangeNotifierProvider<EngineRuntimeProvider>.value(value: runtime),
     ],
     child: MaterialApp(home: ModelManagementPage(provider: provider)),
   );
