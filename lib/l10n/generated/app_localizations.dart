@@ -641,7 +641,7 @@ abstract class AppLocalizations {
   /// No description provided for @aboutDescription.
   ///
   /// In en, this message translates to:
-  /// **'Turn your phone into a powerful LLM inference server, no Termux required'**
+  /// **'An LLM inference server on your phone'**
   String get aboutDescription;
 
   /// No description provided for @aboutVersion.
@@ -673,6 +673,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open source license'**
   String get aboutLicense;
+
+  /// No description provided for @aboutVersionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Version'**
+  String get aboutVersionLabel;
+
+  /// No description provided for @aboutLlamaCppLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'llama.cpp'**
+  String get aboutLlamaCppLabel;
+
+  /// No description provided for @aboutSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'System'**
+  String get aboutSystem;
 
   /// No description provided for @serverTitle.
   ///

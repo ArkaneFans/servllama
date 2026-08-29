@@ -141,7 +141,7 @@
   "languageModeChinese": "Simplified Chinese",
   "languageModeEnglish": "English",
   "aboutTitle": "About",
-  "aboutDescription": "Turn your phone into a powerful LLM inference server, no Termux required",
+  "aboutDescription": "An LLM inference server on your phone",
   "aboutVersion": "Version {version}",
   "@aboutVersion": {
     "placeholders": {
@@ -161,6 +161,9 @@
   },
   "aboutStarOnGitHub": "Star on GitHub",
   "aboutLicense": "Open source license",
+  "aboutVersionLabel": "Version",
+  "aboutLlamaCppLabel": "llama.cpp",
+  "aboutSystem": "System",
   "serverTitle": "Server",
   "serverMenuConfig": "Server config",
   "serverMenuLogs": "Logs",

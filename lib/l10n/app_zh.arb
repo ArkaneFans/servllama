@@ -141,7 +141,7 @@
   "languageModeChinese": "简体中文",
   "languageModeEnglish": "English",
   "aboutTitle": "关于",
-  "aboutDescription": "将你的手机变成强大的大模型推理服务器，无需Termux",
+  "aboutDescription": "手机上的大模型推理服务器",
   "aboutVersion": "版本 {version}",
   "@aboutVersion": {
     "placeholders": {
@@ -161,6 +161,9 @@
   },
   "aboutStarOnGitHub": "在 GitHub 上点亮 Star",
   "aboutLicense": "开源许可",
+  "aboutVersionLabel": "版本",
+  "aboutLlamaCppLabel": "llama.cpp",
+  "aboutSystem": "系统",
   "serverTitle": "服务器",
   "serverMenuConfig": "服务器配置",
   "serverMenuLogs": "日志",

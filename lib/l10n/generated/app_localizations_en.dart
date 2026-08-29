@@ -299,8 +299,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutTitle => 'About';
 
   @override
-  String get aboutDescription =>
-      'Turn your phone into a powerful LLM inference server, no Termux required';
+  String get aboutDescription => 'An LLM inference server on your phone';
 
   @override
   String aboutVersion(String version) {
@@ -320,6 +319,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutLicense => 'Open source license';
+
+  @override
+  String get aboutVersionLabel => 'Version';
+
+  @override
+  String get aboutLlamaCppLabel => 'llama.cpp';
+
+  @override
+  String get aboutSystem => 'System';
 
   @override
   String get serverTitle => 'Server';

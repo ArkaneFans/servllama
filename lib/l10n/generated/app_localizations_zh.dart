@@ -295,7 +295,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aboutTitle => '关于';
 
   @override
-  String get aboutDescription => '将你的手机变成强大的大模型推理服务器，无需Termux';
+  String get aboutDescription => '手机上的大模型推理服务器';
 
   @override
   String aboutVersion(String version) {
@@ -315,6 +315,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aboutLicense => '开源许可';
+
+  @override
+  String get aboutVersionLabel => '版本';
+
+  @override
+  String get aboutLlamaCppLabel => 'llama.cpp';
+
+  @override
+  String get aboutSystem => '系统';
 
   @override
   String get serverTitle => '服务器';

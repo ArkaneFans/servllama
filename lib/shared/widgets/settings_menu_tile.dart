@@ -62,9 +62,9 @@ class _SettingsMenuTileState extends State<SettingsMenuTile> {
       enabled: widget.enabled,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTapDown: (_) => _setPressed(true),
-        onTapUp: (_) => _setPressed(false),
-        onTapCancel: () => _setPressed(false),
+        onTapDown: effectiveOnTap == null ? null : (_) => _setPressed(true),
+        onTapUp: effectiveOnTap == null ? null : (_) => _setPressed(false),
+        onTapCancel: effectiveOnTap == null ? null : () => _setPressed(false),
         onTap: effectiveOnTap,
         child: AnimatedOpacity(
           opacity: widget.enabled ? contentOpacity : 0.5,
