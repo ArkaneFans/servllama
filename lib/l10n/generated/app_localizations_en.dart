@@ -445,7 +445,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get serverConfigContextSizeDescription =>
-      'The maximum number of context tokens the model can attend to';
+      'The maximum number of context tokens the model can attend to. A context size that is too high may cause an out-of-memory crash.';
 
   @override
   String get serverConfigBatchSize => 'Batch size';

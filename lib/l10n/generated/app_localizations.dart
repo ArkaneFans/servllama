@@ -899,7 +899,7 @@ abstract class AppLocalizations {
   /// No description provided for @serverConfigContextSizeDescription.
   ///
   /// In en, this message translates to:
-  /// **'The maximum number of context tokens the model can attend to'**
+  /// **'The maximum number of context tokens the model can attend to. A context size that is too high may cause an out-of-memory crash.'**
   String get serverConfigContextSizeDescription;
 
   /// No description provided for @serverConfigBatchSize.

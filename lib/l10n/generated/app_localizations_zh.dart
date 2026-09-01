@@ -436,7 +436,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get serverConfigContextSize => '上下文长度';
 
   @override
-  String get serverConfigContextSizeDescription => '模型能关注的最大上下文toekn数量';
+  String get serverConfigContextSizeDescription =>
+      '模型能关注的最大上下文 token 数量。上下文过高可能导致内存不足闪退';
 
   @override
   String get serverConfigBatchSize => '批处理大小';

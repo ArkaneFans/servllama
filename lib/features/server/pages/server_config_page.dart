@@ -182,12 +182,12 @@ class _ServerConfigViewState extends State<_ServerConfigView> {
                                     description:
                                         l10n.serverConfigContextSizeDescription,
                                     value: provider.contextSize,
-                                    min: 512,
-                                    max: 32768,
-                                    divisions: 63,
+                                    min: ServerLaunchSettings.minContextSize,
+                                    max: ServerLaunchSettings.maxContextSize,
+                                    divisions: _contextSizeDivisions,
                                     onChanged: (value) =>
                                         provider.updateContextSize(
-                                          _roundToStep(value, 512),
+                                          _roundToStep(value, _contextSizeStep),
                                         ),
                                   ),
                                   SliderNumberSetting(
@@ -391,6 +391,13 @@ class _ServerConfigViewState extends State<_ServerConfigView> {
       apiKey: configProvider.apiKey,
     );
   }
+
+  static const int _contextSizeStep = 512;
+
+  static int get _contextSizeDivisions =>
+      (ServerLaunchSettings.maxContextSize -
+          ServerLaunchSettings.minContextSize) ~/
+      _contextSizeStep;
 
   static int _roundToStep(int value, int step) {
     final roundedValue = (value / step).round() * step;

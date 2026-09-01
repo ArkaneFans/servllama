@@ -226,7 +226,7 @@
   "serverConfigApiKeyDescription": "留空则不启用校验",
   "serverConfigSectionInference": "推理参数",
   "serverConfigContextSize": "上下文长度",
-  "serverConfigContextSizeDescription": "模型能关注的最大上下文toekn数量",
+  "serverConfigContextSizeDescription": "模型能关注的最大上下文 token 数量。上下文过高可能导致内存不足闪退",
   "serverConfigBatchSize": "批处理大小",
   "serverConfigBatchSizeDescription": "影响吞吐和内存占用",
   "serverConfigImageMaxTokens": "图片最大Token数",

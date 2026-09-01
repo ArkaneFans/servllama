@@ -74,7 +74,17 @@ void main() {
 
       expect(find.text('推理参数'), findsOneWidget);
       expect(find.text('上下文长度'), findsOneWidget);
-      expect(tester.widget<Slider>(find.byType(Slider).first).value, 8192);
+      expect(find.textContaining('上下文过高可能导致内存不足闪退'), findsOneWidget);
+      final contextSlider = tester.widget<Slider>(find.byType(Slider).first);
+      expect(contextSlider.value, 8192);
+      expect(contextSlider.min, ServerLaunchSettings.minContextSize);
+      expect(contextSlider.max, ServerLaunchSettings.maxContextSize);
+      expect(
+        contextSlider.divisions,
+        (ServerLaunchSettings.maxContextSize -
+                ServerLaunchSettings.minContextSize) ~/
+            512,
+      );
       expect(
         find.byWidgetPredicate(
           (widget) => widget is TextField && widget.controller?.text == '8192',
