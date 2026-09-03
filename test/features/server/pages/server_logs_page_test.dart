@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/core/logging/app_logger.dart';
+import 'package:servllama/core/services/downloads_export_service.dart';
 import 'package:servllama/features/server/pages/server_logs_page.dart';
 
 void main() {
@@ -309,5 +310,50 @@ void main() {
       expect(copiedLines[1], endsWith('[INFO] [server] out'));
       expect(find.text('日志已复制'), findsOneWidget);
     });
+
+    testWidgets('export writes logs to Downloads and shows the path', (
+      tester,
+    ) async {
+      final logger = AppLogger();
+      logger.info('system', channel: LogChannel.server, inMemory: true);
+      logger.info('out', channel: LogChannel.engine, inMemory: true);
+      final exporter = _FakeDownloadsExportService();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ServerLogsPage(logger: logger, exportService: exporter),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byTooltip('导出日志'));
+      await tester.pump();
+
+      expect(exporter.lastFileName, startsWith('servllama-logs-'));
+      expect(exporter.lastFileName, endsWith('.txt'));
+      expect(exporter.lastContent, contains('[server] system'));
+      expect(exporter.lastContent, contains('[engine] out'));
+      expect(
+        find.text(
+          '日志已导出到 /storage/emulated/0/Download/${exporter.lastFileName}',
+        ),
+        findsOneWidget,
+      );
+    });
   });
+}
+
+class _FakeDownloadsExportService extends DownloadsExportService {
+  String? lastFileName;
+  String? lastContent;
+
+  @override
+  Future<String> saveTextFile({
+    required String fileName,
+    required String content,
+  }) async {
+    lastFileName = fileName;
+    lastContent = content;
+    return '/storage/emulated/0/Download/$fileName';
+  }
 }

@@ -1,30 +1,33 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/core/providers/server_logs_provider.dart';
+import 'package:servllama/core/services/downloads_export_service.dart';
 import 'package:servllama/l10n/l10n.dart';
 
 class ServerLogsPage extends StatelessWidget {
-  const ServerLogsPage({super.key, this.logger});
+  const ServerLogsPage({super.key, this.logger, this.exportService});
 
   final AppLogger? logger;
+  final DownloadsExportService? exportService;
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => ServerLogsProvider(logger: logger),
-      child: const _ServerLogsView(),
+      child: _ServerLogsView(
+        exportService: exportService ?? DownloadsExportService(),
+      ),
     );
   }
 }
 
 class _ServerLogsView extends StatefulWidget {
-  const _ServerLogsView();
+  const _ServerLogsView({required this.exportService});
+
+  final DownloadsExportService exportService;
 
   @override
   State<_ServerLogsView> createState() => _ServerLogsViewState();
@@ -106,33 +109,37 @@ class _ServerLogsViewState extends State<_ServerLogsView>
     final l10n = context.l10n;
     final provider = context.read<ServerLogsProvider>();
     try {
-      final directory = await getApplicationDocumentsDirectory();
       final timestamp = DateTime.now()
           .toIso8601String()
           .replaceAll(':', '-')
           .replaceAll('.', '-');
-      final file = File(
-        '${directory.path}${Platform.pathSeparator}'
-        'servllama-logs-$timestamp.txt',
-      );
-      await file.writeAsString(
-        _filtered(provider.logs).map(provider.formatEntry).join('\n'),
-        flush: true,
+      final path = await widget.exportService.saveTextFile(
+        fileName: 'servllama-logs-$timestamp.txt',
+        content: _filtered(provider.logs).map(provider.formatEntry).join('\n'),
       );
       if (!context.mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.serverLogsExported(file.path))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.serverLogsExported(path))));
     } catch (error) {
       if (!context.mounted) {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.serverLogsExportFailed('$error'))),
+        SnackBar(
+          content: Text(l10n.serverLogsExportFailed(_exportError(error))),
+        ),
       );
     }
+  }
+
+  String _exportError(Object error) {
+    if (error is PlatformException) {
+      return error.message ?? error.code;
+    }
+    return '$error';
   }
 
   void _clearLogs() {
