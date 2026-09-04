@@ -342,7 +342,7 @@ void main() {
           find.descendant(of: find.byType(AppBar), matching: find.text('新对话')),
           findsOneWidget,
         );
-        expect(tester.getCenter(find.text('新对话')).dx, closeTo(400, 24));
+        expect(tester.getCenter(find.text('新对话')).dx, lessThan(200));
         expect(find.text('历史消息'), findsNothing);
 
         await provider.selectSession('s1');
@@ -366,6 +366,75 @@ void main() {
         expect(find.text('历史消息'), findsNothing);
       },
     );
+
+    testWidgets('app bar shows session title above engine and model', (
+      tester,
+    ) async {
+      final chatProvider = ChatProvider(
+        repository: _FakeChatSessionRepository(sessions: <ChatSessionRecord>[]),
+        apiClient: _FakeLlamaChatApiClient(models: const <ChatModelOption>[]),
+      );
+      await chatProvider.load();
+
+      final library = ModelManagementProvider(
+        repository: FakeLocalModelRepository(
+          initialModels: <ModelDescriptor>[_libraryDescriptor('alpha')],
+        ),
+      );
+      await library.load();
+
+      final serverService = _FakeLlamaServerService();
+      final serverProvider = EngineRuntimeProvider(
+        llamaCppAdapter: LlamaCppEngineAdapter(
+          serverService: serverService,
+          settingsLoader: _FixedServerLaunchSettingsLoader(),
+          modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
+          controlClient: StubServerControlClient(),
+        ),
+        mnnAdapter: StubEngineAdapter(),
+        settingsLoader: _FixedServerLaunchSettingsLoader(),
+        kvStorage: KvStorage(),
+      );
+      await serverProvider.selectModel('alpha');
+      addTearDown(() {
+        serverProvider.dispose();
+        serverService.dispose();
+      });
+
+      await tester.pumpWidget(
+        _TestChatApp(
+          chatProvider: chatProvider,
+          serverProvider: serverProvider,
+          library: library,
+        ),
+      );
+      await tester.pump();
+
+      expect(
+        find.descendant(of: find.byType(AppBar), matching: find.text('新对话')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(AppBar),
+          matching: find.text('llama.cpp / alpha'),
+        ),
+        findsOneWidget,
+      );
+      expect(tester.getCenter(find.text('新对话')).dx, lessThan(200));
+      expect(
+        tester.getTopLeft(find.text('llama.cpp / alpha')).dx,
+        closeTo(tester.getTopLeft(find.text('新对话')).dx, 0.5),
+      );
+
+      await tester.tap(find.byKey(const Key('chat_runtime_subtitle')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const Key('chat_model_sheet_row_alpha')),
+        findsOneWidget,
+      );
+    });
 
     testWidgets('picking a model in the sheet activates it on the runtime', (
       tester,

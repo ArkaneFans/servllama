@@ -22,7 +22,6 @@ import 'package:servllama/features/chat/widgets/chat_input_overlay_layout.dart';
 import 'package:servllama/features/chat/widgets/chat_message_list.dart';
 import 'package:servllama/features/chat/widgets/chat_message_sheets.dart';
 import 'package:servllama/features/chat/widgets/chat_model_sheet.dart';
-import 'package:servllama/features/chat/widgets/chat_runtime_capsule.dart';
 import 'package:servllama/features/chat/widgets/chat_staged_message_list.dart';
 import 'package:servllama/features/downloads/pages/model_discovery_page.dart';
 import 'package:servllama/features/downloads/providers/download_provider.dart';
@@ -395,39 +394,44 @@ class _ChatViewState extends State<_ChatView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: 78,
-        leadingWidth: 52,
+        toolbarHeight: 56,
+        leadingWidth: 56,
         titleSpacing: 4,
-        centerTitle: true,
+        centerTitle: false,
+        iconTheme: const IconThemeData(size: 22),
+        actionsIconTheme: const IconThemeData(size: 22),
         leading: IconButton(
           icon: const Icon(Icons.menu),
+          tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
           onPressed: widget.onOpenSidebar,
         ),
         title: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _ChatRuntimeTitle(onTap: () => _showModels(context)),
-            const SizedBox(height: 3),
             Selector<ChatProvider, _ChatTitleSnapshot>(
               selector: (_, provider) =>
                   _ChatTitleSnapshot.fromProvider(provider),
               builder: (context, snapshot, _) => _ChatSessionTitle(
                 conversationKey: snapshot.conversationKey,
                 title: snapshot.title ?? context.l10n.chatNewSession,
-                compact: true,
               ),
             ),
+            _ChatRuntimeTitle(onTap: () => _showModels(context)),
           ],
         ),
         actions: [
           Selector<ChatProvider, bool>(
             selector: (_, provider) => provider.canManageSessions,
-            builder: (context, canManageSessions, _) => IconButton(
-              onPressed: canManageSessions
-                  ? () => context.read<ChatProvider>().createSession()
-                  : null,
-              tooltip: context.l10n.chatCreateSessionTooltip,
-              icon: const Icon(Icons.add),
+            builder: (context, canManageSessions, _) => Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: IconButton(
+                onPressed: canManageSessions
+                    ? () => context.read<ChatProvider>().createSession()
+                    : null,
+                tooltip: context.l10n.chatCreateSessionTooltip,
+                icon: const Icon(Icons.maps_ugc_outlined),
+              ),
             ),
           ),
         ],
@@ -840,51 +844,49 @@ class _ChatSessionTitle extends StatelessWidget {
   const _ChatSessionTitle({
     required this.conversationKey,
     required this.title,
-    this.compact = false,
   });
 
   final String conversationKey;
   final String title;
-  final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: compact ? Alignment.center : Alignment.centerLeft,
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 220),
-        switchInCurve: Curves.easeOutCubic,
-        switchOutCurve: Curves.easeInCubic,
-        layoutBuilder: (currentChild, previousChildren) {
-          return Stack(
-            alignment: compact ? Alignment.center : Alignment.centerLeft,
-            children: <Widget>[
-              ...previousChildren,
-              if (currentChild != null) currentChild,
-            ],
-          );
-        },
-        transitionBuilder: (child, animation) {
-          final offsetAnimation = Tween<Offset>(
-            begin: const Offset(0, 0.08),
-            end: Offset.zero,
-          ).animate(animation);
-          return FadeTransition(
-            opacity: animation,
-            child: SlideTransition(position: offsetAnimation, child: child),
-          );
-        },
-        child: Text(
-          title,
-          key: ValueKey<String>('chat_session_title_$conversationKey:$title'),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: compact ? TextAlign.center : TextAlign.start,
-          style: compact
-              ? Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                )
-              : Theme.of(context).textTheme.titleMedium,
+    final theme = Theme.of(context);
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 220),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      layoutBuilder: (currentChild, previousChildren) {
+        return Stack(
+          alignment: Alignment.centerLeft,
+          children: <Widget>[
+            ...previousChildren,
+            if (currentChild != null) currentChild,
+          ],
+        );
+      },
+      transitionBuilder: (child, animation) {
+        final offsetAnimation = Tween<Offset>(
+          begin: const Offset(0, 0.08),
+          end: Offset.zero,
+        ).animate(animation);
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(position: offsetAnimation, child: child),
+        );
+      },
+      child: Text(
+        title,
+        key: ValueKey<String>('chat_session_title_$conversationKey:$title'),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.start,
+        style: theme.textTheme.bodyMedium?.copyWith(
+          color: theme.colorScheme.onSurface,
+          fontWeight: FontWeight.w400,
+          fontSize: 17,
+          height: 1.2,
+          letterSpacing: 0,
         ),
       ),
     );
@@ -904,23 +906,42 @@ class _ChatRuntimeTitle extends StatelessWidget {
     }
     final library = context.watch<ModelManagementProvider?>();
     final l10n = context.l10n;
+    final theme = Theme.of(context);
     final state = runtime.state;
+    final engineName = state.engine.displayName;
 
-    String label;
+    final String detail;
     if (state.status == EngineRuntimeStatus.preparing && state.phase != null) {
-      label = RuntimeLabels.phase(l10n, state.phase!);
+      detail = RuntimeLabels.phase(l10n, state.phase!);
     } else if (state.status == EngineRuntimeStatus.stopping) {
-      label = l10n.serverStatusStopping;
+      detail = l10n.serverStatusStopping;
     } else {
       final runtimeId = runtime.activeModelId ?? runtime.selectedModelId;
-      label =
+      detail =
           _modelName(library, state.engine, runtimeId) ??
           l10n.serverNoModelSelected;
     }
 
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 230),
-      child: ChatRuntimeCapsule(state: state, label: label, onTap: onTap),
+    return Tooltip(
+      message: l10n.chatSelectModel,
+      child: GestureDetector(
+        key: const Key('chat_runtime_subtitle'),
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Text(
+          '$engineName / $detail',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.start,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w400,
+            fontSize: 12,
+            height: 1.2,
+            letterSpacing: 0,
+          ),
+        ),
+      ),
     );
   }
 
