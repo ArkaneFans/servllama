@@ -28,6 +28,7 @@ import 'package:servllama/features/downloads/providers/download_provider.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
 import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/l10n/runtime_labels.dart';
+import 'package:servllama/shared/widgets/animated_text_swap.dart';
 
 class ChatPage extends StatelessWidget {
   const ChatPage({super.key, this.provider, this.onOpenSidebar});
@@ -394,32 +395,16 @@ class _ChatViewState extends State<_ChatView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: 56,
-        leadingWidth: 56,
-        titleSpacing: 4,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        titleSpacing: 2,
         centerTitle: false,
-        iconTheme: const IconThemeData(size: 22),
-        actionsIconTheme: const IconThemeData(size: 22),
         leading: IconButton(
           icon: const Icon(Icons.menu),
           tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
           onPressed: widget.onOpenSidebar,
         ),
-        title: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Selector<ChatProvider, _ChatTitleSnapshot>(
-              selector: (_, provider) =>
-                  _ChatTitleSnapshot.fromProvider(provider),
-              builder: (context, snapshot, _) => _ChatSessionTitle(
-                conversationKey: snapshot.conversationKey,
-                title: snapshot.title ?? context.l10n.chatNewSession,
-              ),
-            ),
-            _ChatRuntimeTitle(onTap: () => _showModels(context)),
-          ],
-        ),
+        title: _ChatAppBarTitle(onSelectModel: () => _showModels(context)),
         actions: [
           Selector<ChatProvider, bool>(
             selector: (_, provider) => provider.canManageSessions,
@@ -840,55 +825,42 @@ class _ChatConversationBody extends StatelessWidget {
   }
 }
 
-class _ChatSessionTitle extends StatelessWidget {
-  const _ChatSessionTitle({
-    required this.conversationKey,
-    required this.title,
-  });
+class _ChatAppBarTitle extends StatelessWidget {
+  const _ChatAppBarTitle({required this.onSelectModel});
 
-  final String conversationKey;
-  final String title;
+  final VoidCallback onSelectModel;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 220),
-      switchInCurve: Curves.easeOutCubic,
-      switchOutCurve: Curves.easeInCubic,
-      layoutBuilder: (currentChild, previousChildren) {
-        return Stack(
-          alignment: Alignment.centerLeft,
-          children: <Widget>[
-            ...previousChildren,
-            if (currentChild != null) currentChild,
-          ],
-        );
-      },
-      transitionBuilder: (child, animation) {
-        final offsetAnimation = Tween<Offset>(
-          begin: const Offset(0, 0.08),
-          end: Offset.zero,
-        ).animate(animation);
-        return FadeTransition(
-          opacity: animation,
-          child: SlideTransition(position: offsetAnimation, child: child),
-        );
-      },
-      child: Text(
-        title,
-        key: ValueKey<String>('chat_session_title_$conversationKey:$title'),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        textAlign: TextAlign.start,
-        style: theme.textTheme.bodyMedium?.copyWith(
-          color: theme.colorScheme.onSurface,
-          fontWeight: FontWeight.w400,
-          fontSize: 17,
-          height: 1.2,
-          letterSpacing: 0,
+
+    return Row(
+      children: [
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Selector<ChatProvider, _ChatTitleSnapshot>(
+                selector: (_, provider) =>
+                    _ChatTitleSnapshot.fromProvider(provider),
+                builder: (context, snapshot, _) {
+                  return AnimatedTextSwap(
+                    text: snapshot.title ?? context.l10n.chatNewSession,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  );
+                },
+              ),
+              _ChatRuntimeTitle(onTap: onSelectModel),
+            ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }
@@ -922,23 +894,26 @@ class _ChatRuntimeTitle extends StatelessWidget {
           l10n.serverNoModelSelected;
     }
 
-    return Tooltip(
-      message: l10n.chatSelectModel,
-      child: GestureDetector(
-        key: const Key('chat_runtime_subtitle'),
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Text(
-          '$engineName / $detail',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.start,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-            fontWeight: FontWeight.w400,
-            fontSize: 12,
-            height: 1.2,
-            letterSpacing: 0,
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Tooltip(
+        message: l10n.chatSelectModel,
+        child: InkWell(
+          key: const Key('chat_runtime_subtitle'),
+          borderRadius: BorderRadius.circular(6),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 0),
+            child: AnimatedTextSwap(
+              text: '$engineName / $detail',
+              style: TextStyle(
+                fontSize: 10,
+                color: theme.colorScheme.onSurface.withAlpha(153),
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ),
       ),
