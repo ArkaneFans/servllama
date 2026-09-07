@@ -215,34 +215,69 @@ void main() {
       );
     });
 
-    test('rejects mmproj import when file name does not start with mmproj', () async {
+    test('imports mmproj when the file name contains mmproj', () async {
       final modelFile = await _createSourceFile(sourceDirectory, 'vision.gguf');
-      final invalidMmproj = await _createSourceFile(
+      final mmprojFile = await _createSourceFile(
         sourceDirectory,
-        'projector.gguf',
-        content: 'invalid-mmproj',
+        'Qwen3.5-0.8B-mmproj-f16.gguf',
+        content: 'mmproj-data',
       );
       final descriptor = await repository.importModel(
         PickedGgufFile(path: modelFile.path, fileName: 'vision.gguf'),
       );
 
-      expect(
-        () => repository.importMmproj(
-          descriptor.id,
-          PickedGgufFile(
-            path: invalidMmproj.path,
-            fileName: 'projector.gguf',
-          ),
+      final updated = await repository.importMmproj(
+        descriptor.id,
+        PickedGgufFile(
+          path: mmprojFile.path,
+          fileName: 'Qwen3.5-0.8B-mmproj-f16.gguf',
         ),
-        throwsA(
-          isA<ModelOperationException>().having(
-            (error) => error.code,
-            'code',
-            ModelOperationErrorCode.unsupportedMmprojFile,
-          ),
+      );
+
+      expect(updated.mmprojFilePath, isNotNull);
+      expect(await File(updated.mmprojFilePath!).exists(), isTrue);
+      expect(
+        updated.mmprojFilePath,
+        endsWith(
+          '${LocalModelRepository.modelsFolderName}${Platform.pathSeparator}vision${Platform.pathSeparator}Qwen3.5-0.8B-mmproj-f16.gguf',
         ),
       );
     });
+
+    test(
+      'rejects mmproj import when file name does not contain mmproj',
+      () async {
+        final modelFile = await _createSourceFile(
+          sourceDirectory,
+          'vision.gguf',
+        );
+        final invalidMmproj = await _createSourceFile(
+          sourceDirectory,
+          'projector.gguf',
+          content: 'invalid-mmproj',
+        );
+        final descriptor = await repository.importModel(
+          PickedGgufFile(path: modelFile.path, fileName: 'vision.gguf'),
+        );
+
+        expect(
+          () => repository.importMmproj(
+            descriptor.id,
+            PickedGgufFile(
+              path: invalidMmproj.path,
+              fileName: 'projector.gguf',
+            ),
+          ),
+          throwsA(
+            isA<ModelOperationException>().having(
+              (error) => error.code,
+              'code',
+              ModelOperationErrorCode.unsupportedMmprojFile,
+            ),
+          ),
+        );
+      },
+    );
 
     test('removeMmproj deletes file and clears metadata', () async {
       final modelFile = await _createSourceFile(sourceDirectory, 'vision.gguf');
@@ -296,39 +331,42 @@ void main() {
       );
     });
 
-    test('renameModel rejects names that could escape the models directory', () async {
-      final modelFile = await _createSourceFile(sourceDirectory, 'tiny.gguf');
-      final descriptor = await repository.importModel(
-        PickedGgufFile(path: modelFile.path, fileName: 'tiny.gguf'),
-      );
-
-      const invalidNames = <String>[
-        '../escape',
-        '..',
-        '.',
-        'a/b',
-        'a\\b',
-        'bad\x00name',
-      ];
-      for (final name in invalidNames) {
-        await expectLater(
-          repository.renameModel(descriptor.id, name),
-          throwsA(
-            isA<ModelOperationException>().having(
-              (error) => error.code,
-              'code',
-              ModelOperationErrorCode.invalidModelName,
-            ),
-          ),
-          reason: 'name "$name" should be rejected',
+    test(
+      'renameModel rejects names that could escape the models directory',
+      () async {
+        final modelFile = await _createSourceFile(sourceDirectory, 'tiny.gguf');
+        final descriptor = await repository.importModel(
+          PickedGgufFile(path: modelFile.path, fileName: 'tiny.gguf'),
         );
-      }
 
-      // The model itself must be untouched after rejected renames.
-      final models = await repository.listModels();
-      expect(models.single.modelName, 'tiny');
-      expect(await File(models.single.storedFilePath).exists(), isTrue);
-    });
+        const invalidNames = <String>[
+          '../escape',
+          '..',
+          '.',
+          'a/b',
+          'a\\b',
+          'bad\x00name',
+        ];
+        for (final name in invalidNames) {
+          await expectLater(
+            repository.renameModel(descriptor.id, name),
+            throwsA(
+              isA<ModelOperationException>().having(
+                (error) => error.code,
+                'code',
+                ModelOperationErrorCode.invalidModelName,
+              ),
+            ),
+            reason: 'name "$name" should be rejected',
+          );
+        }
+
+        // The model itself must be untouched after rejected renames.
+        final models = await repository.listModels();
+        expect(models.single.modelName, 'tiny');
+        expect(await File(models.single.storedFilePath).exists(), isTrue);
+      },
+    );
 
     test('listModels clears missing mmproj metadata', () async {
       final modelFile = await _createSourceFile(sourceDirectory, 'vision.gguf');
@@ -350,6 +388,160 @@ void main() {
 
       expect(models.single.mmprojFilePath, isNull);
     });
+
+    test('adoptDownloadedModel persists hub source metadata', () async {
+      final modelFile = await _createSourceFile(sourceDirectory, 'qwen.gguf');
+
+      final descriptor = await repository.adoptDownloadedModel(
+        modelName: 'qwen',
+        modelFile: modelFile,
+        sourceValue: 'huggingface',
+        repoId: 'owner/qwen',
+        revision: 'main',
+      );
+
+      expect(descriptor.sourceValue, 'huggingface');
+      expect(descriptor.repoId, 'owner/qwen');
+      expect(descriptor.revision, 'main');
+      expect(descriptor.hasHubSource, isTrue);
+
+      final models = await repository.listModels();
+      expect(models.single.sourceValue, 'huggingface');
+      expect(models.single.repoId, 'owner/qwen');
+      expect(models.single.revision, 'main');
+    });
+
+    test(
+      'adoptDownloadedMmproj selects the download and keeps other versions',
+      () async {
+        final modelFile = await _createSourceFile(
+          sourceDirectory,
+          'vision.gguf',
+        );
+        final firstMmproj = await _createSourceFile(
+          sourceDirectory,
+          'mmproj-f16.gguf',
+          content: 'old-mmproj',
+        );
+        final descriptor = await repository.adoptDownloadedModel(
+          modelName: 'vision',
+          modelFile: modelFile,
+          mmprojFile: firstMmproj,
+          sourceValue: 'huggingface',
+          repoId: 'owner/qwen',
+          revision: 'main',
+        );
+        final previousPath = descriptor.mmprojFilePath!;
+
+        final staging = await Directory.systemTemp.createTemp(
+          'servllama_mmproj_staging_',
+        );
+        addTearDown(() async {
+          if (await staging.exists()) {
+            await staging.delete(recursive: true);
+          }
+        });
+        final replacement = await _createSourceFile(
+          staging,
+          'Qwen3.5-0.8B-mmproj-f16.gguf',
+          content: 'new-mmproj',
+        );
+
+        final updated = await repository.adoptDownloadedMmproj(
+          modelId: descriptor.id,
+          mmprojFile: replacement,
+        );
+
+        expect(updated.sourceValue, 'huggingface');
+        expect(updated.repoId, 'owner/qwen');
+        expect(updated.revision, 'main');
+        expect(
+          updated.mmprojFilePath,
+          endsWith(
+            '${LocalModelRepository.modelsFolderName}${Platform.pathSeparator}vision${Platform.pathSeparator}projectors${Platform.pathSeparator}Qwen3.5-0.8B-mmproj-f16.gguf',
+          ),
+        );
+        expect(await File(updated.mmprojFilePath!).exists(), isTrue);
+        expect(await File(previousPath).exists(), isTrue);
+        expect(updated.availableMmprojs, hasLength(2));
+      },
+    );
+    test(
+      'projector versions survive concurrent downloads, reload and rename',
+      () async {
+        final model = await repository.adoptDownloadedModel(
+          modelName: 'vision',
+          modelFile: await _createSourceFile(sourceDirectory, 'vision.gguf'),
+          sourceValue: 'huggingface',
+          repoId: 'owner/vision',
+        );
+        final secondRepository = LocalModelRepository(
+          appSupportDirectory: appSupportDirectory,
+        );
+        final first = await _createSourceFile(
+          sourceDirectory,
+          'mmproj-f16.gguf',
+          content: 'f16',
+        );
+        final second = await _createSourceFile(
+          sourceDirectory,
+          'mmproj-f32.gguf',
+          content: 'f32',
+        );
+        await Future.wait([
+          repository.adoptDownloadedMmproj(
+            modelId: model.id,
+            mmprojFile: first,
+            remotePath: 'f16/mmproj.gguf',
+          ),
+          secondRepository.adoptDownloadedMmproj(
+            modelId: model.id,
+            mmprojFile: second,
+            remotePath: 'f32/mmproj.gguf',
+          ),
+        ]);
+        var installed = (await repository.listModels()).single;
+        expect(installed.availableMmprojs, hasLength(2));
+        expect(
+          await File(installed.mmprojFiles['f16/mmproj.gguf']!).readAsString(),
+          'f16',
+        );
+        expect(
+          await File(installed.mmprojFiles['f32/mmproj.gguf']!).readAsString(),
+          'f32',
+        );
+
+        await repository.setVisionEnabled(model.id, false);
+        await Hive.close();
+        repository = LocalModelRepository(
+          appSupportDirectory: appSupportDirectory,
+        );
+        installed = (await repository.listModels()).single;
+        expect(installed.isVisionEnabled, isFalse);
+        expect(installed.activeMmprojFilePath, isNull);
+        expect(installed.mmprojFilePath, isNotNull);
+
+        installed = await repository.renameModel(model.id, 'renamed');
+        final firstPath = installed.mmprojFiles['f16/mmproj.gguf']!;
+        final secondPath = installed.mmprojFiles['f32/mmproj.gguf']!;
+        expect(firstPath, startsWith(installed.storedDirectoryPath));
+        expect(secondPath, startsWith(installed.storedDirectoryPath));
+        expect(await File(firstPath).readAsString(), 'f16');
+        expect(await File(secondPath).readAsString(), 'f32');
+        await repository.selectMmproj(model.id, firstPath);
+        installed = await repository.setVisionEnabled(model.id, true);
+        expect(installed.activeMmprojFilePath, firstPath);
+
+        installed = await repository.removeMmprojFile(model.id, firstPath);
+        expect(installed.activeMmprojFilePath, secondPath);
+        expect(await File(firstPath).exists(), isFalse);
+        installed = await repository.removeMmprojFile(model.id, secondPath);
+        expect(installed.isVisionEnabled, isFalse);
+        expect(installed.mmprojFilePath, isNull);
+        expect(installed.availableMmprojs, isEmpty);
+        expect(await File(installed.storedFilePath).exists(), isTrue);
+      },
+    );
   });
 }
 

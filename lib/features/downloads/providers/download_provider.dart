@@ -11,6 +11,7 @@ import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/core/models/inference_engine.dart';
 import 'package:servllama/core/repositories/local_model_repository.dart';
 import 'package:servllama/core/repositories/unified_model_repository.dart';
+import 'package:servllama/core/utils/gguf_file_name.dart';
 import 'package:servllama/core/services/app_l10n_service.dart';
 import 'package:servllama/core/services/foreground_task_service.dart';
 import 'package:servllama/core/services/model_name_coordinator.dart';
@@ -258,6 +259,7 @@ class DownloadProvider extends ChangeNotifier {
     required String modelName,
     required List<HubRepoFile> files,
     String? quantLabel,
+    String? targetModelId,
   }) async {
     await load();
     await _ensureStorageCapacity(engine, files);
@@ -268,6 +270,7 @@ class DownloadProvider extends ChangeNotifier {
         repoId: repoId,
         revision: revision,
         files: files,
+        targetModelId: targetModelId,
       )) {
         throw const DownloadException(
           DownloadErrorKind.alreadyQueued,
@@ -276,10 +279,14 @@ class DownloadProvider extends ChangeNotifier {
       }
       final taskId =
           'dl_${DateTime.now().microsecondsSinceEpoch}_${_random.nextInt(1 << 20)}';
-      final allocation = await _allocateName(
-        taskId: taskId,
-        requestedName: modelName,
-      );
+      final isMmprojReplacement =
+          targetModelId != null && targetModelId.trim().isNotEmpty;
+      final allocation = isMmprojReplacement
+          ? AllocatedModelName(
+              requestedName: modelName.trim(),
+              name: modelName.trim(),
+            )
+          : await _allocateName(taskId: taskId, requestedName: modelName);
       late final Directory staging;
       try {
         staging = await _taskRepository.createStagingDirectory(taskId);
@@ -300,6 +307,7 @@ class DownloadProvider extends ChangeNotifier {
         stagingDirPath: staging.path,
         statusValue: DownloadStatus.queued.name,
         createdAt: DateTime.now(),
+        targetModelId: isMmprojReplacement ? targetModelId.trim() : null,
         files: files
             .map(
               (file) => DownloadFileRecord(
@@ -536,46 +544,63 @@ class DownloadProvider extends ChangeNotifier {
 
   /// Moves the staged bytes into whichever store owns this engine's format.
   Future<void> _commit(DownloadTaskRecord record, Directory staging) async {
-    final allocation = await _allocateName(
-      taskId: record.id,
-      requestedName: record.requestedModelName,
-      preferredName: record.modelName,
-    );
-    if (record.modelName != allocation.name) {
-      final previousName = record.modelName;
-      record.modelName = allocation.name;
-      await _taskRepository.save(record);
-      notifyListeners();
-      _logger.info(
-        '入库前检测到模型重名，已自动重命名: $previousName -> ${record.modelName}',
-        channel: LogChannel.download,
-        inMemory: true,
+    final isMmprojReplacement =
+        record.targetModelId != null && record.targetModelId!.trim().isNotEmpty;
+    if (!isMmprojReplacement) {
+      final allocation = await _allocateName(
+        taskId: record.id,
+        requestedName: record.requestedModelName,
+        preferredName: record.modelName,
       );
+      if (record.modelName != allocation.name) {
+        final previousName = record.modelName;
+        record.modelName = allocation.name;
+        await _taskRepository.save(record);
+        notifyListeners();
+        _logger.info(
+          '入库前检测到模型重名，已自动重命名: $previousName -> ${record.modelName}',
+          channel: LogChannel.download,
+          inMemory: true,
+        );
+      }
     }
     final engine = InferenceEngine.fromStorageValue(record.engineValue);
     switch (engine) {
       case InferenceEngine.llamaCpp:
         File? modelFile;
         File? mmprojFile;
+        String? mmprojRemotePath;
         for (final file in record.files) {
           final path =
               '${staging.path}${Platform.pathSeparator}'
               '${file.fileName.replaceAll('/', Platform.pathSeparator)}';
-          final name = file.fileName.split('/').last.toLowerCase();
-          if (name.startsWith('mmproj')) {
+          if (isMmprojFileName(file.fileName)) {
             mmprojFile = File(path);
+            mmprojRemotePath = file.remotePath;
           } else {
             modelFile = File(path);
           }
         }
-        if (modelFile == null) {
-          throw StateError('download produced no model file');
+        if (isMmprojReplacement) {
+          if (mmprojFile == null) {
+            throw StateError('download produced no mmproj file');
+          }
+          await _localModelRepository.adoptDownloadedMmproj(
+            modelId: record.targetModelId!.trim(),
+            mmprojFile: mmprojFile,
+            remotePath: mmprojRemotePath,
+          );
+        } else {
+          if (modelFile == null) {
+            throw StateError('download produced no model file');
+          }
+          await _commitGguf(
+            record: record,
+            modelFile: modelFile,
+            mmprojFile: mmprojFile,
+            mmprojRemotePath: mmprojRemotePath,
+          );
         }
-        await _commitGguf(
-          record: record,
-          modelFile: modelFile,
-          mmprojFile: mmprojFile,
-        );
       case InferenceEngine.mnn:
         await _ensureMnnDisplayMetadata(record, staging);
         // The plugin re-validates and takes ownership of the directory.
@@ -823,6 +848,7 @@ class DownloadProvider extends ChangeNotifier {
     required DownloadTaskRecord record,
     required File modelFile,
     required File? mmprojFile,
+    String? mmprojRemotePath,
   }) async {
     while (true) {
       try {
@@ -830,6 +856,10 @@ class DownloadProvider extends ChangeNotifier {
           modelName: record.modelName,
           modelFile: modelFile,
           mmprojFile: mmprojFile,
+          mmprojRemotePath: mmprojRemotePath,
+          sourceValue: record.sourceValue,
+          repoId: record.repoId,
+          revision: record.revision,
         );
         return;
       } on ModelOperationException catch (error) {
@@ -860,6 +890,7 @@ class DownloadProvider extends ChangeNotifier {
     required String repoId,
     required String revision,
     required List<HubRepoFile> files,
+    String? targetModelId,
   }) {
     final requestedFiles = <String, HubRepoFile>{
       for (final file in files) file.path: file,
@@ -870,6 +901,7 @@ class DownloadProvider extends ChangeNotifier {
         return false;
       }
       return record.engineValue == engine.storageValue &&
+          record.targetModelId == targetModelId?.trim() &&
           record.sourceValue == source.storageValue &&
           record.repoId == repoId &&
           record.revision == revision &&

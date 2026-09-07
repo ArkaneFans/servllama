@@ -86,8 +86,11 @@ class UnifiedModelRepository {
           sizeBytes: descriptor.sizeBytes,
           importedAt: descriptor.importedAt,
           storagePath: descriptor.storedFilePath,
-          supportsVision: descriptor.mmprojFilePath != null,
+          supportsVision: descriptor.activeMmprojFilePath != null,
           hasMmproj: descriptor.mmprojFilePath != null,
+          sourceValue: descriptor.sourceValue,
+          repoId: descriptor.repoId,
+          revision: descriptor.revision,
         );
       case InferenceEngine.mnn:
         final renamed = await _mnnEngine.renameImportedModel(
@@ -150,7 +153,10 @@ class UnifiedModelRepository {
             importedAt: descriptor.importedAt,
             storagePath: descriptor.storedFilePath,
             hasMmproj: descriptor.mmprojFilePath != null,
-            supportsVision: descriptor.mmprojFilePath != null,
+            supportsVision: descriptor.activeMmprojFilePath != null,
+            sourceValue: descriptor.sourceValue,
+            repoId: descriptor.repoId,
+            revision: descriptor.revision,
           ),
         )
         .toList(growable: false);

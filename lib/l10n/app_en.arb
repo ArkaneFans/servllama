@@ -6,6 +6,7 @@
   "commonRename": "Rename",
   "commonCancel": "Cancel",
   "commonSave": "Save",
+  "commonDone": "Done",
   "commonDelete": "Delete",
   "commonEnable": "Enable",
   "commonDisable": "Disable",
@@ -321,6 +322,8 @@
   "modelSettingsNameLabel": "Model name",
   "modelSettingsMmprojLabel": "Multimodal projector",
   "modelSettingsImportMmproj": "Import mmproj file",
+  "modelSettingsDownloadMmproj": "Download mmproj",
+  "modelSettingsReplaceMmproj": "Replace mmproj",
   "modelSettingsRemoveMmproj": "Remove mmproj",
   "modelManagementMmprojImportSuccess": "mmproj imported: {modelName}",
   "@modelManagementMmprojImportSuccess": {
@@ -384,7 +387,7 @@
   "modelErrorDuplicateModelName": "A model with the same name already exists.",
   "modelErrorModelNotFound": "Model not found.",
   "modelErrorSelectedMmprojFileMissing": "The selected mmproj file does not exist.",
-  "modelErrorUnsupportedMmprojFile": "Only .gguf files starting with mmproj are supported.",
+  "modelErrorUnsupportedMmprojFile": "Only .gguf files whose names contain mmproj are supported.",
   "modelErrorMmprojSameAsModelFile": "The mmproj file cannot have the same name as the main model file.",
   "modelErrorEmptyModelName": "The model name cannot be empty.",
   "modelErrorModelNameExists": "The model name already exists.",
@@ -589,6 +592,31 @@
   "repoQuantSectionTitle": "Quantization",
   "repoFilesSectionTitle": "Files",
   "repoDownloadAction": "Download",
+  "repoVisionOn": "Vision · On",
+  "repoVisionOff": "Vision · Off",
+  "repoVisionSheetTitle": "Vision",
+  "repoVisionEnable": "Enable vision",
+  "repoVisionMmprojSection": "Vision projector",
+  "repoVisionDownloadHint": "The selected projector will download with the model.",
+  "repoVisionDownloadDisabledHint": "Download the text model only. You can add a vision projector in model settings later.",
+  "modelSettingsVisionDisabledHint": "Turning vision off keeps your downloaded projectors.",
+  "modelSettingsVisionNeedsProjector": "Download and select a projector to enable image input.",
+  "modelSettingsProjectorsHint": "Keep multiple versions and select one to use at a time.",
+  "modelSettingsLocalVisionHint": "Import a compatible vision projector to enable image input.",
+  "modelSettingsProjectorDownloaded": "Downloaded",
+  "modelSettingsProjectorSelected": "Selected",
+  "modelSettingsProjectorDeleteConfirm": "Delete “{fileName}”? If it is selected, another downloaded version will be used. Vision turns off when no versions remain.",
+  "@modelSettingsProjectorDeleteConfirm": {
+    "placeholders": { "fileName": { "type": "String" } }
+  },
+  "modelSettingsOpenRepository": "Open model repository",
+  "modelSettingsRepositoryOpenFailed": "Could not open the model repository. Please try again.",
+  "modelSettingsVisionUpdateFailed": "Could not update vision settings: {error}",
+  "@modelSettingsVisionUpdateFailed": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "modelSettingsProjectorDownloadPending": "Finish or cancel projector downloads before renaming or deleting the model.",
+  "repoVisionNoMmproj": "This repository has no mmproj files.",
   "repoEstimatedMemory": "Needs about {size}",
   "@repoEstimatedMemory": {
     "placeholders": {

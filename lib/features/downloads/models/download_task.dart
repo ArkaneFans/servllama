@@ -49,6 +49,7 @@ class DownloadTaskRecord {
     this.quantLabel,
     this.errorDetail,
     this.pausedByNetwork = false,
+    this.targetModelId,
   }) : requestedModelName = requestedModelName ?? modelName;
 
   @HiveField(0)
@@ -101,4 +102,9 @@ class DownloadTaskRecord {
   /// The name derived from the hub before automatic conflict resolution.
   @HiveField(13)
   String requestedModelName;
+
+  /// When set, this task adds a projector to an already-imported GGUF
+  /// instead of creating a new library entry.
+  @HiveField(14)
+  String? targetModelId;
 }

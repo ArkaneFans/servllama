@@ -35,6 +35,9 @@ class DownloadTaskCard extends StatelessWidget {
     final status = task.status;
     final remaining = task.remaining;
     final hasKnownProgress = task.hasKnownTotal;
+    final projectorName = task.targetModelId != null && task.fileCount == 1
+        ? task.files.single.fileName
+        : null;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -89,6 +92,29 @@ class DownloadTaskCard extends StatelessWidget {
                 ],
               ],
             ),
+            if (projectorName != null) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Icon(
+                    Icons.visibility_outlined,
+                    size: 16,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      projectorName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 12),
             ClipRRect(
               borderRadius: BorderRadius.circular(999),

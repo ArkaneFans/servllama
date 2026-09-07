@@ -24,13 +24,19 @@ class ModelDescriptorAdapter extends TypeAdapter<ModelDescriptor> {
       storedFilePath: fields[4] as String,
       importedAt: fields[5] as DateTime,
       mmprojFilePath: fields[6] as String?,
+      sourceValue: fields[7] as String?,
+      repoId: fields[8] as String?,
+      revision: fields[9] as String?,
+      visionEnabled: fields[10] as bool?,
+      mmprojFiles:
+          fields[11] == null ? {} : (fields[11] as Map).cast<String, String>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, ModelDescriptor obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -44,7 +50,17 @@ class ModelDescriptorAdapter extends TypeAdapter<ModelDescriptor> {
       ..writeByte(5)
       ..write(obj.importedAt)
       ..writeByte(6)
-      ..write(obj.mmprojFilePath);
+      ..write(obj.mmprojFilePath)
+      ..writeByte(7)
+      ..write(obj.sourceValue)
+      ..writeByte(8)
+      ..write(obj.repoId)
+      ..writeByte(9)
+      ..write(obj.revision)
+      ..writeByte(10)
+      ..write(obj.visionEnabled)
+      ..writeByte(11)
+      ..write(obj.mmprojFiles);
   }
 
   @override

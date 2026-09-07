@@ -63,6 +63,7 @@ class ModelManagementProvider extends ChangeNotifier {
   String? _deletingModelId;
   String? _importingMmprojModelId;
   String? _renamingModelId;
+  String? _updatingVisionModelId;
 
   List<ModelDescriptor> get models =>
       List<ModelDescriptor>.unmodifiable(_models);
@@ -86,6 +87,7 @@ class ModelManagementProvider extends ChangeNotifier {
   String? get deletingModelId => _deletingModelId;
   String? get importingMmprojModelId => _importingMmprojModelId;
   String? get renamingModelId => _renamingModelId;
+  String? get updatingVisionModelId => _updatingVisionModelId;
   bool get isEmpty => _models.isEmpty;
   ModelNameCoordinator get nameCoordinator => _nameCoordinator;
 
@@ -411,6 +413,50 @@ class ModelManagementProvider extends ChangeNotifier {
         _describeError(error),
       );
     } finally {
+      notifyListeners();
+    }
+  }
+
+  Future<String?> setVisionEnabled(String modelId, bool enabled) =>
+      _updateVision(
+        modelId,
+        () => _repository.setVisionEnabled(modelId, enabled),
+      );
+
+  Future<String?> selectMmproj(String modelId, String filePath) =>
+      _updateVision(modelId, () => _repository.selectMmproj(modelId, filePath));
+
+  Future<String?> removeMmprojFile(String modelId, String filePath) =>
+      _updateVision(
+        modelId,
+        () => _repository.removeMmprojFile(modelId, filePath),
+      );
+
+  Future<String?> _updateVision(
+    String modelId,
+    Future<ModelDescriptor> Function() operation,
+  ) async {
+    if (_updatingVisionModelId != null) {
+      return null;
+    }
+    _updatingVisionModelId = modelId;
+    notifyListeners();
+    try {
+      await operation();
+      await _refreshModelLists();
+      return null;
+    } catch (error, stackTrace) {
+      _logger.error(
+        '更新模型视觉配置失败',
+        channel: LogChannel.model,
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return _l10nService.current.modelSettingsVisionUpdateFailed(
+        _describeError(error),
+      );
+    } finally {
+      _updatingVisionModelId = null;
       notifyListeners();
     }
   }

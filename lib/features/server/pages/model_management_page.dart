@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/core/models/inference_engine.dart';
@@ -14,6 +12,7 @@ import 'package:servllama/features/downloads/pages/model_discovery_page.dart';
 import 'package:servllama/features/downloads/providers/download_provider.dart';
 import 'package:servllama/features/downloads/widgets/download_task_card.dart';
 import 'package:servllama/features/downloads/widgets/download_wifi_only_gate.dart';
+import 'package:servllama/features/server/widgets/gguf_model_settings_sheet.dart';
 import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/widgets/engine_badge.dart';
 
@@ -113,7 +112,7 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
       builder: (_) {
         return ChangeNotifierProvider<ModelManagementProvider>.value(
           value: context.read<ModelManagementProvider>(),
-          child: _ModelSettingsSheet(descriptor: descriptor),
+          child: GgufModelSettingsSheet(descriptor: descriptor),
         );
       },
     );
@@ -335,6 +334,16 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
                                             runtime?.activeModelId ==
                                                 model.runtimeId,
                                         isRuntimeBusy: runtime?.isBusy == true,
+                                        hasProjectorDownload:
+                                            model.engine ==
+                                                InferenceEngine.llamaCpp &&
+                                            downloads.tasks.any(
+                                              (task) =>
+                                                  task.targetModelId ==
+                                                  UnifiedModelRepository.rawIdOf(
+                                                    model.id,
+                                                  ),
+                                            ),
                                         isDeleting:
                                             provider.deletingModelId ==
                                             model.id,
@@ -627,6 +636,7 @@ class _LibraryModelCard extends StatelessWidget {
     required this.isActive,
     required this.isRuntimeBusy,
     required this.isDeleting,
+    required this.hasProjectorDownload,
     required this.onDelete,
     required this.onSettings,
   });
@@ -635,6 +645,7 @@ class _LibraryModelCard extends StatelessWidget {
   final bool isActive;
   final bool isRuntimeBusy;
   final bool isDeleting;
+  final bool hasProjectorDownload;
   final VoidCallback onDelete;
   final VoidCallback onSettings;
 
@@ -732,8 +743,12 @@ class _LibraryModelCard extends StatelessWidget {
                 IconButton(
                   tooltip: isActive
                       ? l10n.modelLibraryActiveCannotDelete
+                      : hasProjectorDownload
+                      ? l10n.modelSettingsProjectorDownloadPending
                       : l10n.modelManagementDeleteTooltip,
-                  onPressed: isDeleting || isActive ? null : onDelete,
+                  onPressed: isDeleting || isActive || hasProjectorDownload
+                      ? null
+                      : onDelete,
                   icon: isDeleting
                       ? const SizedBox(
                           width: 18,
@@ -844,424 +859,6 @@ class _EmptyState extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _ModelTypeBadge extends StatelessWidget {
-  const _ModelTypeBadge({required this.tooltip, required this.isMultimodal});
-
-  final String tooltip;
-  final bool isMultimodal;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final backgroundColor = isMultimodal
-        ? (theme.brightness == Brightness.light
-              ? const Color(0xFFFCE7F3)
-              : colorScheme.tertiaryContainer)
-        : (theme.brightness == Brightness.light
-              ? const Color(0xFFE7EDFF)
-              : colorScheme.primaryContainer);
-    final foregroundColor = isMultimodal
-        ? (theme.brightness == Brightness.light
-              ? const Color(0xFF9D174D)
-              : colorScheme.onTertiaryContainer)
-        : (theme.brightness == Brightness.light
-              ? const Color(0xFF3730A3)
-              : colorScheme.onPrimaryContainer);
-    final icon = isMultimodal
-        ? Icons.image_search_outlined
-        : Icons.text_fields_rounded;
-
-    return Tooltip(
-      message: tooltip,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(7),
-          child: Icon(icon, size: 16, color: foregroundColor),
-        ),
-      ),
-    );
-  }
-}
-
-class _ModelSettingsSheet extends StatefulWidget {
-  const _ModelSettingsSheet({required this.descriptor});
-
-  final ModelDescriptor descriptor;
-
-  @override
-  State<_ModelSettingsSheet> createState() => _ModelSettingsSheetState();
-}
-
-class _ModelSettingsSheetState extends State<_ModelSettingsSheet> {
-  late final TextEditingController _nameController;
-  late String _lastSyncedModelName;
-
-  @override
-  void initState() {
-    super.initState();
-    _lastSyncedModelName = widget.descriptor.modelName;
-    _nameController = TextEditingController(text: widget.descriptor.modelName);
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _renameModel(
-    BuildContext context,
-    ModelDescriptor descriptor,
-  ) async {
-    final nextName = _nameController.text.trim();
-    if (nextName.isEmpty || nextName == descriptor.modelName) {
-      return;
-    }
-
-    FocusScope.of(context).unfocus();
-    final message = await context.read<ModelManagementProvider>().renameModel(
-      descriptor.id,
-      nextName,
-    );
-    if (!context.mounted || message == null || message.isEmpty) {
-      return;
-    }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  Future<void> _importMmproj(
-    BuildContext context,
-    ModelDescriptor descriptor,
-  ) async {
-    final message = await context.read<ModelManagementProvider>().importMmproj(
-      descriptor.id,
-    );
-    if (!context.mounted || message == null || message.isEmpty) {
-      return;
-    }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  Future<void> _removeMmproj(
-    BuildContext context,
-    ModelDescriptor descriptor,
-  ) async {
-    final l10n = context.l10n;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(l10n.modelSettingsRemoveMmproj),
-          content: Text(
-            l10n.modelSettingsRemoveMmprojConfirm(descriptor.modelName),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: Text(l10n.commonCancel),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: Text(l10n.commonDelete),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed != true || !context.mounted) {
-      return;
-    }
-
-    final message = await context.read<ModelManagementProvider>().removeMmproj(
-      descriptor.id,
-    );
-    if (!context.mounted || message == null || message.isEmpty) {
-      return;
-    }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  void _syncNameDraft(ModelDescriptor descriptor) {
-    if (descriptor.modelName == _lastSyncedModelName) {
-      return;
-    }
-
-    final hasUserEdited =
-        _nameController.text.trim() != _lastSyncedModelName.trim();
-    _lastSyncedModelName = descriptor.modelName;
-    if (hasUserEdited) {
-      return;
-    }
-
-    _nameController.value = TextEditingValue(
-      text: descriptor.modelName,
-      selection: TextSelection.collapsed(offset: descriptor.modelName.length),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<ModelManagementProvider>(
-      builder: (context, provider, _) {
-        final descriptor =
-            _findDescriptorById(provider.models, widget.descriptor.id) ??
-            widget.descriptor;
-        _syncNameDraft(descriptor);
-
-        final theme = Theme.of(context);
-        final colorScheme = theme.colorScheme;
-        final l10n = context.l10n;
-        final draftName = _nameController.text.trim();
-        final isRenamingThisModel = provider.renamingModelId == descriptor.id;
-        final isImportingMmproj =
-            provider.importingMmprojModelId == descriptor.id;
-        final isLight = theme.brightness == Brightness.light;
-        final canSaveName =
-            draftName.isNotEmpty &&
-            draftName != descriptor.modelName &&
-            !isRenamingThisModel;
-
-        return SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              20,
-              8,
-              20,
-              28 + MediaQuery.of(context).viewInsets.bottom,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        descriptor.modelName,
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    _ModelTypeBadge(
-                      tooltip: descriptor.mmprojFilePath != null
-                          ? l10n.modelMmprojBadgeLabel
-                          : l10n.modelTextBadgeLabel,
-                      isMultimodal: descriptor.mmprojFilePath != null,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 22),
-                Text(
-                  l10n.modelSettingsNameLabel,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: colorScheme.onSurface.withAlpha(220),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  key: const Key('model_settings_name_field'),
-                  controller: _nameController,
-                  textInputAction: TextInputAction.done,
-                  onChanged: (_) => setState(() {}),
-                  onSubmitted: (_) {
-                    if (canSaveName) {
-                      _renameModel(context, descriptor);
-                    }
-                  },
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: isLight
-                        ? const Color(0xFFF5F6F8)
-                        : colorScheme.surfaceContainerHighest.withAlpha(90),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(color: colorScheme.primary),
-                    ),
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: FilledButton.icon(
-                    key: const Key('model_settings_save_name_button'),
-                    onPressed: canSaveName
-                        ? () => _renameModel(context, descriptor)
-                        : null,
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      minimumSize: const Size(0, 0),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      backgroundColor: canSaveName
-                          ? colorScheme.primary
-                          : (isLight
-                                ? const Color(0xFFF0F0F0)
-                                : colorScheme.surfaceContainerHighest),
-                      foregroundColor: canSaveName
-                          ? colorScheme.onPrimary
-                          : (isLight
-                                ? const Color(0xFFA0A0A0)
-                                : colorScheme.onSurfaceVariant),
-                    ),
-                    icon: isRenamingThisModel
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.save_outlined, size: 16),
-                    label: Text(l10n.commonSave),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Text(
-                  l10n.modelSettingsMmprojLabel,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: colorScheme.onSurface.withAlpha(220),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                if (descriptor.mmprojFilePath case final mmprojPath?)
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: isLight
-                          ? const Color(0xFFF5F6F8)
-                          : colorScheme.surfaceContainerHighest.withAlpha(86),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: isLight
-                                  ? const Color(0xFFFCE7F3)
-                                  : colorScheme.tertiaryContainer.withAlpha(
-                                      150,
-                                    ),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              Icons.perm_media_outlined,
-                              size: 18,
-                              color: isLight
-                                  ? const Color(0xFF9D174D)
-                                  : colorScheme.onTertiaryContainer,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              _fileNameFromPath(mmprojPath),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodyLarge?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          IconButton(
-                            key: const Key(
-                              'model_settings_remove_mmproj_button',
-                            ),
-                            onPressed: isImportingMmproj
-                                ? null
-                                : () => _removeMmproj(context, descriptor),
-                            style: IconButton.styleFrom(
-                              foregroundColor: isLight
-                                  ? const Color(0xFFDC2626)
-                                  : colorScheme.error,
-                              backgroundColor: isLight
-                                  ? const Color(0xFFFEE2E2)
-                                  : colorScheme.errorContainer,
-                              minimumSize: const Size(38, 38),
-                              padding: const EdgeInsets.all(10),
-                            ),
-                            icon: const Icon(
-                              Icons.delete_outline_rounded,
-                              size: 18,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                else
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: FilledButton.tonalIcon(
-                      key: const Key('model_settings_import_mmproj_button'),
-                      onPressed: isImportingMmproj
-                          ? null
-                          : () => _importMmproj(context, descriptor),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      icon: isImportingMmproj
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.upload_file_outlined),
-                      label: Text(l10n.modelSettingsImportMmproj),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }
@@ -1457,25 +1054,4 @@ class _MnnModelSettingsSheetState extends State<_MnnModelSettingsSheet> {
       },
     );
   }
-}
-
-ModelDescriptor? _findDescriptorById(
-  List<ModelDescriptor> models,
-  String descriptorId,
-) {
-  for (final model in models) {
-    if (model.id == descriptorId) {
-      return model;
-    }
-  }
-  return null;
-}
-
-String _fileNameFromPath(String path) {
-  final separator = Platform.pathSeparator;
-  final normalized = path
-      .replaceAll('/', separator)
-      .replaceAll('\\', separator);
-  final segments = normalized.split(separator);
-  return segments.isEmpty ? path : segments.last;
 }

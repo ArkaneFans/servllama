@@ -134,6 +134,12 @@ abstract class AppLocalizations {
   /// **'Save'**
   String get commonSave;
 
+  /// No description provided for @commonDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get commonDone;
+
   /// No description provided for @commonDelete.
   ///
   /// In en, this message translates to:
@@ -1199,6 +1205,18 @@ abstract class AppLocalizations {
   /// **'Import mmproj file'**
   String get modelSettingsImportMmproj;
 
+  /// No description provided for @modelSettingsDownloadMmproj.
+  ///
+  /// In en, this message translates to:
+  /// **'Download mmproj'**
+  String get modelSettingsDownloadMmproj;
+
+  /// No description provided for @modelSettingsReplaceMmproj.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace mmproj'**
+  String get modelSettingsReplaceMmproj;
+
   /// No description provided for @modelSettingsRemoveMmproj.
   ///
   /// In en, this message translates to:
@@ -1286,7 +1304,7 @@ abstract class AppLocalizations {
   /// No description provided for @modelErrorUnsupportedMmprojFile.
   ///
   /// In en, this message translates to:
-  /// **'Only .gguf files starting with mmproj are supported.'**
+  /// **'Only .gguf files whose names contain mmproj are supported.'**
   String get modelErrorUnsupportedMmprojFile;
 
   /// No description provided for @modelErrorMmprojSameAsModelFile.
@@ -1888,6 +1906,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Download'**
   String get repoDownloadAction;
+
+  /// No description provided for @repoVisionOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Vision · On'**
+  String get repoVisionOn;
+
+  /// No description provided for @repoVisionOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Vision · Off'**
+  String get repoVisionOff;
+
+  /// No description provided for @repoVisionSheetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Vision'**
+  String get repoVisionSheetTitle;
+
+  /// No description provided for @repoVisionEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable vision'**
+  String get repoVisionEnable;
+
+  /// No description provided for @repoVisionMmprojSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Vision projector'**
+  String get repoVisionMmprojSection;
+
+  /// No description provided for @repoVisionDownloadHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The selected projector will download with the model.'**
+  String get repoVisionDownloadHint;
+
+  /// No description provided for @repoVisionDownloadDisabledHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Download the text model only. You can add a vision projector in model settings later.'**
+  String get repoVisionDownloadDisabledHint;
+
+  /// No description provided for @modelSettingsVisionDisabledHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Turning vision off keeps your downloaded projectors.'**
+  String get modelSettingsVisionDisabledHint;
+
+  /// No description provided for @modelSettingsVisionNeedsProjector.
+  ///
+  /// In en, this message translates to:
+  /// **'Download and select a projector to enable image input.'**
+  String get modelSettingsVisionNeedsProjector;
+
+  /// No description provided for @modelSettingsProjectorsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep multiple versions and select one to use at a time.'**
+  String get modelSettingsProjectorsHint;
+
+  /// No description provided for @modelSettingsLocalVisionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Import a compatible vision projector to enable image input.'**
+  String get modelSettingsLocalVisionHint;
+
+  /// No description provided for @modelSettingsProjectorDownloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloaded'**
+  String get modelSettingsProjectorDownloaded;
+
+  /// No description provided for @modelSettingsProjectorSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected'**
+  String get modelSettingsProjectorSelected;
+
+  /// No description provided for @modelSettingsProjectorDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete “{fileName}”? If it is selected, another downloaded version will be used. Vision turns off when no versions remain.'**
+  String modelSettingsProjectorDeleteConfirm(String fileName);
+
+  /// No description provided for @modelSettingsOpenRepository.
+  ///
+  /// In en, this message translates to:
+  /// **'Open model repository'**
+  String get modelSettingsOpenRepository;
+
+  /// No description provided for @modelSettingsRepositoryOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the model repository. Please try again.'**
+  String get modelSettingsRepositoryOpenFailed;
+
+  /// No description provided for @modelSettingsVisionUpdateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not update vision settings: {error}'**
+  String modelSettingsVisionUpdateFailed(String error);
+
+  /// No description provided for @modelSettingsProjectorDownloadPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish or cancel projector downloads before renaming or deleting the model.'**
+  String get modelSettingsProjectorDownloadPending;
+
+  /// No description provided for @repoVisionNoMmproj.
+  ///
+  /// In en, this message translates to:
+  /// **'This repository has no mmproj files.'**
+  String get repoVisionNoMmproj;
 
   /// No description provided for @repoEstimatedMemory.
   ///

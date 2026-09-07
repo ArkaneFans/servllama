@@ -362,6 +362,19 @@ class ModelDiscoveryProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Loads a repository listing without replacing the discovery page's
+  /// currently opened repo. Used when the model library fetches mmproj files
+  /// for an already-imported GGUF.
+  Future<HubRepoDetail> fetchRepoDetail({
+    required String repoId,
+    required ModelHubSource source,
+    required InferenceEngine engine,
+  }) async {
+    return (await _clientFor(
+      source,
+    )).fetchRepo(repoId, expectedFormat: HubModelFormat.fromEngine(engine));
+  }
+
   Future<ModelHubClient> _clientFor(ModelHubSource source) async {
     _settings = await _settingsStore.load();
     switch (source) {

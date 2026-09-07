@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:servllama/core/models/inference_engine.dart';
 import 'package:servllama/features/downloads/models/model_hub.dart';
 import 'package:servllama/features/downloads/providers/model_discovery_provider.dart';
 import 'package:servllama/features/downloads/services/device_capability_service.dart';
@@ -379,6 +380,55 @@ void main() {
       expect(provider.isSearching, isFalse);
     });
 
+    test('fetchRepoDetail does not replace an already opened repo', () async {
+      final opened = HubRepoDetail(
+        summary: _summary(
+          source: ModelHubSource.huggingFace,
+          format: HubModelFormat.gguf,
+          repoId: 'owner/open',
+        ),
+        files: const <HubRepoFile>[
+          HubRepoFile(path: 'open.gguf', sizeBytes: 10),
+        ],
+      );
+      final fetched = HubRepoDetail(
+        summary: _summary(
+          source: ModelHubSource.huggingFace,
+          format: HubModelFormat.gguf,
+          repoId: 'owner/other',
+        ),
+        files: const <HubRepoFile>[
+          HubRepoFile(path: 'other.gguf', sizeBytes: 20),
+        ],
+      );
+      final provider = ModelDiscoveryProvider(
+        settingsStore: _MemoryDownloadSettingsStore(),
+        huggingFaceClient: _FakeHubClient(
+          source: ModelHubSource.huggingFace,
+          onSearch: (_, _, _, sort) async =>
+              const HubSearchPage(items: <HubRepoSummary>[]),
+          onFetch: (repoId, _) async =>
+              repoId == 'owner/open' ? opened : fetched,
+        ),
+        modelScopeClient: _emptyModelScopeClient(),
+      );
+      addTearDown(provider.dispose);
+
+      await provider.openRepo('owner/open', engine: InferenceEngine.llamaCpp);
+      expect(provider.repoDetail!.summary.repoId, 'owner/open');
+      expect(provider.isLoadingRepo, isFalse);
+
+      final detail = await provider.fetchRepoDetail(
+        repoId: 'owner/other',
+        source: ModelHubSource.huggingFace,
+        engine: InferenceEngine.llamaCpp,
+      );
+
+      expect(detail.summary.repoId, 'owner/other');
+      expect(provider.repoDetail!.summary.repoId, 'owner/open');
+      expect(provider.isLoadingRepo, isFalse);
+    });
+
     test('uses explicit format instead of guessing from repository name', () {
       const namedMnnButGguf = HubRepoSummary(
         source: ModelHubSource.modelScope,
@@ -422,7 +472,8 @@ HubRepoSummary _summary({
 
 _FakeHubClient _emptyModelScopeClient() => _FakeHubClient(
   source: ModelHubSource.modelScope,
-  onSearch: (_, _, _, sort) async => const HubSearchPage(items: <HubRepoSummary>[]),
+  onSearch: (_, _, _, sort) async =>
+      const HubSearchPage(items: <HubRepoSummary>[]),
 );
 
 class _SearchCall {
@@ -459,6 +510,7 @@ class _FakeHubClient implements ModelHubClient {
   _FakeHubClient({
     required this.source,
     required this.onSearch,
+    this.onFetch,
     Set<HubModelFormat>? searchableFormats,
   }) : searchableFormats =
            searchableFormats ??
@@ -478,6 +530,11 @@ class _FakeHubClient implements ModelHubClient {
     HubSearchSort sort,
   )
   onSearch;
+  final Future<HubRepoDetail> Function(
+    String repoId,
+    HubModelFormat? expectedFormat,
+  )?
+  onFetch;
 
   @override
   final Set<HubModelFormat> searchableFormats;
@@ -492,7 +549,13 @@ class _FakeHubClient implements ModelHubClient {
   Future<HubRepoDetail> fetchRepo(
     String repoId, {
     HubModelFormat? expectedFormat,
-  }) => throw UnimplementedError();
+  }) {
+    final fetch = onFetch;
+    if (fetch == null) {
+      throw UnimplementedError();
+    }
+    return fetch(repoId, expectedFormat);
+  }
 
   @override
   Future<HubSearchPage> search(
