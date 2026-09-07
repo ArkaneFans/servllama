@@ -15,6 +15,8 @@ class ModelDescriptor {
     this.sourceValue,
     this.repoId,
     this.revision,
+    this.visionEnabled,
+    this.mmprojFiles = const <String, String>{},
   });
 
   @HiveField(0)
@@ -49,6 +51,29 @@ class ModelDescriptor {
   @HiveField(9)
   final String? revision;
 
+  /// Null on older records: preserve their behavior by using an attached
+  /// projector when present. Turning vision off never deletes its files.
+  @HiveField(10)
+  final bool? visionEnabled;
+
+  /// Repository-relative projector paths mapped to their installed files.
+  /// Older records and local imports may only have [mmprojFilePath].
+  @HiveField(11, defaultValue: <String, String>{})
+  final Map<String, String> mmprojFiles;
+
+  bool get isVisionEnabled => visionEnabled ?? mmprojFilePath != null;
+
+  String? get activeMmprojFilePath => isVisionEnabled ? mmprojFilePath : null;
+
+  Map<String, String> get availableMmprojs {
+    final files = <String, String>{...mmprojFiles};
+    final selected = mmprojFilePath;
+    if (selected != null && !files.containsValue(selected)) {
+      files[selected.split(RegExp(r'[\\/]')).last] = selected;
+    }
+    return Map<String, String>.unmodifiable(files);
+  }
+
   /// Downloaded models remember the hub repo; older records and local imports
   /// do not, and cannot fetch a replacement mmproj online.
   bool get hasHubSource {
@@ -73,6 +98,8 @@ class ModelDescriptor {
     Object? sourceValue = _unset,
     Object? repoId = _unset,
     Object? revision = _unset,
+    bool? visionEnabled,
+    Map<String, String>? mmprojFiles,
   }) {
     final nextMmproj = identical(mmprojFilePath, _unset)
         ? this.mmprojFilePath
@@ -97,6 +124,8 @@ class ModelDescriptor {
       sourceValue: nextSource,
       repoId: nextRepoId,
       revision: nextRevision,
+      visionEnabled: visionEnabled ?? this.visionEnabled,
+      mmprojFiles: mmprojFiles ?? this.mmprojFiles,
     );
   }
 }

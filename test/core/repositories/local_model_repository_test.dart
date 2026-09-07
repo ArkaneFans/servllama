@@ -412,7 +412,7 @@ void main() {
     });
 
     test(
-      'adoptDownloadedMmproj replaces the projector and keeps hub source',
+      'adoptDownloadedMmproj selects the download and keeps other versions',
       () async {
         final modelFile = await _createSourceFile(
           sourceDirectory,
@@ -458,11 +458,88 @@ void main() {
         expect(
           updated.mmprojFilePath,
           endsWith(
-            '${LocalModelRepository.modelsFolderName}${Platform.pathSeparator}vision${Platform.pathSeparator}Qwen3.5-0.8B-mmproj-f16.gguf',
+            '${LocalModelRepository.modelsFolderName}${Platform.pathSeparator}vision${Platform.pathSeparator}projectors${Platform.pathSeparator}Qwen3.5-0.8B-mmproj-f16.gguf',
           ),
         );
         expect(await File(updated.mmprojFilePath!).exists(), isTrue);
-        expect(await File(previousPath).exists(), isFalse);
+        expect(await File(previousPath).exists(), isTrue);
+        expect(updated.availableMmprojs, hasLength(2));
+      },
+    );
+    test(
+      'projector versions survive concurrent downloads, reload and rename',
+      () async {
+        final model = await repository.adoptDownloadedModel(
+          modelName: 'vision',
+          modelFile: await _createSourceFile(sourceDirectory, 'vision.gguf'),
+          sourceValue: 'huggingface',
+          repoId: 'owner/vision',
+        );
+        final secondRepository = LocalModelRepository(
+          appSupportDirectory: appSupportDirectory,
+        );
+        final first = await _createSourceFile(
+          sourceDirectory,
+          'mmproj-f16.gguf',
+          content: 'f16',
+        );
+        final second = await _createSourceFile(
+          sourceDirectory,
+          'mmproj-f32.gguf',
+          content: 'f32',
+        );
+        await Future.wait([
+          repository.adoptDownloadedMmproj(
+            modelId: model.id,
+            mmprojFile: first,
+            remotePath: 'f16/mmproj.gguf',
+          ),
+          secondRepository.adoptDownloadedMmproj(
+            modelId: model.id,
+            mmprojFile: second,
+            remotePath: 'f32/mmproj.gguf',
+          ),
+        ]);
+        var installed = (await repository.listModels()).single;
+        expect(installed.availableMmprojs, hasLength(2));
+        expect(
+          await File(installed.mmprojFiles['f16/mmproj.gguf']!).readAsString(),
+          'f16',
+        );
+        expect(
+          await File(installed.mmprojFiles['f32/mmproj.gguf']!).readAsString(),
+          'f32',
+        );
+
+        await repository.setVisionEnabled(model.id, false);
+        await Hive.close();
+        repository = LocalModelRepository(
+          appSupportDirectory: appSupportDirectory,
+        );
+        installed = (await repository.listModels()).single;
+        expect(installed.isVisionEnabled, isFalse);
+        expect(installed.activeMmprojFilePath, isNull);
+        expect(installed.mmprojFilePath, isNotNull);
+
+        installed = await repository.renameModel(model.id, 'renamed');
+        final firstPath = installed.mmprojFiles['f16/mmproj.gguf']!;
+        final secondPath = installed.mmprojFiles['f32/mmproj.gguf']!;
+        expect(firstPath, startsWith(installed.storedDirectoryPath));
+        expect(secondPath, startsWith(installed.storedDirectoryPath));
+        expect(await File(firstPath).readAsString(), 'f16');
+        expect(await File(secondPath).readAsString(), 'f32');
+        await repository.selectMmproj(model.id, firstPath);
+        installed = await repository.setVisionEnabled(model.id, true);
+        expect(installed.activeMmprojFilePath, firstPath);
+
+        installed = await repository.removeMmprojFile(model.id, firstPath);
+        expect(installed.activeMmprojFilePath, secondPath);
+        expect(await File(firstPath).exists(), isFalse);
+        installed = await repository.removeMmprojFile(model.id, secondPath);
+        expect(installed.isVisionEnabled, isFalse);
+        expect(installed.mmprojFilePath, isNull);
+        expect(installed.availableMmprojs, isEmpty);
+        expect(await File(installed.storedFilePath).exists(), isTrue);
       },
     );
   });

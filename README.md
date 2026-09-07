@@ -50,6 +50,8 @@ ServLlama turns your Android device into a self-contained local LLM server, comb
 
 Both engines require a model to be selected before startup. Only one engine runs at a time and owns the configured server port. Both engines expose the core endpoints above; other llama-server-specific features are available only while the llama.cpp engine is active.
 
+Use the Vision control on a GGUF download card to choose whether to download a projector with the model. Model settings let you open the original repository, download or delete projector versions, and select one installed version to use. Turning vision off keeps the files. Deleting the selected version selects another installed version, or turns vision off when none remain. Locally imported models support importing a compatible projector and toggling vision separately.
+
 ## Requirements
 
 - Android 9 (API 28) or later

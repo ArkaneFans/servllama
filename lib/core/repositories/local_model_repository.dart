@@ -32,7 +32,22 @@ class LocalModelRepository {
   String? _initializedHivePath;
   final Random _random = Random();
 
-  Future<List<ModelDescriptor>> listModels() async {
+  // Providers own separate repository instances, but share the Hive box.
+  // Serialize projector updates so concurrent downloads cannot lose entries.
+  static Future<void> _projectorOperations = Future<void>.value();
+
+  Future<T> _withProjectorLock<T>(Future<T> Function() operation) {
+    final result = _projectorOperations.then((_) => operation());
+    _projectorOperations = result.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return result;
+  }
+
+  Future<List<ModelDescriptor>> listModels() => _withProjectorLock(_listModels);
+
+  Future<List<ModelDescriptor>> _listModels() async {
     final box = await _box();
     final descriptors = box.values.toList(growable: false);
     final staleIds = <String>[];
@@ -50,14 +65,29 @@ class LocalModelRepository {
         continue;
       }
 
-      if (descriptor.mmprojFilePath != null) {
-        final mmprojFile = File(descriptor.mmprojFilePath!);
-        if (!await mmprojFile.exists()) {
-          final patched = descriptor.copyWith(mmprojFilePath: null);
-          await box.put(patched.id, patched);
-          validModels.add(patched);
-          continue;
+      final projectors = descriptor.availableMmprojs;
+      final existingProjectors = <String, String>{};
+      for (final entry in projectors.entries) {
+        if (await File(entry.value).exists()) {
+          existingProjectors[entry.key] = entry.value;
         }
+      }
+      if (existingProjectors.length != projectors.length) {
+        final selected =
+            existingProjectors.containsValue(descriptor.mmprojFilePath)
+            ? descriptor.mmprojFilePath
+            : (existingProjectors.isEmpty
+                  ? null
+                  : existingProjectors.values.first);
+        final patched = descriptor.copyWith(
+          mmprojFilePath: selected,
+          mmprojFiles: existingProjectors,
+          visionEnabled:
+              existingProjectors.isNotEmpty && descriptor.isVisionEnabled,
+        );
+        await box.put(patched.id, patched);
+        validModels.add(patched);
+        continue;
       }
 
       validModels.add(descriptor);
@@ -145,7 +175,7 @@ class LocalModelRepository {
   Future<ModelDescriptor> importMmproj(
     String modelId,
     PickedGgufFile pickedFile,
-  ) async {
+  ) => _withProjectorLock(() async {
     final box = await _box();
     final descriptor = box.get(modelId);
     if (descriptor == null) {
@@ -176,25 +206,23 @@ class LocalModelRepository {
       );
     }
 
-    final existingMmprojPath = descriptor.mmprojFilePath;
-    if (existingMmprojPath != null &&
-        !_sameFilePath(existingMmprojPath, mmprojDestPath)) {
-      final existingMmprojFile = File(existingMmprojPath);
-      if (await existingMmprojFile.exists()) {
-        await existingMmprojFile.delete();
-      }
-    }
-
-    final destinationFile = File(mmprojDestPath);
-    if (await destinationFile.exists()) {
-      await destinationFile.delete();
-    }
-
-    final copiedFile = await sourceFile.copy(mmprojDestPath);
-    final updated = descriptor.copyWith(mmprojFilePath: copiedFile.path);
+    final copiedFile = _sameFilePath(sourceFile.path, mmprojDestPath)
+        ? sourceFile
+        : await sourceFile.copy(mmprojDestPath);
+    final updated = descriptor.copyWith(
+      mmprojFilePath: copiedFile.path,
+      visionEnabled: true,
+    );
     await box.put(descriptor.id, updated);
+    final previous = descriptor.mmprojFilePath;
+    if (previous != null &&
+        !descriptor.mmprojFiles.containsValue(previous) &&
+        !_sameFilePath(previous, copiedFile.path) &&
+        await File(previous).exists()) {
+      await File(previous).delete();
+    }
     return updated;
-  }
+  });
 
   Future<ModelDescriptor> removeMmproj(String modelId) async {
     final box = await _box();
@@ -205,20 +233,78 @@ class LocalModelRepository {
       );
     }
 
-    final currentPath = descriptor.mmprojFilePath;
-    if (currentPath != null) {
-      final file = File(currentPath);
-      if (await file.exists()) {
-        await file.delete();
-      }
+    final selected = descriptor.mmprojFilePath;
+    if (selected == null) {
+      return descriptor;
     }
-
-    final updated = descriptor.copyWith(mmprojFilePath: null);
-    await box.put(descriptor.id, updated);
-    return updated;
+    return removeMmprojFile(modelId, selected);
   }
 
-  Future<ModelDescriptor> renameModel(String modelId, String newName) async {
+  Future<ModelDescriptor> setVisionEnabled(String modelId, bool enabled) =>
+      _withProjectorLock(() async {
+        final box = await _box();
+        final descriptor = _requireModel(box, modelId);
+        final updated = descriptor.copyWith(visionEnabled: enabled);
+        await box.put(descriptor.id, updated);
+        return updated;
+      });
+
+  Future<ModelDescriptor> selectMmproj(String modelId, String filePath) =>
+      _withProjectorLock(() async {
+        final box = await _box();
+        final descriptor = _requireModel(box, modelId);
+        if (!descriptor.availableMmprojs.containsValue(filePath) ||
+            !await File(filePath).exists()) {
+          throw const ModelOperationException(
+            ModelOperationErrorCode.selectedMmprojFileMissing,
+          );
+        }
+        final updated = descriptor.copyWith(mmprojFilePath: filePath);
+        await box.put(modelId, updated);
+        return updated;
+      });
+
+  Future<ModelDescriptor> removeMmprojFile(String modelId, String filePath) =>
+      _withProjectorLock(() async {
+        final box = await _box();
+        final descriptor = _requireModel(box, modelId);
+        final files = Map<String, String>.from(descriptor.availableMmprojs);
+        if (!files.containsValue(filePath)) {
+          throw const ModelOperationException(
+            ModelOperationErrorCode.selectedMmprojFileMissing,
+          );
+        }
+        final file = File(filePath);
+        if (await file.exists()) {
+          await file.delete();
+        }
+        files.removeWhere((_, path) => path == filePath);
+        final selected = files.containsValue(descriptor.mmprojFilePath)
+            ? descriptor.mmprojFilePath
+            : (files.isEmpty ? null : files.values.first);
+        final updated = descriptor.copyWith(
+          mmprojFilePath: selected,
+          mmprojFiles: files,
+          visionEnabled: files.isNotEmpty && descriptor.isVisionEnabled,
+        );
+        await box.put(modelId, updated);
+        return updated;
+      });
+
+  ModelDescriptor _requireModel(Box<ModelDescriptor> box, String modelId) {
+    final model = box.get(modelId);
+    if (model == null) {
+      throw const ModelOperationException(
+        ModelOperationErrorCode.modelNotFound,
+      );
+    }
+    return model;
+  }
+
+  Future<ModelDescriptor> renameModel(
+    String modelId,
+    String newName,
+  ) => _withProjectorLock(() async {
     final box = await _box();
     final descriptor = box.get(modelId);
     if (descriptor == null) {
@@ -235,7 +321,7 @@ class LocalModelRepository {
     }
     _validateModelName(trimmed);
 
-    final allModels = await listModels();
+    final allModels = await _listModels();
     final hasDuplicate = allModels.any(
       (m) =>
           m.id != modelId &&
@@ -263,19 +349,20 @@ class LocalModelRepository {
         .split(Platform.pathSeparator)
         .last;
     final newStoredFilePath = _joinPath(newDir.path, oldFileName);
-    String? newMmprojPath;
-    if (descriptor.mmprojFilePath != null) {
-      final mmprojFileName = descriptor.mmprojFilePath!
-          .split(Platform.pathSeparator)
-          .last;
-      newMmprojPath = _joinPath(newDir.path, mmprojFileName);
-    }
+    String relocatedPath(String path) =>
+        '${newDir.path}${path.substring(oldDir.path.length)}';
 
     final updated = descriptor.copyWith(
       modelName: trimmed,
       storedDirectoryPath: newDir.path,
       storedFilePath: newStoredFilePath,
-      mmprojFilePath: newMmprojPath,
+      mmprojFilePath: descriptor.mmprojFilePath == null
+          ? null
+          : relocatedPath(descriptor.mmprojFilePath!),
+      mmprojFiles: descriptor.mmprojFiles.map(
+        (remotePath, localPath) =>
+            MapEntry(remotePath, relocatedPath(localPath)),
+      ),
     );
     try {
       await box.put(descriptor.id, updated);
@@ -288,7 +375,7 @@ class LocalModelRepository {
       rethrow;
     }
     return updated;
-  }
+  });
 
   /// Registers an already-downloaded GGUF file by *moving* it into the models
   /// directory. Import copies, which would mean writing a second multi-GB copy
@@ -298,6 +385,7 @@ class LocalModelRepository {
     required String modelName,
     required File modelFile,
     File? mmprojFile,
+    String? mmprojRemotePath,
     String? sourceValue,
     String? repoId,
     String? revision,
@@ -355,6 +443,10 @@ class LocalModelRepository {
         storedFilePath: stored.path,
         importedAt: DateTime.now(),
         mmprojFilePath: storedMmprojPath,
+        mmprojFiles: <String, String>{
+          if (storedMmprojPath != null)
+            mmprojRemotePath ?? _fileName(storedMmprojPath): storedMmprojPath,
+        },
         sourceValue: sourceValue,
         repoId: repoId,
         revision: revision,
@@ -369,12 +461,13 @@ class LocalModelRepository {
     }
   }
 
-  /// Moves a downloaded mmproj into an existing model directory, replacing
-  /// any projector already attached. Hub source metadata is left unchanged.
+  /// Adds and selects a downloaded projector without deleting other versions.
+  /// An explicit vision-off preference is preserved if changed during download.
   Future<ModelDescriptor> adoptDownloadedMmproj({
     required String modelId,
     required File mmprojFile,
-  }) async {
+    String? remotePath,
+  }) => _withProjectorLock(() async {
     final box = await _box();
     final descriptor = box.get(modelId);
     if (descriptor == null) {
@@ -396,40 +489,49 @@ class LocalModelRepository {
       );
     }
 
-    final mmprojDestPath = _joinPath(
-      descriptor.storedDirectoryPath,
-      mmprojName,
-    );
+    final key = remotePath ?? mmprojName;
+    final segments = key.split(RegExp(r'[\\/]'));
+    if (segments.any(
+      (part) =>
+          part.isEmpty ||
+          part == '.' ||
+          part == '..' ||
+          RegExp(r'[:\x00-\x1F]').hasMatch(part),
+    )) {
+      throw const ModelOperationException(
+        ModelOperationErrorCode.unsupportedMmprojFile,
+      );
+    }
+    final files = Map<String, String>.from(descriptor.availableMmprojs);
+    final mmprojDestPath =
+        files[key] ??
+        _joinPath(
+          _joinPath(descriptor.storedDirectoryPath, 'projectors'),
+          segments.join(Platform.pathSeparator),
+        );
     if (_sameFilePath(mmprojDestPath, descriptor.storedFilePath)) {
       throw const ModelOperationException(
         ModelOperationErrorCode.mmprojSameAsModelFile,
       );
     }
 
-    final existingMmprojPath = descriptor.mmprojFilePath;
-    if (existingMmprojPath != null &&
-        !_sameFilePath(existingMmprojPath, mmprojDestPath)) {
-      final existingMmprojFile = File(existingMmprojPath);
-      if (await existingMmprojFile.exists()) {
-        await existingMmprojFile.delete();
-      }
-    }
-
     final destinationFile = File(mmprojDestPath);
-    if (await destinationFile.exists() &&
-        !_sameFilePath(destinationFile.path, mmprojFile.path)) {
-      await destinationFile.delete();
-    }
-
-    final stored = await _moveInto(
-      mmprojFile,
-      descriptor.storedDirectoryPath,
-      mmprojName,
+    await destinationFile.parent.create(recursive: true);
+    final stored = _sameFilePath(mmprojFile.path, mmprojDestPath)
+        ? mmprojFile
+        : await _moveInto(
+            mmprojFile,
+            destinationFile.parent.path,
+            _fileName(mmprojDestPath),
+          );
+    files[key] = stored.path;
+    final updated = descriptor.copyWith(
+      mmprojFilePath: stored.path,
+      mmprojFiles: files,
     );
-    final updated = descriptor.copyWith(mmprojFilePath: stored.path);
     await box.put(descriptor.id, updated);
     return updated;
-  }
+  });
 
   Future<bool> isModelDirectoryOccupied(
     String modelName, {

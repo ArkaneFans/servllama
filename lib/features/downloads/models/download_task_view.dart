@@ -58,6 +58,20 @@ class DownloadTaskView {
   bool get wasAutoRenamed => requestedModelName != modelName;
   String get repoId => record.repoId;
   String? get quantLabel => record.quantLabel;
+  String? get targetModelId => record.targetModelId;
+
+  List<HubRepoFile> get files => record.files
+      .map(
+        (file) => HubRepoFile(
+          path: file.remotePath,
+          sizeBytes: file.totalBytes,
+          sha256: file.sha256,
+        ),
+      )
+      .toList(growable: false);
+
+  bool containsFile(String remotePath) =>
+      record.files.any((file) => file.remotePath == remotePath);
 
   InferenceEngine get engine =>
       InferenceEngine.fromStorageValue(record.engineValue);

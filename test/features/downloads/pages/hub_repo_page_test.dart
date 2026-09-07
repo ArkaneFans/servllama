@@ -298,6 +298,7 @@ class _FakeLocalModelRepository extends LocalModelRepository {
     required String modelName,
     required File modelFile,
     File? mmprojFile,
+    String? mmprojRemotePath,
     String? sourceValue,
     String? repoId,
     String? revision,
@@ -320,6 +321,7 @@ class _FakeLocalModelRepository extends LocalModelRepository {
   Future<ModelDescriptor> adoptDownloadedMmproj({
     required String modelId,
     required File mmprojFile,
+    String? remotePath,
   }) async {
     return ModelDescriptor(
       id: modelId,

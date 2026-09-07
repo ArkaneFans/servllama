@@ -25,7 +25,6 @@ import 'package:servllama/features/downloads/services/download_settings_store.da
 import 'package:servllama/features/downloads/services/model_catalog_service.dart';
 import 'package:servllama/features/downloads/services/model_download_service.dart';
 import 'package:servllama/features/downloads/services/model_hub_client.dart';
-import 'package:servllama/features/downloads/widgets/mmproj_picker_sheet.dart';
 import 'package:servllama/features/server/pages/model_management_page.dart';
 
 import '../../../support/stub_engine_adapter.dart';
@@ -421,50 +420,55 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.byKey(const Key('model_settings_download_mmproj_button')),
+        find.byKey(const Key('model_settings_open_repository_button')),
         findsNothing,
       );
       expect(
-        find.byKey(const Key('model_settings_replace_mmproj_button')),
-        findsNothing,
-      );
-    });
-
-    testWidgets('shows download mmproj when a hub source is recorded', (
-      tester,
-    ) async {
-      final provider = ModelManagementProvider(
-        repository: FakeLocalModelRepository(
-          initialModels: <ModelDescriptor>[
-            _descriptor(
-              id: 'm1',
-              modelName: 'qwen',
-              sourceValue: 'huggingface',
-              repoId: 'owner/qwen',
-              revision: 'main',
-            ),
-          ],
-        ),
-        filePicker: FakeGgufFilePicker(),
-        logger: AppLogger(),
-      );
-
-      await tester.pumpWidget(_host(provider));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('设置'));
-      await tester.pumpAndSettle();
-
-      expect(
-        find.byKey(const Key('model_settings_download_mmproj_button')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const Key('model_settings_replace_mmproj_button')),
+        find.byKey(const Key('model_settings_vision_switch')),
         findsNothing,
       );
     });
 
-    testWidgets('shows replace mmproj when a hub model already has one', (
+    testWidgets(
+      'shows the repository link while downloaded model vision is off',
+      (tester) async {
+        final provider = ModelManagementProvider(
+          repository: FakeLocalModelRepository(
+            initialModels: <ModelDescriptor>[
+              _descriptor(
+                id: 'm1',
+                modelName: 'qwen',
+                sourceValue: 'huggingface',
+                repoId: 'owner/qwen',
+                revision: 'main',
+              ),
+            ],
+          ),
+          filePicker: FakeGgufFilePicker(),
+          logger: AppLogger(),
+        );
+
+        await tester.pumpWidget(_host(provider));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('设置'));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const Key('model_settings_open_repository_button')),
+          findsOneWidget,
+        );
+        expect(
+          tester
+              .widget<SwitchListTile>(
+                find.byKey(const Key('model_settings_vision_switch')),
+              )
+              .value,
+          isFalse,
+        );
+      },
+    );
+
+    testWidgets('shows the installed projector when hub vision is enabled', (
       tester,
     ) async {
       final provider = ModelManagementProvider(
@@ -490,12 +494,16 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.byKey(const Key('model_settings_replace_mmproj_button')),
+        find.byKey(const Key('model_projector_delete_mmproj-f16.gguf')),
         findsOneWidget,
       );
       expect(
-        find.byKey(const Key('model_settings_download_mmproj_button')),
-        findsNothing,
+        tester
+            .widget<SwitchListTile>(
+              find.byKey(const Key('model_settings_vision_switch')),
+            )
+            .value,
+        isTrue,
       );
     });
 
@@ -537,15 +545,14 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('设置'));
       await tester.pumpAndSettle();
-      await tester.tap(
-        find.byKey(const Key('model_settings_download_mmproj_button')),
-      );
+      await tester.tap(find.byKey(const Key('model_settings_vision_switch')));
       await tester.pumpAndSettle();
 
-      expect(find.byType(MmprojPickerSheet), findsOneWidget);
-      await tester.tap(find.byKey(Key('mmproj_option_${secondMmproj.path}')));
-      await tester.pump();
-      await tester.tap(find.byKey(const Key('mmproj_picker_confirm_button')));
+      final downloadButton = find.byKey(
+        Key('model_projector_download_${secondMmproj.path}'),
+      );
+      await tester.ensureVisible(downloadButton);
+      await tester.tap(downloadButton);
       await _settle(tester);
 
       expect(downloads.calls, hasLength(1));
@@ -616,6 +623,14 @@ class FakeLocalModelRepository extends LocalModelRepository {
   Future<ModelDescriptor> removeMmproj(String modelId) async {
     final index = _models.indexWhere((model) => model.id == modelId);
     final updated = _models[index].copyWith(mmprojFilePath: null);
+    _models[index] = updated;
+    return updated;
+  }
+
+  @override
+  Future<ModelDescriptor> setVisionEnabled(String modelId, bool enabled) async {
+    final index = _models.indexWhere((model) => model.id == modelId);
+    final updated = _models[index].copyWith(visionEnabled: enabled);
     _models[index] = updated;
     return updated;
   }

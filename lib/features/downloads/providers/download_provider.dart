@@ -270,6 +270,7 @@ class DownloadProvider extends ChangeNotifier {
         repoId: repoId,
         revision: revision,
         files: files,
+        targetModelId: targetModelId,
       )) {
         throw const DownloadException(
           DownloadErrorKind.alreadyQueued,
@@ -568,12 +569,14 @@ class DownloadProvider extends ChangeNotifier {
       case InferenceEngine.llamaCpp:
         File? modelFile;
         File? mmprojFile;
+        String? mmprojRemotePath;
         for (final file in record.files) {
           final path =
               '${staging.path}${Platform.pathSeparator}'
               '${file.fileName.replaceAll('/', Platform.pathSeparator)}';
           if (isMmprojFileName(file.fileName)) {
             mmprojFile = File(path);
+            mmprojRemotePath = file.remotePath;
           } else {
             modelFile = File(path);
           }
@@ -585,6 +588,7 @@ class DownloadProvider extends ChangeNotifier {
           await _localModelRepository.adoptDownloadedMmproj(
             modelId: record.targetModelId!.trim(),
             mmprojFile: mmprojFile,
+            remotePath: mmprojRemotePath,
           );
         } else {
           if (modelFile == null) {
@@ -594,6 +598,7 @@ class DownloadProvider extends ChangeNotifier {
             record: record,
             modelFile: modelFile,
             mmprojFile: mmprojFile,
+            mmprojRemotePath: mmprojRemotePath,
           );
         }
       case InferenceEngine.mnn:
@@ -843,6 +848,7 @@ class DownloadProvider extends ChangeNotifier {
     required DownloadTaskRecord record,
     required File modelFile,
     required File? mmprojFile,
+    String? mmprojRemotePath,
   }) async {
     while (true) {
       try {
@@ -850,6 +856,7 @@ class DownloadProvider extends ChangeNotifier {
           modelName: record.modelName,
           modelFile: modelFile,
           mmprojFile: mmprojFile,
+          mmprojRemotePath: mmprojRemotePath,
           sourceValue: record.sourceValue,
           repoId: record.repoId,
           revision: record.revision,
@@ -883,6 +890,7 @@ class DownloadProvider extends ChangeNotifier {
     required String repoId,
     required String revision,
     required List<HubRepoFile> files,
+    String? targetModelId,
   }) {
     final requestedFiles = <String, HubRepoFile>{
       for (final file in files) file.path: file,
@@ -893,6 +901,7 @@ class DownloadProvider extends ChangeNotifier {
         return false;
       }
       return record.engineValue == engine.storageValue &&
+          record.targetModelId == targetModelId?.trim() &&
           record.sourceValue == source.storageValue &&
           record.repoId == repoId &&
           record.revision == revision &&

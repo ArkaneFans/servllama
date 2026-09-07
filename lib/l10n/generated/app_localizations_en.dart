@@ -27,6 +27,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonSave => 'Save';
 
   @override
+  String get commonDone => 'Done';
+
+  @override
   String get commonDelete => 'Delete';
 
   @override
@@ -1049,7 +1052,58 @@ class AppLocalizationsEn extends AppLocalizations {
   String get repoVisionEnable => 'Enable vision';
 
   @override
-  String get repoVisionMmprojSection => 'mmproj version';
+  String get repoVisionMmprojSection => 'Vision projector';
+
+  @override
+  String get repoVisionDownloadHint =>
+      'The selected projector will download with the model.';
+
+  @override
+  String get repoVisionDownloadDisabledHint =>
+      'Download the text model only. You can add a vision projector in model settings later.';
+
+  @override
+  String get modelSettingsVisionDisabledHint =>
+      'Turning vision off keeps your downloaded projectors.';
+
+  @override
+  String get modelSettingsVisionNeedsProjector =>
+      'Download and select a projector to enable image input.';
+
+  @override
+  String get modelSettingsProjectorsHint =>
+      'Keep multiple versions and select one to use at a time.';
+
+  @override
+  String get modelSettingsLocalVisionHint =>
+      'Import a compatible vision projector to enable image input.';
+
+  @override
+  String get modelSettingsProjectorDownloaded => 'Downloaded';
+
+  @override
+  String get modelSettingsProjectorSelected => 'Selected';
+
+  @override
+  String modelSettingsProjectorDeleteConfirm(String fileName) {
+    return 'Delete “$fileName”? If it is selected, another downloaded version will be used. Vision turns off when no versions remain.';
+  }
+
+  @override
+  String get modelSettingsOpenRepository => 'Open model repository';
+
+  @override
+  String get modelSettingsRepositoryOpenFailed =>
+      'Could not open the model repository. Please try again.';
+
+  @override
+  String modelSettingsVisionUpdateFailed(String error) {
+    return 'Could not update vision settings: $error';
+  }
+
+  @override
+  String get modelSettingsProjectorDownloadPending =>
+      'Finish or cancel projector downloads before renaming or deleting the model.';
 
   @override
   String get repoVisionNoMmproj => 'This repository has no mmproj files.';

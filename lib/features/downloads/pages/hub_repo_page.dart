@@ -11,6 +11,7 @@ import 'package:servllama/features/downloads/services/device_capability_service.
 import 'package:servllama/features/downloads/services/model_download_service.dart';
 import 'package:servllama/features/downloads/widgets/download_wifi_only_gate.dart';
 import 'package:servllama/features/downloads/widgets/mmproj_picker_sheet.dart';
+import 'package:servllama/features/downloads/widgets/model_repository_link.dart';
 import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/l10n/runtime_labels.dart';
 import 'package:servllama/shared/widgets/engine_badge.dart';
@@ -141,6 +142,17 @@ class _HubRepoPageState extends State<HubRepoPage> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
+        actions: [
+          IconButton(
+            tooltip: l10n.modelSettingsOpenRepository,
+            icon: const Icon(Icons.open_in_new_rounded),
+            onPressed: () => openModelRepository(
+              context,
+              source: widget.source,
+              repoId: widget.repoId,
+            ),
+          ),
+        ],
       ),
       body: Consumer<ModelDiscoveryProvider>(
         builder: (context, discovery, _) {
@@ -177,6 +189,7 @@ class _HubRepoPageState extends State<HubRepoPage> {
                   discovery: discovery,
                   source: widget.source,
                   visionEnabled: _visionEnabled,
+                  selectedMmproj: _resolvedMmproj(detail),
                   onVisionTap: detail.hasMmproj
                       ? () => _openVisionSheet(detail)
                       : null,
@@ -253,6 +266,7 @@ class _GgufBody extends StatelessWidget {
     required this.discovery,
     required this.source,
     required this.visionEnabled,
+    required this.selectedMmproj,
     required this.onDownload,
     this.onVisionTap,
   });
@@ -261,6 +275,7 @@ class _GgufBody extends StatelessWidget {
   final ModelDiscoveryProvider discovery;
   final ModelHubSource source;
   final bool visionEnabled;
+  final HubRepoFile? selectedMmproj;
   final ValueChanged<HubRepoFile> onDownload;
   final VoidCallback? onVisionTap;
 
@@ -304,6 +319,7 @@ class _GgufBody extends StatelessWidget {
               file: file,
               feasibility: discovery.feasibilityOf(file.path),
               visionEnabled: visionEnabled,
+              selectedMmproj: selectedMmproj,
               onVisionTap: onVisionTap,
               onDownload: () => onDownload(file),
             ),
@@ -405,6 +421,7 @@ class _QuantRow extends StatelessWidget {
     required this.feasibility,
     required this.onDownload,
     this.visionEnabled = false,
+    this.selectedMmproj,
     this.onVisionTap,
   });
 
@@ -412,6 +429,7 @@ class _QuantRow extends StatelessWidget {
   final ModelFeasibility feasibility;
   final VoidCallback onDownload;
   final bool visionEnabled;
+  final HubRepoFile? selectedMmproj;
   final VoidCallback? onVisionTap;
 
   @override
@@ -484,19 +502,44 @@ class _QuantRow extends StatelessWidget {
                         key: Key('quant_vision_button_${file.path}'),
                         onPressed: isBlocked ? null : onVisionTap,
                         style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          minimumSize: const Size(0, 36),
                           visualDensity: VisualDensity.compact,
                           alignment: Alignment.centerLeft,
-                          foregroundColor: colorScheme.primary,
+                          foregroundColor: colorScheme.onSurfaceVariant,
+                          backgroundColor: colorScheme.surfaceContainerHighest
+                              .withAlpha(120),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
-                        child: Text(
-                          visionEnabled
-                              ? l10n.repoVisionOn
-                              : l10n.repoVisionOff,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.visibility_outlined, size: 17),
+                            const SizedBox(width: 6),
+                            Text(
+                              visionEnabled
+                                  ? l10n.repoVisionOn
+                                  : l10n.repoVisionOff,
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.chevron_right_rounded, size: 18),
+                          ],
                         ),
                       ),
+                      if (visionEnabled && selectedMmproj != null)
+                        Text(
+                          '${selectedMmproj!.fileName} · ${FormatUtils.bytes(selectedMmproj!.sizeBytes)}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
                     ],
                   ],
                 ),

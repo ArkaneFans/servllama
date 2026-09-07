@@ -74,7 +74,7 @@ class LlamaCppEngineAdapter implements InferenceEngineAdapter {
           settings,
           modelPath: model.storedFilePath,
           modelAlias: model.modelName,
-          mmprojPath: model.mmprojFilePath,
+          mmprojPath: model.activeMmprojFilePath,
         ),
       );
       _throwIfCancelled();

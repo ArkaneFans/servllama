@@ -103,7 +103,7 @@ class DownloadTaskRecord {
   @HiveField(13)
   String requestedModelName;
 
-  /// When set, this task replaces the mmproj of an already-imported GGUF
+  /// When set, this task adds a projector to an already-imported GGUF
   /// instead of creating a new library entry.
   @HiveField(14)
   String? targetModelId;

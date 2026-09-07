@@ -27,6 +27,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get commonSave => '保存';
 
   @override
+  String get commonDone => '完成';
+
+  @override
   String get commonDelete => '删除';
 
   @override
@@ -1010,7 +1013,50 @@ class AppLocalizationsZh extends AppLocalizations {
   String get repoVisionEnable => '启用视觉能力';
 
   @override
-  String get repoVisionMmprojSection => 'mmproj 版本';
+  String get repoVisionMmprojSection => '视觉投影器';
+
+  @override
+  String get repoVisionDownloadHint => '所选投影器会与模型一起下载。';
+
+  @override
+  String get repoVisionDownloadDisabledHint => '仅下载文本模型，之后仍可在模型设置中添加视觉投影器。';
+
+  @override
+  String get modelSettingsVisionDisabledHint => '关闭视觉不会删除已下载的投影器。';
+
+  @override
+  String get modelSettingsVisionNeedsProjector => '下载并选用一个投影器后，即可使用图片输入。';
+
+  @override
+  String get modelSettingsProjectorsHint => '可保留多个版本，一次只使用选中的一个。';
+
+  @override
+  String get modelSettingsLocalVisionHint => '导入与此模型匹配的视觉投影器，即可启用图片输入。';
+
+  @override
+  String get modelSettingsProjectorDownloaded => '已下载';
+
+  @override
+  String get modelSettingsProjectorSelected => '当前选用';
+
+  @override
+  String modelSettingsProjectorDeleteConfirm(String fileName) {
+    return '删除「$fileName」？删除当前版本后会选用其他已下载版本；没有其他版本时将关闭视觉。';
+  }
+
+  @override
+  String get modelSettingsOpenRepository => '打开模型仓库';
+
+  @override
+  String get modelSettingsRepositoryOpenFailed => '无法打开模型仓库，请稍后重试。';
+
+  @override
+  String modelSettingsVisionUpdateFailed(String error) {
+    return '更新视觉配置失败：$error';
+  }
+
+  @override
+  String get modelSettingsProjectorDownloadPending => '投影器下载完成或取消后，可重命名或删除模型。';
 
   @override
   String get repoVisionNoMmproj => '该仓库没有 mmproj 文件。';

@@ -99,6 +99,12 @@ class _MmprojPickerSheetState extends State<MmprojPickerSheet> {
                 key: const Key('mmproj_enable_switch'),
                 contentPadding: EdgeInsets.zero,
                 title: Text(l10n.repoVisionEnable),
+                subtitle: Text(
+                  _enabled
+                      ? l10n.repoVisionDownloadHint
+                      : l10n.repoVisionDownloadDisabledHint,
+                ),
+                secondary: const Icon(Icons.visibility_outlined),
                 value: _enabled,
                 onChanged: (value) {
                   setState(() => _enabled = value);
@@ -106,85 +112,93 @@ class _MmprojPickerSheetState extends State<MmprojPickerSheet> {
                 },
               ),
             ],
-            const SizedBox(height: 8),
-            Text(
-              l10n.repoVisionMmprojSection,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: colorScheme.onSurface.withAlpha(220),
-              ),
-            ),
-            const SizedBox(height: 8),
-            if (widget.files.isEmpty)
+            if (_enabled) ...[
+              const SizedBox(height: 8),
               Text(
-                l10n.repoVisionNoMmproj,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+                l10n.repoVisionMmprojSection,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: colorScheme.onSurface.withAlpha(220),
                 ),
-              )
-            else
-              Opacity(
-                opacity: _enabled ? 1 : 0.45,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: isLight
-                        ? const Color(0xFFF5F6F8)
-                        : colorScheme.surfaceContainerHighest.withAlpha(86),
-                    borderRadius: BorderRadius.circular(16),
+              ),
+              const SizedBox(height: 8),
+              if (widget.files.isEmpty)
+                Text(
+                  l10n.repoVisionNoMmproj,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
                   ),
-                  child: RadioGroup<String>(
-                    groupValue: _selected?.path,
-                    onChanged: (value) {
-                      if (!_enabled || value == null) {
-                        return;
-                      }
-                      setState(() {
-                        _selected = widget.files.firstWhere(
-                          (file) => file.path == value,
-                        );
-                      });
-                      _emit();
-                    },
-                    child: Column(
-                      children: [
-                        for (var i = 0; i < widget.files.length; i++) ...[
-                          if (i > 0)
-                            Divider(
-                              height: 1,
-                              color: colorScheme.outlineVariant.withAlpha(80),
+                )
+              else
+                Opacity(
+                  opacity: _enabled ? 1 : 0.45,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: isLight
+                          ? const Color(0xFFF5F6F8)
+                          : colorScheme.surfaceContainerHighest.withAlpha(86),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: RadioGroup<String>(
+                      groupValue: _selected?.path,
+                      onChanged: (value) {
+                        if (!_enabled || value == null) {
+                          return;
+                        }
+                        setState(() {
+                          _selected = widget.files.firstWhere(
+                            (file) => file.path == value,
+                          );
+                        });
+                        _emit();
+                      },
+                      child: Column(
+                        children: [
+                          for (var i = 0; i < widget.files.length; i++) ...[
+                            if (i > 0)
+                              Divider(
+                                height: 1,
+                                color: colorScheme.outlineVariant.withAlpha(80),
+                              ),
+                            RadioListTile<String>(
+                              key: Key('mmproj_option_${widget.files[i].path}'),
+                              value: widget.files[i].path,
+                              enabled: _enabled,
+                              title: Text(
+                                widget.files[i].fileName,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              subtitle: Text(
+                                FormatUtils.bytes(widget.files[i].sizeBytes),
+                              ),
                             ),
-                          RadioListTile<String>(
-                            key: Key('mmproj_option_${widget.files[i].path}'),
-                            value: widget.files[i].path,
-                            enabled: _enabled,
-                            title: Text(
-                              widget.files[i].fileName,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            subtitle: Text(
-                              FormatUtils.bytes(widget.files[i].sizeBytes),
-                            ),
-                          ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-            if (widget.confirmLabel != null) ...[
-              const SizedBox(height: 20),
-              FilledButton(
-                key: const Key('mmproj_picker_confirm_button'),
-                onPressed: !_enabled || _selected == null
-                    ? null
-                    : () => Navigator.of(context).pop(_result),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                ),
-                child: Text(widget.confirmLabel!),
-              ),
             ],
+            const SizedBox(height: 20),
+            FilledButton(
+              key: const Key('mmproj_picker_confirm_button'),
+              onPressed:
+                  widget.confirmLabel != null &&
+                      (!_enabled || _selected == null)
+                  ? null
+                  : () {
+                      if (widget.confirmLabel == null) {
+                        Navigator.of(context).pop();
+                      } else {
+                        Navigator.of(context).pop(_result);
+                      }
+                    },
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
+              child: Text(widget.confirmLabel ?? l10n.commonDone),
+            ),
           ],
         ),
       ),

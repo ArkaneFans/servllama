@@ -25,6 +25,17 @@ enum ModelHubSource {
     }
   }
 
+  Uri repositoryUri(String repoId) => Uri(
+    scheme: 'https',
+    host: this == ModelHubSource.huggingFace
+        ? 'huggingface.co'
+        : 'modelscope.cn',
+    pathSegments: <String>[
+      if (this == ModelHubSource.modelScope) 'models',
+      ...repoId.split('/'),
+    ],
+  );
+
   /// Brand names, identical in every locale — deliberately not in the ARBs.
   String get displayName {
     switch (this) {
