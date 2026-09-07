@@ -1,4 +1,5 @@
 import 'package:servllama/core/models/inference_engine.dart';
+import 'package:servllama/core/utils/gguf_file_name.dart';
 
 /// Where a model can be fetched from. Both hubs expose the same three
 /// capabilities the app needs: search, list repo files, download by path.
@@ -131,10 +132,7 @@ class HubRepoFile {
 
   bool get isMnnModel => fileName.toLowerCase().endsWith('.mnn');
 
-  bool get isMmproj {
-    final normalized = fileName.toLowerCase();
-    return normalized.startsWith('mmproj') && normalized.endsWith('.gguf');
-  }
+  bool get isMmproj => isMmprojFileName(fileName);
 
   /// Quantization tag parsed out of a GGUF filename (`Q4_K_M`, `IQ2_M`, …).
   /// Null for files that do not follow the convention.
@@ -163,14 +161,12 @@ class HubRepoDetail {
       .where((file) => file.isGguf && !file.isMmproj)
       .toList(growable: false);
 
+  List<HubRepoFile> get mmprojFiles =>
+      files.where((file) => file.isMmproj).toList(growable: false);
+
+  bool get hasMmproj => mmprojFiles.isNotEmpty;
+
   bool get hasMnnModelFiles => files.any((file) => file.isMnnModel);
 
-  HubRepoFile? get mmprojFile {
-    for (final file in files) {
-      if (file.isMmproj) {
-        return file;
-      }
-    }
-    return null;
-  }
+  HubRepoFile? get mmprojFile => mmprojFiles.isEmpty ? null : mmprojFiles.first;
 }

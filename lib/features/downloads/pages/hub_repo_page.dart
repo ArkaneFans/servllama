@@ -10,14 +10,28 @@ import 'package:servllama/features/downloads/providers/model_discovery_provider.
 import 'package:servllama/features/downloads/services/device_capability_service.dart';
 import 'package:servllama/features/downloads/services/model_download_service.dart';
 import 'package:servllama/features/downloads/widgets/download_wifi_only_gate.dart';
+import 'package:servllama/features/downloads/widgets/mmproj_picker_sheet.dart';
 import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/l10n/runtime_labels.dart';
 import 'package:servllama/shared/widgets/engine_badge.dart';
+
+/// Quant file plus the currently selected projector when vision is on.
+List<HubRepoFile> ggufDownloadFiles({
+  required HubRepoFile quantFile,
+  required bool visionEnabled,
+  HubRepoFile? mmprojFile,
+}) {
+  return <HubRepoFile>[
+    quantFile,
+    if (visionEnabled && mmprojFile != null) mmprojFile,
+  ];
+}
 
 /// Repository detail. For GGUF repos this is a quantization picker ordered by
 /// what the device can actually run — tiers that would not fit are disabled
 /// rather than allowed to fail at load time. MNN repos download whole, so
 /// there is a single action instead of a list.
+
 class HubRepoPage extends StatefulWidget {
   const HubRepoPage({
     super.key,
@@ -35,6 +49,9 @@ class HubRepoPage extends StatefulWidget {
 }
 
 class _HubRepoPageState extends State<HubRepoPage> {
+  bool _visionEnabled = true;
+  HubRepoFile? _selectedMmproj;
+
   @override
   void initState() {
     super.initState();
@@ -47,11 +64,6 @@ class _HubRepoPageState extends State<HubRepoPage> {
         );
       }
     });
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
   }
 
   Future<void> _startDownload({
@@ -164,12 +176,17 @@ class _HubRepoPageState extends State<HubRepoPage> {
                   detail: detail,
                   discovery: discovery,
                   source: widget.source,
+                  visionEnabled: _visionEnabled,
+                  onVisionTap: detail.hasMmproj
+                      ? () => _openVisionSheet(detail)
+                      : null,
                   onDownload: (file) => _startDownload(
                     detail: detail,
-                    files: <HubRepoFile>[
-                      file,
-                      if (detail.mmprojFile != null) detail.mmprojFile!,
-                    ],
+                    files: ggufDownloadFiles(
+                      quantFile: file,
+                      visionEnabled: _visionEnabled,
+                      mmprojFile: _resolvedMmproj(detail),
+                    ),
                     modelName: _deriveModelName(file),
                     quantLabel: file.quantLabel,
                   ),
@@ -186,6 +203,48 @@ class _HubRepoPageState extends State<HubRepoPage> {
         ? fileName.substring(0, fileName.length - 5)
         : fileName;
   }
+
+  HubRepoFile? _resolvedMmproj(HubRepoDetail detail) {
+    final files = detail.mmprojFiles;
+    if (files.isEmpty) {
+      return null;
+    }
+    final selectedPath = _selectedMmproj?.path;
+    if (selectedPath != null) {
+      for (final file in files) {
+        if (file.path == selectedPath) {
+          return file;
+        }
+      }
+    }
+    return files.first;
+  }
+
+  Future<void> _openVisionSheet(HubRepoDetail detail) async {
+    final files = detail.mmprojFiles;
+    if (files.isEmpty) {
+      return;
+    }
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) {
+        return MmprojPickerSheet(
+          files: files,
+          allowDisable: true,
+          initialEnabled: _visionEnabled,
+          initialFile: _resolvedMmproj(detail),
+          onChanged: (result) {
+            setState(() {
+              _visionEnabled = result.enabled;
+              _selectedMmproj = result.file;
+            });
+          },
+        );
+      },
+    );
+  }
 }
 
 class _GgufBody extends StatelessWidget {
@@ -193,13 +252,17 @@ class _GgufBody extends StatelessWidget {
     required this.detail,
     required this.discovery,
     required this.source,
+    required this.visionEnabled,
     required this.onDownload,
+    this.onVisionTap,
   });
 
   final HubRepoDetail detail;
   final ModelDiscoveryProvider discovery;
   final ModelHubSource source;
+  final bool visionEnabled;
   final ValueChanged<HubRepoFile> onDownload;
+  final VoidCallback? onVisionTap;
 
   @override
   Widget build(BuildContext context) {
@@ -240,6 +303,8 @@ class _GgufBody extends StatelessWidget {
             child: _QuantRow(
               file: file,
               feasibility: discovery.feasibilityOf(file.path),
+              visionEnabled: visionEnabled,
+              onVisionTap: onVisionTap,
               onDownload: () => onDownload(file),
             ),
           ),
@@ -339,11 +404,15 @@ class _QuantRow extends StatelessWidget {
     required this.file,
     required this.feasibility,
     required this.onDownload,
+    this.visionEnabled = false,
+    this.onVisionTap,
   });
 
   final HubRepoFile file;
   final ModelFeasibility feasibility;
   final VoidCallback onDownload;
+  final bool visionEnabled;
+  final VoidCallback? onVisionTap;
 
   @override
   Widget build(BuildContext context) {
@@ -409,6 +478,26 @@ class _QuantRow extends StatelessWidget {
                             : colorScheme.onSurfaceVariant,
                       ),
                     ),
+                    if (onVisionTap != null) ...[
+                      const SizedBox(height: 6),
+                      TextButton(
+                        key: Key('quant_vision_button_${file.path}'),
+                        onPressed: isBlocked ? null : onVisionTap,
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: VisualDensity.compact,
+                          alignment: Alignment.centerLeft,
+                          foregroundColor: colorScheme.primary,
+                        ),
+                        child: Text(
+                          visionEnabled
+                              ? l10n.repoVisionOn
+                              : l10n.repoVisionOff,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

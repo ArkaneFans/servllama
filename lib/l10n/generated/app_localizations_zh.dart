@@ -604,6 +604,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modelSettingsImportMmproj => '导入 mmproj 文件';
 
   @override
+  String get modelSettingsDownloadMmproj => '下载 mmproj';
+
+  @override
+  String get modelSettingsReplaceMmproj => '更换 mmproj';
+
+  @override
   String get modelSettingsRemoveMmproj => '移除 mmproj';
 
   @override
@@ -660,8 +666,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modelErrorSelectedMmprojFileMissing => '所选 mmproj 文件不存在。';
 
   @override
-  String get modelErrorUnsupportedMmprojFile =>
-      '仅支持导入文件名以 mmproj 开头的 .gguf 文件。';
+  String get modelErrorUnsupportedMmprojFile => '仅支持导入文件名包含 mmproj 的 .gguf 文件。';
 
   @override
   String get modelErrorMmprojSameAsModelFile => 'mmproj 文件不能与主模型文件同名。';
@@ -991,6 +996,24 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get repoDownloadAction => '下载';
+
+  @override
+  String get repoVisionOn => '视觉 · 开';
+
+  @override
+  String get repoVisionOff => '视觉 · 关';
+
+  @override
+  String get repoVisionSheetTitle => '视觉能力';
+
+  @override
+  String get repoVisionEnable => '启用视觉能力';
+
+  @override
+  String get repoVisionMmprojSection => 'mmproj 版本';
+
+  @override
+  String get repoVisionNoMmproj => '该仓库没有 mmproj 文件。';
 
   @override
   String repoEstimatedMemory(String size) {

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:servllama/core/errors/model_operation_exception.dart';
 import 'package:servllama/core/models/inference_engine.dart';
 import 'package:servllama/core/models/library_model.dart';
 import 'package:servllama/core/models/model_descriptor.dart';
@@ -9,12 +10,18 @@ import 'package:servllama/core/providers/model_management_provider.dart';
 import 'package:servllama/core/providers/engine_runtime_provider.dart';
 import 'package:servllama/core/repositories/unified_model_repository.dart';
 import 'package:servllama/core/utils/format_utils.dart';
+import 'package:servllama/features/downloads/models/model_hub.dart';
 import 'package:servllama/features/downloads/pages/downloads_page.dart';
 import 'package:servllama/features/downloads/pages/model_discovery_page.dart';
 import 'package:servllama/features/downloads/providers/download_provider.dart';
+import 'package:servllama/features/downloads/providers/model_discovery_provider.dart';
+import 'package:servllama/features/downloads/services/model_download_service.dart';
+import 'package:servllama/features/downloads/services/model_hub_client.dart';
 import 'package:servllama/features/downloads/widgets/download_task_card.dart';
 import 'package:servllama/features/downloads/widgets/download_wifi_only_gate.dart';
+import 'package:servllama/features/downloads/widgets/mmproj_picker_sheet.dart';
 import 'package:servllama/l10n/l10n.dart';
+import 'package:servllama/shared/l10n/runtime_labels.dart';
 import 'package:servllama/shared/widgets/engine_badge.dart';
 
 class ModelManagementPage extends StatelessWidget {
@@ -904,6 +911,7 @@ class _ModelSettingsSheet extends StatefulWidget {
 class _ModelSettingsSheetState extends State<_ModelSettingsSheet> {
   late final TextEditingController _nameController;
   late String _lastSyncedModelName;
+  bool _isFetchingMmproj = false;
 
   @override
   void initState() {
@@ -995,6 +1003,131 @@ class _ModelSettingsSheetState extends State<_ModelSettingsSheet> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _downloadOrReplaceMmproj(
+    BuildContext context,
+    ModelDescriptor descriptor,
+  ) async {
+    if (_isFetchingMmproj || !descriptor.hasHubSource) {
+      return;
+    }
+    final sourceValue = descriptor.sourceValue!.trim();
+    final repoId = descriptor.repoId!.trim();
+    final source = ModelHubSource.fromStorageValue(sourceValue);
+
+    setState(() => _isFetchingMmproj = true);
+    late final HubRepoDetail detail;
+    try {
+      detail = await context.read<ModelDiscoveryProvider>().fetchRepoDetail(
+        repoId: repoId,
+        source: source,
+        engine: InferenceEngine.llamaCpp,
+      );
+    } on ModelHubException catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(RuntimeLabels.hubError(context.l10n, error.kind))),
+      );
+      return;
+    } catch (_) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            RuntimeLabels.hubError(context.l10n, ModelHubErrorKind.network),
+          ),
+        ),
+      );
+      return;
+    } finally {
+      if (mounted) {
+        setState(() => _isFetchingMmproj = false);
+      }
+    }
+
+    if (!context.mounted) {
+      return;
+    }
+    if (!detail.hasMmproj) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.repoVisionNoMmproj)),
+      );
+      return;
+    }
+
+    final repoDetail = detail;
+    final result = await showModalBottomSheet<MmprojPickerResult>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return MmprojPickerSheet(
+          files: repoDetail.mmprojFiles,
+          allowDisable: false,
+          initialEnabled: true,
+          initialFile: repoDetail.mmprojFiles.first,
+          confirmLabel: sheetContext.l10n.repoDownloadAction,
+        );
+      },
+    );
+    if (result == null || result.file == null || !context.mounted) {
+      return;
+    }
+    if (!await confirmDownloadOnMeteredNetwork(context) || !context.mounted) {
+      return;
+    }
+
+    final revision = descriptor.revision?.trim();
+    final downloads = context.read<DownloadProvider>();
+    try {
+      final task = await downloads.enqueue(
+        engine: InferenceEngine.llamaCpp,
+        source: source,
+        repoId: repoId,
+        revision: (revision != null && revision.isNotEmpty)
+            ? revision
+            : repoDetail.revision,
+        modelName: descriptor.modelName,
+        files: <HubRepoFile>[result.file!],
+        targetModelId: descriptor.id,
+      );
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.downloadStarted(task.modelName))),
+      );
+    } on DownloadException catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            RuntimeLabels.downloadError(context.l10n, error.kind.name),
+          ),
+        ),
+      );
+    } on ModelOperationException catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      final message = switch (error.code) {
+        ModelOperationErrorCode.invalidModelName =>
+          context.l10n.modelErrorInvalidModelName,
+        ModelOperationErrorCode.emptyModelName =>
+          context.l10n.modelErrorEmptyModelName,
+        _ => context.l10n.modelErrorModelNameExists,
+      };
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    }
   }
 
   void _syncNameDraft(ModelDescriptor descriptor) {
@@ -1257,6 +1390,43 @@ class _ModelSettingsSheetState extends State<_ModelSettingsSheet> {
                       label: Text(l10n.modelSettingsImportMmproj),
                     ),
                   ),
+                if (descriptor.hasHubSource) ...[
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: FilledButton.tonalIcon(
+                      key: Key(
+                        descriptor.mmprojFilePath == null
+                            ? 'model_settings_download_mmproj_button'
+                            : 'model_settings_replace_mmproj_button',
+                      ),
+                      onPressed: isImportingMmproj || _isFetchingMmproj
+                          ? null
+                          : () => _downloadOrReplaceMmproj(context, descriptor),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      icon: _isFetchingMmproj
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.cloud_download_outlined),
+                      label: Text(
+                        descriptor.mmprojFilePath == null
+                            ? l10n.modelSettingsDownloadMmproj
+                            : l10n.modelSettingsReplaceMmproj,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

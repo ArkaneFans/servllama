@@ -7,6 +7,7 @@ import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/core/models/model_descriptor.dart';
 import 'package:servllama/core/services/gguf_file_picker.dart';
 import 'package:servllama/core/services/model_storage_paths.dart';
+import 'package:servllama/core/utils/gguf_file_name.dart';
 
 class LocalModelRepository {
   LocalModelRepository({
@@ -297,6 +298,9 @@ class LocalModelRepository {
     required String modelName,
     required File modelFile,
     File? mmprojFile,
+    String? sourceValue,
+    String? repoId,
+    String? revision,
   }) async {
     final trimmedName = modelName.trim();
     if (trimmedName.isEmpty) {
@@ -351,6 +355,9 @@ class LocalModelRepository {
         storedFilePath: stored.path,
         importedAt: DateTime.now(),
         mmprojFilePath: storedMmprojPath,
+        sourceValue: sourceValue,
+        repoId: repoId,
+        revision: revision,
       );
       final box = await _box();
       await box.put(descriptor.id, descriptor);
@@ -360,6 +367,68 @@ class LocalModelRepository {
       await _cleanupDirectory(modelDirectory.path);
       rethrow;
     }
+  }
+
+  /// Moves a downloaded mmproj into an existing model directory, replacing
+  /// any projector already attached. Hub source metadata is left unchanged.
+  Future<ModelDescriptor> adoptDownloadedMmproj({
+    required String modelId,
+    required File mmprojFile,
+  }) async {
+    final box = await _box();
+    final descriptor = box.get(modelId);
+    if (descriptor == null) {
+      throw const ModelOperationException(
+        ModelOperationErrorCode.modelNotFound,
+      );
+    }
+
+    if (!await mmprojFile.exists()) {
+      throw const ModelOperationException(
+        ModelOperationErrorCode.selectedMmprojFileMissing,
+      );
+    }
+
+    final mmprojName = _fileName(mmprojFile.path);
+    if (!_isMmprojFileName(mmprojName)) {
+      throw const ModelOperationException(
+        ModelOperationErrorCode.unsupportedMmprojFile,
+      );
+    }
+
+    final mmprojDestPath = _joinPath(
+      descriptor.storedDirectoryPath,
+      mmprojName,
+    );
+    if (_sameFilePath(mmprojDestPath, descriptor.storedFilePath)) {
+      throw const ModelOperationException(
+        ModelOperationErrorCode.mmprojSameAsModelFile,
+      );
+    }
+
+    final existingMmprojPath = descriptor.mmprojFilePath;
+    if (existingMmprojPath != null &&
+        !_sameFilePath(existingMmprojPath, mmprojDestPath)) {
+      final existingMmprojFile = File(existingMmprojPath);
+      if (await existingMmprojFile.exists()) {
+        await existingMmprojFile.delete();
+      }
+    }
+
+    final destinationFile = File(mmprojDestPath);
+    if (await destinationFile.exists() &&
+        !_sameFilePath(destinationFile.path, mmprojFile.path)) {
+      await destinationFile.delete();
+    }
+
+    final stored = await _moveInto(
+      mmprojFile,
+      descriptor.storedDirectoryPath,
+      mmprojName,
+    );
+    final updated = descriptor.copyWith(mmprojFilePath: stored.path);
+    await box.put(descriptor.id, updated);
+    return updated;
   }
 
   Future<bool> isModelDirectoryOccupied(
@@ -494,13 +563,9 @@ class LocalModelRepository {
     }
   }
 
-  bool _isGgufFileName(String fileName) =>
-      fileName.toLowerCase().endsWith('.gguf');
+  bool _isGgufFileName(String fileName) => isGgufFileName(fileName);
 
-  bool _isMmprojFileName(String fileName) {
-    final normalized = fileName.toLowerCase();
-    return normalized.startsWith('mmproj') && normalized.endsWith('.gguf');
-  }
+  bool _isMmprojFileName(String fileName) => isMmprojFileName(fileName);
 
   bool _sameFilePath(String left, String right) {
     final normalizedLeft = _normalizeFilePath(left);

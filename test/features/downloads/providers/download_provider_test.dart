@@ -118,72 +118,69 @@ void main() {
       },
     );
 
-    test(
-      'adds a stable display name before importing an MNN download',
-      () async {
-        final metadataFile = File(
-          '${tempDirectory.path}${Platform.pathSeparator}market_config.json',
-        );
-        await metadataFile.writeAsString(
-          jsonEncode(<String, Object?>{'vendor': 'MNN'}),
-        );
-        Map<String, dynamic>? importedMetadata;
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-            .setMockMethodCallHandler(
-              const MethodChannel('com.arkanefans.mnn_engine/methods'),
-              (call) async {
-                if (call.method != 'importModelFromPathWithResult') {
-                  return null;
-                }
-                importedMetadata = Map<String, dynamic>.from(
-                  jsonDecode(await metadataFile.readAsString()) as Map,
-                );
-                return <String, Object?>{
-                  'requestedModelName': 'Qwen3-0.6B-MNN',
-                  'model': <String, Object?>{
-                    'modelId': 'Qwen3-0.6B-MNN',
-                    'modelKey': 'Qwen3-0.6B-MNN',
-                    'displayName': 'Qwen3-0.6B-MNN',
-                    'modelDirPath': '/models/Qwen3-0.6B-MNN',
-                    'configPath': '/models/Qwen3-0.6B-MNN/config.json',
-                    'sizeBytes': 10,
-                    'importedAt': 1,
-                    'isActive': false,
-                  },
-                };
-              },
-            );
+    test('adds a stable display name before importing an MNN download', () async {
+      final metadataFile = File(
+        '${tempDirectory.path}${Platform.pathSeparator}market_config.json',
+      );
+      await metadataFile.writeAsString(
+        jsonEncode(<String, Object?>{'vendor': 'MNN'}),
+      );
+      Map<String, dynamic>? importedMetadata;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('com.arkanefans.mnn_engine/methods'),
+            (call) async {
+              if (call.method != 'importModelFromPathWithResult') {
+                return null;
+              }
+              importedMetadata = Map<String, dynamic>.from(
+                jsonDecode(await metadataFile.readAsString()) as Map,
+              );
+              return <String, Object?>{
+                'requestedModelName': 'Qwen3-0.6B-MNN',
+                'model': <String, Object?>{
+                  'modelId': 'Qwen3-0.6B-MNN',
+                  'modelKey': 'Qwen3-0.6B-MNN',
+                  'displayName': 'Qwen3-0.6B-MNN',
+                  'modelDirPath': '/models/Qwen3-0.6B-MNN',
+                  'configPath': '/models/Qwen3-0.6B-MNN/config.json',
+                  'sizeBytes': 10,
+                  'importedAt': 1,
+                  'isActive': false,
+                },
+              };
+            },
+          );
 
-        final record = _record(
-          stagingDirPath: tempDirectory.path,
-          status: DownloadStatus.downloaded,
-          engineValue: 'mnn',
-          modelName: 'Qwen3-0.6B-MNN',
-          completedFile: true,
-        );
-        final repository = _MemoryTaskRepository(<DownloadTaskRecord>[record]);
-        var refreshCount = 0;
-        final provider = DownloadProvider(
-          taskRepository: repository,
-          downloadService: _BlockingDownloadService()..release.complete(),
-          settingsStore: _MemorySettingsStore(),
-          logger: AppLogger(),
-          onLibraryChanged: () async {
-            refreshCount += 1;
-          },
-        );
+      final record = _record(
+        stagingDirPath: tempDirectory.path,
+        status: DownloadStatus.downloaded,
+        engineValue: 'mnn',
+        modelName: 'Qwen3-0.6B-MNN',
+        completedFile: true,
+      );
+      final repository = _MemoryTaskRepository(<DownloadTaskRecord>[record]);
+      var refreshCount = 0;
+      final provider = DownloadProvider(
+        taskRepository: repository,
+        downloadService: _BlockingDownloadService()..release.complete(),
+        settingsStore: _MemorySettingsStore(),
+        logger: AppLogger(),
+        onLibraryChanged: () async {
+          refreshCount += 1;
+        },
+      );
 
-        await provider.load();
-        // Completed downloads are pruned from the task list once committed to
-        // the model library, so completion is observable as the list going empty.
-        await _waitFor(() => provider.tasks.isEmpty);
+      await provider.load();
+      // Completed downloads are pruned from the task list once committed to
+      // the model library, so completion is observable as the list going empty.
+      await _waitFor(() => provider.tasks.isEmpty);
 
-        expect(importedMetadata?['modelName'], 'Qwen3-0.6B-MNN');
-        expect(importedMetadata?['vendor'], 'MNN');
-        expect(refreshCount, 1);
-        provider.dispose();
-      },
-    );
+      expect(importedMetadata?['modelName'], 'Qwen3-0.6B-MNN');
+      expect(importedMetadata?['vendor'], 'MNN');
+      expect(refreshCount, 1);
+      provider.dispose();
+    });
 
     test('checks global model-name availability before queueing', () async {
       var checkedName = '';
@@ -324,6 +321,69 @@ void main() {
         provider.dispose();
       },
     );
+
+    test(
+      'skips name allocation when enqueueing an mmproj replacement',
+      () async {
+        final downloadService = _BlockingDownloadService();
+        final provider = DownloadProvider(
+          taskRepository: _MemoryTaskRepository(const <DownloadTaskRecord>[]),
+          downloadService: downloadService,
+          settingsStore: _MemorySettingsStore(),
+          localModelRepository: _FakeLocalModelRepository(),
+          logger: AppLogger(),
+          modelNameCoordinator: _ThrowingNameCoordinator((name) {
+            fail('allocate should be skipped for replacements: $name');
+          }),
+        );
+
+        final task = await provider.enqueue(
+          engine: InferenceEngine.llamaCpp,
+          source: ModelHubSource.modelScope,
+          repoId: 'owner/qwen',
+          revision: 'main',
+          modelName: 'qwen',
+          files: const <HubRepoFile>[
+            HubRepoFile(path: 'Qwen3.5-0.8B-mmproj-f16.gguf', sizeBytes: 10),
+          ],
+          targetModelId: 'library-model',
+        );
+
+        expect(task.record.targetModelId, 'library-model');
+        expect(provider.tasks, hasLength(1));
+        downloadService.release.complete();
+        await provider.cancel(task.id);
+        await Future<void>.delayed(const Duration(milliseconds: 30));
+        provider.dispose();
+      },
+    );
+
+    test(
+      'commits a replacement mmproj onto the target library model',
+      () async {
+        final local = _FakeLocalModelRepository();
+        final record = _record(
+          stagingDirPath: tempDirectory.path,
+          status: DownloadStatus.queued,
+          completedFile: true,
+          targetModelId: 'library-model',
+          remotePath: 'Qwen3.5-0.8B-mmproj-f16.gguf',
+        );
+        final provider = DownloadProvider(
+          taskRepository: _MemoryTaskRepository(<DownloadTaskRecord>[record]),
+          downloadService: _BlockingDownloadService()..release.complete(),
+          settingsStore: _MemorySettingsStore(),
+          localModelRepository: local,
+          logger: AppLogger(),
+        );
+
+        await provider.load();
+        await _waitFor(() => provider.tasks.isEmpty);
+
+        expect(local.adoptedMmprojModelIds, <String>['library-model']);
+        provider.dispose();
+      },
+    );
   });
 }
 
@@ -343,7 +403,11 @@ DownloadTaskRecord _record({
   String engineValue = 'llama_cpp',
   String modelName = 'model',
   bool completedFile = false,
+  String? targetModelId,
+  String? remotePath,
 }) {
+  final fileName =
+      remotePath ?? (engineValue == 'mnn' ? 'llm.mnn' : 'model.gguf');
   return DownloadTaskRecord(
     id: 'task',
     engineValue: engineValue,
@@ -353,8 +417,8 @@ DownloadTaskRecord _record({
     modelName: modelName,
     files: <DownloadFileRecord>[
       DownloadFileRecord(
-        remotePath: engineValue == 'mnn' ? 'llm.mnn' : 'model.gguf',
-        fileName: engineValue == 'mnn' ? 'llm.mnn' : 'model.gguf',
+        remotePath: fileName,
+        fileName: fileName,
         totalBytes: 10,
         receivedBytes: completedFile ? 10 : 0,
         completed: completedFile,
@@ -363,6 +427,7 @@ DownloadTaskRecord _record({
     statusValue: status.name,
     createdAt: DateTime(2026),
     stagingDirPath: stagingDirPath,
+    targetModelId: targetModelId,
   );
 }
 
@@ -393,6 +458,7 @@ DownloadTaskRecord _cloneTask(DownloadTaskRecord task) {
     quantLabel: task.quantLabel,
     errorDetail: task.errorDetail,
     pausedByNetwork: task.pausedByNetwork,
+    targetModelId: task.targetModelId,
   );
 }
 
@@ -486,11 +552,16 @@ class _FakeLocalModelRepository extends LocalModelRepository {
     String? excludingModelId,
   }) async => false;
 
+  final List<String> adoptedMmprojModelIds = <String>[];
+
   @override
   Future<ModelDescriptor> adoptDownloadedModel({
     required String modelName,
     required File modelFile,
     File? mmprojFile,
+    String? sourceValue,
+    String? repoId,
+    String? revision,
   }) async {
     return ModelDescriptor(
       id: 'model',
@@ -499,6 +570,27 @@ class _FakeLocalModelRepository extends LocalModelRepository {
       storedDirectoryPath: modelFile.parent.path,
       storedFilePath: modelFile.path,
       importedAt: DateTime(2026),
+      mmprojFilePath: mmprojFile?.path,
+      sourceValue: sourceValue,
+      repoId: repoId,
+      revision: revision,
+    );
+  }
+
+  @override
+  Future<ModelDescriptor> adoptDownloadedMmproj({
+    required String modelId,
+    required File mmprojFile,
+  }) async {
+    adoptedMmprojModelIds.add(modelId);
+    return ModelDescriptor(
+      id: modelId,
+      modelName: 'model',
+      sizeBytes: 10,
+      storedDirectoryPath: mmprojFile.parent.path,
+      storedFilePath: mmprojFile.path,
+      importedAt: DateTime(2026),
+      mmprojFilePath: mmprojFile.path,
     );
   }
 }

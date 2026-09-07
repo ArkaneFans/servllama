@@ -621,6 +621,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modelSettingsImportMmproj => 'Import mmproj file';
 
   @override
+  String get modelSettingsDownloadMmproj => 'Download mmproj';
+
+  @override
+  String get modelSettingsReplaceMmproj => 'Replace mmproj';
+
+  @override
   String get modelSettingsRemoveMmproj => 'Remove mmproj';
 
   @override
@@ -681,7 +687,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get modelErrorUnsupportedMmprojFile =>
-      'Only .gguf files starting with mmproj are supported.';
+      'Only .gguf files whose names contain mmproj are supported.';
 
   @override
   String get modelErrorMmprojSameAsModelFile =>
@@ -1029,6 +1035,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get repoDownloadAction => 'Download';
+
+  @override
+  String get repoVisionOn => 'Vision · On';
+
+  @override
+  String get repoVisionOff => 'Vision · Off';
+
+  @override
+  String get repoVisionSheetTitle => 'Vision';
+
+  @override
+  String get repoVisionEnable => 'Enable vision';
+
+  @override
+  String get repoVisionMmprojSection => 'mmproj version';
+
+  @override
+  String get repoVisionNoMmproj => 'This repository has no mmproj files.';
 
   @override
   String repoEstimatedMemory(String size) {

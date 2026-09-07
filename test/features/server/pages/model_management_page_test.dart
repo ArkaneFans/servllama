@@ -12,9 +12,20 @@ import 'package:servllama/core/models/model_descriptor.dart';
 import 'package:servllama/core/providers/engine_runtime_provider.dart';
 import 'package:servllama/core/providers/model_management_provider.dart';
 import 'package:servllama/core/services/app_l10n_service.dart';
-import 'package:servllama/features/downloads/providers/download_provider.dart';
 import 'package:servllama/core/repositories/local_model_repository.dart';
 import 'package:servllama/core/services/gguf_file_picker.dart';
+import 'package:servllama/features/downloads/models/download_task.dart';
+import 'package:servllama/features/downloads/models/download_task_view.dart';
+import 'package:servllama/features/downloads/models/model_hub.dart';
+import 'package:servllama/features/downloads/providers/download_provider.dart';
+import 'package:servllama/features/downloads/providers/model_discovery_provider.dart';
+import 'package:servllama/features/downloads/repositories/download_task_repository.dart';
+import 'package:servllama/features/downloads/services/device_capability_service.dart';
+import 'package:servllama/features/downloads/services/download_settings_store.dart';
+import 'package:servllama/features/downloads/services/model_catalog_service.dart';
+import 'package:servllama/features/downloads/services/model_download_service.dart';
+import 'package:servllama/features/downloads/services/model_hub_client.dart';
+import 'package:servllama/features/downloads/widgets/mmproj_picker_sheet.dart';
 import 'package:servllama/features/server/pages/model_management_page.dart';
 
 import '../../../support/stub_engine_adapter.dart';
@@ -390,6 +401,161 @@ void main() {
         findsOneWidget,
       );
     });
+
+    testWidgets('hides hub mmproj actions when the model has no source', (
+      tester,
+    ) async {
+      final provider = ModelManagementProvider(
+        repository: FakeLocalModelRepository(
+          initialModels: <ModelDescriptor>[
+            _descriptor(id: 'm1', modelName: 'local'),
+          ],
+        ),
+        filePicker: FakeGgufFilePicker(),
+        logger: AppLogger(),
+      );
+
+      await tester.pumpWidget(_host(provider));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('设置'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const Key('model_settings_download_mmproj_button')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const Key('model_settings_replace_mmproj_button')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('shows download mmproj when a hub source is recorded', (
+      tester,
+    ) async {
+      final provider = ModelManagementProvider(
+        repository: FakeLocalModelRepository(
+          initialModels: <ModelDescriptor>[
+            _descriptor(
+              id: 'm1',
+              modelName: 'qwen',
+              sourceValue: 'huggingface',
+              repoId: 'owner/qwen',
+              revision: 'main',
+            ),
+          ],
+        ),
+        filePicker: FakeGgufFilePicker(),
+        logger: AppLogger(),
+      );
+
+      await tester.pumpWidget(_host(provider));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('设置'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const Key('model_settings_download_mmproj_button')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('model_settings_replace_mmproj_button')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('shows replace mmproj when a hub model already has one', (
+      tester,
+    ) async {
+      final provider = ModelManagementProvider(
+        repository: FakeLocalModelRepository(
+          initialModels: <ModelDescriptor>[
+            _descriptor(
+              id: 'm1',
+              modelName: 'qwen',
+              mmprojFilePath: r'C:\models\qwen\mmproj-f16.gguf',
+              sourceValue: 'huggingface',
+              repoId: 'owner/qwen',
+              revision: 'main',
+            ),
+          ],
+        ),
+        filePicker: FakeGgufFilePicker(),
+        logger: AppLogger(),
+      );
+
+      await tester.pumpWidget(_host(provider));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('设置'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const Key('model_settings_replace_mmproj_button')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('model_settings_download_mmproj_button')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('downloads the selected hub mmproj onto a library model', (
+      tester,
+    ) async {
+      const firstMmproj = HubRepoFile(
+        path: 'Qwen3.5-0.8B-mmproj-f16.gguf',
+        sizeBytes: 12,
+      );
+      const secondMmproj = HubRepoFile(path: 'mmproj-f32.gguf', sizeBytes: 24);
+      final downloads = _RecordingDownloadProvider();
+      addTearDown(downloads.dispose);
+      final discovery = _discoveryWithFiles(const <HubRepoFile>[
+        firstMmproj,
+        secondMmproj,
+      ]);
+      addTearDown(discovery.dispose);
+
+      final provider = ModelManagementProvider(
+        repository: FakeLocalModelRepository(
+          initialModels: <ModelDescriptor>[
+            _descriptor(
+              id: 'm1',
+              modelName: 'qwen',
+              sourceValue: 'huggingface',
+              repoId: 'owner/qwen',
+              revision: 'main',
+            ),
+          ],
+        ),
+        filePicker: FakeGgufFilePicker(),
+        logger: AppLogger(),
+      );
+
+      await tester.pumpWidget(
+        _host(provider, discovery: discovery, downloads: downloads),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('设置'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const Key('model_settings_download_mmproj_button')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(MmprojPickerSheet), findsOneWidget);
+      await tester.tap(find.byKey(Key('mmproj_option_${secondMmproj.path}')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('mmproj_picker_confirm_button')));
+      await _settle(tester);
+
+      expect(downloads.calls, hasLength(1));
+      expect(downloads.calls.single.targetModelId, 'm1');
+      expect(downloads.calls.single.files, <HubRepoFile>[secondMmproj]);
+      expect(
+        find.byKey(const Key('model_settings_name_field')),
+        findsOneWidget,
+      );
+    });
   });
 }
 
@@ -499,6 +665,9 @@ ModelDescriptor _descriptor({
   String? originalFileName,
   String? mmprojFilePath,
   int sizeBytes = 1073741824,
+  String? sourceValue,
+  String? repoId,
+  String? revision,
 }) {
   final fileName = originalFileName ?? '$modelName.gguf';
   return ModelDescriptor(
@@ -511,6 +680,9 @@ ModelDescriptor _descriptor({
         'C:${Platform.pathSeparator}models${Platform.pathSeparator}$modelName${Platform.pathSeparator}$fileName',
     importedAt: DateTime(2026, 1, 1),
     mmprojFilePath: mmprojFilePath,
+    sourceValue: sourceValue,
+    repoId: repoId,
+    revision: revision,
   );
 }
 
@@ -530,6 +702,8 @@ Map<String, Object?> _mnnModelMap(String name) => <String, Object?>{
 Widget _host(
   ModelManagementProvider provider, {
   EngineRuntimeProvider? runtime,
+  ModelDiscoveryProvider? discovery,
+  DownloadProvider? downloads,
 }) {
   return MultiProvider(
     providers: [
@@ -537,9 +711,14 @@ Widget _host(
       // Navigator's overlay, so a provider scoped to the page itself would be
       // out of its reach.
       ChangeNotifierProvider<ModelManagementProvider>.value(value: provider),
-      ChangeNotifierProvider<DownloadProvider>(
-        create: (_) => DownloadProvider(),
-      ),
+      if (downloads != null)
+        ChangeNotifierProvider<DownloadProvider>.value(value: downloads)
+      else
+        ChangeNotifierProvider<DownloadProvider>(
+          create: (_) => DownloadProvider(),
+        ),
+      if (discovery != null)
+        ChangeNotifierProvider<ModelDiscoveryProvider>.value(value: discovery),
       if (runtime != null)
         ChangeNotifierProvider<EngineRuntimeProvider>.value(value: runtime),
     ],
@@ -552,5 +731,156 @@ Widget _host(
 Future<void> _settle(WidgetTester tester) async {
   for (var i = 0; i < 8; i++) {
     await tester.pump(const Duration(milliseconds: 40));
+  }
+}
+
+ModelDiscoveryProvider _discoveryWithFiles(List<HubRepoFile> files) {
+  return ModelDiscoveryProvider(
+    catalogService: _EmptyCatalogService(),
+    capabilityService: _UnknownCapabilityService(),
+    settingsStore: _MemoryDownloadSettingsStore(),
+    huggingFaceClient: _FakeHubClient(files: files),
+    modelScopeClient: _FakeHubClient(files: files),
+  );
+}
+
+class _EnqueueCall {
+  const _EnqueueCall({required this.files, this.targetModelId});
+
+  final List<HubRepoFile> files;
+  final String? targetModelId;
+}
+
+class _RecordingDownloadProvider extends DownloadProvider {
+  _RecordingDownloadProvider()
+    : super(
+        taskRepository: _MemoryTaskRepository(),
+        downloadService: ModelDownloadService(),
+        settingsStore: _MemoryDownloadSettingsStore(),
+        localModelRepository: FakeLocalModelRepository(),
+        logger: AppLogger(),
+      );
+
+  final List<_EnqueueCall> calls = <_EnqueueCall>[];
+
+  @override
+  Future<bool> isBlockedByWifiOnlyPolicy() async => false;
+
+  @override
+  Future<void> load() async {}
+
+  @override
+  Future<DownloadTaskView> enqueue({
+    required InferenceEngine engine,
+    required ModelHubSource source,
+    required String repoId,
+    required String revision,
+    required String modelName,
+    required List<HubRepoFile> files,
+    String? quantLabel,
+    String? targetModelId,
+  }) async {
+    calls.add(
+      _EnqueueCall(
+        files: List<HubRepoFile>.from(files),
+        targetModelId: targetModelId,
+      ),
+    );
+    return DownloadTaskView(
+      DownloadTaskRecord(
+        id: 'task',
+        engineValue: engine.storageValue,
+        sourceValue: source.storageValue,
+        repoId: repoId,
+        revision: revision,
+        modelName: modelName,
+        files: const <DownloadFileRecord>[],
+        statusValue: DownloadStatus.queued.name,
+        createdAt: DateTime(2026),
+        stagingDirPath: '/tmp',
+        targetModelId: targetModelId,
+      ),
+    );
+  }
+}
+
+class _MemoryTaskRepository extends DownloadTaskRepository {
+  @override
+  Future<List<DownloadTaskRecord>> listTasks() async =>
+      const <DownloadTaskRecord>[];
+
+  @override
+  Future<void> save(DownloadTaskRecord task) async {}
+
+  @override
+  Future<void> delete(String taskId) async {}
+
+  @override
+  Future<Directory> createStagingDirectory(String taskId) async =>
+      Directory.systemTemp;
+
+  @override
+  Future<void> deleteStagingDirectory(String stagingDirPath) async {}
+}
+
+class _EmptyCatalogService extends ModelCatalogService {
+  @override
+  Future<List<CatalogEntry>> load() async => const <CatalogEntry>[];
+}
+
+class _UnknownCapabilityService extends DeviceCapabilityService {
+  @override
+  Future<DeviceMemoryInfo> readMemory() async => DeviceMemoryInfo.unknown;
+}
+
+class _MemoryDownloadSettingsStore extends DownloadSettingsStore {
+  @override
+  Future<DownloadSettings> load() async =>
+      const DownloadSettings(wifiOnly: false);
+}
+
+class _FakeHubClient implements ModelHubClient {
+  _FakeHubClient({required this.files});
+
+  final List<HubRepoFile> files;
+
+  @override
+  ModelHubSource get source => ModelHubSource.huggingFace;
+
+  @override
+  Set<HubModelFormat> get searchableFormats => const <HubModelFormat>{
+    HubModelFormat.gguf,
+  };
+
+  @override
+  Map<String, String> authHeaders(String? token) => const <String, String>{};
+
+  @override
+  String downloadUrl(String repoId, String filePath, {String? revision}) => '';
+
+  @override
+  Future<HubSearchPage> search(
+    String query, {
+    required HubModelFormat format,
+    HubSearchSort sort = HubSearchSort.trending,
+    int limit = ModelHubClient.defaultSearchLimit,
+    String? pageToken,
+  }) async => const HubSearchPage(items: <HubRepoSummary>[]);
+
+  @override
+  Future<HubRepoDetail> fetchRepo(
+    String repoId, {
+    HubModelFormat? expectedFormat,
+  }) async {
+    return HubRepoDetail(
+      summary: HubRepoSummary(
+        source: ModelHubSource.huggingFace,
+        format: expectedFormat ?? HubModelFormat.gguf,
+        repoId: repoId,
+        owner: repoId.split('/').first,
+        name: repoId.split('/').last,
+      ),
+      files: files,
+    );
   }
 }

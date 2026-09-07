@@ -15,6 +15,9 @@ class LibraryModel {
     this.supportsVision = false,
     this.supportsToolCalling = false,
     this.hasMmproj = false,
+    this.sourceValue,
+    this.repoId,
+    this.revision,
     this.warnings = const <String>[],
   });
 
@@ -38,8 +41,25 @@ class LibraryModel {
   final bool supportsVision;
   final bool supportsToolCalling;
 
-  /// llama.cpp only: a sibling `mmproj-*.gguf` enabling image input.
+  /// llama.cpp only: a sibling GGUF whose name contains `mmproj`, enabling image input.
   final bool hasMmproj;
 
+  /// Hub source of a downloaded GGUF. Null for local imports and MNN models.
+  final String? sourceValue;
+  final String? repoId;
+  final String? revision;
+
   final List<String> warnings;
+
+  bool get canDownloadMmproj {
+    if (engine != InferenceEngine.llamaCpp) {
+      return false;
+    }
+    final source = sourceValue?.trim();
+    final repo = repoId?.trim();
+    return source != null &&
+        source.isNotEmpty &&
+        repo != null &&
+        repo.isNotEmpty;
+  }
 }

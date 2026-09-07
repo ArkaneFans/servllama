@@ -80,13 +80,14 @@ class DownloadTaskRecordAdapter extends TypeAdapter<DownloadTaskRecord> {
       quantLabel: fields[10] as String?,
       errorDetail: fields[11] as String?,
       pausedByNetwork: fields[12] == null ? false : fields[12] as bool,
+      targetModelId: fields[14] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, DownloadTaskRecord obj) {
     writer
-      ..writeByte(14)
+      ..writeByte(15)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -114,7 +115,9 @@ class DownloadTaskRecordAdapter extends TypeAdapter<DownloadTaskRecord> {
       ..writeByte(12)
       ..write(obj.pausedByNetwork)
       ..writeByte(13)
-      ..write(obj.requestedModelName);
+      ..write(obj.requestedModelName)
+      ..writeByte(14)
+      ..write(obj.targetModelId);
   }
 
   @override

@@ -1199,6 +1199,18 @@ abstract class AppLocalizations {
   /// **'Import mmproj file'**
   String get modelSettingsImportMmproj;
 
+  /// No description provided for @modelSettingsDownloadMmproj.
+  ///
+  /// In en, this message translates to:
+  /// **'Download mmproj'**
+  String get modelSettingsDownloadMmproj;
+
+  /// No description provided for @modelSettingsReplaceMmproj.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace mmproj'**
+  String get modelSettingsReplaceMmproj;
+
   /// No description provided for @modelSettingsRemoveMmproj.
   ///
   /// In en, this message translates to:
@@ -1286,7 +1298,7 @@ abstract class AppLocalizations {
   /// No description provided for @modelErrorUnsupportedMmprojFile.
   ///
   /// In en, this message translates to:
-  /// **'Only .gguf files starting with mmproj are supported.'**
+  /// **'Only .gguf files whose names contain mmproj are supported.'**
   String get modelErrorUnsupportedMmprojFile;
 
   /// No description provided for @modelErrorMmprojSameAsModelFile.
@@ -1888,6 +1900,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Download'**
   String get repoDownloadAction;
+
+  /// No description provided for @repoVisionOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Vision · On'**
+  String get repoVisionOn;
+
+  /// No description provided for @repoVisionOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Vision · Off'**
+  String get repoVisionOff;
+
+  /// No description provided for @repoVisionSheetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Vision'**
+  String get repoVisionSheetTitle;
+
+  /// No description provided for @repoVisionEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable vision'**
+  String get repoVisionEnable;
+
+  /// No description provided for @repoVisionMmprojSection.
+  ///
+  /// In en, this message translates to:
+  /// **'mmproj version'**
+  String get repoVisionMmprojSection;
+
+  /// No description provided for @repoVisionNoMmproj.
+  ///
+  /// In en, this message translates to:
+  /// **'This repository has no mmproj files.'**
+  String get repoVisionNoMmproj;
 
   /// No description provided for @repoEstimatedMemory.
   ///
