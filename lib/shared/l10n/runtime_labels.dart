@@ -60,6 +60,8 @@ class RuntimeLabels {
         return l10n.runtimeErrorModelRequired;
       case EngineRuntimeErrorKind.engineUnavailable:
         return l10n.runtimeErrorEngineUnavailable;
+      case EngineRuntimeErrorKind.backendUnavailable:
+        return l10n.runtimeErrorMnnBackendUnavailable;
       case EngineRuntimeErrorKind.unknown:
         return l10n.runtimeErrorUnknown(error.detail ?? '');
     }

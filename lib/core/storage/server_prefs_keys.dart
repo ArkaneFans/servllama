@@ -13,6 +13,7 @@ class ServerPrefsKeys {
   static const String useMmap = 'server.use_mmap';
   static const String logEnabled = 'server.log_enabled';
   static const String logLevel = 'server.log_level';
+  static const String mnnBackend = 'server.mnn_backend';
   static const String foregroundNotificationPermissionPrompted =
       'server.foreground_notification_permission_prompted';
 }

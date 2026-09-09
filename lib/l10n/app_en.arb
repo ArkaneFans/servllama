@@ -802,5 +802,33 @@
   "chatCurrentRunning": "Running now",
   "chatLoadModelAction": "Load",
   "chatPreparingModel": "Preparing model",
-  "chatEmptyNoModelsDescription": "Download a model first. Everything runs on this device afterwards."
+  "chatEmptyNoModelsDescription": "Download a model first. Everything runs on this device afterwards.",
+  "mnnBackendTitle": "MNN inference backend",
+  "mnnBackendDescription": "Choose how to run the language model. Compatibility and speed depend on the model and device; some operators may still run on the CPU.",
+  "mnnBackendNextStart": "Changes apply the next time a model is loaded. No automatic switch to CPU on failure.",
+  "mnnBackendActive": "Loaded backend: {backend}",
+  "@mnnBackendActive": {"placeholders": {"backend": {"type": "String"}}},
+  "mnnBackendRefresh": "Check available backends",
+  "mnnBackendCpu": "CPU",
+  "mnnBackendOpencl": "OpenCL GPU",
+  "mnnBackendVulkan": "Vulkan GPU",
+  "mnnBackendHexagon": "Hexagon NPU (experimental)",
+  "mnnBackendCpuDescription": "Default, with the broadest model compatibility.",
+  "mnnBackendGpuDescription": "GPU acceleration. The first model load may take longer to prepare kernels.",
+  "mnnBackendHexagonDescription": "Requires a compatible Qualcomm DSP with FP16 HMX. Can speed up long input processing; token generation may be slower than CPU.",
+  "mnnBackendHexagonArchitecture": "Automatically matched the {architecture} runtime.",
+  "@mnnBackendHexagonArchitecture": {
+    "placeholders": {
+      "architecture": { "type": "String" }
+    }
+  },
+  "mnnBackendNotBuilt": "Not included in this plugin build.",
+  "mnnBackendNativeUnavailable": "The MNN native runtime is unavailable.",
+  "mnnBackendLibrariesMissing": "This installation is missing compatible Hexagon runtime libraries.",
+  "mnnBackendDriverUnavailable": "The device driver is unavailable or inaccessible to this app.",
+  "mnnBackendDeviceUnsupported": "This device could not match or initialize a supported Hexagon DSP runtime.",
+  "mnnBackendNotChecked": "Availability has not been checked.",
+  "mnnBackendProbeFailed": "Could not check backends. Try again, or select CPU. Details are in the engine log.",
+  "mnnBackendSavedUnavailable": "The saved backend is currently unavailable. Select another backend before starting.",
+  "runtimeErrorMnnBackendUnavailable": "The selected MNN backend is unavailable. Choose CPU or another available backend in Service settings."
 }

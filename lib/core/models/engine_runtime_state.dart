@@ -21,6 +21,7 @@ enum EngineRuntimeErrorKind {
   serverStopFailed,
   modelRequired,
   engineUnavailable,
+  backendUnavailable,
   unknown,
 }
 

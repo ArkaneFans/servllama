@@ -1,3 +1,5 @@
+import 'package:mnn_engine/mnn_engine.dart' show MnnBackend;
+
 enum ServerListenMode { localhost, allInterfaces }
 
 enum FlashAttentionMode { auto, enabled, disabled }
@@ -18,6 +20,7 @@ class ServerLaunchSettings {
     this.useMmap = true,
     this.logEnabled = true,
     this.logLevel = defaultLogLevel,
+    this.mnnBackend = MnnBackend.cpu,
   });
 
   static const int defaultPort = 8080;
@@ -60,6 +63,7 @@ class ServerLaunchSettings {
   final bool useMmap;
   final bool logEnabled;
   final ServerLogLevel logLevel;
+  final MnnBackend mnnBackend;
 
   String get host =>
       listenMode == ServerListenMode.localhost ? '127.0.0.1' : '0.0.0.0';
@@ -77,6 +81,7 @@ class ServerLaunchSettings {
     bool? useMmap,
     bool? logEnabled,
     ServerLogLevel? logLevel,
+    MnnBackend? mnnBackend,
   }) {
     return ServerLaunchSettings(
       listenMode: listenMode ?? this.listenMode,
@@ -91,6 +96,7 @@ class ServerLaunchSettings {
       useMmap: useMmap ?? this.useMmap,
       logEnabled: logEnabled ?? this.logEnabled,
       logLevel: logLevel ?? this.logLevel,
+      mnnBackend: mnnBackend ?? this.mnnBackend,
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mnn_engine/mnn_engine.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
@@ -38,6 +39,7 @@ void main() {
       expect(settings.useMmap, isTrue);
       expect(settings.logEnabled, isTrue);
       expect(settings.logLevel, ServerLogLevel.info);
+      expect(settings.mnnBackend, MnnBackend.cpu);
     });
 
     test('reads and sanitizes stored prefs values', () async {
@@ -68,10 +70,7 @@ void main() {
       expect(settings.cpuThreads, ServerLaunchSettings.maxCpuThreads);
       expect(settings.batchSize, ServerLaunchSettings.maxBatchSize);
       expect(settings.parallelSlots, ServerLaunchSettings.maxParallelSlots);
-      expect(
-        settings.imageMaxTokens,
-        ServerLaunchSettings.maxImageMaxTokens,
-      );
+      expect(settings.imageMaxTokens, ServerLaunchSettings.maxImageMaxTokens);
       expect(settings.flashAttentionMode, FlashAttentionMode.enabled);
       expect(settings.useMmap, isFalse);
       expect(settings.logEnabled, isFalse);
@@ -97,6 +96,7 @@ void main() {
         ServerPrefsKeys.listenMode: 'invalid',
         ServerPrefsKeys.flashAttentionMode: 'invalid',
         ServerPrefsKeys.logLevel: 'invalid',
+        ServerPrefsKeys.mnnBackend: 'auto',
       });
       kvStorage = KvStorage();
       loader = ServerLaunchSettingsLoader(kvStorage: kvStorage);
@@ -109,6 +109,26 @@ void main() {
         ServerLaunchSettings.defaultFlashAttentionMode,
       );
       expect(settings.logLevel, ServerLogLevel.info);
+      expect(settings.mnnBackend, MnnBackend.cpu);
+    });
+
+    test('persists each MNN backend without changing llama settings', () async {
+      for (final backend in MnnBackend.values) {
+        await loader.save(
+          ServerLaunchSettings(
+            mnnBackend: backend,
+            contextSize: 8192,
+            cpuThreads: 3,
+          ),
+        );
+        final restored = await ServerLaunchSettingsLoader(
+          kvStorage: kvStorage,
+        ).load();
+        expect(restored.mnnBackend, backend);
+        expect(restored.contextSize, 8192);
+        expect(restored.cpuThreads, 3);
+        expect(restored.useMmap, isTrue);
+      }
     });
   });
 }

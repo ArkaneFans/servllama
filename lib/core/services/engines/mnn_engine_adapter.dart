@@ -104,7 +104,10 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
 
     try {
       onPhase(RuntimePhase.loadingModel);
-      final model = await _loadModel(modelId);
+      final model = await _loadModel(
+        modelId,
+        MnnLoadOptions(backend: settings.mnnBackend),
+      );
       _throwIfCancelled();
 
       onPhase(RuntimePhase.startingServer);
@@ -273,18 +276,25 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
     return value <= threshold;
   }
 
-  Future<MnnModelInfo> _loadModel(String modelId) async {
+  Future<MnnModelInfo> _loadModel(
+    String modelId,
+    MnnLoadOptions options,
+  ) async {
     final current = _activeModel;
-    if (current != null && current.modelId == modelId) {
+    if (current != null &&
+        current.modelId == modelId &&
+        current.backend == options.backend) {
       return current;
     }
     try {
-      final model = await _engine.loadModel(modelId);
+      final model = await _engine.loadModel(modelId, options: options);
       _activeModel = model;
       return model;
     } on MnnEngineException catch (error) {
       throw EngineAdapterException(
-        EngineRuntimeErrorKind.modelLoadFailed,
+        error.code == 'backend_unavailable'
+            ? EngineRuntimeErrorKind.backendUnavailable
+            : EngineRuntimeErrorKind.modelLoadFailed,
         detail: error.message,
       );
     }

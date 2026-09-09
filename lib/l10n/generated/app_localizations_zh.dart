@@ -1337,4 +1337,77 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get chatEmptyNoModelsDescription => '先下载一个模型，之后全程在本机运行。';
+
+  @override
+  String get mnnBackendTitle => 'MNN 推理后端';
+
+  @override
+  String get mnnBackendDescription =>
+      '选择语言模型的推理后端。兼容性和速度取决于模型与设备，部分算子仍可能由 CPU 处理。';
+
+  @override
+  String get mnnBackendNextStart => '下次加载模型时生效。加载失败时不会自动切换为 CPU。';
+
+  @override
+  String mnnBackendActive(String backend) {
+    return '已加载的后端：$backend';
+  }
+
+  @override
+  String get mnnBackendRefresh => '检测可用后端';
+
+  @override
+  String get mnnBackendCpu => 'CPU';
+
+  @override
+  String get mnnBackendOpencl => 'OpenCL GPU';
+
+  @override
+  String get mnnBackendVulkan => 'Vulkan GPU';
+
+  @override
+  String get mnnBackendHexagon => 'Hexagon NPU（实验性）';
+
+  @override
+  String get mnnBackendCpuDescription => '默认选项，模型兼容性最好。';
+
+  @override
+  String get mnnBackendGpuDescription => '使用 GPU 加速。首次加载模型时，准备计算内核可能需要更长时间。';
+
+  @override
+  String get mnnBackendHexagonDescription =>
+      '需要支持 FP16 HMX 的高通 DSP。可能加快长输入处理，逐字生成速度可能慢于 CPU。';
+
+  @override
+  String mnnBackendHexagonArchitecture(String architecture) {
+    return '已自动匹配 $architecture 运行库。';
+  }
+
+  @override
+  String get mnnBackendNotBuilt => '当前插件构建未包含此后端。';
+
+  @override
+  String get mnnBackendNativeUnavailable => 'MNN 引擎运行库不可用。';
+
+  @override
+  String get mnnBackendLibrariesMissing => '此安装包缺少兼容的 Hexagon 运行库。';
+
+  @override
+  String get mnnBackendDriverUnavailable => '设备驱动不可用，或应用无法访问。';
+
+  @override
+  String get mnnBackendDeviceUnsupported => '此设备无法匹配或初始化可用的 Hexagon DSP 运行库。';
+
+  @override
+  String get mnnBackendNotChecked => '尚未检测可用性。';
+
+  @override
+  String get mnnBackendProbeFailed => '无法检测可用后端。请重试，或选择 CPU。详细原因已记录到引擎日志。';
+
+  @override
+  String get mnnBackendSavedUnavailable => '已保存的后端当前不可用，请在启动前选择其他后端。';
+
+  @override
+  String get runtimeErrorMnnBackendUnavailable =>
+      '所选 MNN 后端不可用，请到服务设置中选择 CPU 或其他可用后端。';
 }

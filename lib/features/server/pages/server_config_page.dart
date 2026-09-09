@@ -5,6 +5,7 @@ import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/core/providers/server_config_provider.dart';
 import 'package:servllama/core/providers/engine_runtime_provider.dart';
+import 'package:servllama/features/server/widgets/mnn_backend_settings.dart';
 import 'package:servllama/shared/widgets/outlined_text_setting.dart';
 import 'package:servllama/shared/widgets/segmented_setting.dart';
 import 'package:servllama/shared/widgets/settings_section.dart';
@@ -107,6 +108,10 @@ class _ServerConfigViewState extends State<_ServerConfigView> {
                               ],
                             ),
                           ),
+                          if (activeEngine == InferenceEngine.mnn) ...[
+                            const MnnBackendSettings(),
+                            const SizedBox(height: 18),
+                          ],
                           SettingsSection(
                             title: l10n.serverConfigSectionNetwork,
                             child: SettingsTileList(

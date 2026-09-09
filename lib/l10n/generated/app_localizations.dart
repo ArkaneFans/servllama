@@ -2524,6 +2524,138 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Download a model first. Everything runs on this device afterwards.'**
   String get chatEmptyNoModelsDescription;
+
+  /// No description provided for @mnnBackendTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'MNN inference backend'**
+  String get mnnBackendTitle;
+
+  /// No description provided for @mnnBackendDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose how to run the language model. Compatibility and speed depend on the model and device; some operators may still run on the CPU.'**
+  String get mnnBackendDescription;
+
+  /// No description provided for @mnnBackendNextStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes apply the next time a model is loaded. No automatic switch to CPU on failure.'**
+  String get mnnBackendNextStart;
+
+  /// No description provided for @mnnBackendActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Loaded backend: {backend}'**
+  String mnnBackendActive(String backend);
+
+  /// No description provided for @mnnBackendRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Check available backends'**
+  String get mnnBackendRefresh;
+
+  /// No description provided for @mnnBackendCpu.
+  ///
+  /// In en, this message translates to:
+  /// **'CPU'**
+  String get mnnBackendCpu;
+
+  /// No description provided for @mnnBackendOpencl.
+  ///
+  /// In en, this message translates to:
+  /// **'OpenCL GPU'**
+  String get mnnBackendOpencl;
+
+  /// No description provided for @mnnBackendVulkan.
+  ///
+  /// In en, this message translates to:
+  /// **'Vulkan GPU'**
+  String get mnnBackendVulkan;
+
+  /// No description provided for @mnnBackendHexagon.
+  ///
+  /// In en, this message translates to:
+  /// **'Hexagon NPU (experimental)'**
+  String get mnnBackendHexagon;
+
+  /// No description provided for @mnnBackendCpuDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Default, with the broadest model compatibility.'**
+  String get mnnBackendCpuDescription;
+
+  /// No description provided for @mnnBackendGpuDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'GPU acceleration. The first model load may take longer to prepare kernels.'**
+  String get mnnBackendGpuDescription;
+
+  /// No description provided for @mnnBackendHexagonDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Requires a compatible Qualcomm DSP with FP16 HMX. Can speed up long input processing; token generation may be slower than CPU.'**
+  String get mnnBackendHexagonDescription;
+
+  /// No description provided for @mnnBackendHexagonArchitecture.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically matched the {architecture} runtime.'**
+  String mnnBackendHexagonArchitecture(String architecture);
+
+  /// No description provided for @mnnBackendNotBuilt.
+  ///
+  /// In en, this message translates to:
+  /// **'Not included in this plugin build.'**
+  String get mnnBackendNotBuilt;
+
+  /// No description provided for @mnnBackendNativeUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The MNN native runtime is unavailable.'**
+  String get mnnBackendNativeUnavailable;
+
+  /// No description provided for @mnnBackendLibrariesMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'This installation is missing compatible Hexagon runtime libraries.'**
+  String get mnnBackendLibrariesMissing;
+
+  /// No description provided for @mnnBackendDriverUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The device driver is unavailable or inaccessible to this app.'**
+  String get mnnBackendDriverUnavailable;
+
+  /// No description provided for @mnnBackendDeviceUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'This device could not match or initialize a supported Hexagon DSP runtime.'**
+  String get mnnBackendDeviceUnsupported;
+
+  /// No description provided for @mnnBackendNotChecked.
+  ///
+  /// In en, this message translates to:
+  /// **'Availability has not been checked.'**
+  String get mnnBackendNotChecked;
+
+  /// No description provided for @mnnBackendProbeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not check backends. Try again, or select CPU. Details are in the engine log.'**
+  String get mnnBackendProbeFailed;
+
+  /// No description provided for @mnnBackendSavedUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The saved backend is currently unavailable. Select another backend before starting.'**
+  String get mnnBackendSavedUnavailable;
+
+  /// No description provided for @runtimeErrorMnnBackendUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The selected MNN backend is unavailable. Choose CPU or another available backend in Service settings.'**
+  String get runtimeErrorMnnBackendUnavailable;
 }
 
 class _AppLocalizationsDelegate

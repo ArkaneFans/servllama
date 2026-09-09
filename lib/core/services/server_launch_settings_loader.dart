@@ -1,3 +1,4 @@
+import 'package:mnn_engine/mnn_engine.dart' show MnnBackend;
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
 import 'package:servllama/core/storage/server_prefs_keys.dart';
@@ -60,6 +61,9 @@ class ServerLaunchSettingsLoader {
       logLevel: _readLogLevel(
         await _kvStorage.getString(ServerPrefsKeys.logLevel),
       ),
+      mnnBackend: _readMnnBackend(
+        await _kvStorage.getString(ServerPrefsKeys.mnnBackend),
+      ),
     );
   }
 
@@ -93,7 +97,16 @@ class ServerLaunchSettingsLoader {
       ServerPrefsKeys.logLevel,
       settings.logLevel.name,
     );
+    await _kvStorage.setString(
+      ServerPrefsKeys.mnnBackend,
+      settings.mnnBackend.name,
+    );
   }
+
+  MnnBackend _readMnnBackend(String? value) => MnnBackend.values.firstWhere(
+    (backend) => backend.name == value,
+    orElse: () => MnnBackend.cpu,
+  );
 
   ServerListenMode _readListenMode(String? savedMode) {
     if (savedMode == null) {

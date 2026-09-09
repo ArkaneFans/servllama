@@ -1,6 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:mnn_engine/mnn_engine.dart';
+import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/services/app_l10n_service.dart';
+import 'package:servllama/core/services/engines/mnn_backend_service.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
 
@@ -8,13 +13,21 @@ class ServerConfigProvider extends ChangeNotifier {
   ServerConfigProvider({
     ServerLaunchSettingsLoader? settingsLoader,
     KvStorage? kvStorage,
-  }) : _settingsLoader =
+    MnnBackendService? mnnBackendService,
+  }) : _mnnBackendService = mnnBackendService ?? MnnBackendService(),
+       _settingsLoader =
            settingsLoader ??
            ServerLaunchSettingsLoader(
              kvStorage: kvStorage ?? KvStorage.instance,
            );
 
   final ServerLaunchSettingsLoader _settingsLoader;
+  final MnnBackendService _mnnBackendService;
+  StreamSubscription<MnnBackend?>? _mnnBackendSubscription;
+  List<MnnBackendCapability> _mnnCapabilities = const [];
+  MnnBackend? _activeMnnBackend;
+  bool _loadingMnnBackends = false;
+  String? _mnnBackendError;
 
   bool _hasCompletedInitialLoad = false;
   bool _isLoading = false;
@@ -39,6 +52,11 @@ class ServerConfigProvider extends ChangeNotifier {
   bool get useMmap => _settings.useMmap;
   bool get logEnabled => _settings.logEnabled;
   ServerLogLevel get logLevel => _settings.logLevel;
+  MnnBackend get mnnBackend => _settings.mnnBackend;
+  List<MnnBackendCapability> get mnnCapabilities => _mnnCapabilities;
+  MnnBackend? get activeMnnBackend => _activeMnnBackend;
+  bool get loadingMnnBackends => _loadingMnnBackends;
+  String? get mnnBackendError => _mnnBackendError;
 
   String get host => _settings.host;
 
@@ -52,6 +70,7 @@ class ServerConfigProvider extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _mnnBackendSubscription?.cancel();
     super.dispose();
   }
 
@@ -78,9 +97,8 @@ class ServerConfigProvider extends ChangeNotifier {
       _settings = await _settingsLoader.load();
       _statusMessage = AppL10nService.instance.current.serverConfigStatusLoaded;
     } catch (error) {
-      _statusMessage = AppL10nService.instance.current.serverConfigStatusLoadFailed(
-        error.toString(),
-      );
+      _statusMessage = AppL10nService.instance.current
+          .serverConfigStatusLoadFailed(error.toString());
     } finally {
       _hasCompletedInitialLoad = true;
       _isLoading = false;
@@ -188,6 +206,52 @@ class ServerConfigProvider extends ChangeNotifier {
     return _apply(_settings.copyWith(logLevel: value));
   }
 
+  Future<void> updateMnnBackend(MnnBackend value) {
+    if (value != MnnBackend.cpu &&
+        !_mnnCapabilities.any(
+          (item) => item.backend == value && item.available,
+        )) {
+      return Future<void>.value();
+    }
+    return _apply(_settings.copyWith(mnnBackend: value));
+  }
+
+  Future<void> loadMnnBackends() async {
+    if (_loadingMnnBackends || _disposed) return;
+    _loadingMnnBackends = true;
+    _mnnBackendError = null;
+    notifyListeners();
+    _mnnBackendSubscription ??= _mnnBackendService.activeBackendChanges.listen(
+      (backend) {
+        _activeMnnBackend = backend;
+        notifyListeners();
+      },
+      onError: (Object error) {
+        AppLogger.instance.warning(
+          'MNN backend events: $error',
+          channel: LogChannel.engine,
+          inMemory: true,
+        );
+      },
+    );
+    try {
+      final result = await _mnnBackendService.load();
+      _mnnCapabilities = List.unmodifiable(result.capabilities);
+      _activeMnnBackend = result.activeBackend;
+    } catch (error) {
+      _mnnCapabilities = const [];
+      _mnnBackendError = error.toString();
+      AppLogger.instance.warning(
+        'MNN backend probe failed: $error',
+        channel: LogChannel.engine,
+        inMemory: true,
+      );
+    } finally {
+      _loadingMnnBackends = false;
+      notifyListeners();
+    }
+  }
+
   /// Applies and persists a settings change. No-ops when nothing changed so
   /// text-field rebuilds don't trigger redundant disk writes.
   Future<void> _apply(ServerLaunchSettings next) async {
@@ -203,9 +267,8 @@ class ServerConfigProvider extends ChangeNotifier {
       await _settingsLoader.save(_settings);
       _statusMessage = AppL10nService.instance.current.serverConfigStatusSaved;
     } catch (error) {
-      _statusMessage = AppL10nService.instance.current.serverConfigStatusSaveFailed(
-        error.toString(),
-      );
+      _statusMessage = AppL10nService.instance.current
+          .serverConfigStatusSaveFailed(error.toString());
     } finally {
       notifyListeners();
     }
@@ -223,7 +286,8 @@ class ServerConfigProvider extends ChangeNotifier {
         a.flashAttentionMode == b.flashAttentionMode &&
         a.useMmap == b.useMmap &&
         a.logEnabled == b.logEnabled &&
-        a.logLevel == b.logLevel;
+        a.logLevel == b.logLevel &&
+        a.mnnBackend == b.mnnBackend;
   }
 
   static int _clamp(int value, int min, int max) {

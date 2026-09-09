@@ -1404,4 +1404,86 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get chatEmptyNoModelsDescription =>
       'Download a model first. Everything runs on this device afterwards.';
+
+  @override
+  String get mnnBackendTitle => 'MNN inference backend';
+
+  @override
+  String get mnnBackendDescription =>
+      'Choose how to run the language model. Compatibility and speed depend on the model and device; some operators may still run on the CPU.';
+
+  @override
+  String get mnnBackendNextStart =>
+      'Changes apply the next time a model is loaded. No automatic switch to CPU on failure.';
+
+  @override
+  String mnnBackendActive(String backend) {
+    return 'Loaded backend: $backend';
+  }
+
+  @override
+  String get mnnBackendRefresh => 'Check available backends';
+
+  @override
+  String get mnnBackendCpu => 'CPU';
+
+  @override
+  String get mnnBackendOpencl => 'OpenCL GPU';
+
+  @override
+  String get mnnBackendVulkan => 'Vulkan GPU';
+
+  @override
+  String get mnnBackendHexagon => 'Hexagon NPU (experimental)';
+
+  @override
+  String get mnnBackendCpuDescription =>
+      'Default, with the broadest model compatibility.';
+
+  @override
+  String get mnnBackendGpuDescription =>
+      'GPU acceleration. The first model load may take longer to prepare kernels.';
+
+  @override
+  String get mnnBackendHexagonDescription =>
+      'Requires a compatible Qualcomm DSP with FP16 HMX. Can speed up long input processing; token generation may be slower than CPU.';
+
+  @override
+  String mnnBackendHexagonArchitecture(String architecture) {
+    return 'Automatically matched the $architecture runtime.';
+  }
+
+  @override
+  String get mnnBackendNotBuilt => 'Not included in this plugin build.';
+
+  @override
+  String get mnnBackendNativeUnavailable =>
+      'The MNN native runtime is unavailable.';
+
+  @override
+  String get mnnBackendLibrariesMissing =>
+      'This installation is missing compatible Hexagon runtime libraries.';
+
+  @override
+  String get mnnBackendDriverUnavailable =>
+      'The device driver is unavailable or inaccessible to this app.';
+
+  @override
+  String get mnnBackendDeviceUnsupported =>
+      'This device could not match or initialize a supported Hexagon DSP runtime.';
+
+  @override
+  String get mnnBackendNotChecked => 'Availability has not been checked.';
+
+  @override
+  String get mnnBackendProbeFailed =>
+      'Could not check backends. Try again, or select CPU. Details are in the engine log.';
+
+  @override
+  String get mnnBackendSavedUnavailable =>
+      'The saved backend is currently unavailable. Select another backend before starting.';
+
+  @override
+  String get runtimeErrorMnnBackendUnavailable =>
+      'The selected MNN backend is unavailable. Choose CPU or another available backend in Service settings.';
 }

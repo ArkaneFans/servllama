@@ -76,7 +76,80 @@ void main() {
     expect(platform.checkPortCalls, 0);
     expect(platform.unloadModelCalls, 1);
   });
+
+  test('passes the saved backend when loading a model', () async {
+    final adapter = MnnEngineAdapter(
+      settingsLoader: _FixedSettingsLoader(
+        const ServerLaunchSettings(mnnBackend: MnnBackend.vulkan),
+      ),
+    );
+    addTearDown(adapter.dispose);
+    await adapter.start(modelId: 'local/qwen', onPhase: (_) {});
+    expect(platform.requestedBackends, [MnnBackend.vulkan]);
+  });
+
+  test('reloads a resident model when its requested backend changes', () async {
+    platform.initialModel = _model(MnnBackend.cpu);
+    final adapter = MnnEngineAdapter(
+      settingsLoader: _FixedSettingsLoader(
+        const ServerLaunchSettings(mnnBackend: MnnBackend.opencl),
+      ),
+    );
+    addTearDown(adapter.dispose);
+    await adapter.start(modelId: 'local/qwen', onPhase: (_) {});
+    expect(platform.requestedBackends, [MnnBackend.opencl]);
+  });
+
+  test('reuses a resident model only when its backend also matches', () async {
+    platform.initialModel = _model(MnnBackend.opencl);
+    final adapter = MnnEngineAdapter(
+      settingsLoader: _FixedSettingsLoader(
+        const ServerLaunchSettings(mnnBackend: MnnBackend.opencl),
+      ),
+    );
+    addTearDown(adapter.dispose);
+    await adapter.start(modelId: 'local/qwen', onPhase: (_) {});
+    expect(platform.requestedBackends, isEmpty);
+  });
+
+  test('backend failure is actionable and does not retry with CPU', () async {
+    platform.loadError = const MnnEngineException(
+      'backend_unavailable',
+      'OpenCL driver unavailable',
+    );
+    final adapter = MnnEngineAdapter(
+      settingsLoader: _FixedSettingsLoader(
+        const ServerLaunchSettings(mnnBackend: MnnBackend.opencl),
+      ),
+    );
+    addTearDown(adapter.dispose);
+    await expectLater(
+      adapter.start(modelId: 'local/qwen', onPhase: (_) {}),
+      throwsA(
+        isA<EngineAdapterException>().having(
+          (error) => error.kind,
+          'kind',
+          EngineRuntimeErrorKind.backendUnavailable,
+        ),
+      ),
+    );
+    expect(platform.requestedBackends, [MnnBackend.opencl]);
+    expect(platform.startServerCalls, 0);
+    expect(platform.unloadModelCalls, 1);
+  });
 }
+
+MnnModelInfo _model(MnnBackend backend) => MnnModelInfo(
+  modelId: 'local/qwen',
+  modelKey: 'qwen',
+  displayName: 'Qwen',
+  modelDirPath: '/tmp/mnn/qwen',
+  configPath: '/tmp/mnn/qwen/config.json',
+  sizeBytes: 1,
+  importedAt: 1,
+  isActive: true,
+  backend: backend,
+);
 
 class _FixedSettingsLoader extends ServerLaunchSettingsLoader {
   _FixedSettingsLoader(this.settings);
@@ -93,6 +166,9 @@ class _FakeMnnPlatform extends MnnEnginePlatform {
   int snapshotCalls = 0;
   int unloadModelCalls = 0;
   MnnEngineException? startError;
+  MnnEngineException? loadError;
+  MnnModelInfo? initialModel;
+  final requestedBackends = <MnnBackend>[];
 
   @override
   Stream<MnnRuntimeEvent> get events => const Stream<MnnRuntimeEvent>.empty();
@@ -115,12 +191,13 @@ class _FakeMnnPlatform extends MnnEnginePlatform {
   @override
   Future<MnnRuntimeSnapshot> getSnapshot() async {
     snapshotCalls++;
-    return const MnnRuntimeSnapshot(
+    return MnnRuntimeSnapshot(
       revision: 1,
       engineState: 'ready',
       modelState: 'unloaded',
       serverState: 'stopped',
       generationState: 'idle',
+      activeModel: initialModel,
     );
   }
 
@@ -134,16 +211,14 @@ class _FakeMnnPlatform extends MnnEnginePlatform {
   ) async => throw UnimplementedError();
 
   @override
-  Future<MnnModelInfo> loadModel(String modelId) async => const MnnModelInfo(
-    modelId: 'local/qwen',
-    modelKey: 'qwen',
-    displayName: 'Qwen',
-    modelDirPath: '/tmp/mnn/qwen',
-    configPath: '/tmp/mnn/qwen/config.json',
-    sizeBytes: 1,
-    importedAt: 1,
-    isActive: true,
-  );
+  Future<MnnModelInfo> loadModel(
+    String modelId, {
+    MnnLoadOptions options = const MnnLoadOptions(),
+  }) async {
+    requestedBackends.add(options.backend);
+    if (loadError != null) throw loadError!;
+    return _model(options.backend);
+  }
 
   @override
   Future<MnnServerInfo> startServer({
