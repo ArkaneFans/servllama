@@ -12,6 +12,7 @@ import 'package:servllama/core/repositories/local_model_repository.dart';
 import 'package:servllama/core/services/engines/llama_cpp_engine_adapter.dart';
 
 import '../../../support/stub_engine_adapter.dart';
+import '../../../support/fake_mnn_backend_service.dart';
 import 'package:servllama/core/services/llama_server_service.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
@@ -193,11 +194,16 @@ void main() {
       expect(configProvider.logLevel, ServerLogLevel.info);
     });
 
-    testWidgets('omits inference controls when MNN is selected', (
+    testWidgets('shows MNN backends without llama inference controls', (
       tester,
     ) async {
       final kvStorage = KvStorage();
-      final configProvider = ServerConfigProvider(kvStorage: kvStorage);
+      final backendService = FakeMnnBackendService();
+      addTearDown(backendService.dispose);
+      final configProvider = ServerConfigProvider(
+        kvStorage: kvStorage,
+        mnnBackendService: backendService,
+      );
       final serverService = _FakeLlamaServerService();
       final serverProvider = EngineRuntimeProvider(
         llamaCppAdapter: LlamaCppEngineAdapter(
@@ -228,6 +234,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('MNN'), findsOneWidget);
+      expect(find.text('MNN 推理后端'), findsOneWidget);
       expect(find.text('MNN 推理'), findsNothing);
       expect(find.text('推理后端'), findsNothing);
       expect(find.text('推理参数'), findsNothing);

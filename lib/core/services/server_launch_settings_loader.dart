@@ -1,3 +1,4 @@
+import 'package:mnn_engine/mnn_engine.dart' show MnnBackend;
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
 import 'package:servllama/core/storage/server_prefs_keys.dart';
@@ -9,6 +10,15 @@ class ServerLaunchSettingsLoader {
   final KvStorage _kvStorage;
 
   Future<ServerLaunchSettings> load() async {
+    final savedMnnBackend = await _kvStorage.getString(
+      ServerPrefsKeys.mnnBackend,
+    );
+    final mnnBackend = _readMnnBackend(savedMnnBackend);
+    if (savedMnnBackend != null && savedMnnBackend != mnnBackend.name) {
+      // Migrate withdrawn/unknown choices so a hidden backend cannot be
+      // started from preferences left by an earlier installation.
+      await _kvStorage.setString(ServerPrefsKeys.mnnBackend, mnnBackend.name);
+    }
     return ServerLaunchSettings(
       listenMode: _readListenMode(
         await _kvStorage.getString(ServerPrefsKeys.listenMode),
@@ -60,6 +70,7 @@ class ServerLaunchSettingsLoader {
       logLevel: _readLogLevel(
         await _kvStorage.getString(ServerPrefsKeys.logLevel),
       ),
+      mnnBackend: mnnBackend,
     );
   }
 
@@ -93,7 +104,17 @@ class ServerLaunchSettingsLoader {
       ServerPrefsKeys.logLevel,
       settings.logLevel.name,
     );
+    await _kvStorage.setString(
+      ServerPrefsKeys.mnnBackend,
+      _readMnnBackend(settings.mnnBackend.name).name,
+    );
   }
+
+  MnnBackend _readMnnBackend(String? value) =>
+      ServerLaunchSettings.supportedMnnBackends.firstWhere(
+        (backend) => backend.name == value,
+        orElse: () => MnnBackend.cpu,
+      );
 
   ServerListenMode _readListenMode(String? savedMode) {
     if (savedMode == null) {
