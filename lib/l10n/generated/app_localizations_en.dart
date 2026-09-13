@@ -1446,7 +1446,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mnnBackendHexagonDescription =>
-      'Requires a compatible Qualcomm DSP with FP16 HMX. Can speed up long input processing; token generation may be slower than CPU.';
+      'Use a model exported for Hexagon, preferably symmetric 4-bit quantization with Transformer C4. Can speed up long input processing; token generation may be slower than CPU.';
+
+  @override
+  String get runtimeErrorModelBackendIncompatible =>
+      'This model format is incompatible with Hexagon NPU. Select CPU/GPU, or import a model re-exported for Hexagon.';
 
   @override
   String mnnBackendHexagonArchitecture(String architecture) {

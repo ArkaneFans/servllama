@@ -1376,7 +1376,11 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get mnnBackendHexagonDescription =>
-      '需要支持 FP16 HMX 的高通 DSP。可能加快长输入处理，逐字生成速度可能慢于 CPU。';
+      '需使用为 Hexagon 导出的模型，推荐对称 4 位量化与 Transformer C4。可能加快长输入处理，逐字生成速度可能慢于 CPU。';
+
+  @override
+  String get runtimeErrorModelBackendIncompatible =>
+      '此模型的格式不适用于 Hexagon NPU。请选择 CPU/GPU，或导入为 Hexagon 重新导出的模型。';
 
   @override
   String mnnBackendHexagonArchitecture(String architecture) {

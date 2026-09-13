@@ -65,12 +65,36 @@ void main() {
   test(
     'does not silently replace a saved unavailable accelerator with CPU',
     () async {
+      service.capabilities = service.capabilities
+          .where((item) => item.backend != MnnBackend.opencl)
+          .toList();
+      await storage.setString(ServerPrefsKeys.mnnBackend, 'opencl');
+      await provider.load();
+      await provider.loadMnnBackends();
+      expect(provider.mnnBackend, MnnBackend.opencl);
+      await provider.updateMnnBackend(MnnBackend.cpu);
+      expect(await storage.getString(ServerPrefsKeys.mnnBackend), 'cpu');
+    },
+  );
+
+  test(
+    'migrates Hexagon preferences and rejects even an available NPU',
+    () async {
+      service.capabilities = const [
+        MnnBackendCapability(
+          backend: MnnBackend.hexagon,
+          compiled: true,
+          available: true,
+          status: MnnBackendStatus.available,
+        ),
+      ];
       await storage.setString(ServerPrefsKeys.mnnBackend, 'hexagon');
       await provider.load();
       await provider.loadMnnBackends();
-      expect(provider.mnnBackend, MnnBackend.hexagon);
-      await provider.updateMnnBackend(MnnBackend.cpu);
+      await provider.updateMnnBackend(MnnBackend.hexagon);
+      expect(provider.mnnBackend, MnnBackend.cpu);
       expect(await storage.getString(ServerPrefsKeys.mnnBackend), 'cpu');
+      expect(provider.mnnCapabilities, isEmpty);
     },
   );
 

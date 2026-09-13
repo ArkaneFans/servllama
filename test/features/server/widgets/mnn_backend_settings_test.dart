@@ -49,16 +49,14 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('offers GPU selection and explains unavailable Hexagon', (
+  testWidgets('offers CPU and GPU selection without a Hexagon entry', (
     tester,
   ) async {
     await showSettings(tester);
     expect(find.text('已加载的后端：CPU'), findsOneWidget);
-    expect(find.text('此安装包缺少兼容的 Hexagon 运行库。'), findsOneWidget);
-    final hexagon = tester.widget<ListTile>(
-      find.byKey(const Key('mnn_backend_hexagon')),
-    );
-    expect(hexagon.onTap, isNull);
+    expect(find.byKey(const Key('mnn_backend_hexagon')), findsNothing);
+    expect(find.textContaining('Hexagon'), findsNothing);
+    expect(find.byKey(const Key('mnn_backend_vulkan')), findsOneWidget);
     await tester.tap(find.byKey(const Key('mnn_backend_opencl')));
     await tester.pumpAndSettle();
     expect(provider.mnnBackend, MnnBackend.opencl);
@@ -100,39 +98,36 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await showSettings(tester, textScale: 2);
-    await tester.ensureVisible(find.byKey(const Key('mnn_backend_hexagon')));
+    await tester.ensureVisible(find.byKey(const Key('mnn_backend_vulkan')));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('shows the automatic DSP match and allows selecting Hexagon', (
-    tester,
-  ) async {
-    service.capabilities = [
-      ...service.capabilities.where(
-        (item) => item.backend != MnnBackend.hexagon,
-      ),
-      const MnnBackendCapability(
-        backend: MnnBackend.hexagon,
-        compiled: true,
-        available: true,
-        status: MnnBackendStatus.available,
-        dspArchitecture: 'v79',
-      ),
-    ];
-    tester.view.physicalSize = const Size(360, 800);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    await showSettings(tester, textScale: 2);
-    final hexagon = find.byKey(const Key('mnn_backend_hexagon'));
-    await tester.ensureVisible(hexagon);
-    await tester.pumpAndSettle();
-    expect(find.textContaining('已自动匹配 v79 运行库'), findsOneWidget);
-    expect(tester.widget<ListTile>(hexagon).onTap, isNotNull);
-    await tester.tap(hexagon);
-    await tester.pumpAndSettle();
-    expect(provider.mnnBackend, MnnBackend.hexagon);
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'keeps Hexagon hidden even when the plugin reports it available',
+    (tester) async {
+      service.capabilities = [
+        ...service.capabilities.where(
+          (item) => item.backend != MnnBackend.hexagon,
+        ),
+        const MnnBackendCapability(
+          backend: MnnBackend.hexagon,
+          compiled: true,
+          available: true,
+          status: MnnBackendStatus.available,
+          dspArchitecture: 'v79',
+        ),
+      ];
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await showSettings(tester, textScale: 2);
+      expect(find.byKey(const Key('mnn_backend_hexagon')), findsNothing);
+      expect(find.textContaining('Hexagon'), findsNothing);
+      expect(find.textContaining('v79'), findsNothing);
+      expect(provider.mnnBackend, MnnBackend.cpu);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

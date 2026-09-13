@@ -51,6 +51,14 @@ class ServerLaunchSettings {
       FlashAttentionMode.disabled;
   static const ServerLogLevel defaultLogLevel = ServerLogLevel.info;
 
+  // Hexagon remains in the plugin for development, but is not offered by
+  // ServLlama until its model compatibility and device support are ready.
+  static const supportedMnnBackends = [
+    MnnBackend.cpu,
+    MnnBackend.opencl,
+    MnnBackend.vulkan,
+  ];
+
   final ServerListenMode listenMode;
   final int port;
   final String apiKey;

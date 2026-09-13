@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mnn_engine/mnn_engine.dart';
 import 'package:provider/provider.dart';
+import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/providers/server_config_provider.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
 import 'package:servllama/l10n/l10n.dart';
@@ -84,7 +85,7 @@ class _MnnBackendSettingsState extends State<MnnBackendSettings> {
                 style: TextStyle(color: colors.error),
               ),
             ),
-          for (final backend in MnnBackend.values) ...[
+          for (final backend in ServerLaunchSettings.supportedMnnBackends) ...[
             if (backend != MnnBackend.cpu) const Divider(height: 1),
             _backendTile(context, provider, backend),
           ],

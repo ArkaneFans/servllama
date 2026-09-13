@@ -137,6 +137,35 @@ void main() {
     expect(platform.startServerCalls, 0);
     expect(platform.unloadModelCalls, 1);
   });
+
+  test(
+    'incompatible Hexagon model does not start a server or retry with CPU',
+    () async {
+      platform.loadError = const MnnEngineException(
+        'model_backend_incompatible',
+        'Transformer C4 export required',
+      );
+      final adapter = MnnEngineAdapter(
+        settingsLoader: _FixedSettingsLoader(
+          const ServerLaunchSettings(mnnBackend: MnnBackend.hexagon),
+        ),
+      );
+      addTearDown(adapter.dispose);
+      await expectLater(
+        adapter.start(modelId: 'local/qwen', onPhase: (_) {}),
+        throwsA(
+          isA<EngineAdapterException>().having(
+            (error) => error.kind,
+            'kind',
+            EngineRuntimeErrorKind.modelBackendIncompatible,
+          ),
+        ),
+      );
+      expect(platform.requestedBackends, [MnnBackend.hexagon]);
+      expect(platform.startServerCalls, 0);
+      expect(platform.unloadModelCalls, 1);
+    },
+  );
 }
 
 MnnModelInfo _model(MnnBackend backend) => MnnModelInfo(

@@ -22,6 +22,7 @@ enum EngineRuntimeErrorKind {
   modelRequired,
   engineUnavailable,
   backendUnavailable,
+  modelBackendIncompatible,
   unknown,
 }
 

@@ -291,12 +291,12 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
       _activeModel = model;
       return model;
     } on MnnEngineException catch (error) {
-      throw EngineAdapterException(
-        error.code == 'backend_unavailable'
-            ? EngineRuntimeErrorKind.backendUnavailable
-            : EngineRuntimeErrorKind.modelLoadFailed,
-        detail: error.message,
-      );
+      throw EngineAdapterException(switch (error.code) {
+        'backend_unavailable' => EngineRuntimeErrorKind.backendUnavailable,
+        'model_backend_incompatible' =>
+          EngineRuntimeErrorKind.modelBackendIncompatible,
+        _ => EngineRuntimeErrorKind.modelLoadFailed,
+      }, detail: error.message);
     }
   }
 

@@ -207,6 +207,9 @@ class ServerConfigProvider extends ChangeNotifier {
   }
 
   Future<void> updateMnnBackend(MnnBackend value) {
+    if (!ServerLaunchSettings.supportedMnnBackends.contains(value)) {
+      return Future<void>.value();
+    }
     if (value != MnnBackend.cpu &&
         !_mnnCapabilities.any(
           (item) => item.backend == value && item.available,
@@ -236,7 +239,12 @@ class ServerConfigProvider extends ChangeNotifier {
     );
     try {
       final result = await _mnnBackendService.load();
-      _mnnCapabilities = List.unmodifiable(result.capabilities);
+      _mnnCapabilities = List.unmodifiable(
+        result.capabilities.where(
+          (item) =>
+              ServerLaunchSettings.supportedMnnBackends.contains(item.backend),
+        ),
+      );
       _activeMnnBackend = result.activeBackend;
     } catch (error) {
       _mnnCapabilities = const [];

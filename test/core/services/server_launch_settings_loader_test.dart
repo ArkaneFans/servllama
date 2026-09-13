@@ -112,23 +112,45 @@ void main() {
       expect(settings.mnnBackend, MnnBackend.cpu);
     });
 
-    test('persists each MNN backend without changing llama settings', () async {
-      for (final backend in MnnBackend.values) {
-        await loader.save(
-          ServerLaunchSettings(
-            mnnBackend: backend,
-            contextSize: 8192,
-            cpuThreads: 3,
-          ),
-        );
-        final restored = await ServerLaunchSettingsLoader(
-          kvStorage: kvStorage,
-        ).load();
-        expect(restored.mnnBackend, backend);
-        expect(restored.contextSize, 8192);
-        expect(restored.cpuThreads, 3);
-        expect(restored.useMmap, isTrue);
-      }
+    test(
+      'persists supported MNN backends without changing llama settings',
+      () async {
+        for (final backend in ServerLaunchSettings.supportedMnnBackends) {
+          await loader.save(
+            ServerLaunchSettings(
+              mnnBackend: backend,
+              contextSize: 8192,
+              cpuThreads: 3,
+            ),
+          );
+          final restored = await ServerLaunchSettingsLoader(
+            kvStorage: kvStorage,
+          ).load();
+          expect(restored.mnnBackend, backend);
+          expect(restored.contextSize, 8192);
+          expect(restored.cpuThreads, 3);
+          expect(restored.useMmap, isTrue);
+        }
+      },
+    );
+
+    test(
+      'migrates a withdrawn backend and preserves the other settings',
+      () async {
+        await kvStorage.setString(ServerPrefsKeys.mnnBackend, 'hexagon');
+        await kvStorage.setInt(ServerPrefsKeys.port, 9090);
+        final restored = await loader.load();
+        expect(restored.mnnBackend, MnnBackend.cpu);
+        expect(restored.port, 9090);
+        expect(await kvStorage.getString(ServerPrefsKeys.mnnBackend), 'cpu');
+      },
+    );
+
+    test('does not persist a hidden backend from a settings object', () async {
+      await loader.save(
+        const ServerLaunchSettings(mnnBackend: MnnBackend.hexagon),
+      );
+      expect(await kvStorage.getString(ServerPrefsKeys.mnnBackend), 'cpu');
     });
   });
 }
