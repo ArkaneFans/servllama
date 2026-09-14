@@ -6,7 +6,10 @@ import 'package:servllama/features/downloads/models/model_hub.dart';
 enum ModelFeasibility { comfortable, tight, notEnoughMemory, unknown }
 
 class DeviceMemoryInfo {
-  const DeviceMemoryInfo({required this.totalBytes, required this.availableBytes});
+  const DeviceMemoryInfo({
+    required this.totalBytes,
+    required this.availableBytes,
+  });
 
   static const DeviceMemoryInfo unknown = DeviceMemoryInfo(
     totalBytes: 0,
@@ -19,8 +22,7 @@ class DeviceMemoryInfo {
   bool get isKnown => totalBytes > 0;
 }
 
-/// Answers "can this phone actually run that model" *before* the download
-/// starts, instead of letting the user find out when loading fails.
+/// Estimates runtime memory headroom for advisory model labels.
 class DeviceCapabilityService {
   DeviceCapabilityService({File? meminfoFile})
     : _meminfoFile = meminfoFile ?? File('/proc/meminfo');

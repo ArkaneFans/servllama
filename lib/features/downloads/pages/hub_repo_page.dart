@@ -28,10 +28,8 @@ List<HubRepoFile> ggufDownloadFiles({
   ];
 }
 
-/// Repository detail. For GGUF repos this is a quantization picker ordered by
-/// what the device can actually run — tiers that would not fit are disabled
-/// rather than allowed to fail at load time. MNN repos download whole, so
-/// there is a single action instead of a list.
+/// GGUF repositories list quantizations by size with advisory memory labels.
+/// MNN repositories download as a whole through a single action.
 
 class HubRepoPage extends StatefulWidget {
   const HubRepoPage({
@@ -439,10 +437,6 @@ class _QuantRow extends StatelessWidget {
     final palette = theme.palette;
     final isLight = theme.brightness == Brightness.light;
     final l10n = context.l10n;
-    // Over budget means the load would OOM; offering the button anyway would
-    // just move the failure later.
-    final isBlocked = feasibility == ModelFeasibility.notEnoughMemory;
-
     final (Color markColor, StatusTone tone) = switch (feasibility) {
       ModelFeasibility.comfortable => (palette.okMark, StatusTone.ok),
       ModelFeasibility.tight => (palette.warningMark, StatusTone.warning),
@@ -453,104 +447,101 @@ class _QuantRow extends StatelessWidget {
       ModelFeasibility.unknown => (palette.idleMark, StatusTone.idle),
     };
 
-    return Opacity(
-      opacity: isBlocked ? 0.55 : 1,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: isLight ? Colors.white : colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: colorScheme.outlineVariant.withAlpha(96)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
-          child: Row(
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: markColor,
-                  shape: BoxShape.circle,
-                ),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: isLight ? Colors.white : colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colorScheme.outlineVariant.withAlpha(96)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+        child: Row(
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: markColor,
+                shape: BoxShape.circle,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      file.quantLabel ?? file.fileName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    file.quantLabel ?? file.fileName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '${FormatUtils.bytes(file.sizeBytes)} · '
+                    '${RuntimeLabels.feasibility(l10n, feasibility)}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: tone == StatusTone.danger
+                          ? palette.dangerText
+                          : colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  if (onVisionTap != null) ...[
+                    const SizedBox(height: 6),
+                    TextButton(
+                      key: Key('quant_vision_button_${file.path}'),
+                      onPressed: onVisionTap,
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        minimumSize: const Size(0, 36),
+                        visualDensity: VisualDensity.compact,
+                        alignment: Alignment.centerLeft,
+                        foregroundColor: colorScheme.onSurfaceVariant,
+                        backgroundColor: colorScheme.surfaceContainerHighest
+                            .withAlpha(120),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.visibility_outlined, size: 17),
+                          const SizedBox(width: 6),
+                          Text(
+                            visionEnabled
+                                ? l10n.repoVisionOn
+                                : l10n.repoVisionOff,
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(Icons.chevron_right_rounded, size: 18),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      '${FormatUtils.bytes(file.sizeBytes)} · '
-                      '${RuntimeLabels.feasibility(l10n, feasibility)}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: tone == StatusTone.danger
-                            ? palette.dangerText
-                            : colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    if (onVisionTap != null) ...[
-                      const SizedBox(height: 6),
-                      TextButton(
-                        key: Key('quant_vision_button_${file.path}'),
-                        onPressed: isBlocked ? null : onVisionTap,
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          minimumSize: const Size(0, 36),
-                          visualDensity: VisualDensity.compact,
-                          alignment: Alignment.centerLeft,
-                          foregroundColor: colorScheme.onSurfaceVariant,
-                          backgroundColor: colorScheme.surfaceContainerHighest
-                              .withAlpha(120),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.visibility_outlined, size: 17),
-                            const SizedBox(width: 6),
-                            Text(
-                              visionEnabled
-                                  ? l10n.repoVisionOn
-                                  : l10n.repoVisionOff,
-                            ),
-                            const SizedBox(width: 4),
-                            const Icon(Icons.chevron_right_rounded, size: 18),
-                          ],
+                    if (visionEnabled && selectedMmproj != null)
+                      Text(
+                        '${selectedMmproj!.fileName} · ${FormatUtils.bytes(selectedMmproj!.sizeBytes)}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ),
-                      if (visionEnabled && selectedMmproj != null)
-                        Text(
-                          '${selectedMmproj!.fileName} · ${FormatUtils.bytes(selectedMmproj!.sizeBytes)}',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                    ],
                   ],
-                ),
+                ],
               ),
-              const SizedBox(width: 8),
-              FilledButton.tonal(
-                onPressed: isBlocked ? null : onDownload,
-                child: Text(l10n.repoDownloadAction),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.tonal(
+              onPressed: onDownload,
+              child: Text(l10n.repoDownloadAction),
+            ),
+          ],
         ),
       ),
     );

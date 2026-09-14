@@ -145,19 +145,60 @@ void main() {
 
       expect(downloads.calls.single.files, <HubRepoFile>[q4, secondMmproj]);
     });
+
+    testWidgets('memory warning allows projector selection and download', (
+      tester,
+    ) async {
+      final downloads = _RecordingDownloadProvider();
+      addTearDown(downloads.dispose);
+
+      await tester.pumpWidget(
+        _host(
+          files: const <HubRepoFile>[q4, firstMmproj, secondMmproj],
+          downloads: downloads,
+          memory: const DeviceMemoryInfo(totalBytes: 128, availableBytes: 1),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await _openRepo(tester);
+
+      expect(
+        find.textContaining(l10n.feasibilityNotEnoughMemory),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(Key('quant_vision_button_${q4.path}')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(Key('mmproj_option_${secondMmproj.path}')));
+      await tester.pump();
+      Navigator.of(tester.element(find.byType(MmprojPickerSheet))).pop();
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining(l10n.feasibilityNotEnoughMemory),
+        findsOneWidget,
+      );
+      await tester.tap(
+        find.widgetWithText(FilledButton, l10n.repoDownloadAction).first,
+      );
+      await _settle(tester);
+
+      expect(downloads.calls, hasLength(1));
+      expect(downloads.calls.single.files, <HubRepoFile>[q4, secondMmproj]);
+    });
   });
 }
 
 Widget _host({
   required List<HubRepoFile> files,
   required _RecordingDownloadProvider downloads,
+  DeviceMemoryInfo memory = DeviceMemoryInfo.unknown,
 }) {
   return MultiProvider(
     providers: [
       ChangeNotifierProvider<ModelDiscoveryProvider>(
         create: (_) => ModelDiscoveryProvider(
           catalogService: _EmptyCatalogService(),
-          capabilityService: _UnknownCapabilityService(),
+          capabilityService: _FixedCapabilityService(memory),
           settingsStore: _MemoryDownloadSettingsStore(),
           huggingFaceClient: _FakeHubClient(files: files),
           modelScopeClient: _FakeHubClient(files: files),
@@ -340,9 +381,13 @@ class _EmptyCatalogService extends ModelCatalogService {
   Future<List<CatalogEntry>> load() async => const <CatalogEntry>[];
 }
 
-class _UnknownCapabilityService extends DeviceCapabilityService {
+class _FixedCapabilityService extends DeviceCapabilityService {
+  _FixedCapabilityService(this.memory);
+
+  final DeviceMemoryInfo memory;
+
   @override
-  Future<DeviceMemoryInfo> readMemory() async => DeviceMemoryInfo.unknown;
+  Future<DeviceMemoryInfo> readMemory() async => memory;
 }
 
 class _MemoryDownloadSettingsStore extends DownloadSettingsStore {
