@@ -398,7 +398,7 @@ class _ChatViewState extends State<_ChatView> {
         elevation: 0,
         scrolledUnderElevation: 0,
         titleSpacing: 2,
-        centerTitle: false,
+        centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.menu),
           tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
@@ -832,34 +832,23 @@ class _ChatAppBarTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Selector<ChatProvider, _ChatTitleSnapshot>(
-                selector: (_, provider) =>
-                    _ChatTitleSnapshot.fromProvider(provider),
-                builder: (context, snapshot, _) {
-                  return AnimatedTextSwap(
-                    text: snapshot.title ?? context.l10n.chatNewSession,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  );
-                },
-              ),
-              _ChatRuntimeTitle(onTap: onSelectModel),
-            ],
-          ),
+        Selector<ChatProvider, _ChatTitleSnapshot>(
+          selector: (_, provider) => _ChatTitleSnapshot.fromProvider(provider),
+          builder: (context, snapshot, _) {
+            return AnimatedTextSwap(
+              text: snapshot.title ?? context.l10n.chatNewSession,
+              alignment: Alignment.center,
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            );
+          },
         ),
+        _ChatRuntimeTitle(onTap: onSelectModel),
       ],
     );
   }
@@ -906,6 +895,7 @@ class _ChatRuntimeTitle extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 0),
             child: AnimatedTextSwap(
               text: '$engineName / $detail',
+              alignment: Alignment.center,
               style: TextStyle(
                 fontSize: 10,
                 color: theme.colorScheme.onSurface.withAlpha(153),

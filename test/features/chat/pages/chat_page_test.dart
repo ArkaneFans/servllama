@@ -342,7 +342,10 @@ void main() {
           find.descendant(of: find.byType(AppBar), matching: find.text('新对话')),
           findsOneWidget,
         );
-        expect(tester.getCenter(find.text('新对话')).dx, lessThan(200));
+        expect(
+          tester.getCenter(find.text('新对话')).dx,
+          closeTo(tester.getCenter(find.byType(AppBar)).dx, 0.5),
+        );
         expect(find.text('历史消息'), findsNothing);
 
         await provider.selectSession('s1');
@@ -367,7 +370,7 @@ void main() {
       },
     );
 
-    testWidgets('app bar shows session title above engine and model', (
+    testWidgets('app bar centers session title above engine and model', (
       tester,
     ) async {
       final chatProvider = ChatProvider(
@@ -421,10 +424,13 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(tester.getCenter(find.text('新对话')).dx, lessThan(200));
       expect(
-        tester.getTopLeft(find.text('llama.cpp / alpha')).dx,
-        closeTo(tester.getTopLeft(find.text('新对话')).dx, 0.5),
+        tester.getCenter(find.text('新对话')).dx,
+        closeTo(tester.getCenter(find.byType(AppBar)).dx, 0.5),
+      );
+      expect(
+        tester.getCenter(find.text('llama.cpp / alpha')).dx,
+        closeTo(tester.getCenter(find.byType(AppBar)).dx, 0.5),
       );
 
       await tester.tap(find.byKey(const Key('chat_runtime_subtitle')));
