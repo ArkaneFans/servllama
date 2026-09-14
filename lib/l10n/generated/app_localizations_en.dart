@@ -1409,12 +1409,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mnnBackendTitle => 'MNN inference backend';
 
   @override
-  String get mnnBackendDescription =>
-      'Choose how to run the language model. Compatibility and speed depend on the model and device; some operators may still run on the CPU.';
-
-  @override
   String get mnnBackendNextStart =>
-      'Changes apply the next time a model is loaded. No automatic switch to CPU on failure.';
+      'Changes apply the next time a model is loaded.';
 
   @override
   String mnnBackendActive(String backend) {
@@ -1442,7 +1438,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mnnBackendGpuDescription =>
-      'GPU acceleration. The first model load may take longer to prepare kernels.';
+      'Uses GPU acceleration. Loading a model for the first time requires some initialization time.';
 
   @override
   String get mnnBackendHexagonDescription =>

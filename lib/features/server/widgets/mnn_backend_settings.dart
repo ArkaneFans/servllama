@@ -39,7 +39,6 @@ class _MnnBackendSettingsState extends State<MnnBackendSettings> {
     return SettingsSection(
       key: const Key('mnn_backend_settings'),
       title: l10n.mnnBackendTitle,
-      subtitle: l10n.mnnBackendDescription,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

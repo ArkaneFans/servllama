@@ -2531,16 +2531,10 @@ abstract class AppLocalizations {
   /// **'MNN inference backend'**
   String get mnnBackendTitle;
 
-  /// No description provided for @mnnBackendDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose how to run the language model. Compatibility and speed depend on the model and device; some operators may still run on the CPU.'**
-  String get mnnBackendDescription;
-
   /// No description provided for @mnnBackendNextStart.
   ///
   /// In en, this message translates to:
-  /// **'Changes apply the next time a model is loaded. No automatic switch to CPU on failure.'**
+  /// **'Changes apply the next time a model is loaded.'**
   String get mnnBackendNextStart;
 
   /// No description provided for @mnnBackendActive.
@@ -2588,7 +2582,7 @@ abstract class AppLocalizations {
   /// No description provided for @mnnBackendGpuDescription.
   ///
   /// In en, this message translates to:
-  /// **'GPU acceleration. The first model load may take longer to prepare kernels.'**
+  /// **'Uses GPU acceleration. Loading a model for the first time requires some initialization time.'**
   String get mnnBackendGpuDescription;
 
   /// No description provided for @mnnBackendHexagonDescription.

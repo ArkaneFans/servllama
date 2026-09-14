@@ -1342,11 +1342,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mnnBackendTitle => 'MNN 推理后端';
 
   @override
-  String get mnnBackendDescription =>
-      '选择语言模型的推理后端。兼容性和速度取决于模型与设备，部分算子仍可能由 CPU 处理。';
-
-  @override
-  String get mnnBackendNextStart => '下次加载模型时生效。加载失败时不会自动切换为 CPU。';
+  String get mnnBackendNextStart => '下次加载模型时生效。';
 
   @override
   String mnnBackendActive(String backend) {
@@ -1372,7 +1368,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mnnBackendCpuDescription => '默认选项，模型兼容性最好。';
 
   @override
-  String get mnnBackendGpuDescription => '使用 GPU 加速。首次加载模型时，准备计算内核可能需要更长时间。';
+  String get mnnBackendGpuDescription => '使用 GPU 加速，首次加载模型需要一定初始化时间。';
 
   @override
   String get mnnBackendHexagonDescription =>
