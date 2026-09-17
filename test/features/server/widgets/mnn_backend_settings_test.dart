@@ -49,10 +49,16 @@ void main() {
             ChangeNotifierProvider<EngineRuntimeProvider>.value(value: runtime),
             ChangeNotifierProvider<ServerConfigProvider>.value(value: provider),
           ],
-          child: const Scaffold(
+          child: Scaffold(
             body: SingleChildScrollView(
-              padding: EdgeInsets.all(16),
-              child: MnnBackendSettings(),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: const [
+                  MnnBackendSettings(),
+                  SizedBox(height: 18),
+                  MnnRuntimeSettings(),
+                ],
+              ),
             ),
           ),
         ),
