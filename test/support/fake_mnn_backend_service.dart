@@ -18,6 +18,8 @@ class FakeMnnBackendService extends MnnBackendService {
   MnnBackend? activeBackend;
   Object? error;
   Completer<void>? pending;
+  int mmapCacheBytes = 0;
+  Object? mmapCacheError;
   final changes = StreamController<MnnBackend?>.broadcast();
 
   @override
@@ -30,6 +32,20 @@ class FakeMnnBackendService extends MnnBackendService {
 
   @override
   Stream<MnnBackend?> get activeBackendChanges => changes.stream;
+
+  @override
+  Future<MnnMmapCacheInfo> getMmapCache() async {
+    if (mmapCacheError != null) throw mmapCacheError!;
+    return MnnMmapCacheInfo(sizeBytes: mmapCacheBytes);
+  }
+
+  @override
+  Future<MnnMmapCacheInfo> clearMmapCache() async {
+    if (mmapCacheError != null) throw mmapCacheError!;
+    final size = mmapCacheBytes;
+    mmapCacheBytes = 0;
+    return MnnMmapCacheInfo(sizeBytes: size, cleared: true);
+  }
 
   Future<void> dispose() => changes.close();
 }

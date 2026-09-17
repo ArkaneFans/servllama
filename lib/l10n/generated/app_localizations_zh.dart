@@ -1410,4 +1410,64 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get runtimeErrorMnnBackendUnavailable =>
       '所选 MNN 后端不可用，请到服务设置中选择 CPU 或其他可用后端。';
+
+  @override
+  String get mnnRuntimeTitle => 'MNN 运行参数';
+
+  @override
+  String get mnnUseMmap => '使用 mmap';
+
+  @override
+  String get mnnUseMmapSubtitle => '将模型权重从磁盘映射到内存，降低占用。首次加载会生成缓存。';
+
+  @override
+  String get mnnPrecision => 'Precision';
+
+  @override
+  String get mnnPrecisionDescription => 'Low 更快、更省内存；High 更精确。';
+
+  @override
+  String get mnnPrecisionLow => 'Low';
+
+  @override
+  String get mnnPrecisionHigh => 'High';
+
+  @override
+  String get mnnThreadNum => '生成线程数';
+
+  @override
+  String get mnnThreadNumDescription => '生成时使用的 CPU 线程数。';
+
+  @override
+  String get mnnMmapCache => '清理 mmap 缓存';
+
+  @override
+  String mnnMmapCacheSubtitle(String size) {
+    return '当前缓存：$size';
+  }
+
+  @override
+  String get mnnMmapCacheEmpty => '暂无 mmap 缓存';
+
+  @override
+  String get mnnMmapCacheStopServer => '请先停止服务再清理缓存。';
+
+  @override
+  String get mnnMmapCacheClearAction => '清理';
+
+  @override
+  String get mnnMmapCacheDialogTitle => '清理 mmap 缓存？';
+
+  @override
+  String mnnMmapCacheDialogContent(String size) {
+    return '将删除已生成的 mmap 和 GPU 运行时缓存（$size）。下次加载模型时会重新生成。';
+  }
+
+  @override
+  String mnnMmapCacheCleared(String size) {
+    return '已清理 $size mmap 缓存';
+  }
+
+  @override
+  String get mnnMmapCacheClearFailed => '无法清理 mmap 缓存。';
 }

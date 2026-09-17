@@ -2656,6 +2656,114 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The selected MNN backend is unavailable. Choose CPU or another available backend in Service settings.'**
   String get runtimeErrorMnnBackendUnavailable;
+
+  /// No description provided for @mnnRuntimeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'MNN runtime'**
+  String get mnnRuntimeTitle;
+
+  /// No description provided for @mnnUseMmap.
+  ///
+  /// In en, this message translates to:
+  /// **'Use mmap'**
+  String get mnnUseMmap;
+
+  /// No description provided for @mnnUseMmapSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Maps model weights from disk to reduce memory. The first load builds a cache.'**
+  String get mnnUseMmapSubtitle;
+
+  /// No description provided for @mnnPrecision.
+  ///
+  /// In en, this message translates to:
+  /// **'Precision'**
+  String get mnnPrecision;
+
+  /// No description provided for @mnnPrecisionDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Low is faster and uses less memory. High is more accurate.'**
+  String get mnnPrecisionDescription;
+
+  /// No description provided for @mnnPrecisionLow.
+  ///
+  /// In en, this message translates to:
+  /// **'Low'**
+  String get mnnPrecisionLow;
+
+  /// No description provided for @mnnPrecisionHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'High'**
+  String get mnnPrecisionHigh;
+
+  /// No description provided for @mnnThreadNum.
+  ///
+  /// In en, this message translates to:
+  /// **'Generation threads'**
+  String get mnnThreadNum;
+
+  /// No description provided for @mnnThreadNumDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'CPU threads used for generation.'**
+  String get mnnThreadNumDescription;
+
+  /// No description provided for @mnnMmapCache.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear mmap cache'**
+  String get mnnMmapCache;
+
+  /// No description provided for @mnnMmapCacheSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Current cache: {size}'**
+  String mnnMmapCacheSubtitle(String size);
+
+  /// No description provided for @mnnMmapCacheEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No mmap cache yet'**
+  String get mnnMmapCacheEmpty;
+
+  /// No description provided for @mnnMmapCacheStopServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop the server before clearing the cache.'**
+  String get mnnMmapCacheStopServer;
+
+  /// No description provided for @mnnMmapCacheClearAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get mnnMmapCacheClearAction;
+
+  /// No description provided for @mnnMmapCacheDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear mmap cache?'**
+  String get mnnMmapCacheDialogTitle;
+
+  /// No description provided for @mnnMmapCacheDialogContent.
+  ///
+  /// In en, this message translates to:
+  /// **'This deletes generated mmap and GPU runtime caches ({size}). The next model load will rebuild them.'**
+  String mnnMmapCacheDialogContent(String size);
+
+  /// No description provided for @mnnMmapCacheCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleared {size} of mmap cache'**
+  String mnnMmapCacheCleared(String size);
+
+  /// No description provided for @mnnMmapCacheClearFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not clear the mmap cache.'**
+  String get mnnMmapCacheClearFailed;
 }
 
 class _AppLocalizationsDelegate

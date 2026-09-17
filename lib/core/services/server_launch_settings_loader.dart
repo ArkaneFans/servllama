@@ -1,4 +1,4 @@
-import 'package:mnn_engine/mnn_engine.dart' show MnnBackend;
+import 'package:mnn_engine/mnn_engine.dart' show MnnBackend, MnnPrecision;
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
 import 'package:servllama/core/storage/server_prefs_keys.dart';
@@ -71,6 +71,18 @@ class ServerLaunchSettingsLoader {
         await _kvStorage.getString(ServerPrefsKeys.logLevel),
       ),
       mnnBackend: mnnBackend,
+      mnnUseMmap:
+          await _kvStorage.getBool(ServerPrefsKeys.mnnUseMmap) ??
+          ServerLaunchSettings.defaultMnnUseMmap,
+      mnnPrecision: _readMnnPrecision(
+        await _kvStorage.getString(ServerPrefsKeys.mnnPrecision),
+      ),
+      mnnThreadNum: _clamp(
+        await _kvStorage.getInt(ServerPrefsKeys.mnnThreadNum) ??
+            ServerLaunchSettings.defaultMnnThreadNum,
+        ServerLaunchSettings.minMnnThreadNum,
+        ServerLaunchSettings.maxMnnThreadNum,
+      ),
     );
   }
 
@@ -108,12 +120,27 @@ class ServerLaunchSettingsLoader {
       ServerPrefsKeys.mnnBackend,
       _readMnnBackend(settings.mnnBackend.name).name,
     );
+    await _kvStorage.setBool(ServerPrefsKeys.mnnUseMmap, settings.mnnUseMmap);
+    await _kvStorage.setString(
+      ServerPrefsKeys.mnnPrecision,
+      _readMnnPrecision(settings.mnnPrecision.name).name,
+    );
+    await _kvStorage.setInt(
+      ServerPrefsKeys.mnnThreadNum,
+      settings.mnnThreadNum,
+    );
   }
 
   MnnBackend _readMnnBackend(String? value) =>
       ServerLaunchSettings.supportedMnnBackends.firstWhere(
         (backend) => backend.name == value,
         orElse: () => MnnBackend.cpu,
+      );
+
+  MnnPrecision _readMnnPrecision(String? value) =>
+      MnnPrecision.values.firstWhere(
+        (precision) => precision.name == value,
+        orElse: () => ServerLaunchSettings.defaultMnnPrecision,
       );
 
   ServerListenMode _readListenMode(String? savedMode) {

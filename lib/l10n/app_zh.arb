@@ -633,5 +633,39 @@
   "mnnBackendNotChecked": "尚未检测可用性。",
   "mnnBackendProbeFailed": "无法检测可用后端。请重试，或选择 CPU。详细原因已记录到引擎日志。",
   "mnnBackendSavedUnavailable": "已保存的后端当前不可用，请在启动前选择其他后端。",
-  "runtimeErrorMnnBackendUnavailable": "所选 MNN 后端不可用，请到服务设置中选择 CPU 或其他可用后端。"
+  "runtimeErrorMnnBackendUnavailable": "所选 MNN 后端不可用，请到服务设置中选择 CPU 或其他可用后端。",
+  "mnnRuntimeTitle": "MNN 运行参数",
+  "mnnUseMmap": "使用 mmap",
+  "mnnUseMmapSubtitle": "将模型权重从磁盘映射到内存，降低占用。首次加载会生成缓存。",
+  "mnnPrecision": "Precision",
+  "mnnPrecisionDescription": "Low 更快、更省内存；High 更精确。",
+  "mnnPrecisionLow": "Low",
+  "mnnPrecisionHigh": "High",
+  "mnnThreadNum": "生成线程数",
+  "mnnThreadNumDescription": "生成时使用的 CPU 线程数。",
+  "mnnMmapCache": "清理 mmap 缓存",
+  "mnnMmapCacheSubtitle": "当前缓存：{size}",
+  "@mnnMmapCacheSubtitle": {
+    "placeholders": {
+      "size": { "type": "String" }
+    }
+  },
+  "mnnMmapCacheEmpty": "暂无 mmap 缓存",
+  "mnnMmapCacheStopServer": "请先停止服务再清理缓存。",
+  "mnnMmapCacheClearAction": "清理",
+  "mnnMmapCacheDialogTitle": "清理 mmap 缓存？",
+  "mnnMmapCacheDialogContent": "将删除已生成的 mmap 和 GPU 运行时缓存（{size}）。下次加载模型时会重新生成。",
+  "@mnnMmapCacheDialogContent": {
+    "placeholders": {
+      "size": { "type": "String" }
+    }
+  },
+  "mnnMmapCacheCleared": "已清理 {size} mmap 缓存",
+  "@mnnMmapCacheCleared": {
+    "placeholders": {
+      "size": { "type": "String" }
+    }
+  },
+  "mnnMmapCacheClearFailed": "无法清理 mmap 缓存。"
+
 }

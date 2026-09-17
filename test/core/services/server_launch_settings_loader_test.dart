@@ -40,6 +40,9 @@ void main() {
       expect(settings.logEnabled, isTrue);
       expect(settings.logLevel, ServerLogLevel.info);
       expect(settings.mnnBackend, MnnBackend.cpu);
+      expect(settings.mnnUseMmap, isFalse);
+      expect(settings.mnnPrecision, MnnPrecision.low);
+      expect(settings.mnnThreadNum, 4);
     });
 
     test('reads and sanitizes stored prefs values', () async {
@@ -97,6 +100,8 @@ void main() {
         ServerPrefsKeys.flashAttentionMode: 'invalid',
         ServerPrefsKeys.logLevel: 'invalid',
         ServerPrefsKeys.mnnBackend: 'auto',
+        ServerPrefsKeys.mnnPrecision: 'normal',
+        ServerPrefsKeys.mnnThreadNum: 99,
       });
       kvStorage = KvStorage();
       loader = ServerLaunchSettingsLoader(kvStorage: kvStorage);
@@ -110,6 +115,8 @@ void main() {
       );
       expect(settings.logLevel, ServerLogLevel.info);
       expect(settings.mnnBackend, MnnBackend.cpu);
+      expect(settings.mnnPrecision, MnnPrecision.low);
+      expect(settings.mnnThreadNum, ServerLaunchSettings.maxMnnThreadNum);
     });
 
     test(
@@ -133,6 +140,23 @@ void main() {
         }
       },
     );
+
+    test('persists MNN mmap, precision and thread settings', () async {
+      await loader.save(
+        const ServerLaunchSettings(
+          mnnUseMmap: true,
+          mnnPrecision: MnnPrecision.high,
+          mnnThreadNum: 7,
+        ),
+      );
+      final restored = await ServerLaunchSettingsLoader(
+        kvStorage: kvStorage,
+      ).load();
+      expect(restored.mnnUseMmap, isTrue);
+      expect(restored.mnnPrecision, MnnPrecision.high);
+      expect(restored.mnnThreadNum, 7);
+      expect(restored.useMmap, isTrue);
+    });
 
     test(
       'migrates a withdrawn backend and preserves the other settings',

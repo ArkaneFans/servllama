@@ -106,7 +106,12 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
       onPhase(RuntimePhase.loadingModel);
       final model = await _loadModel(
         modelId,
-        MnnLoadOptions(backend: settings.mnnBackend),
+        MnnLoadOptions(
+          backend: settings.mnnBackend,
+          useMmap: settings.mnnUseMmap,
+          precision: settings.mnnPrecision,
+          threadNum: settings.mnnThreadNum,
+        ),
       );
       _throwIfCancelled();
 
@@ -283,7 +288,10 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
     final current = _activeModel;
     if (current != null &&
         current.modelId == modelId &&
-        current.backend == options.backend) {
+        current.backend == options.backend &&
+        current.useMmap == options.useMmap &&
+        current.precision == options.precision &&
+        current.threadNum == options.threadNum) {
       return current;
     }
     try {
