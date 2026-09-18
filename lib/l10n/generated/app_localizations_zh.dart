@@ -1421,16 +1421,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mnnUseMmapSubtitle => '将模型权重从磁盘映射到内存，降低占用。首次加载会生成缓存。';
 
   @override
-  String get mnnPrecision => 'Precision';
+  String get mnnPrecision => '计算精度';
 
   @override
-  String get mnnPrecisionDescription => 'Low 更快、更省内存；High 更精确。';
+  String get mnnPrecisionDescription => '低精度更快、更省内存；高精度 AI 回复更准确。';
 
   @override
-  String get mnnPrecisionLow => 'Low';
+  String get mnnPrecisionLow => '低精度';
 
   @override
-  String get mnnPrecisionHigh => 'High';
+  String get mnnPrecisionHigh => '高精度';
 
   @override
   String get mnnThreadNum => '生成线程数';
