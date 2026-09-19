@@ -471,8 +471,8 @@ class _QuantRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    file.quantLabel ?? file.fileName,
-                    maxLines: 1,
+                    file.fileName,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w700,
@@ -536,10 +536,12 @@ class _QuantRow extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            FilledButton.tonal(
+            const SizedBox(width: 4),
+            IconButton(
+              key: Key('quant_download_button_${file.path}'),
+              tooltip: l10n.repoDownloadAction,
               onPressed: onDownload,
-              child: Text(l10n.repoDownloadAction),
+              icon: const Icon(Icons.download_rounded),
             ),
           ],
         ),

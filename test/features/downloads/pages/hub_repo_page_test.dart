@@ -49,10 +49,10 @@ void main() {
 
       expect(find.byKey(Key('quant_vision_button_${q4.path}')), findsNothing);
       expect(find.byKey(Key('quant_vision_button_${q8.path}')), findsNothing);
+      expect(find.text(q4.fileName), findsOneWidget);
+      expect(find.text(q8.fileName), findsOneWidget);
 
-      await tester.tap(
-        find.widgetWithText(FilledButton, l10n.repoDownloadAction).first,
-      );
+      await tester.tap(find.byKey(Key('quant_download_button_${q4.path}')));
       await _settle(tester);
 
       expect(downloads.calls, hasLength(1));
@@ -75,9 +75,7 @@ void main() {
       expect(find.byKey(Key('quant_vision_button_${q4.path}')), findsOneWidget);
       expect(find.text(l10n.repoVisionOn), findsWidgets);
 
-      await tester.tap(
-        find.widgetWithText(FilledButton, l10n.repoDownloadAction).first,
-      );
+      await tester.tap(find.byKey(Key('quant_download_button_${q4.path}')));
       await _settle(tester);
 
       expect(downloads.calls, hasLength(1));
@@ -108,9 +106,7 @@ void main() {
 
       expect(find.text(l10n.repoVisionOff), findsWidgets);
 
-      await tester.tap(
-        find.widgetWithText(FilledButton, l10n.repoDownloadAction).first,
-      );
+      await tester.tap(find.byKey(Key('quant_download_button_${q4.path}')));
       await _settle(tester);
 
       expect(downloads.calls.single.files, <HubRepoFile>[q4]);
@@ -138,9 +134,7 @@ void main() {
       Navigator.of(tester.element(find.byType(MmprojPickerSheet))).pop();
       await tester.pumpAndSettle();
 
-      await tester.tap(
-        find.widgetWithText(FilledButton, l10n.repoDownloadAction).first,
-      );
+      await tester.tap(find.byKey(Key('quant_download_button_${q4.path}')));
       await _settle(tester);
 
       expect(downloads.calls.single.files, <HubRepoFile>[q4, secondMmproj]);
@@ -177,9 +171,7 @@ void main() {
         find.textContaining(l10n.feasibilityNotEnoughMemory),
         findsOneWidget,
       );
-      await tester.tap(
-        find.widgetWithText(FilledButton, l10n.repoDownloadAction).first,
-      );
+      await tester.tap(find.byKey(Key('quant_download_button_${q4.path}')));
       await _settle(tester);
 
       expect(downloads.calls, hasLength(1));
