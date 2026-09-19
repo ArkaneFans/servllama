@@ -225,6 +225,10 @@ void main() {
       });
 
       await serverProvider.switchEngine(InferenceEngine.mnn);
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       await tester.pumpWidget(
         _TestApp(
           serverProvider: serverProvider,
@@ -235,6 +239,15 @@ void main() {
 
       expect(find.text('MNN'), findsOneWidget);
       expect(find.text('MNN 推理后端'), findsOneWidget);
+      expect(find.text('网络与访问'), findsOneWidget);
+      expect(find.text('MNN 运行参数'), findsOneWidget);
+      expect(find.byKey(const Key('mnn_use_mmap')), findsOneWidget);
+      expect(find.byKey(const Key('mnn_precision')), findsOneWidget);
+      expect(find.byKey(const Key('mnn_thread_num')), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text('网络与访问')).dy,
+        lessThan(tester.getTopLeft(find.text('MNN 运行参数')).dy),
+      );
       expect(find.text('MNN 推理'), findsNothing);
       expect(find.text('推理后端'), findsNothing);
       expect(find.text('推理参数'), findsNothing);

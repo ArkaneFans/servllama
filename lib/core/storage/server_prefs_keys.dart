@@ -14,6 +14,9 @@ class ServerPrefsKeys {
   static const String logEnabled = 'server.log_enabled';
   static const String logLevel = 'server.log_level';
   static const String mnnBackend = 'server.mnn_backend';
+  static const String mnnUseMmap = 'server.mnn_use_mmap';
+  static const String mnnPrecision = 'server.mnn_precision';
+  static const String mnnThreadNum = 'server.mnn_thread_num';
   static const String foregroundNotificationPermissionPrompted =
       'server.foreground_notification_permission_prompted';
 }

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:mnn_engine/mnn_engine.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/providers/server_config_provider.dart';
@@ -33,6 +34,9 @@ void main() {
       expect(provider.batchSize, 1024);
       expect(provider.logEnabled, isTrue);
       expect(provider.logLevel, ServerLogLevel.info);
+      expect(provider.mnnUseMmap, isFalse);
+      expect(provider.mnnPrecision, MnnPrecision.low);
+      expect(provider.mnnThreadNum, 4);
       expect(provider.statusText, 'Configuration loaded');
     });
 
@@ -45,16 +49,16 @@ void main() {
       expect(await kvStorage.getInt(ServerPrefsKeys.port), 9001);
       // Saves write the whole settings object; untouched fields persist
       // their defaults.
-      expect(await kvStorage.getString(ServerPrefsKeys.listenMode), 'localhost');
+      expect(
+        await kvStorage.getString(ServerPrefsKeys.listenMode),
+        'localhost',
+      );
       expect(await kvStorage.getString(ServerPrefsKeys.apiKey), isEmpty);
       expect(
         await kvStorage.getInt(ServerPrefsKeys.contextSize),
         ServerLaunchSettings.defaultContextSize,
       );
-      expect(
-        await kvStorage.getBool(ServerPrefsKeys.useMmap),
-        isTrue,
-      );
+      expect(await kvStorage.getBool(ServerPrefsKeys.useMmap), isTrue);
       expect(provider.statusText, 'Configuration saved');
     });
 
@@ -109,6 +113,9 @@ void main() {
       await provider.updateUseMmap(false);
       await provider.updateLogEnabled(false);
       await provider.updateLogLevel(ServerLogLevel.debug);
+      await provider.updateMnnUseMmap(true);
+      await provider.updateMnnPrecision(MnnPrecision.high);
+      await provider.updateMnnThreadNum(7);
 
       await provider.resetToDefaults();
 

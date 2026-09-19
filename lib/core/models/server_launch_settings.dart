@@ -1,4 +1,5 @@
-import 'package:mnn_engine/mnn_engine.dart' show MnnBackend;
+import 'package:mnn_engine/mnn_engine.dart'
+    show MnnBackend, MnnLoadOptions, MnnPrecision;
 
 enum ServerListenMode { localhost, allInterfaces }
 
@@ -21,6 +22,9 @@ class ServerLaunchSettings {
     this.logEnabled = true,
     this.logLevel = defaultLogLevel,
     this.mnnBackend = MnnBackend.cpu,
+    this.mnnUseMmap = defaultMnnUseMmap,
+    this.mnnPrecision = defaultMnnPrecision,
+    this.mnnThreadNum = defaultMnnThreadNum,
   });
 
   static const int defaultPort = 8080;
@@ -50,6 +54,12 @@ class ServerLaunchSettings {
   static const FlashAttentionMode defaultFlashAttentionMode =
       FlashAttentionMode.disabled;
   static const ServerLogLevel defaultLogLevel = ServerLogLevel.info;
+  static const bool defaultMnnUseMmap = MnnLoadOptions.defaultUseMmap;
+  static const MnnPrecision defaultMnnPrecision =
+      MnnLoadOptions.defaultPrecision;
+  static const int defaultMnnThreadNum = MnnLoadOptions.defaultThreadNum;
+  static const int minMnnThreadNum = MnnLoadOptions.minThreadNum;
+  static const int maxMnnThreadNum = MnnLoadOptions.maxThreadNum;
 
   // Hexagon remains in the plugin for development, but is not offered by
   // ServLlama until its model compatibility and device support are ready.
@@ -72,6 +82,9 @@ class ServerLaunchSettings {
   final bool logEnabled;
   final ServerLogLevel logLevel;
   final MnnBackend mnnBackend;
+  final bool mnnUseMmap;
+  final MnnPrecision mnnPrecision;
+  final int mnnThreadNum;
 
   String get host =>
       listenMode == ServerListenMode.localhost ? '127.0.0.1' : '0.0.0.0';
@@ -90,6 +103,9 @@ class ServerLaunchSettings {
     bool? logEnabled,
     ServerLogLevel? logLevel,
     MnnBackend? mnnBackend,
+    bool? mnnUseMmap,
+    MnnPrecision? mnnPrecision,
+    int? mnnThreadNum,
   }) {
     return ServerLaunchSettings(
       listenMode: listenMode ?? this.listenMode,
@@ -105,6 +121,9 @@ class ServerLaunchSettings {
       logEnabled: logEnabled ?? this.logEnabled,
       logLevel: logLevel ?? this.logLevel,
       mnnBackend: mnnBackend ?? this.mnnBackend,
+      mnnUseMmap: mnnUseMmap ?? this.mnnUseMmap,
+      mnnPrecision: mnnPrecision ?? this.mnnPrecision,
+      mnnThreadNum: mnnThreadNum ?? this.mnnThreadNum,
     );
   }
 }

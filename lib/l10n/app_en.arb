@@ -830,5 +830,39 @@
   "mnnBackendNotChecked": "Availability has not been checked.",
   "mnnBackendProbeFailed": "Could not check backends. Try again, or select CPU. Details are in the engine log.",
   "mnnBackendSavedUnavailable": "The saved backend is currently unavailable. Select another backend before starting.",
-  "runtimeErrorMnnBackendUnavailable": "The selected MNN backend is unavailable. Choose CPU or another available backend in Service settings."
+  "runtimeErrorMnnBackendUnavailable": "The selected MNN backend is unavailable. Choose CPU or another available backend in Service settings.",
+  "mnnRuntimeTitle": "MNN runtime",
+  "mnnUseMmap": "Use mmap",
+  "mnnUseMmapSubtitle": "Maps model weights from disk to reduce memory. The first load builds a cache.",
+  "mnnPrecision": "Precision",
+  "mnnPrecisionDescription": "Low is faster and uses less memory. High is more accurate.",
+  "mnnPrecisionLow": "Low",
+  "mnnPrecisionHigh": "High",
+  "mnnThreadNum": "Generation threads",
+  "mnnThreadNumDescription": "CPU threads used for generation.",
+  "mnnMmapCache": "Clear mmap cache",
+  "mnnMmapCacheSubtitle": "Current cache: {size}",
+  "@mnnMmapCacheSubtitle": {
+    "placeholders": {
+      "size": { "type": "String" }
+    }
+  },
+  "mnnMmapCacheEmpty": "No mmap cache yet",
+  "mnnMmapCacheStopServer": "Stop the server before clearing the cache.",
+  "mnnMmapCacheClearAction": "Clear",
+  "mnnMmapCacheDialogTitle": "Clear mmap cache?",
+  "mnnMmapCacheDialogContent": "This deletes generated mmap and GPU runtime caches ({size}). The next model load will rebuild them.",
+  "@mnnMmapCacheDialogContent": {
+    "placeholders": {
+      "size": { "type": "String" }
+    }
+  },
+  "mnnMmapCacheCleared": "Cleared {size} of mmap cache",
+  "@mnnMmapCacheCleared": {
+    "placeholders": {
+      "size": { "type": "String" }
+    }
+  },
+  "mnnMmapCacheClearFailed": "Could not clear the mmap cache."
+
 }

@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:mnn_engine/mnn_engine.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
+import 'package:servllama/core/providers/engine_runtime_provider.dart';
 import 'package:servllama/core/providers/server_config_provider.dart';
+import 'package:servllama/core/utils/format_utils.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
 import 'package:servllama/l10n/l10n.dart';
+import 'package:servllama/shared/widgets/segmented_setting.dart';
 import 'package:servllama/shared/widgets/settings_section.dart';
+import 'package:servllama/shared/widgets/settings_tile_list.dart';
+import 'package:servllama/shared/widgets/slider_number_setting.dart';
+import 'package:servllama/shared/widgets/switch_setting_tile.dart';
 
 class MnnBackendSettings extends StatefulWidget {
   const MnnBackendSettings({super.key});
@@ -19,7 +25,8 @@ class _MnnBackendSettingsState extends State<MnnBackendSettings> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) context.read<ServerConfigProvider>().loadMnnBackends();
+      if (!mounted) return;
+      context.read<ServerConfigProvider>().loadMnnBackends();
     });
   }
 
@@ -40,6 +47,7 @@ class _MnnBackendSettingsState extends State<MnnBackendSettings> {
       key: const Key('mnn_backend_settings'),
       title: l10n.mnnBackendTitle,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
@@ -166,4 +174,161 @@ class _MnnBackendSettingsState extends State<MnnBackendSettings> {
         MnnBackendStatus.available ||
         MnnBackendStatus.unknown => l10n.mnnBackendNotChecked,
       };
+}
+
+class MnnRuntimeSettings extends StatefulWidget {
+  const MnnRuntimeSettings({super.key});
+
+  @override
+  State<MnnRuntimeSettings> createState() => _MnnRuntimeSettingsState();
+}
+
+class _MnnRuntimeSettingsState extends State<MnnRuntimeSettings> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<ServerConfigProvider>().loadMnnMmapCache();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.watch<ServerConfigProvider>();
+    final runtime = context.watch<EngineRuntimeProvider>();
+    final l10n = context.l10n;
+    final cacheBusy = runtime.isRunning || runtime.isBusy;
+    return SettingsSection(
+      key: const Key('mnn_runtime_settings'),
+      title: l10n.mnnRuntimeTitle,
+      child: SettingsTileList(
+        children: [
+          SegmentedSetting<MnnPrecision>(
+            key: const Key('mnn_precision'),
+            label: l10n.mnnPrecision,
+            description: l10n.mnnPrecisionDescription,
+            value: provider.mnnPrecision,
+            options: [
+              SegmentedSettingOption(
+                value: MnnPrecision.low,
+                label: l10n.mnnPrecisionLow,
+              ),
+              SegmentedSettingOption(
+                value: MnnPrecision.high,
+                label: l10n.mnnPrecisionHigh,
+              ),
+            ],
+            onChanged: provider.updateMnnPrecision,
+          ),
+          SliderNumberSetting(
+            key: const Key('mnn_thread_num'),
+            label: l10n.mnnThreadNum,
+            description: l10n.mnnThreadNumDescription,
+            value: provider.mnnThreadNum,
+            min: ServerLaunchSettings.minMnnThreadNum,
+            max: ServerLaunchSettings.maxMnnThreadNum,
+            divisions:
+                ServerLaunchSettings.maxMnnThreadNum -
+                ServerLaunchSettings.minMnnThreadNum,
+            onChanged: provider.updateMnnThreadNum,
+          ),
+          SwitchSettingTile(
+            key: const Key('mnn_use_mmap'),
+            title: l10n.mnnUseMmap,
+            subtitle: l10n.mnnUseMmapSubtitle,
+            value: provider.mnnUseMmap,
+            onChanged: provider.updateMnnUseMmap,
+          ),
+          ListTile(
+            key: const Key('mnn_clear_mmap_cache'),
+            contentPadding: EdgeInsets.zero,
+            enabled:
+                !cacheBusy &&
+                !provider.clearingMnnMmapCache &&
+                !provider.loadingMnnMmapCache &&
+                provider.mnnMmapCacheBytes > 0,
+            leading: const Icon(Icons.cleaning_services_outlined),
+            title: Text(l10n.mnnMmapCache),
+            subtitle: Text(_cacheSubtitle(l10n, provider, cacheBusy)),
+            trailing: provider.clearingMnnMmapCache
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.chevron_right),
+            onTap:
+                cacheBusy ||
+                    provider.clearingMnnMmapCache ||
+                    provider.loadingMnnMmapCache ||
+                    provider.mnnMmapCacheBytes <= 0
+                ? null
+                : () => _confirmClearMmapCache(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _cacheSubtitle(
+    AppLocalizations l10n,
+    ServerConfigProvider provider,
+    bool cacheBusy,
+  ) {
+    if (cacheBusy) {
+      return l10n.mnnMmapCacheStopServer;
+    }
+    if (provider.mnnMmapCacheBytes <= 0) {
+      return l10n.mnnMmapCacheEmpty;
+    }
+    return l10n.mnnMmapCacheSubtitle(
+      FormatUtils.bytes(provider.mnnMmapCacheBytes),
+    );
+  }
+
+  Future<void> _confirmClearMmapCache(BuildContext context) async {
+    final provider = context.read<ServerConfigProvider>();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        final dialogL10n = dialogContext.l10n;
+        return AlertDialog(
+          title: Text(dialogL10n.mnnMmapCacheDialogTitle),
+          content: Text(
+            dialogL10n.mnnMmapCacheDialogContent(
+              FormatUtils.bytes(provider.mnnMmapCacheBytes),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(dialogL10n.commonCancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(dialogL10n.mnnMmapCacheClearAction),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
+    final sizeLabel = FormatUtils.bytes(provider.mnnMmapCacheBytes);
+    final cleared = await provider.clearMnnMmapCache();
+    if (!context.mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          cleared
+              ? context.l10n.mnnMmapCacheCleared(sizeLabel)
+              : context.l10n.mnnMmapCacheClearFailed,
+        ),
+      ),
+    );
+  }
 }

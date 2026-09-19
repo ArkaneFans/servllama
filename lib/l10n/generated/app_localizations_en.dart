@@ -1486,4 +1486,67 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get runtimeErrorMnnBackendUnavailable =>
       'The selected MNN backend is unavailable. Choose CPU or another available backend in Service settings.';
+
+  @override
+  String get mnnRuntimeTitle => 'MNN runtime';
+
+  @override
+  String get mnnUseMmap => 'Use mmap';
+
+  @override
+  String get mnnUseMmapSubtitle =>
+      'Maps model weights from disk to reduce memory. The first load builds a cache.';
+
+  @override
+  String get mnnPrecision => 'Precision';
+
+  @override
+  String get mnnPrecisionDescription =>
+      'Low is faster and uses less memory. High is more accurate.';
+
+  @override
+  String get mnnPrecisionLow => 'Low';
+
+  @override
+  String get mnnPrecisionHigh => 'High';
+
+  @override
+  String get mnnThreadNum => 'Generation threads';
+
+  @override
+  String get mnnThreadNumDescription => 'CPU threads used for generation.';
+
+  @override
+  String get mnnMmapCache => 'Clear mmap cache';
+
+  @override
+  String mnnMmapCacheSubtitle(String size) {
+    return 'Current cache: $size';
+  }
+
+  @override
+  String get mnnMmapCacheEmpty => 'No mmap cache yet';
+
+  @override
+  String get mnnMmapCacheStopServer =>
+      'Stop the server before clearing the cache.';
+
+  @override
+  String get mnnMmapCacheClearAction => 'Clear';
+
+  @override
+  String get mnnMmapCacheDialogTitle => 'Clear mmap cache?';
+
+  @override
+  String mnnMmapCacheDialogContent(String size) {
+    return 'This deletes generated mmap and GPU runtime caches ($size). The next model load will rebuild them.';
+  }
+
+  @override
+  String mnnMmapCacheCleared(String size) {
+    return 'Cleared $size of mmap cache';
+  }
+
+  @override
+  String get mnnMmapCacheClearFailed => 'Could not clear the mmap cache.';
 }

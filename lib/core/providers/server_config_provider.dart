@@ -28,6 +28,10 @@ class ServerConfigProvider extends ChangeNotifier {
   MnnBackend? _activeMnnBackend;
   bool _loadingMnnBackends = false;
   String? _mnnBackendError;
+  int _mnnMmapCacheBytes = 0;
+  bool _loadingMnnMmapCache = false;
+  bool _clearingMnnMmapCache = false;
+  String? _mnnMmapCacheError;
 
   bool _hasCompletedInitialLoad = false;
   bool _isLoading = false;
@@ -57,6 +61,13 @@ class ServerConfigProvider extends ChangeNotifier {
   MnnBackend? get activeMnnBackend => _activeMnnBackend;
   bool get loadingMnnBackends => _loadingMnnBackends;
   String? get mnnBackendError => _mnnBackendError;
+  bool get mnnUseMmap => _settings.mnnUseMmap;
+  MnnPrecision get mnnPrecision => _settings.mnnPrecision;
+  int get mnnThreadNum => _settings.mnnThreadNum;
+  int get mnnMmapCacheBytes => _mnnMmapCacheBytes;
+  bool get loadingMnnMmapCache => _loadingMnnMmapCache;
+  bool get clearingMnnMmapCache => _clearingMnnMmapCache;
+  String? get mnnMmapCacheError => _mnnMmapCacheError;
 
   String get host => _settings.host;
 
@@ -206,6 +217,26 @@ class ServerConfigProvider extends ChangeNotifier {
     return _apply(_settings.copyWith(logLevel: value));
   }
 
+  Future<void> updateMnnUseMmap(bool value) {
+    return _apply(_settings.copyWith(mnnUseMmap: value));
+  }
+
+  Future<void> updateMnnPrecision(MnnPrecision value) {
+    return _apply(_settings.copyWith(mnnPrecision: value));
+  }
+
+  Future<void> updateMnnThreadNum(int value) {
+    return _apply(
+      _settings.copyWith(
+        mnnThreadNum: _clamp(
+          value,
+          ServerLaunchSettings.minMnnThreadNum,
+          ServerLaunchSettings.maxMnnThreadNum,
+        ),
+      ),
+    );
+  }
+
   Future<void> updateMnnBackend(MnnBackend value) {
     if (!ServerLaunchSettings.supportedMnnBackends.contains(value)) {
       return Future<void>.value();
@@ -260,6 +291,56 @@ class ServerConfigProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> loadMnnMmapCache() async {
+    if (_loadingMnnMmapCache || _disposed) return;
+    _loadingMnnMmapCache = true;
+    _mnnMmapCacheError = null;
+    notifyListeners();
+    try {
+      final info = await _mnnBackendService.getMmapCache();
+      _mnnMmapCacheBytes = info.sizeBytes;
+    } catch (error) {
+      _mnnMmapCacheBytes = 0;
+      _mnnMmapCacheError = error.toString();
+      AppLogger.instance.warning(
+        'MNN mmap cache probe failed: $error',
+        channel: LogChannel.engine,
+        inMemory: true,
+      );
+    } finally {
+      _loadingMnnMmapCache = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> clearMnnMmapCache() async {
+    if (_clearingMnnMmapCache || _disposed) return false;
+    _clearingMnnMmapCache = true;
+    _mnnMmapCacheError = null;
+    notifyListeners();
+    try {
+      final info = await _mnnBackendService.clearMmapCache();
+      _mnnMmapCacheBytes = 0;
+      AppLogger.instance.info(
+        'Cleared MNN mmap cache, bytes=${info.sizeBytes}',
+        channel: LogChannel.engine,
+        inMemory: true,
+      );
+      return true;
+    } catch (error) {
+      _mnnMmapCacheError = error.toString();
+      AppLogger.instance.warning(
+        'MNN mmap cache clear failed: $error',
+        channel: LogChannel.engine,
+        inMemory: true,
+      );
+      return false;
+    } finally {
+      _clearingMnnMmapCache = false;
+      notifyListeners();
+    }
+  }
+
   /// Applies and persists a settings change. No-ops when nothing changed so
   /// text-field rebuilds don't trigger redundant disk writes.
   Future<void> _apply(ServerLaunchSettings next) async {
@@ -295,7 +376,10 @@ class ServerConfigProvider extends ChangeNotifier {
         a.useMmap == b.useMmap &&
         a.logEnabled == b.logEnabled &&
         a.logLevel == b.logLevel &&
-        a.mnnBackend == b.mnnBackend;
+        a.mnnBackend == b.mnnBackend &&
+        a.mnnUseMmap == b.mnnUseMmap &&
+        a.mnnPrecision == b.mnnPrecision &&
+        a.mnnThreadNum == b.mnnThreadNum;
   }
 
   static int _clamp(int value, int min, int max) {

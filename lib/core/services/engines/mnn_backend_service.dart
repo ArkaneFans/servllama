@@ -20,4 +20,8 @@ class MnnBackendService {
   Stream<MnnBackend?> get activeBackendChanges => _engine.events
       .map((event) => event.snapshot.activeModel?.backend)
       .distinct();
+
+  Future<MnnMmapCacheInfo> getMmapCache() => _engine.getMmapCache();
+
+  Future<MnnMmapCacheInfo> clearMmapCache() => _engine.clearMmapCache();
 }

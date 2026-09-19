@@ -100,6 +100,42 @@ void main() {
     expect(platform.requestedBackends, [MnnBackend.opencl]);
   });
 
+  test(
+    'passes mmap, precision and thread settings when loading a model',
+    () async {
+      final adapter = MnnEngineAdapter(
+        settingsLoader: _FixedSettingsLoader(
+          const ServerLaunchSettings(
+            mnnUseMmap: true,
+            mnnPrecision: MnnPrecision.high,
+            mnnThreadNum: 6,
+          ),
+        ),
+      );
+      addTearDown(adapter.dispose);
+      await adapter.start(modelId: 'local/qwen', onPhase: (_) {});
+      expect(platform.requestedOptions, [
+        const MnnLoadOptions(
+          useMmap: true,
+          precision: MnnPrecision.high,
+          threadNum: 6,
+        ),
+      ]);
+    },
+  );
+
+  test('reloads a resident model when mmap settings change', () async {
+    platform.initialModel = _model(MnnBackend.cpu);
+    final adapter = MnnEngineAdapter(
+      settingsLoader: _FixedSettingsLoader(
+        const ServerLaunchSettings(mnnUseMmap: true),
+      ),
+    );
+    addTearDown(adapter.dispose);
+    await adapter.start(modelId: 'local/qwen', onPhase: (_) {});
+    expect(platform.requestedOptions.single.useMmap, isTrue);
+  });
+
   test('reuses a resident model only when its backend also matches', () async {
     platform.initialModel = _model(MnnBackend.opencl);
     final adapter = MnnEngineAdapter(
@@ -168,7 +204,12 @@ void main() {
   );
 }
 
-MnnModelInfo _model(MnnBackend backend) => MnnModelInfo(
+MnnModelInfo _model(
+  MnnBackend backend, {
+  bool useMmap = false,
+  MnnPrecision precision = MnnPrecision.low,
+  int threadNum = 4,
+}) => MnnModelInfo(
   modelId: 'local/qwen',
   modelKey: 'qwen',
   displayName: 'Qwen',
@@ -178,6 +219,9 @@ MnnModelInfo _model(MnnBackend backend) => MnnModelInfo(
   importedAt: 1,
   isActive: true,
   backend: backend,
+  useMmap: useMmap,
+  precision: precision,
+  threadNum: threadNum,
 );
 
 class _FixedSettingsLoader extends ServerLaunchSettingsLoader {
@@ -198,6 +242,7 @@ class _FakeMnnPlatform extends MnnEnginePlatform {
   MnnEngineException? loadError;
   MnnModelInfo? initialModel;
   final requestedBackends = <MnnBackend>[];
+  final requestedOptions = <MnnLoadOptions>[];
 
   @override
   Stream<MnnRuntimeEvent> get events => const Stream<MnnRuntimeEvent>.empty();
@@ -245,8 +290,14 @@ class _FakeMnnPlatform extends MnnEnginePlatform {
     MnnLoadOptions options = const MnnLoadOptions(),
   }) async {
     requestedBackends.add(options.backend);
+    requestedOptions.add(options);
     if (loadError != null) throw loadError!;
-    return _model(options.backend);
+    return _model(
+      options.backend,
+      useMmap: options.useMmap,
+      precision: options.precision,
+      threadNum: options.threadNum,
+    );
   }
 
   @override

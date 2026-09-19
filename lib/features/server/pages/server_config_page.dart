@@ -176,6 +176,10 @@ class _ServerConfigViewState extends State<_ServerConfigView> {
                               ],
                             ),
                           ),
+                          if (activeEngine == InferenceEngine.mnn) ...[
+                            const SizedBox(height: 18),
+                            const MnnRuntimeSettings(),
+                          ],
                           if (activeEngine == InferenceEngine.llamaCpp) ...[
                             const SizedBox(height: 18),
                             SettingsSection(
