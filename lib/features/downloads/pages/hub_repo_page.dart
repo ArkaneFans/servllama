@@ -69,12 +69,20 @@ class _HubRepoPageState extends State<HubRepoPage> {
     required HubRepoDetail detail,
     required List<HubRepoFile> files,
     required String modelName,
+    required String queuedLabel,
     String? quantLabel,
   }) async {
+    final downloads = context.read<DownloadProvider>();
+    final alreadyQueued = widget.engine == InferenceEngine.mnn
+        ? _isRepoQueued(downloads)
+        : _isQuantQueued(downloads, files.first.path);
+    if (alreadyQueued) {
+      _showMessage(context.l10n.downloadErrorAlreadyQueued);
+      return;
+    }
     if (!await confirmDownloadOnMeteredNetwork(context) || !mounted) {
       return;
     }
-    final downloads = context.read<DownloadProvider>();
     try {
       final task = await downloads.enqueue(
         engine: widget.engine,
@@ -89,27 +97,19 @@ class _HubRepoPageState extends State<HubRepoPage> {
         return;
       }
       final l10n = context.l10n;
-      final message = task.wasAutoRenamed
-          ? l10n.downloadStartedAutoRenamed(
-              task.requestedModelName,
-              task.modelName,
-            )
-          : l10n.downloadStarted(task.modelName);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
-      Navigator.of(context).pop();
+      _showMessage(
+        task.wasAutoRenamed
+            ? l10n.downloadStartedAutoRenamed(
+                task.requestedModelName,
+                task.modelName,
+              )
+            : l10n.downloadQueued(queuedLabel),
+      );
     } on DownloadException catch (error) {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            RuntimeLabels.downloadError(context.l10n, error.kind.name),
-          ),
-        ),
-      );
+      _showMessage(RuntimeLabels.downloadError(context.l10n, error.kind.name));
       return;
     } on ModelOperationException catch (error) {
       if (!mounted) {
@@ -122,11 +122,34 @@ class _HubRepoPageState extends State<HubRepoPage> {
           context.l10n.modelErrorEmptyModelName,
         _ => context.l10n.modelErrorModelNameExists,
       };
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      _showMessage(message);
       return;
     }
+  }
+
+  void _showMessage(String message) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  bool _isQuantQueued(DownloadProvider downloads, String filePath) {
+    return downloads.libraryTasks.any(
+      (task) =>
+          task.engine == widget.engine &&
+          task.repoId == widget.repoId &&
+          task.targetModelId == null &&
+          task.containsFile(filePath),
+    );
+  }
+
+  bool _isRepoQueued(DownloadProvider downloads) {
+    return downloads.libraryTasks.any(
+      (task) =>
+          task.engine == widget.engine &&
+          task.repoId == widget.repoId &&
+          task.targetModelId == null,
+    );
   }
 
   @override
@@ -152,8 +175,8 @@ class _HubRepoPageState extends State<HubRepoPage> {
           ),
         ],
       ),
-      body: Consumer<ModelDiscoveryProvider>(
-        builder: (context, discovery, _) {
+      body: Consumer2<ModelDiscoveryProvider, DownloadProvider>(
+        builder: (context, discovery, downloads, _) {
           if (discovery.isLoadingRepo) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -176,10 +199,12 @@ class _HubRepoPageState extends State<HubRepoPage> {
                   detail: detail,
                   repoId: widget.repoId,
                   source: widget.source,
+                  isQueued: _isRepoQueued(downloads),
                   onDownload: () => _startDownload(
                     detail: detail,
                     files: detail.files,
                     modelName: widget.repoId.split('/').last,
+                    queuedLabel: widget.repoId.split('/').last,
                   ),
                 )
               : _GgufBody(
@@ -188,6 +213,13 @@ class _HubRepoPageState extends State<HubRepoPage> {
                   source: widget.source,
                   visionEnabled: _visionEnabled,
                   selectedMmproj: _resolvedMmproj(detail),
+                  queuedFilePaths: <String>{
+                    for (final task in downloads.libraryTasks)
+                      if (task.engine == widget.engine &&
+                          task.repoId == widget.repoId &&
+                          task.targetModelId == null)
+                        for (final file in task.files) file.path,
+                  },
                   onVisionTap: detail.hasMmproj
                       ? () => _openVisionSheet(detail)
                       : null,
@@ -199,6 +231,7 @@ class _HubRepoPageState extends State<HubRepoPage> {
                       mmprojFile: _resolvedMmproj(detail),
                     ),
                     modelName: _deriveModelName(file),
+                    queuedLabel: file.fileName,
                     quantLabel: file.quantLabel,
                   ),
                 );
@@ -265,6 +298,7 @@ class _GgufBody extends StatelessWidget {
     required this.source,
     required this.visionEnabled,
     required this.selectedMmproj,
+    required this.queuedFilePaths,
     required this.onDownload,
     this.onVisionTap,
   });
@@ -274,6 +308,7 @@ class _GgufBody extends StatelessWidget {
   final ModelHubSource source;
   final bool visionEnabled;
   final HubRepoFile? selectedMmproj;
+  final Set<String> queuedFilePaths;
   final ValueChanged<HubRepoFile> onDownload;
   final VoidCallback? onVisionTap;
 
@@ -318,6 +353,7 @@ class _GgufBody extends StatelessWidget {
               feasibility: discovery.feasibilityOf(file.path),
               visionEnabled: visionEnabled,
               selectedMmproj: selectedMmproj,
+              isQueued: queuedFilePaths.contains(file.path),
               onVisionTap: onVisionTap,
               onDownload: () => onDownload(file),
             ),
@@ -332,12 +368,14 @@ class _MnnBody extends StatelessWidget {
     required this.detail,
     required this.repoId,
     required this.source,
+    required this.isQueued,
     required this.onDownload,
   });
 
   final HubRepoDetail detail;
   final String repoId;
   final ModelHubSource source;
+  final bool isQueued;
   final VoidCallback onDownload;
 
   @override
@@ -370,9 +408,13 @@ class _MnnBody extends StatelessWidget {
         const SizedBox(height: 16),
         FilledButton.icon(
           onPressed: onDownload,
-          icon: const Icon(Icons.download_rounded),
+          icon: Icon(
+            isQueued ? Icons.downloading_rounded : Icons.download_rounded,
+          ),
           label: Text(
-            '${l10n.repoDownloadAction} · ${FormatUtils.bytes(totalBytes)}',
+            isQueued
+                ? l10n.repoDownloadQueued
+                : '${l10n.repoDownloadAction} · ${FormatUtils.bytes(totalBytes)}',
           ),
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
         ),
@@ -420,6 +462,7 @@ class _QuantRow extends StatelessWidget {
     required this.onDownload,
     this.visionEnabled = false,
     this.selectedMmproj,
+    this.isQueued = false,
     this.onVisionTap,
   });
 
@@ -428,6 +471,7 @@ class _QuantRow extends StatelessWidget {
   final VoidCallback onDownload;
   final bool visionEnabled;
   final HubRepoFile? selectedMmproj;
+  final bool isQueued;
   final VoidCallback? onVisionTap;
 
   @override
@@ -488,6 +532,16 @@ class _QuantRow extends StatelessWidget {
                           : colorScheme.onSurfaceVariant,
                     ),
                   ),
+                  if (isQueued) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      l10n.repoDownloadQueued,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                   if (onVisionTap != null) ...[
                     const SizedBox(height: 6),
                     TextButton(
@@ -539,9 +593,13 @@ class _QuantRow extends StatelessWidget {
             const SizedBox(width: 4),
             IconButton(
               key: Key('quant_download_button_${file.path}'),
-              tooltip: l10n.repoDownloadAction,
+              tooltip: isQueued
+                  ? l10n.repoDownloadQueued
+                  : l10n.repoDownloadAction,
               onPressed: onDownload,
-              icon: const Icon(Icons.download_rounded),
+              icon: Icon(
+                isQueued ? Icons.downloading_rounded : Icons.download_rounded,
+              ),
             ),
           ],
         ),

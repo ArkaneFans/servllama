@@ -1010,6 +1010,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get repoDownloadAction => '下载';
 
   @override
+  String get repoDownloadQueued => '已加入下载任务';
+
+  @override
   String get repoVisionOn => '视觉 · 开';
 
   @override
@@ -1176,6 +1179,16 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String downloadStarted(String modelName) {
     return '已开始下载 $modelName';
+  }
+
+  @override
+  String downloadQueued(String fileName) {
+    return '$fileName 已加入下载任务';
+  }
+
+  @override
+  String downloadCompleted(String fileName) {
+    return '$fileName 已下载完成';
   }
 
   @override

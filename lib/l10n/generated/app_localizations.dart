@@ -1925,6 +1925,12 @@ abstract class AppLocalizations {
   /// **'Download'**
   String get repoDownloadAction;
 
+  /// No description provided for @repoDownloadQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'In the download queue'**
+  String get repoDownloadQueued;
+
   /// No description provided for @repoVisionOn.
   ///
   /// In en, this message translates to:
@@ -2242,6 +2248,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Started downloading {modelName}'**
   String downloadStarted(String modelName);
+
+  /// No description provided for @downloadQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'{fileName} has been added to the download queue'**
+  String downloadQueued(String fileName);
+
+  /// No description provided for @downloadCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'{fileName} has finished downloading'**
+  String downloadCompleted(String fileName);
 
   /// No description provided for @downloadStartedAutoRenamed.
   ///

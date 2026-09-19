@@ -54,6 +54,7 @@ void main() {
       final repository = _MemoryTaskRepository(<DownloadTaskRecord>[record]);
       final downloadService = _BlockingDownloadService();
       var refreshCount = 0;
+      final completed = <String>[];
       final provider = DownloadProvider(
         taskRepository: repository,
         downloadService: downloadService,
@@ -64,6 +65,7 @@ void main() {
           refreshCount += 1;
         },
       );
+      provider.onDownloadCompleted = completed.add;
 
       await provider.load();
       await downloadService.started.future;
@@ -83,6 +85,7 @@ void main() {
 
       expect(downloadService.callCount, 1);
       expect(refreshCount, 1);
+      expect(completed, <String>['model.gguf']);
       provider.dispose();
     });
 
@@ -161,6 +164,7 @@ void main() {
       );
       final repository = _MemoryTaskRepository(<DownloadTaskRecord>[record]);
       var refreshCount = 0;
+      final completed = <String>[];
       final provider = DownloadProvider(
         taskRepository: repository,
         downloadService: _BlockingDownloadService()..release.complete(),
@@ -170,6 +174,7 @@ void main() {
           refreshCount += 1;
         },
       );
+      provider.onDownloadCompleted = completed.add;
 
       await provider.load();
       // Completed downloads are pruned from the task list once committed to
@@ -179,6 +184,7 @@ void main() {
       expect(importedMetadata?['modelName'], 'Qwen3-0.6B-MNN');
       expect(importedMetadata?['vendor'], 'MNN');
       expect(refreshCount, 1);
+      expect(completed, <String>['Qwen3-0.6B-MNN']);
       provider.dispose();
     });
 

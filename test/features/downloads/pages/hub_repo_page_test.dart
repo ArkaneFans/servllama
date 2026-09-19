@@ -57,6 +57,34 @@ void main() {
 
       expect(downloads.calls, hasLength(1));
       expect(downloads.calls.single.files, <HubRepoFile>[q4]);
+      expect(find.byType(HubRepoPage), findsOneWidget);
+      expect(find.text(l10n.downloadQueued(q4.fileName)), findsOneWidget);
+      expect(find.text(l10n.repoDownloadQueued), findsOneWidget);
+    });
+
+    testWidgets('does not enqueue the same quant twice', (tester) async {
+      final downloads = _RecordingDownloadProvider();
+      addTearDown(downloads.dispose);
+
+      await tester.pumpWidget(
+        _host(files: const <HubRepoFile>[q4, q8], downloads: downloads),
+      );
+      await tester.pumpAndSettle();
+      await _openRepo(tester);
+
+      await tester.tap(find.byKey(Key('quant_download_button_${q4.path}')));
+      await _settle(tester);
+      await tester.tap(find.byKey(Key('quant_download_button_${q4.path}')));
+      await _settle(tester);
+
+      expect(downloads.calls, hasLength(1));
+      expect(find.text(l10n.downloadErrorAlreadyQueued), findsOneWidget);
+
+      await tester.tap(find.byKey(Key('quant_download_button_${q8.path}')));
+      await _settle(tester);
+
+      expect(downloads.calls, hasLength(2));
+      expect(downloads.calls.last.files, <HubRepoFile>[q8]);
     });
 
     testWidgets('defaults to vision on and the first mmproj', (tester) async {
@@ -255,6 +283,13 @@ class _RecordingDownloadProvider extends DownloadProvider {
       );
 
   final List<_EnqueueCall> calls = <_EnqueueCall>[];
+  final List<DownloadTaskView> _queued = <DownloadTaskView>[];
+
+  @override
+  List<DownloadTaskView> get tasks => _queued;
+
+  @override
+  Future<void> load() async {}
 
   @override
   Future<bool> isBlockedByWifiOnlyPolicy() async => false;
@@ -276,21 +311,32 @@ class _RecordingDownloadProvider extends DownloadProvider {
         targetModelId: targetModelId,
       ),
     );
-    return DownloadTaskView(
+    final view = DownloadTaskView(
       DownloadTaskRecord(
-        id: 'task',
+        id: 'task-${calls.length}',
         engineValue: engine.storageValue,
         sourceValue: source.storageValue,
         repoId: repoId,
         revision: revision,
         modelName: modelName,
-        files: const <DownloadFileRecord>[],
+        files: files
+            .map(
+              (file) => DownloadFileRecord(
+                remotePath: file.path,
+                fileName: file.fileName,
+                totalBytes: file.sizeBytes,
+              ),
+            )
+            .toList(growable: false),
         statusValue: DownloadStatus.queued.name,
         createdAt: DateTime(2026),
         stagingDirPath: '/tmp',
         targetModelId: targetModelId,
       ),
     );
+    _queued.add(view);
+    notifyListeners();
+    return view;
   }
 }
 

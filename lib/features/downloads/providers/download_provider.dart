@@ -72,6 +72,9 @@ class DownloadProvider extends ChangeNotifier {
   final Future<void> Function()? _onLibraryChanged;
   final ModelNameCoordinator? _modelNameCoordinator;
 
+  /// Host UI may attach a snackbar. Called after a task is in the library.
+  void Function(String fileName)? onDownloadCompleted;
+
   final Map<String, DownloadTaskRecord> _tasks = <String, DownloadTaskRecord>{};
   final Map<String, CancelToken> _cancelTokens = <String, CancelToken>{};
   final Map<String, double> _throughput = <String, double>{};
@@ -699,7 +702,31 @@ class DownloadProvider extends ChangeNotifier {
       inMemory: true,
     );
     notifyListeners();
+    onDownloadCompleted?.call(_completedNotice(record));
     _scheduleDownloadForegroundSync();
+  }
+
+  String _completedNotice(DownloadTaskRecord record) {
+    final engine = InferenceEngine.fromStorageValue(record.engineValue);
+    if (engine == InferenceEngine.mnn) {
+      return record.modelName;
+    }
+    final isMmprojReplacement =
+        record.targetModelId != null && record.targetModelId!.trim().isNotEmpty;
+    if (isMmprojReplacement) {
+      for (final file in record.files) {
+        if (isMmprojFileName(file.fileName)) {
+          return file.fileName;
+        }
+      }
+      return record.modelName;
+    }
+    for (final file in record.files) {
+      if (!isMmprojFileName(file.fileName)) {
+        return file.fileName;
+      }
+    }
+    return record.modelName;
   }
 
   Future<void> _ensureMnnDisplayMetadata(

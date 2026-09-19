@@ -75,107 +75,167 @@ class _MainScaffoldState extends State<MainScaffold> {
     final serverProvider = context.watch<EngineRuntimeProvider?>();
     final downloadProvider = context.watch<DownloadProvider?>();
 
-    return Scaffold(
-      body: PushSidebar(
-        controller: _sidebarController,
-        semanticLabel: l10n.appTitle,
-        drawerWidth: 300,
-        maxScrimOpacity: 0.15,
-        embeddedSidebarWidth: _embeddedSidebarWidth,
-        onSidebarWidthChanged: _handleSidebarWidthChanged,
-        onSidebarWidthChangeEnd: _handleSidebarWidthChanged,
-        drawer: DecoratedBox(
-          decoration: BoxDecoration(color: colorScheme.surfaceContainerLowest),
-          child: SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 5),
-                  child: Row(
-                    children: [
-                      const Expanded(child: _DrawerSearchBox()),
-                      const SizedBox(width: 12),
-                      _DrawerCircleButton(
-                        key: const Key('drawer_history_button'),
-                        icon: Icons.history_rounded,
-                        tooltip: l10n.drawerAllHistoryTooltip,
-                        onPressed: _pushHistoryPage,
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: ChatSessionDrawerSection(
-                    presentationContext: context,
-                    isChatSelected: true,
-                    onOpenChat: _handleSessionOpened,
-                  ),
-                ),
-                Divider(
-                  height: 1,
-                  color: colorScheme.outlineVariant.withAlpha(120),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 16, 12, 24),
-                  child: Column(
-                    children: [
-                      _DrawerActionBlock(
-                        key: const Key('drawer_server_action'),
-                        icon: Icons.dns_outlined,
-                        title: l10n.drawerServer,
-                        showStatusBadge: true,
-                        isOnline: serverProvider?.isRunning == true,
-                        onTap: () => _pushFromSidebar(const ServerPage()),
-                      ),
-                      const SizedBox(height: 8),
-                      _DrawerActionBlock(
-                        key: const Key('drawer_models_action'),
-                        icon: Icons.inventory_2_outlined,
-                        title: l10n.modelLibraryTitle,
-                        badgeLabel:
-                            (downloadProvider?.activeTaskCount ?? 0) == 0
-                            ? null
-                            : '${downloadProvider!.activeTaskCount}',
-                        onTap: () =>
-                            _pushFromSidebar(const ModelManagementPage()),
-                      ),
-                      const SizedBox(height: 8),
-                      _DrawerActionBlock(
-                        key: const Key('drawer_settings_action'),
-                        icon: Icons.settings_outlined,
-                        title: l10n.drawerSettings,
-                        onTap: () => _pushFromSidebar(const SettingsPage()),
-                      ),
-                      if (kDebugMode) ...[
-                        const SizedBox(height: 8),
-                        _DrawerActionBlock(
-                          key: const Key('drawer_mnn_test_action'),
-                          icon: Icons.memory_outlined,
-                          // Debug-only entry; intentionally not localized.
-                          title: 'MNN 测试',
-                          onTap: () => _pushFromSidebar(const MnnTestPage()),
-                        ),
-                        const SizedBox(height: 8),
-                        _DrawerActionBlock(
-                          key: const Key('drawer_debug_action'),
-                          icon: Icons.bug_report_outlined,
-                          // Debug-only entry; intentionally not localized.
-                          title: '调试',
-                          onTap: () => _pushFromSidebar(const DebugPage()),
+    return _DownloadCompletedListener(
+      child: Scaffold(
+        body: PushSidebar(
+          controller: _sidebarController,
+          semanticLabel: l10n.appTitle,
+          drawerWidth: 300,
+          maxScrimOpacity: 0.15,
+          embeddedSidebarWidth: _embeddedSidebarWidth,
+          onSidebarWidthChanged: _handleSidebarWidthChanged,
+          onSidebarWidthChangeEnd: _handleSidebarWidthChanged,
+          drawer: DecoratedBox(
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerLowest,
+            ),
+            child: SafeArea(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 5),
+                    child: Row(
+                      children: [
+                        const Expanded(child: _DrawerSearchBox()),
+                        const SizedBox(width: 12),
+                        _DrawerCircleButton(
+                          key: const Key('drawer_history_button'),
+                          icon: Icons.history_rounded,
+                          tooltip: l10n.drawerAllHistoryTooltip,
+                          onPressed: _pushHistoryPage,
                         ),
                       ],
-                    ],
+                    ),
                   ),
-                ),
-              ],
+                  Expanded(
+                    child: ChatSessionDrawerSection(
+                      presentationContext: context,
+                      isChatSelected: true,
+                      onOpenChat: _handleSessionOpened,
+                    ),
+                  ),
+                  Divider(
+                    height: 1,
+                    color: colorScheme.outlineVariant.withAlpha(120),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 16, 12, 24),
+                    child: Column(
+                      children: [
+                        _DrawerActionBlock(
+                          key: const Key('drawer_server_action'),
+                          icon: Icons.dns_outlined,
+                          title: l10n.drawerServer,
+                          showStatusBadge: true,
+                          isOnline: serverProvider?.isRunning == true,
+                          onTap: () => _pushFromSidebar(const ServerPage()),
+                        ),
+                        const SizedBox(height: 8),
+                        _DrawerActionBlock(
+                          key: const Key('drawer_models_action'),
+                          icon: Icons.inventory_2_outlined,
+                          title: l10n.modelLibraryTitle,
+                          badgeLabel:
+                              (downloadProvider?.activeTaskCount ?? 0) == 0
+                              ? null
+                              : '${downloadProvider!.activeTaskCount}',
+                          onTap: () =>
+                              _pushFromSidebar(const ModelManagementPage()),
+                        ),
+                        const SizedBox(height: 8),
+                        _DrawerActionBlock(
+                          key: const Key('drawer_settings_action'),
+                          icon: Icons.settings_outlined,
+                          title: l10n.drawerSettings,
+                          onTap: () => _pushFromSidebar(const SettingsPage()),
+                        ),
+                        if (kDebugMode) ...[
+                          const SizedBox(height: 8),
+                          _DrawerActionBlock(
+                            key: const Key('drawer_mnn_test_action'),
+                            icon: Icons.memory_outlined,
+                            // Debug-only entry; intentionally not localized.
+                            title: 'MNN 测试',
+                            onTap: () => _pushFromSidebar(const MnnTestPage()),
+                          ),
+                          const SizedBox(height: 8),
+                          _DrawerActionBlock(
+                            key: const Key('drawer_debug_action'),
+                            icon: Icons.bug_report_outlined,
+                            // Debug-only entry; intentionally not localized.
+                            title: '调试',
+                            onTap: () => _pushFromSidebar(const DebugPage()),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
+          child: ChatPage(onOpenSidebar: _toggleSidebar),
         ),
-        child: ChatPage(onOpenSidebar: _toggleSidebar),
       ),
     );
   }
+}
+
+class _DownloadCompletedListener extends StatefulWidget {
+  const _DownloadCompletedListener({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_DownloadCompletedListener> createState() =>
+      _DownloadCompletedListenerState();
+}
+
+class _DownloadCompletedListenerState
+    extends State<_DownloadCompletedListener> {
+  DownloadProvider? _downloads;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final downloads = context.read<DownloadProvider?>();
+    if (identical(_downloads, downloads)) {
+      return;
+    }
+    _unbind();
+    _downloads = downloads;
+    _downloads?.onDownloadCompleted = _showCompleted;
+  }
+
+  void _showCompleted(String fileName) {
+    if (!mounted) {
+      return;
+    }
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) {
+      return;
+    }
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(content: Text(context.l10n.downloadCompleted(fileName))),
+    );
+  }
+
+  void _unbind() {
+    if (_downloads?.onDownloadCompleted == _showCompleted) {
+      _downloads?.onDownloadCompleted = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _unbind();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 class _DrawerSearchBox extends StatelessWidget {

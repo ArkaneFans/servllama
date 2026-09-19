@@ -595,6 +595,7 @@
   "repoQuantSectionTitle": "Quantization",
   "repoFilesSectionTitle": "Files",
   "repoDownloadAction": "Download",
+  "repoDownloadQueued": "In the download queue",
   "repoVisionOn": "Vision · On",
   "repoVisionOff": "Vision · Off",
   "repoVisionSheetTitle": "Vision",
@@ -671,6 +672,22 @@
   "@downloadStarted": {
     "placeholders": {
       "modelName": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadQueued": "{fileName} has been added to the download queue",
+  "@downloadQueued": {
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadCompleted": "{fileName} has finished downloading",
+  "@downloadCompleted": {
+    "placeholders": {
+      "fileName": {
         "type": "String"
       }
     }

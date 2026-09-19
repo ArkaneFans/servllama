@@ -1049,6 +1049,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get repoDownloadAction => 'Download';
 
   @override
+  String get repoDownloadQueued => 'In the download queue';
+
+  @override
   String get repoVisionOn => 'Vision · On';
 
   @override
@@ -1235,6 +1238,16 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String downloadStarted(String modelName) {
     return 'Started downloading $modelName';
+  }
+
+  @override
+  String downloadQueued(String fileName) {
+    return '$fileName has been added to the download queue';
+  }
+
+  @override
+  String downloadCompleted(String fileName) {
+    return '$fileName has finished downloading';
   }
 
   @override
