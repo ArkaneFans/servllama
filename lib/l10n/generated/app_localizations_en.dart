@@ -910,11 +910,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Download one, or import a file you already have.';
 
   @override
-  String get modelLibraryEmptyDownloadingTitle => 'No incomplete downloads';
+  String get modelLibrarySearchHint => 'Search model names';
 
   @override
-  String get modelLibraryEmptyDownloadingDescription =>
-      'Paused and failed downloads stay here until you resume, retry, or cancel them.';
+  String get modelLibraryEmptySearchTitle => 'No matching models';
+
+  @override
+  String get modelLibraryEmptySearchDescription => 'Try a different name.';
 
   @override
   String modelLibraryDeleteDialogContent(String modelName) {

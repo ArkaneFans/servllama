@@ -1685,17 +1685,23 @@ abstract class AppLocalizations {
   /// **'Download one, or import a file you already have.'**
   String get modelLibraryEmptyDescription;
 
-  /// No description provided for @modelLibraryEmptyDownloadingTitle.
+  /// No description provided for @modelLibrarySearchHint.
   ///
   /// In en, this message translates to:
-  /// **'No incomplete downloads'**
-  String get modelLibraryEmptyDownloadingTitle;
+  /// **'Search model names'**
+  String get modelLibrarySearchHint;
 
-  /// No description provided for @modelLibraryEmptyDownloadingDescription.
+  /// No description provided for @modelLibraryEmptySearchTitle.
   ///
   /// In en, this message translates to:
-  /// **'Paused and failed downloads stay here until you resume, retry, or cancel them.'**
-  String get modelLibraryEmptyDownloadingDescription;
+  /// **'No matching models'**
+  String get modelLibraryEmptySearchTitle;
+
+  /// No description provided for @modelLibraryEmptySearchDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Try a different name.'**
+  String get modelLibraryEmptySearchDescription;
 
   /// No description provided for @modelLibraryDeleteDialogContent.
   ///

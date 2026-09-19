@@ -880,11 +880,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modelLibraryEmptyDescription => '可以下载一个，或导入已有的模型文件。';
 
   @override
-  String get modelLibraryEmptyDownloadingTitle => '没有未完成的下载';
+  String get modelLibrarySearchHint => '搜索模型名称';
 
   @override
-  String get modelLibraryEmptyDownloadingDescription =>
-      '暂停或失败的任务也会留在这里，可以继续、重试或取消。';
+  String get modelLibraryEmptySearchTitle => '没有匹配的模型';
+
+  @override
+  String get modelLibraryEmptySearchDescription => '换个名称再试试。';
 
   @override
   String modelLibraryDeleteDialogContent(String modelName) {

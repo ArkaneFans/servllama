@@ -109,21 +109,24 @@ void main() {
       expect(tester.widget<Badge>(find.byType(Badge)).isLabelVisible, isFalse);
     });
 
-    testWidgets('status filters split downloads from installed models', (
-      tester,
-    ) async {
+    testWidgets('filters library models and downloads by name', (tester) async {
       final downloads = _FixedTasksDownloadProvider(<DownloadTaskView>[
         _downloadTask(
           id: 'paused',
-          name: 'paused-model',
+          name: 'Qwen3-0.6B',
           status: DownloadStatus.paused,
+        ),
+        _downloadTask(
+          id: 'failed',
+          name: 'llama-failed',
+          status: DownloadStatus.failed,
         ),
       ]);
       addTearDown(downloads.dispose);
       final provider = ModelManagementProvider(
         repository: FakeLocalModelRepository(
           initialModels: <ModelDescriptor>[
-            _descriptor(id: 'm1', modelName: 'installed-model'),
+            _descriptor(id: 'm1', modelName: 'Gemma-2B'),
           ],
         ),
         filePicker: FakeGgufFilePicker(),
@@ -133,22 +136,31 @@ void main() {
       await tester.pumpWidget(_host(provider, downloads: downloads));
       await tester.pumpAndSettle();
 
-      await tester.tap(
-        find.byKey(const Key('model_library_status_filter_downloading')),
+      await tester.enterText(
+        find.byKey(const Key('model_library_search_input')),
+        'qwen 0.6',
       );
       await tester.pump();
 
-      expect(find.text('paused-model'), findsOneWidget);
-      expect(find.text('installed-model'), findsNothing);
-      expect(find.text('还没有模型'), findsNothing);
+      expect(find.text('Qwen3-0.6B'), findsOneWidget);
+      expect(find.text('llama-failed'), findsNothing);
+      expect(find.text('Gemma-2B'), findsNothing);
 
-      await tester.tap(
-        find.byKey(const Key('model_library_status_filter_installed')),
+      await tester.enterText(
+        find.byKey(const Key('model_library_search_input')),
+        'zzz',
       );
       await tester.pump();
 
-      expect(find.text('paused-model'), findsNothing);
-      expect(find.text('installed-model'), findsOneWidget);
+      expect(find.text('Qwen3-0.6B'), findsNothing);
+      expect(find.text('没有匹配的模型'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('model_library_search_clear')));
+      await tester.pump();
+
+      expect(find.text('Qwen3-0.6B'), findsOneWidget);
+      expect(find.text('llama-failed'), findsOneWidget);
+      expect(find.text('Gemma-2B'), findsOneWidget);
     });
 
     testWidgets('shows model cards with modelName and size', (tester) async {

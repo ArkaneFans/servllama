@@ -47,7 +47,7 @@ class _ModelManagementView extends StatefulWidget {
 }
 
 class _ModelManagementViewState extends State<_ModelManagementView> {
-  _LibraryStatusFilter _statusFilter = _LibraryStatusFilter.all;
+  final TextEditingController _searchController = TextEditingController();
   _LibraryFilter _formatFilter = _LibraryFilter.all;
 
   @override
@@ -60,6 +60,12 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
       context.read<ModelManagementProvider>().load();
       context.read<DownloadProvider>().load();
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _openAddSheet(BuildContext context) async {
@@ -201,34 +207,30 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
         final l10n = context.l10n;
         final runtime = context.watch<EngineRuntimeProvider?>();
 
-        final libraryDownloads = downloads.libraryTasks;
-        final formatDownloads = libraryDownloads
+        final query = _searchController.text;
+        final libraryDownloads = downloads.libraryTasks
+            .where((task) => _downloadNameMatches(task, query))
+            .toList(growable: false);
+        final visibleDownloads = libraryDownloads
             .where((task) => _downloadMatches(task.engine, _formatFilter))
             .toList(growable: false);
-        final visibleDownloads = _statusFilter == _LibraryStatusFilter.installed
-            ? const <DownloadTaskView>[]
-            : formatDownloads;
-        final models = _statusFilter == _LibraryStatusFilter.downloading
-            ? const <LibraryModel>[]
-            : _filteredModels(provider.libraryModels, _formatFilter);
-        final showSectionHeaders =
-            _statusFilter == _LibraryStatusFilter.all &&
-            visibleDownloads.isNotEmpty;
-        final engineCounts = _engineCounts(
-          provider,
-          libraryDownloads,
-          _statusFilter,
-        );
-        final visionCount = _statusFilter == _LibraryStatusFilter.downloading
-            ? 0
-            : provider.libraryModels
-                  .where((model) => model.supportsVision)
-                  .length;
-        final toolsCount = _statusFilter == _LibraryStatusFilter.downloading
-            ? 0
-            : provider.libraryModels
-                  .where((model) => model.supportsToolCalling)
-                  .length;
+        final models = _filteredModels(provider.libraryModels, _formatFilter)
+            .where((model) => _nameMatches(model.name, query))
+            .toList(growable: false);
+        final showSectionHeaders = visibleDownloads.isNotEmpty;
+        final engineCounts = _engineCounts(provider, libraryDownloads, query);
+        final visionCount = provider.libraryModels
+            .where(
+              (model) =>
+                  model.supportsVision && _nameMatches(model.name, query),
+            )
+            .length;
+        final toolsCount = provider.libraryModels
+            .where(
+              (model) =>
+                  model.supportsToolCalling && _nameMatches(model.name, query),
+            )
+            .length;
 
         return Scaffold(
           appBar: AppBar(
@@ -291,15 +293,9 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
                   top: false,
                   child: Column(
                     children: [
-                      _StatusFilterBar(
-                        selected: _statusFilter,
-                        downloadingCount: formatDownloads.length,
-                        installedCount: _filteredModels(
-                          provider.libraryModels,
-                          _formatFilter,
-                        ).length,
-                        onChanged: (filter) =>
-                            setState(() => _statusFilter = filter),
+                      _LibrarySearchField(
+                        controller: _searchController,
+                        onChanged: (_) => setState(() {}),
                       ),
                       _EngineFilterBar(
                         selected: _formatFilter,
@@ -312,15 +308,11 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
                       Expanded(
                         child: models.isEmpty && visibleDownloads.isEmpty
                             ? _EmptyState(
-                                title:
-                                    _statusFilter ==
-                                        _LibraryStatusFilter.downloading
-                                    ? l10n.modelLibraryEmptyDownloadingTitle
+                                title: query.trim().isNotEmpty
+                                    ? l10n.modelLibraryEmptySearchTitle
                                     : null,
-                                description:
-                                    _statusFilter ==
-                                        _LibraryStatusFilter.downloading
-                                    ? l10n.modelLibraryEmptyDownloadingDescription
+                                description: query.trim().isNotEmpty
+                                    ? l10n.modelLibraryEmptySearchDescription
                                     : null,
                               )
                             : ListView(
@@ -429,6 +421,20 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
     );
   }
 
+  bool _nameMatches(String name, String query) {
+    final normalizedQuery = query.trim().toLowerCase();
+    if (normalizedQuery.isEmpty) {
+      return true;
+    }
+    final haystack = name.toLowerCase();
+    return normalizedQuery.split(RegExp(r'\s+')).every(haystack.contains);
+  }
+
+  bool _downloadNameMatches(DownloadTaskView task, String query) {
+    return _nameMatches(task.modelName, query) ||
+        _nameMatches(task.requestedModelName, query);
+  }
+
   List<LibraryModel> _filteredModels(
     List<LibraryModel> models,
     _LibraryFilter filter,
@@ -468,32 +474,19 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
   Map<InferenceEngine, int> _engineCounts(
     ModelManagementProvider provider,
     List<DownloadTaskView> libraryDownloads,
-    _LibraryStatusFilter statusFilter,
+    String query,
   ) {
     return <InferenceEngine, int>{
       for (final engine in InferenceEngine.values)
-        engine: _engineCount(engine, provider, libraryDownloads, statusFilter),
+        engine:
+            libraryDownloads.where((task) => task.engine == engine).length +
+            provider.libraryModels
+                .where(
+                  (model) =>
+                      model.engine == engine && _nameMatches(model.name, query),
+                )
+                .length,
     };
-  }
-
-  int _engineCount(
-    InferenceEngine engine,
-    ModelManagementProvider provider,
-    List<DownloadTaskView> libraryDownloads,
-    _LibraryStatusFilter statusFilter,
-  ) {
-    final downloadCount = libraryDownloads
-        .where((task) => task.engine == engine)
-        .length;
-    final installedCount = provider.countFor(engine);
-    switch (statusFilter) {
-      case _LibraryStatusFilter.all:
-        return installedCount + downloadCount;
-      case _LibraryStatusFilter.downloading:
-        return downloadCount;
-      case _LibraryStatusFilter.installed:
-        return installedCount;
-    }
   }
 
   ModelHubSource _otherHubSource(ModelHubSource source) =>
@@ -501,8 +494,6 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
       ? ModelHubSource.modelScope
       : ModelHubSource.huggingFace;
 }
-
-enum _LibraryStatusFilter { all, downloading, installed }
 
 enum _LibraryFilter { all, llamaCpp, mnn, vision, tools }
 
@@ -589,49 +580,85 @@ class _AddOption extends StatelessWidget {
   }
 }
 
-class _StatusFilterBar extends StatelessWidget {
-  const _StatusFilterBar({
-    required this.selected,
-    required this.downloadingCount,
-    required this.installedCount,
+class _LibrarySearchField extends StatelessWidget {
+  const _LibrarySearchField({
+    required this.controller,
     required this.onChanged,
   });
 
-  final _LibraryStatusFilter selected;
-  final int downloadingCount;
-  final int installedCount;
-  final ValueChanged<_LibraryStatusFilter> onChanged;
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final l10n = context.l10n;
+    final hasQuery = controller.text.trim().isNotEmpty;
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-      child: Row(
-        children: [
-          _FilterChip(
-            key: const Key('model_library_status_filter_all'),
-            label: l10n.modelLibraryFilterAll,
-            isSelected: selected == _LibraryStatusFilter.all,
-            onTap: () => onChanged(_LibraryStatusFilter.all),
-          ),
-          const SizedBox(width: 8),
-          _FilterChip(
-            key: const Key('model_library_status_filter_downloading'),
-            label: '${l10n.modelLibraryDownloadingSection} · $downloadingCount',
-            isSelected: selected == _LibraryStatusFilter.downloading,
-            onTap: () => onChanged(_LibraryStatusFilter.downloading),
-          ),
-          const SizedBox(width: 8),
-          _FilterChip(
-            key: const Key('model_library_status_filter_installed'),
-            label: '${l10n.modelLibraryInstalledSection} · $installedCount',
-            isSelected: selected == _LibraryStatusFilter.installed,
-            onTap: () => onChanged(_LibraryStatusFilter.installed),
-          ),
-        ],
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+      child: Container(
+        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: colorScheme.outlineVariant.withAlpha(56)),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.search_rounded,
+              size: 18,
+              color: colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                key: const Key('model_library_search_input'),
+                controller: controller,
+                onChanged: onChanged,
+                textInputAction: TextInputAction.search,
+                textAlignVertical: TextAlignVertical.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurface,
+                  height: 1.2,
+                ),
+                decoration: InputDecoration(
+                  isDense: true,
+                  isCollapsed: true,
+                  border: InputBorder.none,
+                  hintText: l10n.modelLibrarySearchHint,
+                  hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                    height: 1.2,
+                  ),
+                ),
+              ),
+            ),
+            if (hasQuery)
+              IconButton(
+                key: const Key('model_library_search_clear'),
+                iconSize: 18,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(
+                  width: 24,
+                  height: 24,
+                ),
+                visualDensity: VisualDensity.compact,
+                onPressed: () {
+                  controller.clear();
+                  onChanged('');
+                },
+                icon: Icon(
+                  Icons.close_rounded,
+                  size: 18,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -703,7 +730,6 @@ class _EngineFilterBar extends StatelessWidget {
 
 class _FilterChip extends StatelessWidget {
   const _FilterChip({
-    super.key,
     required this.label,
     required this.isSelected,
     required this.onTap,
