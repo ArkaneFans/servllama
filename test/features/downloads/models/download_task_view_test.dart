@@ -9,6 +9,17 @@ void main() {
     expect(DownloadStatus.downloaded.canCancel, isFalse);
   });
 
+  test('paused and failed downloads still belong in the model library', () {
+    expect(DownloadStatus.queued.belongsInLibrary, isTrue);
+    expect(DownloadStatus.running.belongsInLibrary, isTrue);
+    expect(DownloadStatus.paused.belongsInLibrary, isTrue);
+    expect(DownloadStatus.failed.belongsInLibrary, isTrue);
+    expect(DownloadStatus.downloaded.belongsInLibrary, isTrue);
+    expect(DownloadStatus.completed.belongsInLibrary, isFalse);
+    expect(DownloadStatus.paused.isActive, isFalse);
+    expect(DownloadStatus.failed.isActive, isFalse);
+  });
+
   test('does not invent a percentage while any file size is unknown', () {
     final view = DownloadTaskView(
       _task(

@@ -517,6 +517,8 @@
   "modelFormatExplainer": "GGUF is a single file; MNN models are whole directories. The engine badge on each card tells them apart.",
   "modelLibraryEmptyTitle": "No models yet",
   "modelLibraryEmptyDescription": "Download one, or import a file you already have.",
+  "modelLibraryEmptyDownloadingTitle": "No incomplete downloads",
+  "modelLibraryEmptyDownloadingDescription": "Paused and failed downloads stay here until you resume, retry, or cancel them.",
   "modelLibraryDeleteDialogContent": "Delete “{modelName}”? The files will be removed from this device.",
   "@modelLibraryDeleteDialogContent": {
     "placeholders": {

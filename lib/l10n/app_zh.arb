@@ -458,6 +458,8 @@
   "modelFormatExplainer": "GGUF 是单个文件，MNN 模型是整个目录。卡片上的引擎徽标用于区分两者。",
   "modelLibraryEmptyTitle": "还没有模型",
   "modelLibraryEmptyDescription": "可以下载一个，或导入已有的模型文件。",
+  "modelLibraryEmptyDownloadingTitle": "没有未完成的下载",
+  "modelLibraryEmptyDownloadingDescription": "暂停或失败的任务也会留在这里，可以继续、重试或取消。",
   "modelLibraryDeleteDialogContent": "确定删除「{modelName}」？该模型的文件将从本机移除。",
   "modelLibraryStatusRunning": "运行中",
   "modelLibraryStatusIdle": "空闲",

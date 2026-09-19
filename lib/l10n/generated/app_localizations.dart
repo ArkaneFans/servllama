@@ -1685,6 +1685,18 @@ abstract class AppLocalizations {
   /// **'Download one, or import a file you already have.'**
   String get modelLibraryEmptyDescription;
 
+  /// No description provided for @modelLibraryEmptyDownloadingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No incomplete downloads'**
+  String get modelLibraryEmptyDownloadingTitle;
+
+  /// No description provided for @modelLibraryEmptyDownloadingDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused and failed downloads stay here until you resume, retry, or cancel them.'**
+  String get modelLibraryEmptyDownloadingDescription;
+
   /// No description provided for @modelLibraryDeleteDialogContent.
   ///
   /// In en, this message translates to:

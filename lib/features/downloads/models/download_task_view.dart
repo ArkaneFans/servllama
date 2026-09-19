@@ -21,11 +21,16 @@ enum DownloadStatus {
     return DownloadStatus.queued;
   }
 
-  /// Still belongs in the model library's in-progress section.
+  /// In-flight work. Used by the app-bar badge and to re-queue transfers
+  /// after a process restart. Must not include paused or failed tasks.
   bool get isActive =>
       this == DownloadStatus.queued ||
       this == DownloadStatus.running ||
       this == DownloadStatus.downloaded;
+
+  /// Incomplete work that should stay in the model library, including pause
+  /// and failure. Completed tasks are already installed models.
+  bool get belongsInLibrary => this != DownloadStatus.completed;
 
   /// A transfer that can be interrupted without racing the native import.
   bool get canPause =>

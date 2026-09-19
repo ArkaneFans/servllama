@@ -910,6 +910,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Download one, or import a file you already have.';
 
   @override
+  String get modelLibraryEmptyDownloadingTitle => 'No incomplete downloads';
+
+  @override
+  String get modelLibraryEmptyDownloadingDescription =>
+      'Paused and failed downloads stay here until you resume, retry, or cancel them.';
+
+  @override
   String modelLibraryDeleteDialogContent(String modelName) {
     return 'Delete “$modelName”? The files will be removed from this device.';
   }

@@ -73,6 +73,84 @@ void main() {
       );
     });
 
+    testWidgets('keeps paused and failed downloads in the library', (
+      tester,
+    ) async {
+      final downloads = _FixedTasksDownloadProvider(<DownloadTaskView>[
+        _downloadTask(
+          id: 'paused',
+          name: 'paused-model',
+          status: DownloadStatus.paused,
+        ),
+        _downloadTask(
+          id: 'failed',
+          name: 'failed-model',
+          status: DownloadStatus.failed,
+        ),
+      ]);
+      addTearDown(downloads.dispose);
+      final provider = ModelManagementProvider(
+        repository: FakeLocalModelRepository(
+          initialModels: <ModelDescriptor>[
+            _descriptor(id: 'm1', modelName: 'installed-model'),
+          ],
+        ),
+        filePicker: FakeGgufFilePicker(),
+        logger: AppLogger(),
+      );
+
+      await tester.pumpWidget(_host(provider, downloads: downloads));
+      await tester.pumpAndSettle();
+
+      expect(find.text('paused-model'), findsOneWidget);
+      expect(find.text('failed-model'), findsOneWidget);
+      expect(find.text('installed-model'), findsOneWidget);
+      expect(find.text('还没有模型'), findsNothing);
+      expect(tester.widget<Badge>(find.byType(Badge)).isLabelVisible, isFalse);
+    });
+
+    testWidgets('status filters split downloads from installed models', (
+      tester,
+    ) async {
+      final downloads = _FixedTasksDownloadProvider(<DownloadTaskView>[
+        _downloadTask(
+          id: 'paused',
+          name: 'paused-model',
+          status: DownloadStatus.paused,
+        ),
+      ]);
+      addTearDown(downloads.dispose);
+      final provider = ModelManagementProvider(
+        repository: FakeLocalModelRepository(
+          initialModels: <ModelDescriptor>[
+            _descriptor(id: 'm1', modelName: 'installed-model'),
+          ],
+        ),
+        filePicker: FakeGgufFilePicker(),
+        logger: AppLogger(),
+      );
+
+      await tester.pumpWidget(_host(provider, downloads: downloads));
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const Key('model_library_status_filter_downloading')),
+      );
+      await tester.pump();
+
+      expect(find.text('paused-model'), findsOneWidget);
+      expect(find.text('installed-model'), findsNothing);
+      expect(find.text('还没有模型'), findsNothing);
+
+      await tester.tap(
+        find.byKey(const Key('model_library_status_filter_installed')),
+      );
+      await tester.pump();
+
+      expect(find.text('paused-model'), findsNothing);
+      expect(find.text('installed-model'), findsOneWidget);
+    });
+
     testWidgets('shows model cards with modelName and size', (tester) async {
       final provider = ModelManagementProvider(
         repository: FakeLocalModelRepository(
@@ -764,6 +842,53 @@ class _EnqueueCall {
 
   final List<HubRepoFile> files;
   final String? targetModelId;
+}
+
+DownloadTaskView _downloadTask({
+  required String id,
+  required String name,
+  required DownloadStatus status,
+}) {
+  return DownloadTaskView(
+    DownloadTaskRecord(
+      id: id,
+      engineValue: InferenceEngine.llamaCpp.storageValue,
+      sourceValue: ModelHubSource.modelScope.storageValue,
+      repoId: 'org/model',
+      revision: 'master',
+      modelName: name,
+      files: <DownloadFileRecord>[
+        DownloadFileRecord(
+          remotePath: 'model.gguf',
+          fileName: 'model.gguf',
+          totalBytes: 100,
+          receivedBytes: 40,
+        ),
+      ],
+      statusValue: status.name,
+      createdAt: DateTime(2026),
+      stagingDirPath: '/tmp/$id',
+    ),
+  );
+}
+
+class _FixedTasksDownloadProvider extends DownloadProvider {
+  _FixedTasksDownloadProvider(this._seeded)
+    : super(
+        taskRepository: _MemoryTaskRepository(),
+        downloadService: ModelDownloadService(),
+        settingsStore: _MemoryDownloadSettingsStore(),
+        localModelRepository: FakeLocalModelRepository(),
+        logger: AppLogger(),
+      );
+
+  final List<DownloadTaskView> _seeded;
+
+  @override
+  List<DownloadTaskView> get tasks => _seeded;
+
+  @override
+  Future<void> load() async {}
 }
 
 class _RecordingDownloadProvider extends DownloadProvider {

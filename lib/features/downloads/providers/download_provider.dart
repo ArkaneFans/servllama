@@ -120,6 +120,12 @@ class DownloadProvider extends ChangeNotifier {
 
   int get activeTaskCount => activeTasks.length;
 
+  /// Paused and failed tasks stay in the model library until the user
+  /// resumes, retries, or cancels them. [activeTasks] is only in-flight work.
+  List<DownloadTaskView> get libraryTasks => tasks
+      .where((task) => task.status.belongsInLibrary)
+      .toList(growable: false);
+
   Future<void> load() {
     if (_hasLoaded) {
       return Future<void>.value();
