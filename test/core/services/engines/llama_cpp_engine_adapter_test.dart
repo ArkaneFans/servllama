@@ -7,6 +7,8 @@ import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/repositories/local_model_repository.dart';
 import 'package:servllama/core/services/engines/inference_engine_adapter.dart';
 import 'package:servllama/core/services/engines/llama_cpp_engine_adapter.dart';
+import 'package:servllama/core/models/llama_cpp_backend.dart';
+import 'package:servllama/core/services/llama_cpp_device_probe_service.dart';
 import 'package:servllama/core/services/llama_server_control_client.dart';
 import 'package:servllama/core/services/llama_server_service.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
@@ -152,6 +154,9 @@ LlamaCppEngineAdapter _adapter({
           <ModelDescriptor>[_model('alpha', vision: true), _model('beta')],
     ),
     controlClient: control,
+    deviceProbeService: LlamaCppDeviceProbeService(
+      resultOverride: () => LlamaCppDeviceProbeResult.cpuOnly,
+    ),
   );
 }
 

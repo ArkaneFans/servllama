@@ -1,5 +1,6 @@
 import 'package:mnn_engine/mnn_engine.dart'
     show MnnBackend, MnnLoadOptions, MnnPrecision;
+import 'package:servllama/core/models/llama_cpp_backend.dart';
 
 enum ServerListenMode { localhost, allInterfaces }
 
@@ -21,6 +22,8 @@ class ServerLaunchSettings {
     this.useMmap = true,
     this.logEnabled = true,
     this.logLevel = defaultLogLevel,
+    this.llamaCppBackend = defaultLlamaCppBackend,
+    this.llamaCppGpuLayers = defaultLlamaCppGpuLayers,
     this.mnnBackend = MnnBackend.cpu,
     this.mnnUseMmap = defaultMnnUseMmap,
     this.mnnPrecision = defaultMnnPrecision,
@@ -54,6 +57,10 @@ class ServerLaunchSettings {
   static const FlashAttentionMode defaultFlashAttentionMode =
       FlashAttentionMode.disabled;
   static const ServerLogLevel defaultLogLevel = ServerLogLevel.info;
+  static const LlamaCppBackend defaultLlamaCppBackend = LlamaCppBackend.cpu;
+  static const int defaultLlamaCppGpuLayers = 99;
+  static const int minLlamaCppGpuLayers = 1;
+  static const int maxLlamaCppGpuLayers = 128;
   static const bool defaultMnnUseMmap = MnnLoadOptions.defaultUseMmap;
   static const MnnPrecision defaultMnnPrecision =
       MnnLoadOptions.defaultPrecision;
@@ -81,6 +88,8 @@ class ServerLaunchSettings {
   final bool useMmap;
   final bool logEnabled;
   final ServerLogLevel logLevel;
+  final LlamaCppBackend llamaCppBackend;
+  final int llamaCppGpuLayers;
   final MnnBackend mnnBackend;
   final bool mnnUseMmap;
   final MnnPrecision mnnPrecision;
@@ -102,6 +111,8 @@ class ServerLaunchSettings {
     bool? useMmap,
     bool? logEnabled,
     ServerLogLevel? logLevel,
+    LlamaCppBackend? llamaCppBackend,
+    int? llamaCppGpuLayers,
     MnnBackend? mnnBackend,
     bool? mnnUseMmap,
     MnnPrecision? mnnPrecision,
@@ -120,6 +131,8 @@ class ServerLaunchSettings {
       useMmap: useMmap ?? this.useMmap,
       logEnabled: logEnabled ?? this.logEnabled,
       logLevel: logLevel ?? this.logLevel,
+      llamaCppBackend: llamaCppBackend ?? this.llamaCppBackend,
+      llamaCppGpuLayers: llamaCppGpuLayers ?? this.llamaCppGpuLayers,
       mnnBackend: mnnBackend ?? this.mnnBackend,
       mnnUseMmap: mnnUseMmap ?? this.mnnUseMmap,
       mnnPrecision: mnnPrecision ?? this.mnnPrecision,

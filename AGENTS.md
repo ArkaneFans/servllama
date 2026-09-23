@@ -32,9 +32,12 @@
 
 ### Binary Maintenance
 
-- `llama-server` binaries ship as jniLibs (`android/app/src/main/jniLibs/arm64-v8a/`). The server executable is packaged as `libllama-server.so` and executed from `nativeLibraryDir`, with `LD_LIBRARY_PATH` pointing to the same directory.
+- `llama-server` binaries ship as jniLibs (`android/app/src/main/jniLibs/arm64-v8a/`). The `.so` files are **not** tracked in git; copy them from a Snapdragon WSL build or a release bundle. See `patches/llama.cpp/README.md`.
+- The server executable is packaged as `libllama-server.so` and executed from `nativeLibraryDir`, with `LD_LIBRARY_PATH` and `ADSP_LIBRARY_PATH` pointing at that directory (plus vendor OpenCL / FastRPC paths).
 - Every bundled file must be named `lib*.so`, otherwise AGP silently excludes it from the APK.
 - Keep `packaging.jniLibs.useLegacyPackaging = true` in `android/app/build.gradle.kts`. The server runs as a child process and must exist as a real file on disk.
+- OpenCL (`libggml-opencl.so`) and Hexagon (`libggml-hexagon.so` + `libggml-htp-v*.so`) are part of the Snapdragon bundle. Do not NDK-strip the HTP kernels.
+- Hexagon empty-device fix is a project patch on llama.cpp **v0.4.1**: `patches/llama.cpp/0001-hexagon-skip-unsupported-devices.patch`.
 - When updating llama-server, replace the `.so` files AND sync the version in `assets/bin/llama_server_manifest.json`. The manifest is display-only (About page) and is not validated against the binaries.
 
 ## Development Practices

@@ -499,6 +499,59 @@ class AppLocalizationsEn extends AppLocalizations {
       'Improves model loading performance';
 
   @override
+  String get llamaCppBackendTitle => 'Acceleration backend';
+
+  @override
+  String get llamaCppBackendNextStart =>
+      'Changes apply the next time the server starts.';
+
+  @override
+  String get llamaCppBackendRefresh => 'Check available backends';
+
+  @override
+  String get llamaCppBackendStopServer =>
+      'Stop the server to detect GPU and NPU support.';
+
+  @override
+  String get llamaCppBackendCpu => 'CPU';
+
+  @override
+  String get llamaCppBackendOpencl => 'GPU (OpenCL)';
+
+  @override
+  String get llamaCppBackendHexagon => 'NPU (Hexagon)';
+
+  @override
+  String get llamaCppBackendCpuDescription =>
+      'Runs entirely on the CPU. Broadest compatibility.';
+
+  @override
+  String get llamaCppBackendOpenclDescription =>
+      'Offload layers to Adreno GPU via OpenCL.';
+
+  @override
+  String get llamaCppBackendHexagonDescription =>
+      'Offload layers to Snapdragon Hexagon NPU. Requires Hexagon v73 or newer, roughly Snapdragon 8 Gen 2 and later.';
+
+  @override
+  String get llamaCppBackendUnavailable => 'Not available on this device.';
+
+  @override
+  String get llamaCppBackendProbeFailed =>
+      'Could not check llama.cpp backends. CPU will be used if nothing else is available. Details are in the engine log.';
+
+  @override
+  String get llamaCppBackendSavedUnavailable =>
+      'The saved backend is currently unavailable. Choose another backend before starting, or use Auto.';
+
+  @override
+  String get llamaCppGpuLayers => 'Offloaded layers';
+
+  @override
+  String get llamaCppGpuLayersDescription =>
+      'How many layers to place on the selected GPU or NPU. Higher values use the accelerator more.';
+
+  @override
   String get serverConfigSectionLogging => 'Logs';
 
   @override

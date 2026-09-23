@@ -1,4 +1,5 @@
 import 'package:mnn_engine/mnn_engine.dart' show MnnBackend, MnnPrecision;
+import 'package:servllama/core/models/llama_cpp_backend.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
 import 'package:servllama/core/storage/server_prefs_keys.dart';
@@ -70,6 +71,15 @@ class ServerLaunchSettingsLoader {
       logLevel: _readLogLevel(
         await _kvStorage.getString(ServerPrefsKeys.logLevel),
       ),
+      llamaCppBackend: _readLlamaCppBackend(
+        await _kvStorage.getString(ServerPrefsKeys.llamaCppBackend),
+      ),
+      llamaCppGpuLayers: _clamp(
+        await _kvStorage.getInt(ServerPrefsKeys.llamaCppGpuLayers) ??
+            ServerLaunchSettings.defaultLlamaCppGpuLayers,
+        ServerLaunchSettings.minLlamaCppGpuLayers,
+        ServerLaunchSettings.maxLlamaCppGpuLayers,
+      ),
       mnnBackend: mnnBackend,
       mnnUseMmap:
           await _kvStorage.getBool(ServerPrefsKeys.mnnUseMmap) ??
@@ -117,6 +127,14 @@ class ServerLaunchSettingsLoader {
       settings.logLevel.name,
     );
     await _kvStorage.setString(
+      ServerPrefsKeys.llamaCppBackend,
+      settings.llamaCppBackend.name,
+    );
+    await _kvStorage.setInt(
+      ServerPrefsKeys.llamaCppGpuLayers,
+      settings.llamaCppGpuLayers,
+    );
+    await _kvStorage.setString(
       ServerPrefsKeys.mnnBackend,
       _readMnnBackend(settings.mnnBackend.name).name,
     );
@@ -129,6 +147,18 @@ class ServerLaunchSettingsLoader {
       ServerPrefsKeys.mnnThreadNum,
       settings.mnnThreadNum,
     );
+  }
+
+
+  LlamaCppBackend _readLlamaCppBackend(String? value) {
+    if (value == null || value == 'auto') {
+      return ServerLaunchSettings.defaultLlamaCppBackend;
+    }
+    try {
+      return LlamaCppBackend.values.byName(value);
+    } catch (_) {
+      return ServerLaunchSettings.defaultLlamaCppBackend;
+    }
   }
 
   MnnBackend _readMnnBackend(String? value) =>

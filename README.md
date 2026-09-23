@@ -101,11 +101,11 @@ flutter pub get
 flutter build apk --release
 ```
 
-The repository already includes the required arm64 llama-server libraries, while MNN native artifacts are provided by the `mnn_engine` package. A normal app build does not require compiling either backend manually.
+MNN native artifacts are provided by the `mnn_engine` package. llama-server is a prebuilt Snapdragon bundle (CPU variants + OpenCL + Hexagon) that is **not** stored in git. Copy the `.so` files into `android/app/src/main/jniLibs/arm64-v8a/` from a release extra or a local WSL build before compiling the APK. See `patches/llama.cpp/README.md`.
 
 For development verification, run `flutter analyze` and `flutter test`.
 
-Maintainers can update llama-server from the [Build llama-server for Android](https://github.com/ArkaneFans/Servllama/actions/workflows/build-llama-server-android.yml) workflow. Run it manually with an exact llama.cpp tag, download the generated artifact, and copy its `android` and `assets` directories over the repository.
+The CPU-only GitHub workflow remains as a fallback. OpenCL and Hexagon builds use the Snapdragon toolchain Docker image on WSL, with `patches/llama.cpp/0001-hexagon-skip-unsupported-devices.patch` applied to llama.cpp v0.4.1.
 
 ## Usage Notes
 

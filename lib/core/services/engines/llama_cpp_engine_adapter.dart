@@ -5,6 +5,7 @@ import 'package:servllama/core/models/inference_engine.dart';
 import 'package:servllama/core/models/model_descriptor.dart';
 import 'package:servllama/core/repositories/local_model_repository.dart';
 import 'package:servllama/core/services/engines/inference_engine_adapter.dart';
+import 'package:servllama/core/services/llama_cpp_device_probe_service.dart';
 import 'package:servllama/core/services/llama_server_control_client.dart';
 import 'package:servllama/core/services/llama_server_service.dart';
 import 'package:servllama/core/services/server_launch_args_builder.dart';
@@ -20,18 +21,22 @@ class LlamaCppEngineAdapter implements InferenceEngineAdapter {
     ServerLaunchArgsBuilder? launchArgsBuilder,
     LocalModelRepository? modelRepository,
     LlamaServerControlClient? controlClient,
+    LlamaCppDeviceProbeService? deviceProbeService,
   }) : _serverService = serverService ?? LlamaServerService(),
        _settingsLoader = settingsLoader ?? ServerLaunchSettingsLoader(),
        _launchArgsBuilder =
            launchArgsBuilder ?? const ServerLaunchArgsBuilder(),
        _modelRepository = modelRepository ?? LocalModelRepository(),
-       _controlClient = controlClient ?? LlamaServerControlClient();
+       _controlClient = controlClient ?? LlamaServerControlClient(),
+       _deviceProbeService =
+           deviceProbeService ?? LlamaCppDeviceProbeService();
 
   final LlamaServerProcessService _serverService;
   final ServerLaunchSettingsLoader _settingsLoader;
   final ServerLaunchArgsBuilder _launchArgsBuilder;
   final LocalModelRepository _modelRepository;
   final LlamaServerControlClient _controlClient;
+  final LlamaCppDeviceProbeService _deviceProbeService;
   bool _cancelRequested = false;
 
   @override
@@ -67,6 +72,9 @@ class LlamaCppEngineAdapter implements InferenceEngineAdapter {
       _throwIfCancelled();
       final settings = await _settingsLoader.load();
       _throwIfCancelled();
+      final probe = await _deviceProbeService.probe(force: true);
+      _throwIfCancelled();
+      final offloadBackend = probe.resolve(settings.llamaCppBackend);
 
       onPhase(RuntimePhase.startingServer);
       final started = await _serverService.startServer(
@@ -75,6 +83,8 @@ class LlamaCppEngineAdapter implements InferenceEngineAdapter {
           modelPath: model.storedFilePath,
           modelAlias: model.modelName,
           mmprojPath: model.activeMmprojFilePath,
+          offloadBackend: offloadBackend,
+          offloadDeviceName: probe.deviceNameFor(offloadBackend),
         ),
       );
       _throwIfCancelled();

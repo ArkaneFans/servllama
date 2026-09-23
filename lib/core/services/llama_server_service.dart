@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/core/services/app_l10n_service.dart';
 import 'package:servllama/core/services/foreground_task_service.dart';
+import 'package:servllama/core/services/llama_server_environment.dart';
 import 'package:servllama/core/services/native_library_dir_service.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
 
@@ -126,16 +127,7 @@ class LlamaServerService implements LlamaServerProcessService {
         binaryPath,
         arguments,
         runInShell: false,
-        environment: {
-          // Vendor dirs are appended so the backends can dlopen Qualcomm
-          // public libraries (libcdsprpc.so for Hexagon, libOpenCL.so for
-          // OpenCL) — the spawned process does not inherit the app
-          // classloader namespace that normally exposes them.
-          'LD_LIBRARY_PATH': '$nativeLibraryDir:/vendor/lib64:/odm/lib64',
-          // Required by FastRPC to locate the libggml-htp-vNN.so NPU-side
-          // libraries when the Hexagon backend is used.
-          'ADSP_LIBRARY_PATH': nativeLibraryDir,
-        },
+        environment: llamaServerLibraryEnvironment(nativeLibraryDir),
       );
 
       _process = process;
