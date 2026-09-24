@@ -39,13 +39,17 @@ class _LlamaCppBackendSettingsState extends State<LlamaCppBackendSettings> {
     final l10n = context.l10n;
     final colors = Theme.of(context).colorScheme;
     final probe = provider.llamaCppProbe;
-    final savedUnavailable = switch (provider.llamaCppBackend) {
-      LlamaCppBackend.opencl =>
-        !provider.loadingLlamaCppBackends && !probe.openclAvailable,
-      LlamaCppBackend.hexagon =>
-        !provider.loadingLlamaCppBackends && !probe.hexagonAvailable,
-      _ => false,
-    };
+    final savedUnavailable =
+        ServerLaunchSettings.supportedLlamaCppBackends.contains(
+          provider.llamaCppBackend,
+        ) &&
+        switch (provider.llamaCppBackend) {
+          LlamaCppBackend.opencl =>
+            !provider.loadingLlamaCppBackends && !probe.openclAvailable,
+          LlamaCppBackend.hexagon =>
+            !provider.loadingLlamaCppBackends && !probe.hexagonAvailable,
+          _ => false,
+        };
     return SettingsSection(
       key: const Key('llama_cpp_backend_settings'),
       title: l10n.llamaCppBackendTitle,
@@ -79,8 +83,7 @@ class _LlamaCppBackendSettingsState extends State<LlamaCppBackendSettings> {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
-          if (provider.loadingLlamaCppBackends)
-            const LinearProgressIndicator(),
+          if (provider.loadingLlamaCppBackends) const LinearProgressIndicator(),
           if (provider.llamaCppBackendError != null)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -97,7 +100,8 @@ class _LlamaCppBackendSettingsState extends State<LlamaCppBackendSettings> {
                 style: TextStyle(color: colors.error),
               ),
             ),
-          for (final backend in LlamaCppBackend.values) ...[
+          for (final backend
+              in ServerLaunchSettings.supportedLlamaCppBackends) ...[
             if (backend != LlamaCppBackend.cpu) const Divider(height: 1),
             _backendTile(context, provider, backend, probe),
           ],

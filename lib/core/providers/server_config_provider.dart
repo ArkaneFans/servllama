@@ -232,6 +232,9 @@ class ServerConfigProvider extends ChangeNotifier {
   }
 
   Future<void> updateLlamaCppBackend(LlamaCppBackend value) {
+    if (!ServerLaunchSettings.supportedLlamaCppBackends.contains(value)) {
+      return Future<void>.value();
+    }
     if (value == LlamaCppBackend.opencl && !_llamaCppProbe.openclAvailable) {
       return Future<void>.value();
     }

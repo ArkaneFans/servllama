@@ -38,6 +38,7 @@
 - Keep `packaging.jniLibs.useLegacyPackaging = true` in `android/app/build.gradle.kts`. The server runs as a child process and must exist as a real file on disk.
 - OpenCL (`libggml-opencl.so`) and Hexagon (`libggml-hexagon.so` + `libggml-htp-v*.so`) are part of the Snapdragon bundle. Do not NDK-strip the HTP kernels.
 - Hexagon empty-device fix is a project patch on llama.cpp **v0.4.1**: `patches/llama.cpp/0001-hexagon-skip-unsupported-devices.patch`.
+- Offered llama.cpp backends are `ServerLaunchSettings.supportedLlamaCppBackends` (currently CPU, OpenCL, and Hexagon). The device probe only enables or disables entries in that list. Remove an entry to hide a compiled backend; do not delete the enum value.
 - When updating llama-server, replace the `.so` files AND sync the version in `assets/bin/llama_server_manifest.json`. The manifest is display-only (About page) and is not validated against the binaries.
 
 ## Development Practices

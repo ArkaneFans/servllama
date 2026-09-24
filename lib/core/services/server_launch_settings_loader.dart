@@ -1,5 +1,4 @@
 import 'package:mnn_engine/mnn_engine.dart' show MnnBackend, MnnPrecision;
-import 'package:servllama/core/models/llama_cpp_backend.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
 import 'package:servllama/core/storage/server_prefs_keys.dart';
@@ -19,6 +18,19 @@ class ServerLaunchSettingsLoader {
       // Migrate withdrawn/unknown choices so a hidden backend cannot be
       // started from preferences left by an earlier installation.
       await _kvStorage.setString(ServerPrefsKeys.mnnBackend, mnnBackend.name);
+    }
+    final savedLlamaCppBackend = await _kvStorage.getString(
+      ServerPrefsKeys.llamaCppBackend,
+    );
+    final llamaCppBackend = ServerLaunchSettings.llamaCppBackendFromStorage(
+      savedLlamaCppBackend,
+    );
+    if (savedLlamaCppBackend != null &&
+        savedLlamaCppBackend != llamaCppBackend.name) {
+      await _kvStorage.setString(
+        ServerPrefsKeys.llamaCppBackend,
+        llamaCppBackend.name,
+      );
     }
     return ServerLaunchSettings(
       listenMode: _readListenMode(
@@ -71,9 +83,7 @@ class ServerLaunchSettingsLoader {
       logLevel: _readLogLevel(
         await _kvStorage.getString(ServerPrefsKeys.logLevel),
       ),
-      llamaCppBackend: _readLlamaCppBackend(
-        await _kvStorage.getString(ServerPrefsKeys.llamaCppBackend),
-      ),
+      llamaCppBackend: llamaCppBackend,
       llamaCppGpuLayers: _clamp(
         await _kvStorage.getInt(ServerPrefsKeys.llamaCppGpuLayers) ??
             ServerLaunchSettings.defaultLlamaCppGpuLayers,
@@ -128,7 +138,9 @@ class ServerLaunchSettingsLoader {
     );
     await _kvStorage.setString(
       ServerPrefsKeys.llamaCppBackend,
-      settings.llamaCppBackend.name,
+      ServerLaunchSettings.llamaCppBackendFromStorage(
+        settings.llamaCppBackend.name,
+      ).name,
     );
     await _kvStorage.setInt(
       ServerPrefsKeys.llamaCppGpuLayers,
@@ -147,18 +159,6 @@ class ServerLaunchSettingsLoader {
       ServerPrefsKeys.mnnThreadNum,
       settings.mnnThreadNum,
     );
-  }
-
-
-  LlamaCppBackend _readLlamaCppBackend(String? value) {
-    if (value == null || value == 'auto') {
-      return ServerLaunchSettings.defaultLlamaCppBackend;
-    }
-    try {
-      return LlamaCppBackend.values.byName(value);
-    } catch (_) {
-      return ServerLaunchSettings.defaultLlamaCppBackend;
-    }
   }
 
   MnnBackend _readMnnBackend(String? value) =>

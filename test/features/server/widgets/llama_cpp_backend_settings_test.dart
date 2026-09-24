@@ -1,0 +1,112 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
+import 'package:servllama/core/models/inference_engine.dart';
+import 'package:servllama/core/models/llama_cpp_backend.dart';
+import 'package:servllama/core/models/server_launch_settings.dart';
+import 'package:servllama/core/providers/engine_runtime_provider.dart';
+import 'package:servllama/core/providers/server_config_provider.dart';
+import 'package:servllama/core/services/llama_cpp_device_probe_service.dart';
+import 'package:servllama/core/storage/kv_storage.dart';
+import 'package:servllama/features/server/widgets/llama_cpp_backend_settings.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../../support/stub_engine_adapter.dart';
+
+void main() {
+  late ServerConfigProvider provider;
+  late EngineRuntimeProvider runtime;
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    provider = ServerConfigProvider(
+      kvStorage: KvStorage(),
+      llamaCppDeviceProbeService: LlamaCppDeviceProbeService(
+        resultOverride: () => const LlamaCppDeviceProbeResult(
+          openclDeviceName: 'GPUOpenCL',
+          hexagonDeviceName: 'HTP0',
+        ),
+      ),
+    );
+    runtime = EngineRuntimeProvider(
+      llamaCppAdapter: StubEngineAdapter(engine: InferenceEngine.llamaCpp),
+      mnnAdapter: StubEngineAdapter(),
+    );
+  });
+
+  tearDown(() {
+    provider.dispose();
+    runtime.dispose();
+  });
+
+  Future<void> showSettings(WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MultiProvider(
+          providers: [
+            ChangeNotifierProvider<EngineRuntimeProvider>.value(value: runtime),
+            ChangeNotifierProvider<ServerConfigProvider>.value(value: provider),
+          ],
+          child: const Scaffold(
+            body: SingleChildScrollView(child: LlamaCppBackendSettings()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('shows only backends on the llama.cpp allowlist', (tester) async {
+    await showSettings(tester);
+
+    for (final backend in LlamaCppBackend.values) {
+      final tile = find.byKey(Key('llama_cpp_backend_${backend.name}'));
+      expect(
+        tile,
+        ServerLaunchSettings.supportedLlamaCppBackends.contains(backend)
+            ? findsOneWidget
+            : findsNothing,
+      );
+    }
+
+    await tester.tap(find.byKey(const Key('llama_cpp_backend_opencl')));
+    await tester.pumpAndSettle();
+    expect(provider.llamaCppBackend, LlamaCppBackend.opencl);
+    expect(find.byKey(const Key('llama_cpp_gpu_layers')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('llama_cpp_backend_hexagon')));
+    await tester.pumpAndSettle();
+    expect(provider.llamaCppBackend, LlamaCppBackend.hexagon);
+  });
+
+  testWidgets('disables accelerators the probe did not find', (tester) async {
+    provider.dispose();
+    provider = ServerConfigProvider(
+      kvStorage: KvStorage(),
+      llamaCppDeviceProbeService: LlamaCppDeviceProbeService(
+        resultOverride: () => LlamaCppDeviceProbeResult.cpuOnly,
+      ),
+    );
+    await showSettings(tester);
+
+    expect(
+      tester
+          .widget<ListTile>(find.byKey(const Key('llama_cpp_backend_cpu')))
+          .onTap,
+      isNotNull,
+    );
+    expect(
+      tester
+          .widget<ListTile>(find.byKey(const Key('llama_cpp_backend_opencl')))
+          .onTap,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<ListTile>(find.byKey(const Key('llama_cpp_backend_hexagon')))
+          .onTap,
+      isNull,
+    );
+    expect(find.byKey(const Key('llama_cpp_gpu_layers')), findsNothing);
+  });
+}

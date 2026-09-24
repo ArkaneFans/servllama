@@ -76,6 +76,15 @@ class ServerLaunchSettings {
     MnnBackend.vulkan,
   ];
 
+  // Shown and launched backends. A compiled backend can stay in
+  // [LlamaCppBackend] and still be reported by the device probe; remove it
+  // from this list to hide it. CPU stays first and is the fallback.
+  static const List<LlamaCppBackend> supportedLlamaCppBackends = [
+    LlamaCppBackend.cpu,
+    LlamaCppBackend.opencl,
+    LlamaCppBackend.hexagon,
+  ];
+
   final ServerListenMode listenMode;
   final int port;
   final String apiKey;
@@ -138,6 +147,19 @@ class ServerLaunchSettings {
       mnnPrecision: mnnPrecision ?? this.mnnPrecision,
       mnnThreadNum: mnnThreadNum ?? this.mnnThreadNum,
     );
+  }
+
+  /// Maps a stored name onto [offered]. Legacy auto and unknown names
+  /// become [defaultLlamaCppBackend].
+  static LlamaCppBackend llamaCppBackendFromStorage(
+    String? value, {
+    List<LlamaCppBackend> offered = supportedLlamaCppBackends,
+  }) {
+    if (value == null || value == 'auto') return defaultLlamaCppBackend;
+    for (final backend in offered) {
+      if (backend.name == value) return backend;
+    }
+    return defaultLlamaCppBackend;
   }
 }
 

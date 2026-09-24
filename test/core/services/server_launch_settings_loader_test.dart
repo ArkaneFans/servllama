@@ -194,6 +194,32 @@ void main() {
       await kvStorage.setString(ServerPrefsKeys.llamaCppBackend, 'auto');
       final restored = await loader.load();
       expect(restored.llamaCppBackend, LlamaCppBackend.cpu);
+      expect(await kvStorage.getString(ServerPrefsKeys.llamaCppBackend), 'cpu');
+    });
+
+    test('maps an unknown llama.cpp backend to CPU and rewrites it', () async {
+      await kvStorage.setString(ServerPrefsKeys.llamaCppBackend, 'vulkan');
+      final restored = await loader.load();
+      expect(restored.llamaCppBackend, LlamaCppBackend.cpu);
+      expect(await kvStorage.getString(ServerPrefsKeys.llamaCppBackend), 'cpu');
+    });
+
+    test('a narrower allowlist hides a compiled llama.cpp backend', () {
+      const offered = [LlamaCppBackend.cpu, LlamaCppBackend.opencl];
+      expect(
+        ServerLaunchSettings.llamaCppBackendFromStorage(
+          LlamaCppBackend.hexagon.name,
+          offered: offered,
+        ),
+        LlamaCppBackend.cpu,
+      );
+      expect(
+        ServerLaunchSettings.llamaCppBackendFromStorage(
+          LlamaCppBackend.opencl.name,
+          offered: offered,
+        ),
+        LlamaCppBackend.opencl,
+      );
     });
 
     test('does not persist a hidden backend from a settings object', () async {

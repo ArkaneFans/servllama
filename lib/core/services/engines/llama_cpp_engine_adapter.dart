@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:servllama/core/models/engine_runtime_state.dart';
 import 'package:servllama/core/models/inference_engine.dart';
 import 'package:servllama/core/models/model_descriptor.dart';
+import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/repositories/local_model_repository.dart';
 import 'package:servllama/core/services/engines/inference_engine_adapter.dart';
 import 'package:servllama/core/services/llama_cpp_device_probe_service.dart';
@@ -28,8 +29,7 @@ class LlamaCppEngineAdapter implements InferenceEngineAdapter {
            launchArgsBuilder ?? const ServerLaunchArgsBuilder(),
        _modelRepository = modelRepository ?? LocalModelRepository(),
        _controlClient = controlClient ?? LlamaServerControlClient(),
-       _deviceProbeService =
-           deviceProbeService ?? LlamaCppDeviceProbeService();
+       _deviceProbeService = deviceProbeService ?? LlamaCppDeviceProbeService();
 
   final LlamaServerProcessService _serverService;
   final ServerLaunchSettingsLoader _settingsLoader;
@@ -74,7 +74,11 @@ class LlamaCppEngineAdapter implements InferenceEngineAdapter {
       _throwIfCancelled();
       final probe = await _deviceProbeService.probe(force: true);
       _throwIfCancelled();
-      final offloadBackend = probe.resolve(settings.llamaCppBackend);
+      final offloadBackend = probe.resolve(
+        ServerLaunchSettings.llamaCppBackendFromStorage(
+          settings.llamaCppBackend.name,
+        ),
+      );
 
       onPhase(RuntimePhase.startingServer);
       final started = await _serverService.startServer(
