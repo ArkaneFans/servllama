@@ -146,18 +146,18 @@ void main() {
     test('persists llama.cpp acceleration backend', () async {
       await loader.save(
         const ServerLaunchSettings(
-          llamaCppBackend: LlamaCppBackend.opencl,
+          llamaCppBackend: LlamaCppBackend.hexagon,
           llamaCppGpuLayers: 32,
         ),
       );
       final restored = await ServerLaunchSettingsLoader(
         kvStorage: kvStorage,
       ).load();
-      expect(restored.llamaCppBackend, LlamaCppBackend.opencl);
+      expect(restored.llamaCppBackend, LlamaCppBackend.hexagon);
       expect(restored.llamaCppGpuLayers, 32);
       expect(
         await kvStorage.getString(ServerPrefsKeys.llamaCppBackend),
-        'opencl',
+        'hexagon',
       );
     });
 
@@ -220,6 +220,17 @@ void main() {
         ),
         LlamaCppBackend.opencl,
       );
+    });
+
+    test('does not persist a hidden llama.cpp OpenCL backend', () async {
+      await loader.save(
+        const ServerLaunchSettings(llamaCppBackend: LlamaCppBackend.opencl),
+      );
+      expect(await kvStorage.getString(ServerPrefsKeys.llamaCppBackend), 'cpu');
+      await kvStorage.setString(ServerPrefsKeys.llamaCppBackend, 'opencl');
+      final restored = await loader.load();
+      expect(restored.llamaCppBackend, LlamaCppBackend.cpu);
+      expect(await kvStorage.getString(ServerPrefsKeys.llamaCppBackend), 'cpu');
     });
 
     test('does not persist a hidden backend from a settings object', () async {

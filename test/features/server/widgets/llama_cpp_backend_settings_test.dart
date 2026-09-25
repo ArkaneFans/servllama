@@ -69,14 +69,17 @@ void main() {
       );
     }
 
-    await tester.tap(find.byKey(const Key('llama_cpp_backend_opencl')));
-    await tester.pumpAndSettle();
-    expect(provider.llamaCppBackend, LlamaCppBackend.opencl);
-    expect(find.byKey(const Key('llama_cpp_gpu_layers')), findsOneWidget);
+    expect(find.byKey(const Key('llama_cpp_backend_opencl')), findsNothing);
 
     await tester.tap(find.byKey(const Key('llama_cpp_backend_hexagon')));
     await tester.pumpAndSettle();
     expect(provider.llamaCppBackend, LlamaCppBackend.hexagon);
+    expect(find.byKey(const Key('llama_cpp_gpu_layers')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('llama_cpp_backend_cpu')));
+    await tester.pumpAndSettle();
+    expect(provider.llamaCppBackend, LlamaCppBackend.cpu);
+    expect(find.byKey(const Key('llama_cpp_gpu_layers')), findsNothing);
   });
 
   testWidgets('disables accelerators the probe did not find', (tester) async {
@@ -95,12 +98,7 @@ void main() {
           .onTap,
       isNotNull,
     );
-    expect(
-      tester
-          .widget<ListTile>(find.byKey(const Key('llama_cpp_backend_opencl')))
-          .onTap,
-      isNull,
-    );
+    expect(find.byKey(const Key('llama_cpp_backend_opencl')), findsNothing);
     expect(
       tester
           .widget<ListTile>(find.byKey(const Key('llama_cpp_backend_hexagon')))
