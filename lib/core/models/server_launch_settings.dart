@@ -59,8 +59,8 @@ class ServerLaunchSettings {
   static const ServerLogLevel defaultLogLevel = ServerLogLevel.info;
   static const LlamaCppBackend defaultLlamaCppBackend = LlamaCppBackend.cpu;
   static const int defaultLlamaCppGpuLayers = 99;
-  static const int minLlamaCppGpuLayers = 1;
-  static const int maxLlamaCppGpuLayers = 128;
+  static const int minLlamaCppGpuLayers = 0;
+  static const int maxLlamaCppGpuLayers = 99;
   static const bool defaultMnnUseMmap = MnnLoadOptions.defaultUseMmap;
   static const MnnPrecision defaultMnnPrecision =
       MnnLoadOptions.defaultPrecision;
