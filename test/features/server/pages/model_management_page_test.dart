@@ -56,7 +56,7 @@ void main() {
           );
     });
 
-    testWidgets('shows empty state when there are no models', (tester) async {
+    testWidgets('shows a text prompt when there are no models', (tester) async {
       final provider = ModelManagementProvider(
         repository: FakeLocalModelRepository(),
         filePicker: FakeGgufFilePicker(),
@@ -66,7 +66,7 @@ void main() {
       await tester.pumpWidget(_host(provider));
       await tester.pumpAndSettle();
 
-      expect(find.text('还没有模型'), findsOneWidget);
+      expect(find.text('还没有模型，点击添加模型并下载或导入模型。'), findsOneWidget);
       expect(
         find.byKey(const Key('model_management_import_fab')),
         findsOneWidget,
@@ -105,7 +105,7 @@ void main() {
       expect(find.text('paused-model'), findsOneWidget);
       expect(find.text('failed-model'), findsOneWidget);
       expect(find.text('installed-model'), findsOneWidget);
-      expect(find.text('还没有模型'), findsNothing);
+      expect(find.text('还没有模型，点击添加模型并下载或导入模型。'), findsNothing);
       expect(tester.widget<Badge>(find.byType(Badge)).isLabelVisible, isFalse);
     });
 
@@ -312,7 +312,7 @@ void main() {
       await _settle(tester);
 
       expect(find.text('模型已删除: delete'), findsOneWidget);
-      expect(find.text('还没有模型'), findsOneWidget);
+      expect(find.text('还没有模型，点击添加模型并下载或导入模型。'), findsOneWidget);
     });
 
     testWidgets('imports model and shows snackbar feedback', (tester) async {

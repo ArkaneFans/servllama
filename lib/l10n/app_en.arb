@@ -530,7 +530,7 @@
   "modelAddMnnDir": "Import an MNN directory",
   "modelAddMnnDirDesc": "A whole model folder for the MNN engine",
   "modelFormatExplainer": "GGUF is a single file; MNN models are whole directories. The engine badge on each card tells them apart.",
-  "modelLibraryEmptyTitle": "No models yet",
+  "modelLibraryEmptyTitle": "No models yet. Tap Add a model to download or import one.",
   "modelLibraryEmptyDescription": "Download one, or import a file you already have.",
   "modelLibrarySearchHint": "Search model names",
   "modelLibraryEmptySearchTitle": "No matching models",

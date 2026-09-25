@@ -923,7 +923,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modelFormatExplainer => 'GGUF 是单个文件，MNN 模型是整个目录。卡片上的引擎徽标用于区分两者。';
 
   @override
-  String get modelLibraryEmptyTitle => '还没有模型';
+  String get modelLibraryEmptyTitle => '还没有模型，点击添加模型并下载或导入模型。';
 
   @override
   String get modelLibraryEmptyDescription => '可以下载一个，或导入已有的模型文件。';

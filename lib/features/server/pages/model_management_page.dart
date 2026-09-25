@@ -307,14 +307,15 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
                       ),
                       Expanded(
                         child: models.isEmpty && visibleDownloads.isEmpty
-                            ? _EmptyState(
-                                title: query.trim().isNotEmpty
-                                    ? l10n.modelLibraryEmptySearchTitle
-                                    : null,
-                                description: query.trim().isNotEmpty
-                                    ? l10n.modelLibraryEmptySearchDescription
-                                    : null,
-                              )
+                            ? query.trim().isEmpty
+                                  ? _EmptyState(
+                                      title: l10n.modelLibraryEmptyTitle,
+                                    )
+                                  : _EmptyState(
+                                      title: l10n.modelLibraryEmptySearchTitle,
+                                      description: l10n
+                                          .modelLibraryEmptySearchDescription,
+                                    )
                             : ListView(
                                 padding: const EdgeInsets.fromLTRB(
                                   20,
@@ -958,70 +959,41 @@ class _Tag extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({this.title, this.description});
+  const _EmptyState({required this.title, this.description});
 
-  final String? title;
+  final String title;
   final String? description;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isLight = theme.brightness == Brightness.light;
-    final l10n = context.l10n;
 
     return Center(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 24, 24, 96),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: isLight ? Colors.white : colorScheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(30),
-            border: Border.all(
-              color: colorScheme.outlineVariant.withAlpha(110),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 30, 24, 30),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    color: isLight
-                        ? const Color(0xFFEAF0FF)
-                        : colorScheme.primaryContainer.withAlpha(110),
-                    borderRadius: BorderRadius.circular(22),
-                  ),
-                  child: Icon(
-                    Icons.memory_rounded,
-                    size: 32,
-                    color: isLight
-                        ? colorScheme.primary
-                        : colorScheme.onPrimaryContainer,
-                  ),
+            if (description != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                description!,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  height: 1.5,
                 ),
-                const SizedBox(height: 18),
-                Text(
-                  title ?? l10n.modelLibraryEmptyTitle,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  description ?? l10n.modelLibraryEmptyDescription,
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                    height: 1.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
+              ),
+            ],
+          ],
         ),
       ),
     );

@@ -956,7 +956,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'GGUF is a single file; MNN models are whole directories. The engine badge on each card tells them apart.';
 
   @override
-  String get modelLibraryEmptyTitle => 'No models yet';
+  String get modelLibraryEmptyTitle =>
+      'No models yet. Tap Add a model to download or import one.';
 
   @override
   String get modelLibraryEmptyDescription =>

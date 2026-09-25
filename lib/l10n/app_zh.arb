@@ -471,7 +471,7 @@
   "modelAddMnnDir": "导入 MNN 模型目录",
   "modelAddMnnDirDesc": "MNN 引擎使用的整个模型目录",
   "modelFormatExplainer": "GGUF 是单个文件，MNN 模型是整个目录。卡片上的引擎徽标用于区分两者。",
-  "modelLibraryEmptyTitle": "还没有模型",
+  "modelLibraryEmptyTitle": "还没有模型，点击添加模型并下载或导入模型。",
   "modelLibraryEmptyDescription": "可以下载一个，或导入已有的模型文件。",
   "modelLibrarySearchHint": "搜索模型名称",
   "modelLibraryEmptySearchTitle": "没有匹配的模型",

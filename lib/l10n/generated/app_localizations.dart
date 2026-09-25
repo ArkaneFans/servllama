@@ -1766,7 +1766,7 @@ abstract class AppLocalizations {
   /// No description provided for @modelLibraryEmptyTitle.
   ///
   /// In en, this message translates to:
-  /// **'No models yet'**
+  /// **'No models yet. Tap Add a model to download or import one.'**
   String get modelLibraryEmptyTitle;
 
   /// No description provided for @modelLibraryEmptyDescription.
