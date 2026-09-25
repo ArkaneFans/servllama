@@ -30,7 +30,7 @@ void main() {
           '--batch-size',
           '2048',
           '--threads',
-          '2',
+          '4',
           '--parallel',
           '1',
           '--image-max-tokens',

@@ -148,7 +148,10 @@ void main() {
       expect(performanceSliders[0].min, 1);
       expect(performanceSliders[0].max, 8);
       expect(performanceSliders[0].divisions, 7);
-      expect(performanceSliders[0].value, 2);
+      expect(
+        performanceSliders[0].value,
+        ServerLaunchSettings.defaultCpuThreads,
+      );
       expect(performanceSliders[1].min, 1);
       expect(performanceSliders[1].max, 8);
       expect(performanceSliders[1].divisions, 7);
