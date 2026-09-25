@@ -13,6 +13,8 @@ class ServerPrefsKeys {
   static const String useMmap = 'server.use_mmap';
   static const String logEnabled = 'server.log_enabled';
   static const String logLevel = 'server.log_level';
+  static const String llamaCppBackend = 'server.llama_cpp_backend';
+  static const String llamaCppGpuLayers = 'server.llama_cpp_gpu_layers';
   static const String mnnBackend = 'server.mnn_backend';
   static const String mnnUseMmap = 'server.mnn_use_mmap';
   static const String mnnPrecision = 'server.mnn_precision';

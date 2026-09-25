@@ -1,5 +1,6 @@
 import 'package:mnn_engine/mnn_engine.dart'
     show MnnBackend, MnnLoadOptions, MnnPrecision;
+import 'package:servllama/core/models/llama_cpp_backend.dart';
 
 enum ServerListenMode { localhost, allInterfaces }
 
@@ -21,6 +22,8 @@ class ServerLaunchSettings {
     this.useMmap = true,
     this.logEnabled = true,
     this.logLevel = defaultLogLevel,
+    this.llamaCppBackend = defaultLlamaCppBackend,
+    this.llamaCppGpuLayers = defaultLlamaCppGpuLayers,
     this.mnnBackend = MnnBackend.cpu,
     this.mnnUseMmap = defaultMnnUseMmap,
     this.mnnPrecision = defaultMnnPrecision,
@@ -54,6 +57,10 @@ class ServerLaunchSettings {
   static const FlashAttentionMode defaultFlashAttentionMode =
       FlashAttentionMode.disabled;
   static const ServerLogLevel defaultLogLevel = ServerLogLevel.info;
+  static const LlamaCppBackend defaultLlamaCppBackend = LlamaCppBackend.cpu;
+  static const int defaultLlamaCppGpuLayers = 99;
+  static const int minLlamaCppGpuLayers = 1;
+  static const int maxLlamaCppGpuLayers = 128;
   static const bool defaultMnnUseMmap = MnnLoadOptions.defaultUseMmap;
   static const MnnPrecision defaultMnnPrecision =
       MnnLoadOptions.defaultPrecision;
@@ -69,6 +76,15 @@ class ServerLaunchSettings {
     MnnBackend.vulkan,
   ];
 
+  // Shown and launched backends. A compiled backend can stay in
+  // [LlamaCppBackend] and still be reported by the device probe; remove it
+  // from this list to hide it. CPU stays first and is the fallback.
+  // OpenCL is compiled, but Adreno results are not reliable enough to offer.
+  static const List<LlamaCppBackend> supportedLlamaCppBackends = [
+    LlamaCppBackend.cpu,
+    LlamaCppBackend.hexagon,
+  ];
+
   final ServerListenMode listenMode;
   final int port;
   final String apiKey;
@@ -81,6 +97,8 @@ class ServerLaunchSettings {
   final bool useMmap;
   final bool logEnabled;
   final ServerLogLevel logLevel;
+  final LlamaCppBackend llamaCppBackend;
+  final int llamaCppGpuLayers;
   final MnnBackend mnnBackend;
   final bool mnnUseMmap;
   final MnnPrecision mnnPrecision;
@@ -102,6 +120,8 @@ class ServerLaunchSettings {
     bool? useMmap,
     bool? logEnabled,
     ServerLogLevel? logLevel,
+    LlamaCppBackend? llamaCppBackend,
+    int? llamaCppGpuLayers,
     MnnBackend? mnnBackend,
     bool? mnnUseMmap,
     MnnPrecision? mnnPrecision,
@@ -120,11 +140,26 @@ class ServerLaunchSettings {
       useMmap: useMmap ?? this.useMmap,
       logEnabled: logEnabled ?? this.logEnabled,
       logLevel: logLevel ?? this.logLevel,
+      llamaCppBackend: llamaCppBackend ?? this.llamaCppBackend,
+      llamaCppGpuLayers: llamaCppGpuLayers ?? this.llamaCppGpuLayers,
       mnnBackend: mnnBackend ?? this.mnnBackend,
       mnnUseMmap: mnnUseMmap ?? this.mnnUseMmap,
       mnnPrecision: mnnPrecision ?? this.mnnPrecision,
       mnnThreadNum: mnnThreadNum ?? this.mnnThreadNum,
     );
+  }
+
+  /// Maps a stored name onto [offered]. Legacy auto and unknown names
+  /// become [defaultLlamaCppBackend].
+  static LlamaCppBackend llamaCppBackendFromStorage(
+    String? value, {
+    List<LlamaCppBackend> offered = supportedLlamaCppBackends,
+  }) {
+    if (value == null || value == 'auto') return defaultLlamaCppBackend;
+    for (final backend in offered) {
+      if (backend.name == value) return backend;
+    }
+    return defaultLlamaCppBackend;
   }
 }
 

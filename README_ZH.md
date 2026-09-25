@@ -101,11 +101,11 @@ flutter pub get
 flutter build apk --release
 ```
 
-仓库已经包含 arm64 版本的 llama-server 运行库，MNN 原生产物则由 `mnn_engine` 插件提供，正常构建应用时不需要手动编译两个后端。
+MNN 原生产物由 `mnn_engine` 插件提供。llama-server 是预编译的骁龙包（CPU 多变体 + OpenCL + Hexagon），**不进入 git**。构建 APK 前请把 `.so` 复制到 `android/app/src/main/jniLibs/arm64-v8a/`，来源可以是 Release 附件或本机 WSL 编译产物。详见 `patches/llama.cpp/README.md`。
 
 开发验证可运行 `flutter analyze` 和 `flutter test`。
 
-仓库维护者如需更新 llama-server，可以手动运行 [Build llama-server for Android](https://github.com/ArkaneFans/Servllama/actions/workflows/build-llama-server-android.yml) 工作流，输入准确的 llama.cpp tag，下载生成的产物，并将其中的 `android` 和 `assets` 目录覆盖到仓库。
+GitHub 上的 CPU-only 工作流仍可作为对照。OpenCL / Hexagon 构建在 WSL 的 Snapdragon 工具链 Docker 镜像中完成，并需要把 `patches/llama.cpp/0001-hexagon-skip-unsupported-devices.patch` 打到 llama.cpp v0.4.1。
 
 ## 使用注意事项
 

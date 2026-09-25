@@ -1,3 +1,4 @@
+import 'package:servllama/core/models/llama_cpp_backend.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 
 class ServerLaunchArgsBuilder {
@@ -8,6 +9,8 @@ class ServerLaunchArgsBuilder {
     required String modelPath,
     required String modelAlias,
     String? mmprojPath,
+    LlamaCppBackend offloadBackend = LlamaCppBackend.cpu,
+    String? offloadDeviceName,
   }) {
     final args = <String>[
       '--host',
@@ -51,7 +54,28 @@ class ServerLaunchArgsBuilder {
     } else {
       args.add('--log-disable');
     }
+    args.addAll(_offloadArgs(settings, offloadBackend, offloadDeviceName));
 
     return args;
+  }
+
+  List<String> _offloadArgs(
+    ServerLaunchSettings settings,
+    LlamaCppBackend backend,
+    String? deviceName,
+  ) {
+    switch (backend) {
+      case LlamaCppBackend.cpu:
+        return const <String>['--device', 'none'];
+      case LlamaCppBackend.opencl:
+      case LlamaCppBackend.hexagon:
+        final fallback = backend == LlamaCppBackend.opencl ? 'GPUOpenCL' : 'HTP0';
+        return <String>[
+          '--device',
+          (deviceName == null || deviceName.isEmpty) ? fallback : deviceName,
+          '-ngl',
+          '${settings.llamaCppGpuLayers}',
+        ];
+    }
   }
 }

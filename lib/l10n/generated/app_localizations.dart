@@ -992,6 +992,96 @@ abstract class AppLocalizations {
   /// **'Improves model loading performance'**
   String get serverConfigUseMmapSubtitle;
 
+  /// No description provided for @llamaCppBackendTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Acceleration backend'**
+  String get llamaCppBackendTitle;
+
+  /// No description provided for @llamaCppBackendNextStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes apply the next time the server starts.'**
+  String get llamaCppBackendNextStart;
+
+  /// No description provided for @llamaCppBackendRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Check available backends'**
+  String get llamaCppBackendRefresh;
+
+  /// No description provided for @llamaCppBackendStopServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop the server to detect GPU and NPU support.'**
+  String get llamaCppBackendStopServer;
+
+  /// No description provided for @llamaCppBackendCpu.
+  ///
+  /// In en, this message translates to:
+  /// **'CPU'**
+  String get llamaCppBackendCpu;
+
+  /// No description provided for @llamaCppBackendOpencl.
+  ///
+  /// In en, this message translates to:
+  /// **'GPU (OpenCL)'**
+  String get llamaCppBackendOpencl;
+
+  /// No description provided for @llamaCppBackendHexagon.
+  ///
+  /// In en, this message translates to:
+  /// **'NPU (Hexagon)'**
+  String get llamaCppBackendHexagon;
+
+  /// No description provided for @llamaCppBackendCpuDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Runs entirely on the CPU. Broadest compatibility.'**
+  String get llamaCppBackendCpuDescription;
+
+  /// No description provided for @llamaCppBackendOpenclDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Offload layers to Adreno GPU via OpenCL.'**
+  String get llamaCppBackendOpenclDescription;
+
+  /// No description provided for @llamaCppBackendHexagonDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Offload layers to Snapdragon Hexagon NPU. Requires Hexagon v73 or newer, roughly Snapdragon 8 Gen 2 and later.'**
+  String get llamaCppBackendHexagonDescription;
+
+  /// No description provided for @llamaCppBackendUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Not available on this device.'**
+  String get llamaCppBackendUnavailable;
+
+  /// No description provided for @llamaCppBackendProbeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not check llama.cpp backends. CPU will be used if nothing else is available. Details are in the engine log.'**
+  String get llamaCppBackendProbeFailed;
+
+  /// No description provided for @llamaCppBackendSavedUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The saved backend is currently unavailable. Choose another backend before starting, or use Auto.'**
+  String get llamaCppBackendSavedUnavailable;
+
+  /// No description provided for @llamaCppGpuLayers.
+  ///
+  /// In en, this message translates to:
+  /// **'Offloaded layers'**
+  String get llamaCppGpuLayers;
+
+  /// No description provided for @llamaCppGpuLayersDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'How many layers to place on the selected GPU or NPU. Higher values use the accelerator more.'**
+  String get llamaCppGpuLayersDescription;
+
   /// No description provided for @serverConfigSectionLogging.
   ///
   /// In en, this message translates to:

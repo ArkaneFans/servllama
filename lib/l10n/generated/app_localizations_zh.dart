@@ -486,6 +486,55 @@ class AppLocalizationsZh extends AppLocalizations {
   String get serverConfigUseMmapSubtitle => '提高模型的加载性能';
 
   @override
+  String get llamaCppBackendTitle => '加速后端';
+
+  @override
+  String get llamaCppBackendNextStart => '下次启动服务时生效。';
+
+  @override
+  String get llamaCppBackendRefresh => '检测可用后端';
+
+  @override
+  String get llamaCppBackendStopServer => '请先停止服务，再检测 GPU / NPU 支持。';
+
+  @override
+  String get llamaCppBackendCpu => 'CPU';
+
+  @override
+  String get llamaCppBackendOpencl => 'GPU（OpenCL）';
+
+  @override
+  String get llamaCppBackendHexagon => 'NPU（Hexagon）';
+
+  @override
+  String get llamaCppBackendCpuDescription => '完全在 CPU 上运行，兼容性最好。';
+
+  @override
+  String get llamaCppBackendOpenclDescription => '通过 OpenCL 将层卸载到 Adreno GPU。';
+
+  @override
+  String get llamaCppBackendHexagonDescription =>
+      '将层卸载到骁龙 Hexagon NPU。需要 Hexagon v73 及以上，大约骁龙 8 Gen 2 起。';
+
+  @override
+  String get llamaCppBackendUnavailable => '此设备不可用。';
+
+  @override
+  String get llamaCppBackendProbeFailed =>
+      '无法检测 llama.cpp 后端。若没有其他可用加速器将使用 CPU。详细原因已记录到引擎日志。';
+
+  @override
+  String get llamaCppBackendSavedUnavailable =>
+      '已保存的后端当前不可用，请在启动前改选其他后端，或使用自动。';
+
+  @override
+  String get llamaCppGpuLayers => '卸载层数';
+
+  @override
+  String get llamaCppGpuLayersDescription =>
+      '放到所选 GPU 或 NPU 上的层数。数值越大，加速器承担越多。';
+
+  @override
   String get serverConfigSectionLogging => '日志';
 
   @override

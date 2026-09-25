@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:servllama/core/models/llama_cpp_backend.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/services/server_launch_args_builder.dart';
 
@@ -38,6 +39,8 @@ void main() {
           'off',
           '--log-verbosity',
           '3',
+          '--device',
+          'none',
         ],
       );
     });
@@ -92,6 +95,8 @@ void main() {
           'secret',
           '--log-verbosity',
           '4',
+          '--device',
+          'none',
         ],
       );
     });
@@ -125,9 +130,32 @@ void main() {
             '--flash-attn',
             'off',
             '--log-disable',
+            '--device',
+            'none',
           ],
         );
       },
     );
+    test('offloads to OpenCL and Hexagon with gpu layers', () {
+      expect(
+        builder.build(
+          const ServerLaunchSettings(),
+          modelPath: modelPath,
+          modelAlias: modelAlias,
+          offloadBackend: LlamaCppBackend.opencl,
+          offloadDeviceName: 'GPUOpenCL',
+        ),
+        containsAllInOrder(<String>['--device', 'GPUOpenCL', '-ngl', '99']),
+      );
+      expect(
+        builder.build(
+          const ServerLaunchSettings(llamaCppGpuLayers: 24),
+          modelPath: modelPath,
+          modelAlias: modelAlias,
+          offloadBackend: LlamaCppBackend.hexagon,
+        ),
+        containsAllInOrder(<String>['--device', 'HTP0', '-ngl', '24']),
+      );
+    });
   });
 }

@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:mnn_engine/mnn_engine.dart';
 import 'package:servllama/core/logging/app_logger.dart';
+import 'package:servllama/core/models/llama_cpp_backend.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/services/app_l10n_service.dart';
 import 'package:servllama/core/services/engines/mnn_backend_service.dart';
+import 'package:servllama/core/services/llama_cpp_device_probe_service.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
 
@@ -14,7 +16,10 @@ class ServerConfigProvider extends ChangeNotifier {
     ServerLaunchSettingsLoader? settingsLoader,
     KvStorage? kvStorage,
     MnnBackendService? mnnBackendService,
+    LlamaCppDeviceProbeService? llamaCppDeviceProbeService,
   }) : _mnnBackendService = mnnBackendService ?? MnnBackendService(),
+       _llamaCppDeviceProbeService =
+           llamaCppDeviceProbeService ?? LlamaCppDeviceProbeService(),
        _settingsLoader =
            settingsLoader ??
            ServerLaunchSettingsLoader(
@@ -23,6 +28,7 @@ class ServerConfigProvider extends ChangeNotifier {
 
   final ServerLaunchSettingsLoader _settingsLoader;
   final MnnBackendService _mnnBackendService;
+  final LlamaCppDeviceProbeService _llamaCppDeviceProbeService;
   StreamSubscription<MnnBackend?>? _mnnBackendSubscription;
   List<MnnBackendCapability> _mnnCapabilities = const [];
   MnnBackend? _activeMnnBackend;
@@ -32,6 +38,9 @@ class ServerConfigProvider extends ChangeNotifier {
   bool _loadingMnnMmapCache = false;
   bool _clearingMnnMmapCache = false;
   String? _mnnMmapCacheError;
+  LlamaCppDeviceProbeResult _llamaCppProbe = LlamaCppDeviceProbeResult.cpuOnly;
+  bool _loadingLlamaCppBackends = false;
+  String? _llamaCppBackendError;
 
   bool _hasCompletedInitialLoad = false;
   bool _isLoading = false;
@@ -56,6 +65,11 @@ class ServerConfigProvider extends ChangeNotifier {
   bool get useMmap => _settings.useMmap;
   bool get logEnabled => _settings.logEnabled;
   ServerLogLevel get logLevel => _settings.logLevel;
+  LlamaCppBackend get llamaCppBackend => _settings.llamaCppBackend;
+  int get llamaCppGpuLayers => _settings.llamaCppGpuLayers;
+  LlamaCppDeviceProbeResult get llamaCppProbe => _llamaCppProbe;
+  bool get loadingLlamaCppBackends => _loadingLlamaCppBackends;
+  String? get llamaCppBackendError => _llamaCppBackendError;
   MnnBackend get mnnBackend => _settings.mnnBackend;
   List<MnnBackendCapability> get mnnCapabilities => _mnnCapabilities;
   MnnBackend? get activeMnnBackend => _activeMnnBackend;
@@ -217,6 +231,59 @@ class ServerConfigProvider extends ChangeNotifier {
     return _apply(_settings.copyWith(logLevel: value));
   }
 
+  Future<void> updateLlamaCppBackend(LlamaCppBackend value) {
+    if (!ServerLaunchSettings.supportedLlamaCppBackends.contains(value)) {
+      return Future<void>.value();
+    }
+    if (value == LlamaCppBackend.opencl && !_llamaCppProbe.openclAvailable) {
+      return Future<void>.value();
+    }
+    if (value == LlamaCppBackend.hexagon && !_llamaCppProbe.hexagonAvailable) {
+      return Future<void>.value();
+    }
+    return _apply(_settings.copyWith(llamaCppBackend: value));
+  }
+
+  Future<void> updateLlamaCppGpuLayers(int value) {
+    return _apply(
+      _settings.copyWith(
+        llamaCppGpuLayers: _clamp(
+          value,
+          ServerLaunchSettings.minLlamaCppGpuLayers,
+          ServerLaunchSettings.maxLlamaCppGpuLayers,
+        ),
+      ),
+    );
+  }
+
+  Future<void> loadLlamaCppBackends({
+    bool force = false,
+    bool allowProcess = true,
+  }) async {
+    if (_loadingLlamaCppBackends || _disposed) return;
+    if (!allowProcess && _llamaCppDeviceProbeService.cached == null && !force) {
+      return;
+    }
+    _loadingLlamaCppBackends = true;
+    _llamaCppBackendError = null;
+    notifyListeners();
+    try {
+      _llamaCppProbe = await _llamaCppDeviceProbeService.probe(force: force);
+      _llamaCppBackendError = _llamaCppProbe.error;
+    } catch (error) {
+      _llamaCppProbe = LlamaCppDeviceProbeResult.cpuOnly;
+      _llamaCppBackendError = error.toString();
+      AppLogger.instance.warning(
+        'llama.cpp backend probe failed: $error',
+        channel: LogChannel.engine,
+        inMemory: true,
+      );
+    } finally {
+      _loadingLlamaCppBackends = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> updateMnnUseMmap(bool value) {
     return _apply(_settings.copyWith(mnnUseMmap: value));
   }
@@ -376,6 +443,8 @@ class ServerConfigProvider extends ChangeNotifier {
         a.useMmap == b.useMmap &&
         a.logEnabled == b.logEnabled &&
         a.logLevel == b.logLevel &&
+        a.llamaCppBackend == b.llamaCppBackend &&
+        a.llamaCppGpuLayers == b.llamaCppGpuLayers &&
         a.mnnBackend == b.mnnBackend &&
         a.mnnUseMmap == b.mnnUseMmap &&
         a.mnnPrecision == b.mnnPrecision &&

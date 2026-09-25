@@ -163,3 +163,6 @@ app.*.symbols
 
 # example
 example/
+# Prebuilt llama-server / ggml backends. Copy from a Snapdragon WSL build or
+# a GitHub release bundle; see example/snapdragon/wsl2-build-guide.md.
+android/app/src/main/jniLibs/**/*.so

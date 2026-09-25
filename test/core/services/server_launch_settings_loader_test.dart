@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mnn_engine/mnn_engine.dart';
+import 'package:servllama/core/models/llama_cpp_backend.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
@@ -39,6 +40,7 @@ void main() {
       expect(settings.useMmap, isTrue);
       expect(settings.logEnabled, isTrue);
       expect(settings.logLevel, ServerLogLevel.info);
+      expect(settings.llamaCppBackend, LlamaCppBackend.cpu);
       expect(settings.mnnBackend, MnnBackend.cpu);
       expect(settings.mnnUseMmap, isFalse);
       expect(settings.mnnPrecision, MnnPrecision.low);
@@ -141,6 +143,24 @@ void main() {
       },
     );
 
+    test('persists llama.cpp acceleration backend', () async {
+      await loader.save(
+        const ServerLaunchSettings(
+          llamaCppBackend: LlamaCppBackend.hexagon,
+          llamaCppGpuLayers: 32,
+        ),
+      );
+      final restored = await ServerLaunchSettingsLoader(
+        kvStorage: kvStorage,
+      ).load();
+      expect(restored.llamaCppBackend, LlamaCppBackend.hexagon);
+      expect(restored.llamaCppGpuLayers, 32);
+      expect(
+        await kvStorage.getString(ServerPrefsKeys.llamaCppBackend),
+        'hexagon',
+      );
+    });
+
     test('persists MNN mmap, precision and thread settings', () async {
       await loader.save(
         const ServerLaunchSettings(
@@ -169,6 +189,49 @@ void main() {
         expect(await kvStorage.getString(ServerPrefsKeys.mnnBackend), 'cpu');
       },
     );
+
+    test('maps a withdrawn auto backend to CPU', () async {
+      await kvStorage.setString(ServerPrefsKeys.llamaCppBackend, 'auto');
+      final restored = await loader.load();
+      expect(restored.llamaCppBackend, LlamaCppBackend.cpu);
+      expect(await kvStorage.getString(ServerPrefsKeys.llamaCppBackend), 'cpu');
+    });
+
+    test('maps an unknown llama.cpp backend to CPU and rewrites it', () async {
+      await kvStorage.setString(ServerPrefsKeys.llamaCppBackend, 'vulkan');
+      final restored = await loader.load();
+      expect(restored.llamaCppBackend, LlamaCppBackend.cpu);
+      expect(await kvStorage.getString(ServerPrefsKeys.llamaCppBackend), 'cpu');
+    });
+
+    test('a narrower allowlist hides a compiled llama.cpp backend', () {
+      const offered = [LlamaCppBackend.cpu, LlamaCppBackend.opencl];
+      expect(
+        ServerLaunchSettings.llamaCppBackendFromStorage(
+          LlamaCppBackend.hexagon.name,
+          offered: offered,
+        ),
+        LlamaCppBackend.cpu,
+      );
+      expect(
+        ServerLaunchSettings.llamaCppBackendFromStorage(
+          LlamaCppBackend.opencl.name,
+          offered: offered,
+        ),
+        LlamaCppBackend.opencl,
+      );
+    });
+
+    test('does not persist a hidden llama.cpp OpenCL backend', () async {
+      await loader.save(
+        const ServerLaunchSettings(llamaCppBackend: LlamaCppBackend.opencl),
+      );
+      expect(await kvStorage.getString(ServerPrefsKeys.llamaCppBackend), 'cpu');
+      await kvStorage.setString(ServerPrefsKeys.llamaCppBackend, 'opencl');
+      final restored = await loader.load();
+      expect(restored.llamaCppBackend, LlamaCppBackend.cpu);
+      expect(await kvStorage.getString(ServerPrefsKeys.llamaCppBackend), 'cpu');
+    });
 
     test('does not persist a hidden backend from a settings object', () async {
       await loader.save(

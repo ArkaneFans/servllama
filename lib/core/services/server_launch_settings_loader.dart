@@ -19,6 +19,19 @@ class ServerLaunchSettingsLoader {
       // started from preferences left by an earlier installation.
       await _kvStorage.setString(ServerPrefsKeys.mnnBackend, mnnBackend.name);
     }
+    final savedLlamaCppBackend = await _kvStorage.getString(
+      ServerPrefsKeys.llamaCppBackend,
+    );
+    final llamaCppBackend = ServerLaunchSettings.llamaCppBackendFromStorage(
+      savedLlamaCppBackend,
+    );
+    if (savedLlamaCppBackend != null &&
+        savedLlamaCppBackend != llamaCppBackend.name) {
+      await _kvStorage.setString(
+        ServerPrefsKeys.llamaCppBackend,
+        llamaCppBackend.name,
+      );
+    }
     return ServerLaunchSettings(
       listenMode: _readListenMode(
         await _kvStorage.getString(ServerPrefsKeys.listenMode),
@@ -70,6 +83,13 @@ class ServerLaunchSettingsLoader {
       logLevel: _readLogLevel(
         await _kvStorage.getString(ServerPrefsKeys.logLevel),
       ),
+      llamaCppBackend: llamaCppBackend,
+      llamaCppGpuLayers: _clamp(
+        await _kvStorage.getInt(ServerPrefsKeys.llamaCppGpuLayers) ??
+            ServerLaunchSettings.defaultLlamaCppGpuLayers,
+        ServerLaunchSettings.minLlamaCppGpuLayers,
+        ServerLaunchSettings.maxLlamaCppGpuLayers,
+      ),
       mnnBackend: mnnBackend,
       mnnUseMmap:
           await _kvStorage.getBool(ServerPrefsKeys.mnnUseMmap) ??
@@ -115,6 +135,16 @@ class ServerLaunchSettingsLoader {
     await _kvStorage.setString(
       ServerPrefsKeys.logLevel,
       settings.logLevel.name,
+    );
+    await _kvStorage.setString(
+      ServerPrefsKeys.llamaCppBackend,
+      ServerLaunchSettings.llamaCppBackendFromStorage(
+        settings.llamaCppBackend.name,
+      ).name,
+    );
+    await _kvStorage.setInt(
+      ServerPrefsKeys.llamaCppGpuLayers,
+      settings.llamaCppGpuLayers,
     );
     await _kvStorage.setString(
       ServerPrefsKeys.mnnBackend,

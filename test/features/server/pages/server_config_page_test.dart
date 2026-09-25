@@ -5,7 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/core/models/inference_engine.dart';
 import 'package:servllama/core/models/model_descriptor.dart';
+import 'package:servllama/core/models/llama_cpp_backend.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
+import 'package:servllama/core/services/llama_cpp_device_probe_service.dart';
 import 'package:servllama/core/providers/server_config_provider.dart';
 import 'package:servllama/core/providers/engine_runtime_provider.dart';
 import 'package:servllama/core/repositories/local_model_repository.dart';
@@ -36,6 +38,9 @@ void main() {
       final configProvider = ServerConfigProvider(
         kvStorage: kvStorage,
         settingsLoader: loader,
+        llamaCppDeviceProbeService: LlamaCppDeviceProbeService(
+          resultOverride: () => LlamaCppDeviceProbeResult.cpuOnly,
+        ),
       );
       final serverService = _FakeLlamaServerService();
       final serverProvider = EngineRuntimeProvider(
@@ -72,6 +77,8 @@ void main() {
         const ServerLaunchSettings(contextSize: 8192, batchSize: 1024),
       );
       await tester.pumpAndSettle();
+      await tester.drag(find.byType(ListView), const Offset(0, -800));
+      await tester.pumpAndSettle();
 
       expect(find.text('推理参数'), findsOneWidget);
       expect(find.text('上下文长度'), findsOneWidget);
@@ -98,7 +105,12 @@ void main() {
       tester,
     ) async {
       final kvStorage = KvStorage();
-      final configProvider = ServerConfigProvider(kvStorage: kvStorage);
+      final configProvider = ServerConfigProvider(
+        kvStorage: kvStorage,
+        llamaCppDeviceProbeService: LlamaCppDeviceProbeService(
+          resultOverride: () => LlamaCppDeviceProbeResult.cpuOnly,
+        ),
+      );
       final serverService = _FakeLlamaServerService();
       final serverProvider = EngineRuntimeProvider(
         llamaCppAdapter: LlamaCppEngineAdapter(
@@ -126,7 +138,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.drag(find.byType(ListView), const Offset(0, -500));
+      await tester.drag(find.byType(ListView), const Offset(0, -1200));
       await tester.pumpAndSettle();
 
       final sliders = tester.widgetList<Slider>(find.byType(Slider)).toList();
@@ -152,7 +164,12 @@ void main() {
       tester,
     ) async {
       final kvStorage = KvStorage();
-      final configProvider = ServerConfigProvider(kvStorage: kvStorage);
+      final configProvider = ServerConfigProvider(
+        kvStorage: kvStorage,
+        llamaCppDeviceProbeService: LlamaCppDeviceProbeService(
+          resultOverride: () => LlamaCppDeviceProbeResult.cpuOnly,
+        ),
+      );
       final serverService = _FakeLlamaServerService();
       final serverProvider = EngineRuntimeProvider(
         llamaCppAdapter: LlamaCppEngineAdapter(
@@ -203,6 +220,9 @@ void main() {
       final configProvider = ServerConfigProvider(
         kvStorage: kvStorage,
         mnnBackendService: backendService,
+        llamaCppDeviceProbeService: LlamaCppDeviceProbeService(
+          resultOverride: () => LlamaCppDeviceProbeResult.cpuOnly,
+        ),
       );
       final serverService = _FakeLlamaServerService();
       final serverProvider = EngineRuntimeProvider(
@@ -258,7 +278,12 @@ void main() {
       tester,
     ) async {
       final kvStorage = KvStorage();
-      final configProvider = ServerConfigProvider(kvStorage: kvStorage);
+      final configProvider = ServerConfigProvider(
+        kvStorage: kvStorage,
+        llamaCppDeviceProbeService: LlamaCppDeviceProbeService(
+          resultOverride: () => LlamaCppDeviceProbeResult.cpuOnly,
+        ),
+      );
       final serverService = _FakeLlamaServerService();
       final serverProvider = EngineRuntimeProvider(
         llamaCppAdapter: LlamaCppEngineAdapter(
@@ -319,7 +344,12 @@ void main() {
       });
 
       final kvStorage = KvStorage();
-      final configProvider = ServerConfigProvider(kvStorage: kvStorage);
+      final configProvider = ServerConfigProvider(
+        kvStorage: kvStorage,
+        llamaCppDeviceProbeService: LlamaCppDeviceProbeService(
+          resultOverride: () => LlamaCppDeviceProbeResult.cpuOnly,
+        ),
+      );
       final serverService = _FakeLlamaServerService();
       final serverProvider = EngineRuntimeProvider(
         llamaCppAdapter: LlamaCppEngineAdapter(
