@@ -40,6 +40,7 @@ class ServerConfigProvider extends ChangeNotifier {
   String? _mnnMmapCacheError;
   LlamaCppDeviceProbeResult _llamaCppProbe = LlamaCppDeviceProbeResult.cpuOnly;
   bool _loadingLlamaCppBackends = false;
+  bool _llamaCppBackendsResolved = false;
   String? _llamaCppBackendError;
 
   bool _hasCompletedInitialLoad = false;
@@ -69,6 +70,7 @@ class ServerConfigProvider extends ChangeNotifier {
   int get llamaCppGpuLayers => _settings.llamaCppGpuLayers;
   LlamaCppDeviceProbeResult get llamaCppProbe => _llamaCppProbe;
   bool get loadingLlamaCppBackends => _loadingLlamaCppBackends;
+  bool get llamaCppBackendsResolved => _llamaCppBackendsResolved;
   String? get llamaCppBackendError => _llamaCppBackendError;
   MnnBackend get mnnBackend => _settings.mnnBackend;
   List<MnnBackendCapability> get mnnCapabilities => _mnnCapabilities;
@@ -280,6 +282,7 @@ class ServerConfigProvider extends ChangeNotifier {
       );
     } finally {
       _loadingLlamaCppBackends = false;
+      _llamaCppBackendsResolved = true;
       notifyListeners();
     }
   }

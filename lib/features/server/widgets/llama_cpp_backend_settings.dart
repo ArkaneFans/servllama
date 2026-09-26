@@ -39,15 +39,17 @@ class _LlamaCppBackendSettingsState extends State<LlamaCppBackendSettings> {
     final l10n = context.l10n;
     final colors = Theme.of(context).colorScheme;
     final probe = provider.llamaCppProbe;
+    final probeKnown =
+        provider.llamaCppBackendsResolved && !provider.loadingLlamaCppBackends;
     final savedUnavailable =
+        probeKnown &&
+        provider.llamaCppBackendError == null &&
         ServerLaunchSettings.supportedLlamaCppBackends.contains(
           provider.llamaCppBackend,
         ) &&
         switch (provider.llamaCppBackend) {
-          LlamaCppBackend.opencl =>
-            !provider.loadingLlamaCppBackends && !probe.openclAvailable,
-          LlamaCppBackend.hexagon =>
-            !provider.loadingLlamaCppBackends && !probe.hexagonAvailable,
+          LlamaCppBackend.opencl => !probe.openclAvailable,
+          LlamaCppBackend.hexagon => !probe.hexagonAvailable,
           _ => false,
         };
     return SettingsSection(
@@ -103,7 +105,7 @@ class _LlamaCppBackendSettingsState extends State<LlamaCppBackendSettings> {
           for (final backend
               in ServerLaunchSettings.supportedLlamaCppBackends) ...[
             if (backend != LlamaCppBackend.cpu) const Divider(height: 1),
-            _backendTile(context, provider, backend, probe),
+            _backendTile(context, provider, backend, probe, probeKnown),
           ],
           if (provider.llamaCppBackend != LlamaCppBackend.cpu) ...[
             const Divider(height: 1),
@@ -130,14 +132,13 @@ class _LlamaCppBackendSettingsState extends State<LlamaCppBackendSettings> {
     ServerConfigProvider provider,
     LlamaCppBackend backend,
     LlamaCppDeviceProbeResult probe,
+    bool probeKnown,
   ) {
     final l10n = context.l10n;
     final selectable = switch (backend) {
       LlamaCppBackend.cpu => true,
-      LlamaCppBackend.opencl =>
-        !provider.loadingLlamaCppBackends && probe.openclAvailable,
-      LlamaCppBackend.hexagon =>
-        !provider.loadingLlamaCppBackends && probe.hexagonAvailable,
+      LlamaCppBackend.opencl => probeKnown && probe.openclAvailable,
+      LlamaCppBackend.hexagon => probeKnown && probe.hexagonAvailable,
     };
     final selected = provider.llamaCppBackend == backend;
     return ListTile(
@@ -149,7 +150,7 @@ class _LlamaCppBackendSettingsState extends State<LlamaCppBackendSettings> {
         selected ? Icons.radio_button_checked : Icons.radio_button_off,
       ),
       title: Text(_name(l10n, backend)),
-      subtitle: Text(_description(l10n, backend, selectable)),
+      subtitle: Text(_description(l10n, backend, selectable, probeKnown)),
       onTap: selectable ? () => provider.updateLlamaCppBackend(backend) : null,
     );
   }
@@ -166,8 +167,9 @@ class _LlamaCppBackendSettingsState extends State<LlamaCppBackendSettings> {
     AppLocalizations l10n,
     LlamaCppBackend backend,
     bool selectable,
+    bool probeKnown,
   ) {
-    if (!selectable) {
+    if (probeKnown && !selectable) {
       return l10n.llamaCppBackendUnavailable;
     }
     return switch (backend) {
