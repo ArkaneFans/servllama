@@ -96,8 +96,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          patch="patches/llama.cpp/0001-hexagon-skip-unsupported-devices.patch"
-          preset="patches/llama.cpp/CMakeUserPresets.servllama.json"
+          # git -C changes directory before opening the patch, so a workspace-relative path would miss.
+          patch="${GITHUB_WORKSPACE}/patches/llama.cpp/0001-hexagon-skip-unsupported-devices.patch"
+          preset="${GITHUB_WORKSPACE}/patches/llama.cpp/CMakeUserPresets.servllama.json"
           test -f "${patch}"
           test -f "${preset}"
 
