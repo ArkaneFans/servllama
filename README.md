@@ -101,11 +101,11 @@ flutter pub get
 flutter build apk --release
 ```
 
-MNN native artifacts are provided by the `mnn_engine` package. llama-server is a prebuilt Snapdragon bundle (CPU variants + OpenCL + Hexagon) that is **not** stored in git. Copy the `.so` files into `android/app/src/main/jniLibs/arm64-v8a/` from a release extra or a local WSL build before compiling the APK. See `patches/llama.cpp/README.md`.
+MNN native artifacts are provided by the `mnn_engine` package. llama-server is a prebuilt Snapdragon bundle (CPU variants + OpenCL + Hexagon) that is **not** stored in git. Copy the `.so` files into `android/app/src/main/jniLibs/arm64-v8a/` from a release extra, the GitHub Actions artifact, or a local WSL build before compiling the APK. See `patches/llama.cpp/README.md`.
 
 For development verification, run `flutter analyze` and `flutter test`.
 
-The CPU-only GitHub workflow remains as a fallback. OpenCL and Hexagon builds use the Snapdragon toolchain Docker image on WSL, with `patches/llama.cpp/0001-hexagon-skip-unsupported-devices.patch` applied to llama.cpp v0.4.1.
+The GitHub workflow `.github/workflows/build-llama-server-android.yml` builds that bundle. It checks out the selected llama.cpp tag, applies `patches/llama.cpp/0001-hexagon-skip-unsupported-devices.patch`, and compiles CPU variants, OpenCL, and Hexagon inside `ghcr.io/snapdragon-toolchain/arm64-android:v0.7`. The patch matches v0.4.1; other tags fail the job when it does not apply.
 
 ## Usage Notes
 

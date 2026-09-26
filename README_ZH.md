@@ -101,11 +101,11 @@ flutter pub get
 flutter build apk --release
 ```
 
-MNN 原生产物由 `mnn_engine` 插件提供。llama-server 是预编译的骁龙包（CPU 多变体 + OpenCL + Hexagon），**不进入 git**。构建 APK 前请把 `.so` 复制到 `android/app/src/main/jniLibs/arm64-v8a/`，来源可以是 Release 附件或本机 WSL 编译产物。详见 `patches/llama.cpp/README.md`。
+MNN 原生产物由 `mnn_engine` 插件提供。llama-server 是预编译的骁龙包（CPU 多变体 + OpenCL + Hexagon），**不进入 git**。构建 APK 前请把 `.so` 复制到 `android/app/src/main/jniLibs/arm64-v8a/`，来源可以是 Release 附件、GitHub Actions 产物或本机 WSL 编译产物。详见 `patches/llama.cpp/README.md`。
 
 开发验证可运行 `flutter analyze` 和 `flutter test`。
 
-GitHub 上的 CPU-only 工作流仍可作为对照。OpenCL / Hexagon 构建在 WSL 的 Snapdragon 工具链 Docker 镜像中完成，并需要把 `patches/llama.cpp/0001-hexagon-skip-unsupported-devices.patch` 打到 llama.cpp v0.4.1。
+GitHub 工作流 `.github/workflows/build-llama-server-android.yml` 负责编这个包。它检出指定的 llama.cpp tag，应用 `patches/llama.cpp/0001-hexagon-skip-unsupported-devices.patch`，并在 `ghcr.io/snapdragon-toolchain/arm64-android:v0.7` 中编译 CPU 多变体、OpenCL 和 Hexagon。补丁对应 v0.4.1；其它 tag 如果补丁打不上，任务会失败。
 
 ## 使用注意事项
 

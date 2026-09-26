@@ -4,8 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       llama_cpp_tag:
-        description: llama.cpp tag to build, for example b9873
+        description: llama.cpp tag to build. The Hexagon patch matches v0.4.1.
         required: true
+        default: v0.4.1
         type: string
 
 permissions:
@@ -17,15 +18,13 @@ concurrency:
 
 env:
   ANDROID_ABI: arm64-v8a
-  ANDROID_API_LEVEL: "28"
-  ANDROID_CMAKE_VERSION: "3.22.1"
-  ANDROID_NDK_VERSION: "27.3.13750724"
+  SNAPDRAGON_IMAGE: ghcr.io/snapdragon-toolchain/arm64-android:v0.7
 
 jobs:
   build-arm64:
-    name: Android arm64-v8a (${{ inputs.llama_cpp_tag }})
+    name: Android arm64 Snapdragon (${{ inputs.llama_cpp_tag }})
     runs-on: ubuntu-22.04
-    timeout-minutes: 120
+    timeout-minutes: 180
 
     steps:
       - name: Check out ServLlama
@@ -37,6 +36,7 @@ jobs:
           repository: ggml-org/llama.cpp
           ref: ${{ inputs.llama_cpp_tag }}
           fetch-depth: 1
+          fetch-tags: true
           path: llama.cpp
 
       - name: Record llama.cpp source revision
@@ -68,160 +68,112 @@ jobs:
             echo
             echo "- Tag: \`${LLAMA_CPP_TAG}\`"
             echo "- Commit: \`${commit}\`"
+            echo "- Toolchain image: \`${SNAPDRAGON_IMAGE}\`"
           } >> "${GITHUB_STEP_SUMMARY}"
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
+      - name: Free runner disk space
+        shell: bash
+        run: |
+          set -euo pipefail
+          df -h /
+          sudo rm -rf \
+            /usr/share/dotnet \
+            /usr/local/lib/android \
+            /opt/ghc \
+            /opt/hostedtoolcache \
+            /usr/local/share/boost \
+            /usr/share/swift \
+            /usr/local/.ghcup \
+            /usr/share/miniconda \
+            /usr/local/lib/heroku \
+            || true
+          sudo apt-get clean
+          docker system prune -af || true
+          df -h /
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android native toolchain
+      - name: Apply Hexagon patch and ServLlama preset
         shell: bash
         run: |
           set -euo pipefail
 
-          yes | sdkmanager --licenses >/dev/null 2>&1 || true
-          sdkmanager \
-            "cmake;${ANDROID_CMAKE_VERSION}" \
-            "ndk;${ANDROID_NDK_VERSION}"
+          patch="patches/llama.cpp/0001-hexagon-skip-unsupported-devices.patch"
+          preset="patches/llama.cpp/CMakeUserPresets.servllama.json"
+          test -f "${patch}"
+          test -f "${preset}"
 
-          android_ndk="${ANDROID_SDK_ROOT}/ndk/${ANDROID_NDK_VERSION}"
-          cmake_bin="${ANDROID_SDK_ROOT}/cmake/${ANDROID_CMAKE_VERSION}/bin/cmake"
-          ninja_bin="${ANDROID_SDK_ROOT}/cmake/${ANDROID_CMAKE_VERSION}/bin/ninja"
-          llvm_bin="${android_ndk}/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          if ! git -C llama.cpp apply --check "${patch}"; then
+            echo "The Hexagon patch did not apply to ${{ inputs.llama_cpp_tag }}." >&2
+            echo "It is written for llama.cpp v0.4.1." >&2
+            exit 1
+          fi
+          git -C llama.cpp apply "${patch}"
+          cp "${preset}" llama.cpp/CMakeUserPresets.json
+          test -s llama.cpp/CMakeUserPresets.json
 
-          test -x "${cmake_bin}"
-          test -x "${ninja_bin}"
-          test -x "${llvm_bin}/llvm-strip"
-          test -x "${llvm_bin}/llvm-readelf"
-
-          echo "ANDROID_NDK_ROOT=${android_ndk}" >> "${GITHUB_ENV}"
-          echo "LLAMA_CMAKE=${cmake_bin}" >> "${GITHUB_ENV}"
-          echo "LLAMA_NINJA=${ninja_bin}" >> "${GITHUB_ENV}"
-          echo "LLVM_READELF=${llvm_bin}/llvm-readelf" >> "${GITHUB_ENV}"
-          echo "LLVM_STRIP=${llvm_bin}/llvm-strip" >> "${GITHUB_ENV}"
-
-      - name: Configure llama.cpp
+      - name: Build in the Snapdragon toolchain image
         shell: bash
+        env:
+          SAFE_TAG: ${{ steps.source.outputs.safe_tag }}
         run: |
           set -euo pipefail
 
-          "${LLAMA_CMAKE}" \
-            -S "${GITHUB_WORKSPACE}/llama.cpp" \
-            -B "${GITHUB_WORKSPACE}/llama.cpp/build-android" \
-            -G Ninja \
-            -DCMAKE_MAKE_PROGRAM="${LLAMA_NINJA}" \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE="${ANDROID_NDK_ROOT}/build/cmake/android.toolchain.cmake" \
-            -DANDROID_ABI="${ANDROID_ABI}" \
-            -DANDROID_PLATFORM="android-${ANDROID_API_LEVEL}" \
-            -DANDROID_STL=c++_static \
-            -DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON \
-            -DBUILD_SHARED_LIBS=ON \
-            -DGGML_NATIVE=OFF \
-            -DGGML_BACKEND_DL=ON \
-            -DGGML_CPU_ALL_VARIANTS=ON \
-            -DGGML_SYSTEM_ARCH=ARM \
-            -DGGML_OPENMP=OFF \
-            -DGGML_LLAMAFILE=OFF \
-            -DLLAMA_BUILD_APP=OFF \
-            -DLLAMA_BUILD_EXAMPLES=OFF \
-            -DLLAMA_BUILD_SERVER=ON \
-            -DLLAMA_BUILD_TESTS=OFF \
-            -DLLAMA_BUILD_TOOLS=ON
+          docker pull --platform linux/amd64 "${SNAPDRAGON_IMAGE}"
 
-      - name: Build llama-server
-        shell: bash
-        run: |
-          set -euo pipefail
-          "${LLAMA_CMAKE}" \
-            --build "${GITHUB_WORKSPACE}/llama.cpp/build-android" \
-            --config Release \
-            --target llama-server \
-            --parallel "$(nproc)"
+          bundle_name="llama-server-${SAFE_TAG}-android-${ANDROID_ABI}"
+          jni_dir="${GITHUB_WORKSPACE}/dist/${bundle_name}/android/app/src/main/jniLibs/${ANDROID_ABI}"
+          mkdir -p "${jni_dir}" "$(dirname "${GITHUB_WORKSPACE}/dist/snapdragon-toolchain.env")"
 
-      - name: Package and verify Android libraries
+          docker run --rm \
+            --platform linux/amd64 \
+            -u "$(id -u):$(id -g)" \
+            -e HOME=/tmp \
+            -e "DEST_JNI=/src/dist/${bundle_name}/android/app/src/main/jniLibs/${ANDROID_ABI}" \
+            -e TOOLCHAIN_ENV_OUT=/src/dist/snapdragon-toolchain.env \
+            -v "${GITHUB_WORKSPACE}:/src" \
+            "${SNAPDRAGON_IMAGE}" \
+            bash /src/patches/llama.cpp/build_snapdragon_android.sh /src/llama.cpp
+
+          echo "bundle_name=${bundle_name}" >> "${GITHUB_ENV}"
+          echo "jni_dir=${jni_dir}" >> "${GITHUB_ENV}"
+
+      - name: Package and verify the archive
         id: bundle
         shell: bash
         env:
           LLAMA_CPP_TAG: ${{ inputs.llama_cpp_tag }}
           LLAMA_CPP_COMMIT: ${{ steps.source.outputs.commit }}
-          SAFE_TAG: ${{ steps.source.outputs.safe_tag }}
         run: |
           set -euo pipefail
 
-          build_dir="${GITHUB_WORKSPACE}/llama.cpp/build-android"
-          server_binary="${build_dir}/bin/llama-server"
-          bundle_name="llama-server-${SAFE_TAG}-android-${ANDROID_ABI}"
           bundle_root="${GITHUB_WORKSPACE}/dist/${bundle_name}"
-          jni_dir="${bundle_root}/android/app/src/main/jniLibs/${ANDROID_ABI}"
+          jni_dir="${jni_dir}"
           manifest_dir="${bundle_root}/assets/bin"
+          meta="${GITHUB_WORKSPACE}/dist/snapdragon-toolchain.env"
 
-          test -f "${server_binary}"
-          mkdir -p "${jni_dir}" "${manifest_dir}"
+          test -f "${jni_dir}/libllama-server.so"
+          test -f "${jni_dir}/libggml-opencl.so"
+          test -f "${jni_dir}/libggml-hexagon.so"
+          test -f "${jni_dir}/libggml-htp-v73.so"
+          test -f "${jni_dir}/libggml-htp-v75.so"
+          test -f "${jni_dir}/libggml-htp-v79.so"
+          test -f "${jni_dir}/libggml-htp-v81.so"
+          test -f "${meta}"
+          # shellcheck disable=SC1090
+          source "${meta}"
 
-          cp "${server_binary}" "${jni_dir}/libllama-server.so"
+          android_api="$(sed -n 's/.*"ANDROID_PLATFORM"[[:space:]]*:[[:space:]]*"android-\([0-9][0-9]*\)".*/\1/p' \
+            patches/llama.cpp/CMakeUserPresets.servllama.json | head -n 1)"
+          test -n "${android_api}"
 
-          while IFS= read -r -d '' library; do
-            destination="${jni_dir}/$(basename "${library}")"
-            if [[ -e "${destination}" ]] && ! cmp -s "${library}" "${destination}"; then
-              echo "Conflicting library outputs named $(basename "${library}")." >&2
-              exit 1
-            fi
-            cp -L "${library}" "${destination}"
-          done < <(find "${build_dir}" \( -type f -o -type l \) -name '*.so' -print0)
+          image_digest="$(docker image inspect --format '{{if .RepoDigests}}{{index .RepoDigests 0}}{{end}}' "${SNAPDRAGON_IMAGE}" || true)"
+          ndk_version="$(basename "${ANDROID_NDK_ROOT}")"
 
-          test -f "${jni_dir}/libggml.so"
-          test -f "${jni_dir}/libggml-base.so"
-          test -f "${jni_dir}/libllama.so"
-          test -f "${jni_dir}/libllama-common.so"
-          test -f "${jni_dir}/libllama-server-impl.so"
-          test -f "${jni_dir}/libmtmd.so"
-          compgen -G "${jni_dir}/libggml-cpu-*.so" >/dev/null
-
-          while IFS= read -r -d '' binary; do
-            "${LLVM_STRIP}" --strip-unneeded "${binary}"
-
-            machine="$("${LLVM_READELF}" -h "${binary}" | awk -F: '/Machine:/{gsub(/^[[:space:]]+/, "", $2); print $2}')"
-            if [[ "${machine}" != "AArch64" ]]; then
-              echo "Unexpected ELF architecture for ${binary}: ${machine}" >&2
-              exit 1
-            fi
-
-            while read -r alignment; do
-              if (( alignment < 0x4000 )); then
-                echo "${binary} has a LOAD segment aligned below 16 KiB: ${alignment}" >&2
-                exit 1
-              fi
-            done < <("${LLVM_READELF}" -lW "${binary}" | awk '$1 == "LOAD" { print $NF }')
-          done < <(find "${jni_dir}" -type f -name '*.so' -print0)
-
-          while IFS= read -r -d '' binary; do
-            while read -r dependency; do
-              case "${dependency}" in
-                libc.so|libdl.so|libm.so|liblog.so|libandroid.so|libz.so)
-                  continue
-                  ;;
-              esac
-              if [[ ! -f "${jni_dir}/${dependency}" ]]; then
-                echo "Missing runtime dependency ${dependency}, required by $(basename "${binary}")." >&2
-                exit 1
-              fi
-            done < <(
-              "${LLVM_READELF}" -dW "${binary}" \
-                | sed -n 's/.*Shared library: \[\([^]]*\)\].*/\1/p'
-            )
-          done < <(find "${jni_dir}" -type f -name '*.so' -print0)
-
+          mkdir -p "${manifest_dir}"
           chmod 755 "${jni_dir}/libllama-server.so"
 
           cat > "${manifest_dir}/llama_server_manifest.json" <<EOF
           {
-            "version": "${LLAMA_CPP_TAG}"
+            "version": "${LLAMA_CPP_TAG}+hexagon-skip-unsupported"
           }
           EOF
 
@@ -230,9 +182,15 @@ jobs:
             "llamaCppTag": "${LLAMA_CPP_TAG}",
             "llamaCppCommit": "${LLAMA_CPP_COMMIT}",
             "androidAbi": "${ANDROID_ABI}",
-            "androidApiLevel": ${ANDROID_API_LEVEL},
-            "ndkVersion": "${ANDROID_NDK_VERSION}",
-            "cmakeVersion": "${ANDROID_CMAKE_VERSION}",
+            "androidApiLevel": ${android_api},
+            "toolchainImage": "${SNAPDRAGON_IMAGE}",
+            "toolchainDigest": "${image_digest}",
+            "ndkRoot": "${ANDROID_NDK_ROOT}",
+            "ndkVersion": "${ndk_version}",
+            "hexagonSdkRoot": "${HEXAGON_SDK_ROOT}",
+            "hexagonToolsRoot": "${HEXAGON_TOOLS_ROOT}",
+            "patch": "0001-hexagon-skip-unsupported-devices",
+            "backends": ["cpu", "opencl", "hexagon"],
             "buildType": "Release"
           }
           EOF
@@ -257,10 +215,12 @@ jobs:
             echo "## Android artifact"
             echo
             echo "- ABI: \`${ANDROID_ABI}\`"
-            echo "- Minimum Android API: \`${ANDROID_API_LEVEL}\`"
+            echo "- Minimum Android API: \`${android_api}\`"
+            echo "- Toolchain: \`${SNAPDRAGON_IMAGE}\`"
             echo "- Archive: \`${bundle_name}.tar.gz\`"
             echo
             echo "The archive contains directories that can be copied directly over the ServLlama repository."
+            echo "\`libggml-htp-*.so\` are Hexagon ELF files and are not NDK-stripped."
             echo
             echo "### Bundled native files"
             echo

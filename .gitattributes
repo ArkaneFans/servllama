@@ -1,0 +1,3 @@
+patches/llama.cpp/*.sh text eol=lf
+patches/llama.cpp/*.patch text eol=lf
+.github/workflows/build-llama-server-android.yml text eol=lf
