@@ -1031,7 +1031,7 @@ abstract class AppLocalizations {
   /// No description provided for @llamaCppBackendHexagon.
   ///
   /// In en, this message translates to:
-  /// **'NPU (Hexagon)'**
+  /// **'Hexagon (experimental)'**
   String get llamaCppBackendHexagon;
 
   /// No description provided for @llamaCppBackendCpuDescription.
@@ -1049,7 +1049,7 @@ abstract class AppLocalizations {
   /// No description provided for @llamaCppBackendHexagonDescription.
   ///
   /// In en, this message translates to:
-  /// **'Offload layers to Snapdragon Hexagon NPU. Requires Hexagon v73 or newer, roughly Snapdragon 8 Gen 2 and later.'**
+  /// **'NPU acceleration on Snapdragon 8 Gen 2 and later.'**
   String get llamaCppBackendHexagonDescription;
 
   /// No description provided for @llamaCppBackendUnavailable.

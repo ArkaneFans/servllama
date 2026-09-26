@@ -504,7 +504,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get llamaCppBackendOpencl => 'GPU（OpenCL）';
 
   @override
-  String get llamaCppBackendHexagon => 'NPU（Hexagon）';
+  String get llamaCppBackendHexagon => 'Hexagon(实验性)';
 
   @override
   String get llamaCppBackendCpuDescription => '完全在 CPU 上运行，兼容性最好。';
@@ -513,8 +513,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get llamaCppBackendOpenclDescription => '通过 OpenCL 将层卸载到 Adreno GPU。';
 
   @override
-  String get llamaCppBackendHexagonDescription =>
-      '将层卸载到骁龙 Hexagon NPU。需要 Hexagon v73 及以上，大约骁龙 8 Gen 2 起。';
+  String get llamaCppBackendHexagonDescription => '支持骁龙 8 Gen 2 及以上NPU加速';
 
   @override
   String get llamaCppBackendUnavailable => '此设备不可用。';

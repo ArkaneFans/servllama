@@ -519,7 +519,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get llamaCppBackendOpencl => 'GPU (OpenCL)';
 
   @override
-  String get llamaCppBackendHexagon => 'NPU (Hexagon)';
+  String get llamaCppBackendHexagon => 'Hexagon (experimental)';
 
   @override
   String get llamaCppBackendCpuDescription =>
@@ -531,7 +531,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get llamaCppBackendHexagonDescription =>
-      'Offload layers to Snapdragon Hexagon NPU. Requires Hexagon v73 or newer, roughly Snapdragon 8 Gen 2 and later.';
+      'NPU acceleration on Snapdragon 8 Gen 2 and later.';
 
   @override
   String get llamaCppBackendUnavailable => 'Not available on this device.';
