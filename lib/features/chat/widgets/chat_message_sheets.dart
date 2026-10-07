@@ -1,8 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:servllama/features/speech/services/speech_job_service.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/l10n/l10n.dart';
 
-enum ChatMessageAction { copy, edit, regenerate, delete }
+enum ChatMessageAction {
+  copy,
+  edit,
+  regenerate,
+  rerun,
+  speak,
+  deleteVersion,
+  delete,
+}
 
 class ChatMessageActionSheet extends StatelessWidget {
   const ChatMessageActionSheet({
@@ -18,7 +28,7 @@ class ChatMessageActionSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(8, 8, 8, 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -45,13 +55,45 @@ class ChatMessageActionSheet extends StatelessWidget {
                         Navigator.of(context).pop(ChatMessageAction.regenerate)
                   : null,
             ),
+            if (message.runId != null)
+              ListTile(
+                leading: const Icon(Icons.replay_circle_filled_outlined),
+                title: Text(l10n.v2Rerun),
+                subtitle: Text(l10n.v2RerunHelp),
+                enabled: canRegenerate,
+                onTap: canRegenerate
+                    ? () => Navigator.of(context).pop(ChatMessageAction.rerun)
+                    : null,
+              ),
+            if (message.role == ChatRole.assistant &&
+                context.read<SpeechJobService?>() != null)
+              ListTile(
+                leading: const Icon(Icons.volume_up_outlined),
+                title: Text(l10n.v2ReadAloud),
+                onTap: () => Navigator.of(context).pop(ChatMessageAction.speak),
+              ),
+            if (message.hasMultipleVersions)
+              ListTile(
+                key: Key('chat_message_action_delete_version_${message.id}'),
+                leading: Icon(
+                  Icons.delete_outline_rounded,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                title: Text(l10n.chatDeleteCurrentVersion),
+                onTap: () =>
+                    Navigator.of(context).pop(ChatMessageAction.deleteVersion),
+              ),
             ListTile(
               key: Key('chat_message_action_delete_${message.id}'),
               leading: Icon(
                 Icons.delete_outline_rounded,
                 color: Theme.of(context).colorScheme.error,
               ),
-              title: Text(l10n.commonDelete),
+              title: Text(
+                message.hasMultipleVersions
+                    ? l10n.chatDeleteAllVersions
+                    : l10n.commonDelete,
+              ),
               onTap: () => Navigator.of(context).pop(ChatMessageAction.delete),
             ),
           ],

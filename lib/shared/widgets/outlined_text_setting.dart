@@ -85,28 +85,7 @@ class _OutlinedTextSettingState extends State<OutlinedTextSetting> {
           obscureText: widget.obscureText,
           inputFormatters: widget.inputFormatters,
           onChanged: widget.onChanged,
-          decoration: InputDecoration(
-            hintText: widget.hintText,
-            filled: true,
-            fillColor: colorScheme.surfaceContainerHighest.withAlpha(90),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: colorScheme.outlineVariant),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: colorScheme.outlineVariant),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: colorScheme.primary),
-            ),
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 12,
-            ),
-          ),
+          decoration: InputDecoration(hintText: widget.hintText),
         ),
       ],
     );

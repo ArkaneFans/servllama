@@ -31,6 +31,44 @@ void main() {
       );
     });
 
+    test(
+      'conversation creation is single-flight and preserves its input draft',
+      () async {
+        provider.updateDraft('unsent input');
+        final first = provider.ensureConversation();
+        final second = provider.ensureConversation();
+        expect(provider.canManageSessions, isFalse);
+        expect(await first, await second);
+        expect(repository.sessions, hasLength(1));
+        expect(provider.currentDraft, 'unsent input');
+        expect(provider.canManageSessions, isTrue);
+        provider.dispose();
+      },
+    );
+    test(
+      'submission clears its draft only after the user message commits',
+      () async {
+        await provider.load();
+        _setActiveModel(provider, 'alpha');
+        provider.updateDraft('preserved text');
+        repository.loadAllMessagesError = StateError('fixture storage error');
+        await expectLater(
+          provider.sendMessage('preserved text'),
+          throwsStateError,
+        );
+        expect(provider.currentDraft, 'preserved text');
+        expect(repository.savedSingleMessages, isEmpty);
+        repository.loadAllMessagesError = null;
+        await provider.sendMessage('preserved text');
+        expect(provider.currentDraft, isEmpty);
+        expect(
+          repository.savedSingleMessages.where((m) => m.role == ChatRole.user),
+          hasLength(1),
+        );
+        provider.dispose();
+      },
+    );
+
     test('load keeps startup state as a blank chat page', () async {
       repository.sessions = <ChatSessionRecord>[
         _session(id: 's1', title: '会话一'),
@@ -625,7 +663,7 @@ void main() {
     });
 
     test(
-      'deleteMessage removes image attachments for deleted user message',
+      'deleteMessage preserves an attachment outside the owned attachment directory',
       () async {
         final attachment = File(
           '${Directory.systemTemp.path}\\servllama_chat_provider_attachment.txt',
@@ -659,7 +697,7 @@ void main() {
         await provider.deleteMessage('u1');
 
         expect(provider.visibleMessages, isEmpty);
-        expect(await attachment.exists(), isFalse);
+        expect(await attachment.exists(), isTrue);
       },
     );
 
@@ -737,7 +775,8 @@ void main() {
             .toList(growable: false);
         // Original snapshot, streaming start, two deltas, and the final
         // full save in the completion path.
-        expect(versionSnapshots, <String>['待替换回答', '', '新', '新回答', '新回答']);
+        // Streaming checkpoints are mutable; saved message revisions are immutable.
+        expect(versionSnapshots, <String>['待替换回答', '新回答']);
         expect(
           apiClient.lastStreamMessages.map((message) => message.content),
           <String>['你好', '旧回答', '继续'],
@@ -1074,6 +1113,34 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
   }
 
   @override
+  Future<void> commitMessageDeletion(
+    ChatSessionRecord session,
+    ChatMessageRecord original, {
+    ChatMessageRecord? replacement,
+  }) async {
+    if (replacement == null) {
+      await deleteMessages([original]);
+    } else {
+      await deleteMessageVersions(
+        original.versionIds.where((id) => !replacement.versionIds.contains(id)),
+      );
+      await saveMessage(replacement);
+    }
+    await saveSession(session);
+  }
+
+  @override
+  Future<void> commitSession(
+    ChatSessionRecord session, {
+    List<ChatMessageRecord> changedMessages = const [],
+  }) async {
+    for (final message in changedMessages) {
+      await saveMessage(message);
+    }
+    await saveSession(session);
+  }
+
+  @override
   Future<void> saveSession(ChatSessionRecord session) async {
     final cleanSession = _migrateSession(session);
     savedSessions.add(cleanSession);
@@ -1247,6 +1314,9 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
       versions.remove(versionId);
     }
   }
+
+  @override
+  Future<void> deleteAttachmentFiles(Iterable<String> paths) async {}
 
   @override
   Future<void> deleteMessageResources(

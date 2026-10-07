@@ -46,6 +46,9 @@ class LlamaCppEngineAdapter implements InferenceEngineAdapter {
   bool get isRunning => _serverService.isRunning;
 
   @override
+  bool get hasResources => _serverService.isRunning;
+
+  @override
   Stream<bool> get runningStateStream => _serverService.runningStateStream;
 
   @override
@@ -70,7 +73,7 @@ class LlamaCppEngineAdapter implements InferenceEngineAdapter {
       await prepare();
       final model = await _findModel(modelId);
       _throwIfCancelled();
-      final settings = await _settingsLoader.load();
+      final settings = await _settingsLoader.loadForRuntime();
       _throwIfCancelled();
       final probe = await _deviceProbeService.probe(force: true);
       _throwIfCancelled();

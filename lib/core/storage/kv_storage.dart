@@ -1,4 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:servllama/core/security/secret_store.dart';
+import 'package:servllama/core/storage/server_prefs_keys.dart';
 
 class KvStorage {
   KvStorage();
@@ -11,6 +13,9 @@ class KvStorage {
 
   Future<String?> getString(String key) async {
     final prefs = await _prefs();
+    if (key == ServerPrefsKeys.apiKey) {
+      return await SecretStore.instance.read(key) ?? prefs.getString(key);
+    }
     return prefs.getString(key);
   }
 
@@ -38,8 +43,14 @@ class KvStorage {
     return List<String>.from(value);
   }
 
-  Future<void> setString(String key, String value) =>
-      _write(key, (prefs) => prefs.setString(key, value));
+  Future<void> setString(String key, String value) async {
+    if (key == ServerPrefsKeys.apiKey) {
+      await SecretStore.instance.write(key, value);
+      await _write(key, (prefs) => prefs.remove(key));
+      return;
+    }
+    await _write(key, (prefs) => prefs.setString(key, value));
+  }
 
   Future<void> setInt(String key, int value) =>
       _write(key, (prefs) => prefs.setInt(key, value));

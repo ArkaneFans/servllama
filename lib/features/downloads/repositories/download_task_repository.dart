@@ -1,6 +1,7 @@
 import 'dart:io';
 
-import 'package:hive/hive.dart';
+import 'dart:convert';
+import 'package:servllama/core/database/app_database.dart';
 import 'package:servllama/core/services/model_storage_paths.dart';
 import 'package:servllama/features/downloads/models/download_task.dart';
 
@@ -9,34 +10,45 @@ import 'package:servllama/features/downloads/models/download_task.dart';
 class DownloadTaskRepository {
   DownloadTaskRepository({
     ModelStoragePaths? storagePaths,
-    HiveInterface? hive,
+    AppDatabase? database,
   }) : _storagePaths = storagePaths ?? ModelStoragePaths(),
-       _hive = hive ?? Hive;
+       _database = database;
 
-  static const String boxName = 'download_tasks';
   static const String stagingFolderName = 'downloads';
 
   final ModelStoragePaths _storagePaths;
-  final HiveInterface _hive;
+  final AppDatabase? _database;
 
-  Future<Box<DownloadTaskRecord>>? _boxFuture;
-  String? _initializedHivePath;
+  Future<AppDatabase> get database async =>
+      _database ?? await AppDatabase.shared();
 
-  Future<List<DownloadTaskRecord>> listTasks() async {
-    final box = await _box();
-    final tasks = box.values.toList(growable: true);
-    tasks.sort((left, right) => right.createdAt.compareTo(left.createdAt));
-    return tasks;
-  }
+  Future<List<DownloadTaskRecord>> listTasks() async =>
+      (await (await database).query(
+            'SELECT payload FROM download_tasks ORDER BY created_at DESC',
+          ))
+          .map(
+            (row) => DownloadTaskRecord.fromJson(
+              jsonDecode(row.read<String>('payload')),
+            ),
+          )
+          .toList();
 
   Future<void> save(DownloadTaskRecord task) async {
-    final box = await _box();
-    await box.put(task.id, task);
+    // Snapshot mutable progress before the first await.
+    final id = task.id;
+    final createdAt = task.createdAt.microsecondsSinceEpoch;
+    final payload = jsonEncode(task.toJson());
+    await (await database).execute(
+      'INSERT INTO download_tasks(id,created_at,payload) VALUES(?,?,?) '
+      'ON CONFLICT(id) DO UPDATE SET created_at=excluded.created_at,payload=excluded.payload',
+      [id, createdAt, payload],
+    );
   }
 
   Future<void> delete(String taskId) async {
-    final box = await _box();
-    await box.delete(taskId);
+    await (await database).execute('DELETE FROM download_tasks WHERE id=?', [
+      taskId,
+    ]);
   }
 
   Future<Directory> createStagingDirectory(String taskId) async {
@@ -67,7 +79,9 @@ class DownloadTaskRepository {
     if (!await root.exists()) {
       return 0;
     }
-    final known = (await listTasks()).map((task) => task.stagingDirPath).toSet();
+    final known = (await listTasks())
+        .map((task) => task.stagingDirPath)
+        .toSet();
     var total = 0;
     await for (final entity in root.list()) {
       if (entity is! Directory || known.contains(entity.path)) {
@@ -86,7 +100,9 @@ class DownloadTaskRepository {
     if (!await root.exists()) {
       return;
     }
-    final known = (await listTasks()).map((task) => task.stagingDirPath).toSet();
+    final known = (await listTasks())
+        .map((task) => task.stagingDirPath)
+        .toSet();
     await for (final entity in root.list()) {
       if (entity is Directory && !known.contains(entity.path)) {
         await entity.delete(recursive: true);
@@ -102,25 +118,5 @@ class DownloadTaskRepository {
       }
     }
     return total;
-  }
-
-  Future<Box<DownloadTaskRecord>> _box() async => _boxFuture ??= _openBox();
-
-  Future<Box<DownloadTaskRecord>> _openBox() async {
-    final appSupport = await _storagePaths.getAppSupportDirectory();
-    if (_initializedHivePath != appSupport.path) {
-      _hive.init(appSupport.path);
-      _initializedHivePath = appSupport.path;
-    }
-    if (!_hive.isAdapterRegistered(5)) {
-      _hive.registerAdapter(DownloadFileRecordAdapter());
-    }
-    if (!_hive.isAdapterRegistered(6)) {
-      _hive.registerAdapter(DownloadTaskRecordAdapter());
-    }
-    if (_hive.isBoxOpen(boxName)) {
-      return _hive.box<DownloadTaskRecord>(boxName);
-    }
-    return _hive.openBox<DownloadTaskRecord>(boxName);
   }
 }

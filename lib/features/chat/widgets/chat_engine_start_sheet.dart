@@ -22,7 +22,8 @@ class ChatEngineStartSheet extends StatelessWidget {
     final l10n = context.l10n;
 
     return SafeArea(
-      child: Padding(
+      top: false,
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,

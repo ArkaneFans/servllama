@@ -91,9 +91,7 @@ class DownloadSettingsStore {
 
   Future<DownloadSettings> load() async {
     return DownloadSettings(
-      huggingFaceRoute: HuggingFaceRoute.fromStorageValue(
-        await _kvStorage.getString(DownloadPrefsKeys.huggingFaceRoute),
-      ),
+      huggingFaceRoute: await loadHuggingFaceRoute(),
       huggingFaceToken: await _loadCredential(
         _hfTokenKey,
         DownloadPrefsKeys.huggingFaceToken,
@@ -111,6 +109,11 @@ class DownloadSettingsStore {
       ),
     );
   }
+
+  Future<HuggingFaceRoute> loadHuggingFaceRoute() async =>
+      HuggingFaceRoute.fromStorageValue(
+        await _kvStorage.getString(DownloadPrefsKeys.huggingFaceRoute),
+      );
 
   Future<void> saveHuggingFaceRoute(HuggingFaceRoute route) =>
       _kvStorage.setString(DownloadPrefsKeys.huggingFaceRoute, route.name);

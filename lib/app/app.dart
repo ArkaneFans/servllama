@@ -1,3 +1,6 @@
+import 'package:servllama/shared/navigation/app_navigation_observer.dart';
+import 'package:servllama/features/agent/services/agent_tool_service.dart';
+import 'package:servllama/features/speech/services/speech_job_service.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -9,6 +12,7 @@ import 'package:servllama/app/providers/app_locale_provider.dart';
 import 'package:servllama/app/providers/app_theme_mode_provider.dart';
 import 'package:servllama/app/app_theme.dart';
 import 'package:servllama/app/main_scaffold.dart';
+import 'package:servllama/features/assistants/providers/assistant_provider.dart';
 import 'package:servllama/core/providers/engine_runtime_provider.dart';
 import 'package:servllama/core/providers/model_management_provider.dart';
 import 'package:servllama/features/chat/providers/chat_provider.dart';
@@ -24,6 +28,8 @@ class ServLlamaApp extends StatelessWidget {
     return WithForegroundTask(
       child: MultiProvider(
         providers: [
+          if (AgentToolService.current != null)
+            ChangeNotifierProvider.value(value: AgentToolService.current!),
           ChangeNotifierProvider(
             create: (_) {
               final provider = AppLocaleProvider();
@@ -53,9 +59,18 @@ class ServLlamaApp extends StatelessWidget {
             },
           ),
           ChangeNotifierProvider(
+            create: (_) {
+              final p = AssistantProvider();
+              unawaited(p.load());
+              return p;
+            },
+          ),
+          ChangeNotifierProvider(
             create: (context) {
               final runtime = context.read<EngineRuntimeProvider>();
               final provider = ModelManagementProvider(
+                onModelDeleted: () =>
+                    context.read<AssistantProvider>().refreshAssets(),
                 onModelRenamed:
                     ({
                       required engine,
@@ -89,23 +104,43 @@ class ServLlamaApp extends StatelessWidget {
               return provider;
             },
           ),
-          ChangeNotifierProxyProvider2<
+          ChangeNotifierProxyProvider3<
             EngineRuntimeProvider,
             ChatTimeoutProvider,
+            AssistantProvider,
             ChatProvider
           >(
             create: (_) => ChatProvider(),
-            update: (_, runtimeProvider, chatTimeoutProvider, chatProvider) {
-              final provider = chatProvider ?? ChatProvider();
-              provider.updateServerState(
-                baseUrl: runtimeProvider.baseUrl,
-                isServerRunning: runtimeProvider.isRunning,
-                engine: runtimeProvider.activeEngine,
-                activeModelId: runtimeProvider.activeModelId,
-                activeModelName: runtimeProvider.activeModelName,
+            update:
+                (
+                  _,
+                  runtimeProvider,
+                  chatTimeoutProvider,
+                  assistants,
+                  chatProvider,
+                ) {
+                  final provider = chatProvider ?? ChatProvider();
+                  provider.bind(assistants, runtimeProvider);
+                  provider.updateServerState(
+                    baseUrl: runtimeProvider.baseUrl,
+                    isServerRunning: runtimeProvider.isRunning,
+                    engine: runtimeProvider.activeEngine,
+                    activeModelId: runtimeProvider.activeModelId,
+                    activeModelName: runtimeProvider.activeModelName,
+                  );
+                  provider.updateChatTimeout(chatTimeoutProvider.timeout);
+                  return provider;
+                },
+          ),
+          ChangeNotifierProvider(
+            // Startup recovery belongs to the app, not an offstage speech tab.
+            lazy: false,
+            create: (context) {
+              final service = SpeechJobService(
+                context.read<EngineRuntimeProvider>().resources,
               );
-              provider.updateChatTimeout(chatTimeoutProvider.timeout);
-              return provider;
+              unawaited(service.initialize());
+              return service;
             },
           ),
         ],
@@ -115,6 +150,7 @@ class ServLlamaApp extends StatelessWidget {
                 onGenerateTitle: (context) =>
                     AppLocalizations.of(context)!.appTitle,
                 debugShowCheckedModeBanner: false,
+                navigatorObservers: [AppNavigationObserver()],
                 theme: AppTheme.light(),
                 darkTheme: AppTheme.dark(),
                 themeMode: themeModeProvider.themeMode,

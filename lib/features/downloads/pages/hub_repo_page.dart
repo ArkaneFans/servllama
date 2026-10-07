@@ -1,3 +1,5 @@
+import 'package:servllama/shared/widgets/app_message.dart';
+import 'package:servllama/shared/widgets/app_scaffold.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/core/errors/model_operation_exception.dart';
@@ -128,9 +130,7 @@ class _HubRepoPageState extends State<HubRepoPage> {
   }
 
   void _showMessage(String message) {
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(SnackBar(content: Text(message)));
+    AppMessage.show(context, message);
   }
 
   bool _isQuantQueued(DownloadProvider downloads, String filePath) {
@@ -156,7 +156,7 @@ class _HubRepoPageState extends State<HubRepoPage> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    return Scaffold(
+    return AppScaffold(
       appBar: AppBar(
         title: Text(
           widget.repoId.split('/').last,
@@ -479,7 +479,6 @@ class _QuantRow extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final palette = theme.palette;
-    final isLight = theme.brightness == Brightness.light;
     final l10n = context.l10n;
     final (Color markColor, StatusTone tone) = switch (feasibility) {
       ModelFeasibility.comfortable => (palette.okMark, StatusTone.ok),
@@ -493,7 +492,7 @@ class _QuantRow extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: isLight ? Colors.white : colorScheme.surfaceContainerLow,
+        color: colorScheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: colorScheme.outlineVariant.withAlpha(96)),
       ),

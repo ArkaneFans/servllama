@@ -1,4 +1,6 @@
-import 'package:flutter/foundation.dart';
+import 'package:servllama/shared/widgets/app_message.dart';
+import 'package:servllama/features/design_preview/ui_primitives_page.dart';
+import 'package:servllama/app/bootstrap/migration_preview_page.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/core/providers/engine_runtime_provider.dart';
@@ -6,10 +8,11 @@ import 'package:servllama/features/chat/pages/chat_history_page.dart';
 import 'package:servllama/features/chat/pages/chat_page.dart';
 import 'package:servllama/features/chat/widgets/chat_session_drawer_section.dart';
 import 'package:servllama/features/chat/widgets/chat_session_search_field.dart';
-import 'package:servllama/features/mnn_test/pages/mnn_test_page.dart';
+import 'package:servllama/app/model_library_page.dart';
+import 'package:servllama/features/assistants/pages/assistants_page.dart';
+import 'package:servllama/features/assistants/widgets/assistant_selector.dart';
+import 'package:servllama/features/speech/pages/speech_page.dart';
 import 'package:servllama/features/downloads/providers/download_provider.dart';
-import 'package:servllama/features/server/pages/debug_page.dart';
-import 'package:servllama/features/server/pages/model_management_page.dart';
 import 'package:servllama/features/server/pages/server_page.dart';
 import 'package:servllama/features/settings/pages/settings_page.dart';
 import 'package:servllama/l10n/l10n.dart';
@@ -120,54 +123,92 @@ class _MainScaffoldState extends State<MainScaffold> {
                     color: colorScheme.outlineVariant.withAlpha(120),
                   ),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 16, 12, 24),
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _DrawerActionBlock(
-                          key: const Key('drawer_server_action'),
-                          icon: Icons.dns_outlined,
-                          title: l10n.drawerServer,
-                          showStatusBadge: true,
-                          isOnline: serverProvider?.isRunning == true,
-                          onTap: () => _pushFromSidebar(const ServerPage()),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Tooltip(
+                                message: l10n.uiLabTitle,
+                                child: TextButton(
+                                  key: const Key('drawer_ui_primitives'),
+                                  onPressed: () => _pushFromSidebar(
+                                    const UiPrimitivesPage(),
+                                  ),
+                                  child: Text(
+                                    l10n.uiLabTitle,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: Tooltip(
+                                message: l10n.migrationPreviewTitle,
+                                child: TextButton(
+                                  key: const Key('drawer_migration_preview'),
+                                  onPressed: () => _pushFromSidebar(
+                                    const MigrationPreviewPage(),
+                                  ),
+                                  child: Text(
+                                    l10n.migrationPreviewTitle,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 8),
-                        _DrawerActionBlock(
-                          key: const Key('drawer_models_action'),
-                          icon: Icons.inventory_2_outlined,
-                          title: l10n.modelLibraryTitle,
-                          badgeLabel:
-                              (downloadProvider?.activeTaskCount ?? 0) == 0
-                              ? null
-                              : '${downloadProvider!.activeTaskCount}',
-                          onTap: () =>
-                              _pushFromSidebar(const ModelManagementPage()),
+                        const AssistantSelector(),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          alignment: WrapAlignment.spaceBetween,
+                          spacing: 4,
+                          runSpacing: 8,
+                          children: [
+                            _DrawerActionButton(
+                              key: const Key('drawer_assistants_action'),
+                              icon: Icons.smart_toy_outlined,
+                              tooltip: l10n.drawerAssistantSettings,
+                              onPressed: () =>
+                                  _pushFromSidebar(const AssistantsPage()),
+                            ),
+                            _DrawerActionButton(
+                              key: const Key('drawer_server_action'),
+                              icon: Icons.dns_outlined,
+                              tooltip: l10n.drawerServer,
+                              statusOnline: serverProvider?.isRunning == true,
+                              onPressed: () =>
+                                  _pushFromSidebar(const ServerPage()),
+                            ),
+                            _DrawerActionButton(
+                              key: const Key('drawer_models_action'),
+                              icon: Icons.inventory_2_outlined,
+                              tooltip: l10n.modelLibraryTitle,
+                              count: downloadProvider?.activeTaskCount ?? 0,
+                              onPressed: () =>
+                                  _pushFromSidebar(const ModelLibraryPage()),
+                            ),
+                            _DrawerActionButton(
+                              key: const Key('drawer_speech_action'),
+                              icon: Icons.graphic_eq_rounded,
+                              tooltip: l10n.v2Speech,
+                              onPressed: () =>
+                                  _pushFromSidebar(const SpeechPage()),
+                            ),
+                            _DrawerActionButton(
+                              key: const Key('drawer_settings_action'),
+                              icon: Icons.settings_outlined,
+                              tooltip: l10n.drawerSettings,
+                              onPressed: () =>
+                                  _pushFromSidebar(const SettingsPage()),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 8),
-                        _DrawerActionBlock(
-                          key: const Key('drawer_settings_action'),
-                          icon: Icons.settings_outlined,
-                          title: l10n.drawerSettings,
-                          onTap: () => _pushFromSidebar(const SettingsPage()),
-                        ),
-                        if (kDebugMode) ...[
-                          const SizedBox(height: 8),
-                          _DrawerActionBlock(
-                            key: const Key('drawer_mnn_test_action'),
-                            icon: Icons.memory_outlined,
-                            // Debug-only entry; intentionally not localized.
-                            title: 'MNN 测试',
-                            onTap: () => _pushFromSidebar(const MnnTestPage()),
-                          ),
-                          const SizedBox(height: 8),
-                          _DrawerActionBlock(
-                            key: const Key('drawer_debug_action'),
-                            icon: Icons.bug_report_outlined,
-                            // Debug-only entry; intentionally not localized.
-                            title: '调试',
-                            onTap: () => _pushFromSidebar(const DebugPage()),
-                          ),
-                        ],
                       ],
                     ),
                   ),
@@ -212,13 +253,10 @@ class _DownloadCompletedListenerState
     if (!mounted) {
       return;
     }
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    if (messenger == null) {
-      return;
-    }
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(
-      SnackBar(content: Text(context.l10n.downloadCompleted(fileName))),
+    AppMessage.show(
+      context,
+      context.l10n.downloadCompleted(fileName),
+      tone: AppMessageTone.success,
     );
   }
 
@@ -281,122 +319,53 @@ class _DrawerCircleButton extends StatelessWidget {
   }
 }
 
-class _DrawerActionBlock extends StatefulWidget {
-  const _DrawerActionBlock({
+class _DrawerActionButton extends StatelessWidget {
+  const _DrawerActionButton({
     super.key,
     required this.icon,
-    required this.title,
-    required this.onTap,
-    this.showStatusBadge = false,
-    this.isOnline = false,
-    this.badgeLabel,
+    required this.tooltip,
+    required this.onPressed,
+    this.statusOnline,
+    this.count = 0,
   });
 
   final IconData icon;
-  final String title;
-  final VoidCallback onTap;
-  final bool showStatusBadge;
-  final bool isOnline;
-  final String? badgeLabel;
-
-  @override
-  State<_DrawerActionBlock> createState() => _DrawerActionBlockState();
-}
-
-class _DrawerActionBlockState extends State<_DrawerActionBlock> {
-  bool _isPressed = false;
-
-  void _setPressed(bool value) {
-    if (_isPressed == value || !mounted) return;
-    setState(() => _isPressed = value);
-  }
+  final String tooltip;
+  final VoidCallback onPressed;
+  final bool? statusOnline;
+  final int count;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final borderColor = colorScheme.outlineVariant.withAlpha(120);
-    final iconColor = colorScheme.onSurfaceVariant;
-    final contentOpacity = _isPressed ? 0.58 : 1.0;
-
+    final colors = Theme.of(context).colorScheme;
+    Widget content = Icon(icon, size: 22);
+    if (statusOnline != null) {
+      content = Badge(
+        key: const Key('drawer_server_status_badge'),
+        smallSize: 8,
+        backgroundColor: statusOnline!
+            ? const Color(0xFF10B981)
+            : colors.outline,
+        child: content,
+      );
+    } else if (count > 0) {
+      content = Badge(label: Text('$count'), child: content);
+    }
     return Semantics(
-      button: true,
-      enabled: true,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTapDown: (_) => _setPressed(true),
-        onTapUp: (_) => _setPressed(false),
-        onTapCancel: () => _setPressed(false),
-        onTap: widget.onTap,
-        child: AnimatedOpacity(
-          opacity: contentOpacity,
-          duration: const Duration(milliseconds: 120),
-          curve: Curves.easeOut,
-          child: Container(
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerLowest,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: borderColor),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                children: [
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(right: 12),
-                        child: Icon(widget.icon, size: 22, color: iconColor),
-                      ),
-                      if (widget.showStatusBadge)
-                        Positioned(
-                          right: 8,
-                          bottom: -1,
-                          child: Container(
-                            key: const Key('drawer_server_status_badge'),
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: widget.isOnline
-                                  ? const Color(0xFF10B981)
-                                  : colorScheme.outlineVariant,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: colorScheme.surfaceContainerLowest,
-                                width: 2,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  Expanded(
-                    child: Text(
-                      widget.title,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: colorScheme.onSurface,
-                      ),
-                    ),
-                  ),
-                  if (widget.badgeLabel != null) ...[
-                    Badge(
-                      key: const Key('drawer_models_download_badge'),
-                      label: Text(widget.badgeLabel!),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    size: 20,
-                    color: colorScheme.onSurfaceVariant.withAlpha(180),
-                  ),
-                ],
-              ),
-            ),
-          ),
+      value: statusOnline == null
+          ? null
+          : statusOnline!
+          ? context.l10n.serverStatusRunning
+          : context.l10n.serverStatusStopped,
+      child: IconButton.filledTonal(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        style: IconButton.styleFrom(
+          minimumSize: const Size(48, 48),
+          backgroundColor: colors.surfaceContainerHigh,
+          foregroundColor: colors.onSurfaceVariant,
         ),
+        icon: content,
       ),
     );
   }

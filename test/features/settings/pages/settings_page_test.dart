@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:servllama/features/assistants/providers/assistant_provider.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:servllama/app/providers/chat_timeout_provider.dart';
@@ -43,11 +44,17 @@ void main() {
       expect(find.text('跟随系统'), findsNWidgets(2));
       expect(find.text('应用语言'), findsOneWidget);
       expect(find.text('聊天超时时间'), findsOneWidget);
+      expect(find.text('助手管理'), findsOneWidget);
+      expect(find.text('技能'), findsOneWidget);
+      expect(find.text('MCP'), findsOneWidget);
+      expect(find.text('技能与 MCP'), findsNothing);
       expect(find.text('180 秒'), findsOneWidget);
       expect(find.text('关于'), findsWidgets);
     });
 
-    testWidgets('updates MaterialApp themeMode from bottom sheet', (tester) async {
+    testWidgets('updates MaterialApp themeMode from bottom sheet', (
+      tester,
+    ) async {
       final themeProvider = AppThemeModeProvider(kvStorage: KvStorage());
       final localeProvider = AppLocaleProvider(kvStorage: KvStorage());
       final chatTimeoutProvider = ChatTimeoutProvider(kvStorage: KvStorage());
@@ -68,7 +75,9 @@ void main() {
 
       await tester.tap(find.byKey(const Key('settings_theme_mode_tile')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('settings_theme_mode_option_dark')));
+      await tester.tap(
+        find.byKey(const Key('settings_theme_mode_option_dark')),
+      );
       await tester.pumpAndSettle();
 
       expect(themeProvider.themeMode, ThemeMode.dark);
@@ -126,6 +135,12 @@ void main() {
       );
       await tester.pump();
 
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('settings_chat_timeout_tile')),
+        160,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('settings_chat_timeout_tile')));
       await tester.pumpAndSettle();
 
@@ -133,7 +148,9 @@ void main() {
         find.byKey(const Key('settings_chat_timeout_input')),
         '300',
       );
-      await tester.tap(find.byKey(const Key('settings_chat_timeout_save_button')));
+      await tester.tap(
+        find.byKey(const Key('settings_chat_timeout_save_button')),
+      );
       await tester.pumpAndSettle();
 
       expect(chatTimeoutProvider.timeoutSeconds, 300);
@@ -191,7 +208,10 @@ class _TestHost extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider<AppThemeModeProvider>.value(value: themeProvider),
+        ChangeNotifierProvider(create: (_) => AssistantProvider()),
+        ChangeNotifierProvider<AppThemeModeProvider>.value(
+          value: themeProvider,
+        ),
         ChangeNotifierProvider<AppLocaleProvider>.value(value: localeProvider),
         ChangeNotifierProvider<ChatTimeoutProvider>.value(
           value: chatTimeoutProvider,
@@ -201,28 +221,30 @@ class _TestHost extends StatelessWidget {
           create: (_) => DownloadProvider(),
         ),
       ],
-      child: Consumer3<
-        AppThemeModeProvider,
-        AppLocaleProvider,
-        ChatTimeoutProvider
-      >(
-        builder: (context, themeProvider, localeProvider, _, __) => MaterialApp(
-          localizationsDelegates: const [
-            AppLocalizations.delegate,
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
-          supportedLocales: AppLocalizations.supportedLocales,
-          // Pinned so the Chinese assertions below do not depend on the
-          // host OS locale; the language test still overrides it.
-          locale: localeProvider.locale ?? const Locale('zh'),
-          theme: ThemeData.light(useMaterial3: true),
-          darkTheme: ThemeData.dark(useMaterial3: true),
-          themeMode: themeProvider.themeMode,
-          home: const SettingsPage(),
-        ),
-      ),
+      child:
+          Consumer3<
+            AppThemeModeProvider,
+            AppLocaleProvider,
+            ChatTimeoutProvider
+          >(
+            builder: (context, themeProvider, localeProvider, _, __) =>
+                MaterialApp(
+                  localizationsDelegates: const [
+                    AppLocalizations.delegate,
+                    GlobalMaterialLocalizations.delegate,
+                    GlobalWidgetsLocalizations.delegate,
+                    GlobalCupertinoLocalizations.delegate,
+                  ],
+                  supportedLocales: AppLocalizations.supportedLocales,
+                  // Pinned so the Chinese assertions below do not depend on the
+                  // host OS locale; the language test still overrides it.
+                  locale: localeProvider.locale ?? const Locale('zh'),
+                  theme: ThemeData.light(useMaterial3: true),
+                  darkTheme: ThemeData.dark(useMaterial3: true),
+                  themeMode: themeProvider.themeMode,
+                  home: const SettingsPage(),
+                ),
+          ),
     );
   }
 }

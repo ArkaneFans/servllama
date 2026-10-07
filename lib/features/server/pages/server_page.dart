@@ -1,3 +1,5 @@
+import 'package:servllama/shared/widgets/app_message.dart';
+import 'package:servllama/shared/widgets/app_scaffold.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -10,9 +12,9 @@ import 'package:servllama/core/providers/engine_runtime_provider.dart';
 import 'package:servllama/core/providers/model_management_provider.dart';
 import 'package:servllama/core/utils/format_utils.dart';
 import 'package:servllama/features/downloads/pages/model_discovery_page.dart';
-import 'package:servllama/features/server/pages/model_management_page.dart';
+import 'package:servllama/app/model_library_page.dart';
 import 'package:servllama/features/server/pages/server_config_page.dart';
-import 'package:servllama/features/server/pages/server_logs_page.dart';
+import 'package:servllama/features/logs/pages/app_logs_page.dart';
 import 'package:servllama/features/server/widgets/engine_selector.dart';
 import 'package:servllama/features/server/widgets/runtime_hero_card.dart';
 import 'package:servllama/l10n/l10n.dart';
@@ -79,7 +81,7 @@ class _ServerPageState extends State<ServerPage> {
     final state = runtime.state;
     _syncUptimeTicker();
 
-    return Scaffold(
+    return AppScaffold(
       appBar: AppBar(title: Text(l10n.serverTitle)),
       body: SafeArea(
         top: false,
@@ -102,6 +104,7 @@ class _ServerPageState extends State<ServerPage> {
                 runtime.selectedModelId,
               ),
               canStart: runtime.canStart,
+              canStop: runtime.canStop,
               onSelectModel: () => _openModelPicker(context, runtime, library),
               onToggle: runtime.toggle,
               onCopyUrl: () => _copyBaseUrl(context, runtime.displayUrl),
@@ -138,13 +141,13 @@ class _ServerPageState extends State<ServerPage> {
                 _MenuItemData(
                   icon: Icons.receipt_long_rounded,
                   title: l10n.serverMenuLogs,
-                  onTap: () => _push(context, const ServerLogsPage()),
+                  onTap: () => _push(context, const AppLogsPage()),
                 ),
                 _MenuItemData(
                   icon: Icons.inventory_2_outlined,
                   title: l10n.serverMenuModels,
                   trailing: '${library.libraryModels.length}',
-                  onTap: () => _push(context, const ModelManagementPage()),
+                  onTap: () => _push(context, const ModelLibraryPage()),
                 ),
                 _MenuItemData(
                   icon: Icons.travel_explore_rounded,
@@ -207,9 +210,7 @@ class _ServerPageState extends State<ServerPage> {
     if (!context.mounted) {
       return;
     }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(context.l10n.serverBaseUrlCopied)));
+    AppMessage.show(context, context.l10n.serverBaseUrlCopied);
   }
 
   static Future<void> _push(BuildContext context, Widget page) async {
@@ -320,14 +321,12 @@ class _MenuGroupCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isLight = theme.brightness == Brightness.light;
 
     return DecoratedBox(
       key: const Key('server_page_menu_group'),
       decoration: BoxDecoration(
-        color: isLight ? Colors.white : colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: colorScheme.outlineVariant.withAlpha(110)),
+        color: colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
         children: [

@@ -1,4 +1,10 @@
 {
+  "v2McpEmpty": "还没有 MCP 服务，点击 + 添加",
+  "v2SkillsEmpty": "还没有技能，点击 + 导入",
+  "v2ManageMcp": "管理 MCP",
+  "v2ManageSkills": "管理技能",
+  "v2LocalTools": "本地工具",
+  "v2AssistantManagement": "助手管理",
   "@@locale": "zh",
   "appTitle": "ServLlama",
   "commonAuto": "自动",
@@ -409,29 +415,22 @@
   "modelErrorModelDirectoryExists": "模型目录已存在。",
   "modelErrorModelNotFoundOrDeleted": "模型不存在或已被删除。",
   "modelErrorSelectedFilePathUnavailable": "无法获取所选文件的路径。",
-  "serverLogsTitle": "日志",
-  "serverLogsCopyAll": "复制全部",
-  "serverLogsClear": "清空",
-  "serverLogsCopied": "日志已复制",
-  "serverLogsCount": "共 {count} 条日志",
-  "@serverLogsCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "serverLogsEmpty": "暂无日志输出",
-  "serverLogsExport": "导出日志",
-  "serverLogsExported": "日志已导出到 {path}",
-  "serverLogsExportFailed": "导出失败：{error}",
-  "serverLogsAutoScroll": "自动滚动",
-  "serverLogsFilterAll": "全部",
-  "serverLogsFilterEngine": "引擎",
-  "serverLogsFilterServer": "服务",
-  "serverLogsFilterModel": "模型",
-  "serverLogsFilterDownload": "下载",
-  "serverLogsFilterErrors": "仅错误",
+  "appLogsTitle": "应用日志",
+  "appLogsCopyAll": "复制筛选结果",
+  "appLogsClear": "清空全部日志",
+  "appLogsClearFailed": "已清空日志视图，但未能删除已保存的日志文件。",
+  "appLogsCopied": "日志已复制",
+  "appLogsEmpty": "暂无日志输出",
+  "appLogsExport": "导出日志",
+  "appLogsExported": "日志已导出到 {path}",
+  "appLogsExportFailed": "导出失败：{error}",
+  "appLogsAutoScroll": "自动滚动",
+  "appLogsFilterAll": "全部",
+  "appLogsFilterEngine": "引擎",
+  "appLogsFilterServer": "服务",
+  "appLogsFilterModel": "模型",
+  "appLogsFilterDownload": "下载",
+  "appLogsFilterErrors": "仅错误",
   "engineSectionTitle": "推理引擎",
   "serverStatusIdle": "未运行",
   "serverStatusPreparing": "准备中",
@@ -471,7 +470,7 @@
   "modelAddMnnDir": "导入 MNN 模型目录",
   "modelAddMnnDirDesc": "MNN 引擎使用的整个模型目录",
   "modelFormatExplainer": "GGUF 是单个文件，MNN 模型是整个目录。卡片上的引擎徽标用于区分两者。",
-  "modelLibraryEmptyTitle": "还没有模型，点击添加模型并下载或导入模型。",
+  "modelLibraryEmptyTitle": "还没有模型，请前往发现模型下载，或导入本地模型。",
   "modelLibraryEmptyDescription": "可以下载一个，或导入已有的模型文件。",
   "modelLibrarySearchHint": "搜索模型名称",
   "modelLibraryEmptySearchTitle": "没有匹配的模型",
@@ -529,13 +528,21 @@
   "modelSettingsProjectorSelected": "当前选用",
   "modelSettingsProjectorDeleteConfirm": "删除「{fileName}」？删除当前版本后会选用其他已下载版本；没有其他版本时将关闭视觉。",
   "@modelSettingsProjectorDeleteConfirm": {
-    "placeholders": { "fileName": { "type": "String" } }
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      }
+    }
   },
   "modelSettingsOpenRepository": "打开模型仓库",
   "modelSettingsRepositoryOpenFailed": "无法打开模型仓库，请稍后重试。",
   "modelSettingsVisionUpdateFailed": "更新视觉配置失败：{error}",
   "@modelSettingsVisionUpdateFailed": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "modelSettingsProjectorDownloadPending": "投影器下载完成或取消后，可重命名或删除模型。",
   "repoVisionNoMmproj": "该仓库没有 mmproj 文件。",
@@ -635,7 +642,13 @@
   "mnnBackendTitle": "MNN 推理后端",
   "mnnBackendNextStart": "下次加载模型时生效。",
   "mnnBackendActive": "已加载的后端：{backend}",
-  "@mnnBackendActive": {"placeholders": {"backend": {"type": "String"}}},
+  "@mnnBackendActive": {
+    "placeholders": {
+      "backend": {
+        "type": "String"
+      }
+    }
+  },
   "mnnBackendRefresh": "检测可用后端",
   "mnnBackendCpu": "CPU",
   "mnnBackendOpencl": "OpenCL GPU",
@@ -668,7 +681,9 @@
   "mnnMmapCacheSubtitle": "当前缓存：{size}",
   "@mnnMmapCacheSubtitle": {
     "placeholders": {
-      "size": { "type": "String" }
+      "size": {
+        "type": "String"
+      }
     }
   },
   "mnnMmapCacheEmpty": "暂无 mmap 缓存",
@@ -678,15 +693,571 @@
   "mnnMmapCacheDialogContent": "将删除已生成的 mmap 和 GPU 运行时缓存（{size}）。下次加载模型时会重新生成。",
   "@mnnMmapCacheDialogContent": {
     "placeholders": {
-      "size": { "type": "String" }
+      "size": {
+        "type": "String"
+      }
     }
   },
   "mnnMmapCacheCleared": "已清理 {size} mmap 缓存",
   "@mnnMmapCacheCleared": {
     "placeholders": {
-      "size": { "type": "String" }
+      "size": {
+        "type": "String"
+      }
     }
   },
-  "mnnMmapCacheClearFailed": "无法清理 mmap 缓存。"
-
+  "mnnMmapCacheClearFailed": "无法清理 mmap 缓存。",
+  "v2FirstAssistants": "助手",
+  "v2Chat": "聊天",
+  "v2Models": "模型",
+  "v2Add": "新增",
+  "v2OperationFailed": "操作未完成",
+  "v2NoInstructions": "使用默认对话行为",
+  "v2Duplicate": "复制",
+  "v2AssistantEditor": "助手设置",
+  "v2Name": "名称",
+  "v2Instructions": "系统指令",
+  "v2Connection": "供应商",
+  "v2LocalInference": "本地推理",
+  "v2MissingTarget": "目标不可用，请检查供应商是否启用、模型是否仍在列表中，或重新选择。",
+  "v2Model": "模型",
+  "v2CurrentLocal": "当前本地模型",
+  "v2ModelId": "模型 ID",
+  "v2Connections": "供应商",
+  "v2ConnectionsEmpty": "添加供应商并维护模型列表，即可在聊天中选择。",
+  "v2ConnectionEditor": "供应商设置",
+  "v2Protocol": "协议",
+  "v2BaseUrl": "API 基础地址",
+  "v2BaseUrlHelp": "包含版本路径，例如 /v1 或 /v1beta；仅可信局域网使用 HTTP。",
+  "v2ApiKey": "API Key",
+  "v2KeyHelp": "安全存储；编辑时留空保留已有密钥。",
+  "v2ClearKey": "清除已保存的密钥",
+  "v2ModelsHelp": "模型 ID，每行一个（可手工输入）",
+  "v2Images": "支持图片输入",
+  "v2Tools": "支持工具调用",
+  "v2FetchModels": "获取模型列表",
+  "v2TestConnection": "测试供应商",
+  "v2TestPassed": "测试成功，尚未保存。",
+  "v2DraftHelp": "保存后生效；返回放弃未保存的修改。测试和获取模型不会自动保存。",
+  "v2Profile": "用户档案",
+  "v2ProfileHelp": "本地用户信息仅保存在此设备，用于显示头像和名称，不会自动添加到模型请求。",
+  "v2KeepOneAssistant": "请先创建另一个助手，再删除最后一个助手。",
+  "v2DeleteConnectionHelp": "删除此供应商将清空相关助手的模型选择。历史会话与消息保留，发送消息前请重新选择模型。",
+  "v2Avatar": "头像",
+  "v2AvatarHelp": "选择本地图片或表情作为头像。仅用于显示。",
+  "v2AvatarImage": "选择图片",
+  "v2AvatarEmoji": "选择表情",
+  "v2AvatarReset": "恢复默认",
+  "v2AvatarImageTooLarge": "图片过大，请选择不超过 10 MB、边长不超过 8192 像素且总像素不超过 3200 万的图片。",
+  "v2AvatarInvalidImage": "无法读取这张图片，请选择其他图片。",
+  "v2AvatarEmojiTitle": "选择头像表情",
+  "v2AvatarEmojiHint": "输入一个表情或字符",
+  "v2ChatUserName": "用户",
+  "v2ChatAssistantName": "助手",
+  "v2UserName": "用户名称",
+  "v2ProfileDescription": "描述",
+  "v2ProfileDescriptionHint": "简单介绍一下自己…",
+  "v2StartLocal": "加载当前会话的本地模型",
+  "v2RemoteReady": "直接与所选供应商对话",
+  "v2Skills": "技能",
+  "v2SkillsHelp": "导入含 SKILL.md 的静态技能包，在助手权限中明确选择后使用。",
+  "v2ImportSkill": "导入技能（ZIP / Markdown）",
+  "v2ScriptsUnsupported": "含脚本参考；本应用只读取静态说明，不执行脚本。",
+  "v2Mcp": "MCP",
+  "v2McpHelp": "支持 Streamable HTTP 与旧版 SSE。每个助手单独选择工具，远端调用逐次审批。",
+  "v2McpToken": "静态 Bearer Token",
+  "v2McpHeaders": "自定义 HTTP 请求头（JSON）",
+  "v2McpHeadersHelp": "值为字符串的 JSON 对象，例如 X-API-Key 请求头。安全保存；留空保留原值。协议请求头由应用管理。",
+  "v2ClearMcpToken": "清除已保存的 Bearer Token",
+  "v2ClearMcpHeaders": "清除已保存的自定义请求头",
+  "v2ShowHideCredential": "显示 / 隐藏凭据",
+  "v2DiscoverTools": "连接并发现工具",
+  "v2PermissionsHelp": "权限在每次运行开始时确定。撤销权限会停止受影响的运行；新增权限在下次生效。",
+  "v2ToolClock": "当前时间",
+  "v2ToolRead": "读取会话文件",
+  "v2ToolAsk": "向用户提问",
+  "v2ToolSkill": "读取选定技能的参考文件",
+  "v2ToolActivity": "工具调用记录",
+  "v2ToolHistoryEmpty": "当前会话没有工具调用记录。",
+  "v2AwaitingApproval": "等待审批",
+  "v2Succeeded": "已完成",
+  "v2UnknownOutcome": "结果未知",
+  "v2Rejected": "已拒绝",
+  "v2Cancelled": "已取消",
+  "v2Executing": "执行中",
+  "v2Failed": "失败",
+  "v2UnknownOutcomeHelp": "操作可能已经生效，不会自动重试。核查结果后再明确发起新的运行。",
+  "v2Details": "参数、目标与回执",
+  "v2YourAnswer": "你的回答",
+  "v2Reject": "拒绝",
+  "v2ApproveOnce": "允许本次",
+  "v2Review": "审阅",
+  "v2Rerun": "重新执行为新一轮",
+  "v2RerunHelp": "工具将按当前权限重新运行，需要审批的操作会再次请求确认。",
+  "v2BudgetReached": "已达到本轮预算，保留已完成的结果。",
+  "v2Interrupted": "执行已中断，请明确创建新任务重试。",
+  "v2Speech": "语音",
+  "v2Asr": "转录",
+  "v2Tts": "合成",
+  "v2Tasks": "任务",
+  "v2SpeechModels": "语音模型",
+  "v2LlmModels": "语言模型",
+  "v2Voices": "参考音色",
+  "v2SpeechLocalHelp": "音频在本机处理。录音或导入文件，转录完成后在下方查看文本。",
+  "v2SpeechAudioInput": "录音与音频",
+  "v2RecordingReady": "点击麦克风开始录音",
+  "v2RecordingNow": "正在录音 · 点击停止",
+  "v2SpeechCreatedAt": "创建时间",
+  "v2SynthesisContent": "合成文本",
+  "v2SpeechAudioResult": "合成音频",
+  "v2TranscriptPending": "暂无转录文本",
+  "v2SpeechTextCopied": "文本已复制",
+  "v2LanguageHint": "语言代码（zh / en；留空自动识别）",
+  "v2StartAsr": "开始转录",
+  "v2StartTts": "开始合成",
+  "v2InstallSpeechFirst": "请先在模型页下载或导入相应语音模型。",
+  "v2SynthesisText": "要合成的文本",
+  "v2SpeakerId": "预置说话人 ID（0–217）",
+  "v2Voice": "音色",
+  "v2PresetVoice": "模型默认音色",
+  "v2SynthesisSpeed": "合成语速",
+  "v2CrispMarking": "CrispASR 导出音频保留 AI 生成来源标记。",
+  "v2NoSpeechJobs": "尚无语音任务。完成、取消和中断的结果都会保留在这里。",
+  "v2CancelTask": "取消任务",
+  "v2NoAudioSelected": "尚未选择音频",
+  "v2ImportAudio": "导入音频",
+  "v2Record": "录音",
+  "v2StopRecording": "停止录音",
+  "v2UseRecording": "使用最近录音",
+  "v2RecordingHelp": "录音最长 10 分钟；离开应用或音频被中断时自动停止。",
+  "v2SpeechWaitingHelp": "等待上一项语音任务释放资源后自动继续。LLM 服务和聊天可与语音同时运行。",
+  "v2Queued": "已排队",
+  "v2WaitingLocal": "等待语音资源",
+  "v2Cancelling": "取消中，等待原生执行结束",
+  "v2TaskResult": "任务结果",
+  "v2CancellationHelp": "当前原生分段结束后释放语音资源，再开始下一项语音任务。LLM 服务和聊天可继续运行。",
+  "v2NoSpeechDetected": "没有识别到文本。可更换语言或模型后创建新任务。",
+  "v2ChunkTimingHelp": "此模型仅提供分段时间范围，未提供可靠字幕时间戳，因此只支持 TXT 导出。",
+  "v2Transcript": "转录文本",
+  "v2EditTranscript": "修订文本",
+  "v2ExportTxt": "导出 TXT",
+  "v2ExportSrt": "导出 SRT",
+  "v2ExportWav": "导出 WAV",
+  "v2InsertTranscript": "插入聊天草稿",
+  "v2PlayPause": "播放 / 暂停",
+  "v2PreviewAudio": "试听参考音频",
+  "v2VoiceModelMissing": "原模型已不可用。可导出参考音频，安装兼容模型后重新创建音色。",
+  "v2PlaybackSpeed": "播放倍速（不改变已合成音频）",
+  "v2InputSnapshot": "任务输入快照",
+  "v2SpeechPackageHelp": "语音模型按固定配方安装，每个包独立保存模型、词表、codec 和音色依赖。导入 ZIP 根目录须包含 speech-package.json。",
+  "v2ImportSpeechPackage": "导入模型 ZIP",
+  "v2Ready": "可用",
+  "v2ModelIncomplete": "文件不完整或下载已暂停",
+  "v2ResumeDownload": "继续下载",
+  "v2PauseDownload": "暂停下载",
+  "v2DeleteSpeechModelHelp": "删除本机模型文件。已完成的结果会保留；队列中的任务须先取消，参考音色将需要重新选择模型。",
+  "v2AvailableModels": "可下载配方",
+  "v2ModelLicenseHelp": "下载前请查看上游模型说明、支持语言和使用许可。",
+  "v2ModelCard": "模型说明",
+  "v2DownloadModel": "下载",
+  "v2CreateVoice": "创建参考音色",
+  "v2VoiceHelp": "Qwen3-TTS Base 支持参考音频克隆。使用 3–30 秒清晰单人录音，并填写准确参考文本；音色绑定当前模型版本。",
+  "v2InstallCloningFirst": "请先安装支持克隆的模型配方。",
+  "v2VoiceName": "音色名称",
+  "v2ReferenceText": "参考音频的准确文本",
+  "v2VoiceRights": "我有权使用这段声音作为参考音色",
+  "v2VoiceTestText": "试听文本（必填）",
+  "v2SaveAndPreview": "保存并创建试听任务",
+  "v2TranscribeToChat": "语音转文字",
+  "v2NoAutomaticAudioUpload": "只插入文本，不自动发送消息或上传原始音频。",
+  "v2ReplaceDraft": "替换草稿",
+  "v2AppendDraft": "追加到草稿",
+  "v2TranscriptInserted": "转录文本已写入指定聊天草稿。",
+  "v2ReadAloud": "朗读回答",
+  "v2SynthesisParameters": "说话人：{speaker} · 合成语速：{speed}",
+  "v2SampleRate": "输出采样率：{rate} Hz",
+  "v2DownloadSize": "下载大小约 {size} MiB",
+  "v2TranscriptDestination": "投递到：{name}",
+  "@v2SynthesisParameters": {
+    "placeholders": {
+      "speaker": {
+        "type": "String"
+      },
+      "speed": {
+        "type": "String"
+      }
+    }
+  },
+  "@v2SampleRate": {
+    "placeholders": {
+      "rate": {
+        "type": "int"
+      }
+    }
+  },
+  "@v2DownloadSize": {
+    "placeholders": {
+      "size": {
+        "type": "int"
+      }
+    }
+  },
+  "@v2TranscriptDestination": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "v2RetrySpeech": "重新创建任务",
+  "v2TranscriptSegment": "第 {index} 段",
+  "v2ReadAloudHelp": "已填入最终回答正文，可编辑后合成。单次最多 4000 字；长回答请分段处理。",
+  "v2NativeRestart": "语音资源释放尚未确认。请重启应用后再运行语音任务；当前记录会保留。",
+  "v2CancelImport": "取消导入",
+  "v2OriginalChatMissing": "原目标已失效或无法确认，请选择其他会话或助手草稿。转录结果仍会保留。",
+  "v2AssistantDraft": "新对话 · {name}",
+  "@v2AssistantDraft": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "v2TranscriptTarget": "投递到草稿",
+  "v2DraftChanged": "目标草稿已变化，请重新打开并确认后再替换。",
+  "v2IncompleteAnswer": "这条回答尚未完整生成，请完成回答后再朗读。",
+  "@v2TranscriptSegment": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "v2SkillsGrantHelp": "所选技能可以读取自身的说明和资源。其他工具仍需单独授权。",
+  "v2DiscardRecording": "删除最近录音",
+  "v2StartupFailed": "暂时无法打开本地数据。已有数据会保留，请处理存储错误后重试。",
+  "v2RetryStartup": "重新启动",
+  "appLogsFilterApp": "应用",
+  "appLogsFilterClient": "客户端",
+  "appLogsFilterAgent": "Agent",
+  "appLogsFilterSpeech": "语音",
+  "appLogsSearch": "搜索日志或任务 ID",
+  "appLogsClearSearch": "清除搜索",
+  "appLogsAllLevels": "全部级别",
+  "appLogsLevelDebug": "调试及以上",
+  "appLogsLevelInfo": "信息及以上",
+  "appLogsLevelWarning": "警告及错误",
+  "appLogsVisibleCount": "{visible} / {total} 条日志",
+  "appLogsRetention": "显示最近 {limit} 条记录，复制与导出使用当前筛选结果。",
+  "appLogsNoMatches": "没有匹配的日志",
+  "v2ToolSearch": "网络搜索",
+  "v2SearchGrantHelp": "允许此助手向所选供应商发送搜索词，无需逐次审批。Bing 和 DuckDuckGo 均无需 API 密钥。切换供应商会停止正在使用此权限的运行。",
+  "v2SearchProvider": "搜索供应商",
+  "v2SearchBing": "Bing",
+  "v2SearchDuckDuckGo": "DuckDuckGo",
+  "v2SearchMaxResults": "每次搜索最多返回结果数",
+  "v2SearchSources": "搜索来源",
+  "v2SearchNoResults": "没有匹配的网页结果，可以换一个搜索词重试。",
+  "v2SearchUnavailable": "暂时无法搜索，请检查网络或切换供应商。",
+  "v2SearchRateLimited": "搜索服务限制了请求频率，请稍后重试或切换供应商。",
+  "v2SearchChallenge": "搜索服务要求验证或限制了本次访问，请稍后重试或切换供应商。",
+  "v2SearchInvalidResponse": "搜索服务返回了无法识别的页面，请稍后重试或切换供应商。",
+  "v2SearchTooLarge": "搜索响应超过大小限制，请使用更具体的搜索词重试。",
+  "v2SearchTimeout": "搜索超时，请稍后重试或切换供应商。",
+  "v2SearchOpenFailed": "无法打开此来源链接。",
+  "v2ConversationModel": "选择模型",
+  "v2ConversationModelHelp": "按供应商选择模型。点击本地模型后加载并启动服务。",
+  "v2NoLocalChatModels": "暂无可用的本地 LLM，请先在模型页下载或导入。",
+  "v2AssistantDefaultModel": "聊天模型",
+  "v2NoDefaultModel": "未选择模型",
+  "v2ClearDefaultModel": "清除模型选择",
+  "v2AssistantDefaultModelHelp": "此助手的所有会话共用此模型。在聊天中切换模型也会更新此设置，历史消息保持不变。",
+  "v2UnassignedAssistant": "助手未指定或已删除",
+  "v2ChangeConversationAssistant": "更换此会话的助手",
+  "v2ChangeConversationAssistantHelp": "保留本会话的模型、消息、版本和草稿。之后的生成使用新助手的提示词与权限，历史消息署名保持不变。",
+  "v2ChooseConversationModel": "请选择模型",
+  "v2AllAssistantHistory": "全部助手的会话",
+  "v2ConnectionConversationCount": "{count} 个会话使用此供应商，删除后需重新选择模型。",
+  "v2DeleteAssistantHelp": "删除助手会同时删除关联的所有会话、消息和草稿。此操作不可撤销。",
+  "@v2ConnectionConversationCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "v2SwitchAssistantNewChat": "切换助手并新建会话",
+  "v2ToolCallCount": "工具调用 · {count} 次",
+  "v2ToolRetryLoad": "重新加载",
+  "v2ToolHistoryFailed": "工具记录加载失败。",
+  "v2ToolPrepared": "等待执行",
+  "v2ToolApproved": "已批准，等待执行",
+  "v2ToolAwaitingAnswer": "等待你的回答",
+  "v2ToolList": "列出会话文件",
+  "v2ToolWriteAction": "写入会话文件",
+  "v2ToolQuestion": "问题",
+  "v2ToolArguments": "调用参数",
+  "v2ToolResult": "结果",
+  "v2ToolSendAnswer": "提交回答",
+  "@v2ToolCallCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatDeleteMessageTitle": "删除消息",
+  "chatDeleteCurrentVersion": "删除本版本",
+  "chatDeleteAllVersions": "删除全部版本",
+  "chatDeleteAllVersionsConfirm": "确定删除此消息及其全部版本吗？关联的工具调用记录和生成数据也会一并清理，后续消息保留。此操作无法撤销。",
+  "chatDeleteVersionConfirm": "确定删除第 {version}/{count} 个版本吗？关联的工具调用记录和生成数据也会一并清理，其他版本和后续消息保留。此操作无法撤销。",
+  "v2ToolResultTruncated": "此结果已截断，仅可查看或导出已保存的片段。",
+  "@chatDeleteVersionConfirm": {
+    "placeholders": {
+      "version": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "v2ProviderPreset": "预设",
+  "v2ProviderCustom": "自定义",
+  "v2ProviderPresetHelp": "预设供应商不可删除，可以修改配置或禁用。",
+  "v2ProviderEnabled": "启用供应商",
+  "v2ProviderEnabledHelp": "禁用后保留配置和历史，停止使用此供应商的运行。",
+  "v2ProviderOn": "已启用",
+  "v2ProviderOff": "已禁用",
+  "v2ProviderModelCount": "{count} 个模型",
+  "v2ProviderModelsEmpty": "尚未添加模型，请在供应商设置中手动添加或获取模型。",
+  "v2AddModel": "手动添加模型",
+  "v2RemoveModel": "移除模型",
+  "v2RemoveModelHelp": "保存后将从供应商列表移除 {model}。使用它的会话和助手默认目标将不可用，历史消息保留。",
+  "v2ModelIdRequired": "请输入模型 ID",
+  "v2DiscoveredModels": "选择要添加的模型",
+  "v2ModelAlreadyAdded": "已添加",
+  "v2ModelSearch": "搜索模型 ID",
+  "v2ProviderNoResults": "没有匹配的供应商或模型",
+  "v2ProviderModelSearch": "搜索供应商或模型",
+  "v2AddSelectedModels": "添加所选（{count}）",
+  "v2SelectVisible": "选择搜索结果",
+  "v2DeselectVisible": "取消选择搜索结果",
+  "v2LocalProvider": "本地 · {engine}",
+  "v2LocalProviderHelp": "从本地模型库管理，通过加载和停止控制运行。",
+  "v2ServicePublished": "正在对外提供服务",
+  "v2PublishedModelLocked": "请先在服务中心停止已发布的模型，再切换本地模型。",
+  "v2LocalModelLoaded": "已加载",
+  "v2LocalModelUnloaded": "未加载",
+  "@v2ProviderModelCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@v2RemoveModelHelp": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
+  },
+  "@v2AddSelectedModels": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@v2LocalProvider": {
+    "placeholders": {
+      "engine": {
+        "type": "String"
+      }
+    }
+  },
+  "drawerAssistantSettings": "助手设置",
+  "settingsUser": "用户设置",
+  "settingsSectionServices": "服务与诊断",
+  "settingsSectionDeveloper": "开发工具",
+  "settingsMnnTest": "MNN 测试",
+  "settingsDebug": "调试",
+  "localModelImport": "导入本地模型",
+  "localModelChooseImport": "选择并导入",
+  "localModelImportHelp": "选择文件或目录后即开始导入，文件将复制到应用存储中。",
+  "discoveryQuery": "搜索预设名称或引擎",
+  "discoveryReset": "重置筛选",
+  "discoveryPurpose": "用途",
+  "discoveryEngine": "引擎",
+  "discoveryState": "安装状态",
+  "discoveryNotInstalled": "未安装",
+  "discoveryDownloading": "下载中",
+  "discoveryIncomplete": "已暂停 / 未完成",
+  "discoveryCloneOnly": "声音克隆",
+  "discoverySmallOnly": "不超过 200 MiB",
+  "discoverySpeechHelp": "下载包含全部依赖的预设模型包。运行兼容性和效果仍需在你的设备上验证。",
+  "discoverySpeechLibraryHelp": "请前往发现模型下载语音模型。已安装和未完成的模型包将在这里显示。",
+  "discoveryOnlineLanguage": "在线搜索语言模型",
+  "v2StartupPreparing": "正在启动 ServLlama",
+  "v2MigrationTitle": "正在升级应用数据",
+  "v2MigrationHelp": "正在升级聊天、模型记录和下载进度。模型文件保持原位，升级成功前保留原始数据。",
+  "v2MigrationFailed": "数据升级未完成。请排除存储问题后重试，原始数据仍保留。",
+  "v2MigrationChats": "读取聊天记录",
+  "v2MigrationModels": "读取本地模型记录",
+  "v2MigrationDownloads": "读取下载任务",
+  "v2MigrationWriting": "保存升级后的记录",
+  "v2MigrationVerifying": "校验模型和下载记录",
+  "v2MigrationComplete": "数据升级完成，正在完成启动…",
+  "v2MigrationRecords": "当前步骤：{completed} / {total} 条记录",
+  "@v2MigrationRecords": {"placeholders": {"completed": {"type": "int"}, "total": {"type": "int"}}},
+  "migrationPreviewTitle": "迁移演示",
+  "migrationPreviewHelp": "仅模拟界面与交互，不读取或修改真实数据。可随时返回退出。",
+  "migrationPreviewRestart": "重新演示",
+  "migrationPreviewFailure": "模拟失败",
+  "migrationPreviewError": "模拟错误：存储空间不足。点击重试可演示恢复流程。",
+  "migrationPreviewComplete": "迁移演示已完成，真实数据未改变。",
+  "migrationPreviewReturn": "返回侧边栏",
+  "uiLabTitle": "UI 原语",
+  "uiLabDark": "预览深色",
+  "uiLabLight": "预览浅色",
+  "uiLabVisuals": "视觉基础",
+  "uiLabControls": "交互组件",
+  "uiLabScenes": "场景示例",
+  "uiLabPreview": "设计预览",
+  "uiLabHeadline": "让内容成为主角",
+  "uiLabIntro": "以灰白承托内容，用柔和蓝紫标记重点。紧凑有序，也留出恰当的呼吸空间。",
+  "uiLabQuiet": "简洁克制",
+  "uiLabSoft": "柔和清爽",
+  "uiLabPalette": "色彩与表面",
+  "uiLabPaletteHint": "大面积保持中性，强调色只出现在需要注意的位置。",
+  "uiLabCanvas": "页面底色",
+  "uiLabSurface": "内容表面",
+  "uiLabPrimary": "主色",
+  "uiLabSelected": "选中底色",
+  "uiLabTypography": "文字层级",
+  "uiLabTypographyHint": "通过字号、字重与间距建立层级，减少装饰。",
+  "uiLabTypeTitle": "清晰，从阅读开始",
+  "uiLabTypeSection": "一个恰当的分组标题",
+  "uiLabTypeBody": "正文保持舒适的行高，让长回答也容易阅读。信息自然流动，操作安静地留在需要的位置。",
+  "uiLabTypeCaption": "辅助信息 · 12 sp · 用于时间、状态与说明",
+  "uiLabRhythm": "间距、圆角与图标",
+  "uiLabRhythmHint": "组内紧凑，组间舒展；小图标也拥有充足触控空间。",
+  "uiLabRadii": "卡片圆角 18 dp · 输入框 14 dp\n操作区域至少 48 dp",
+  "uiLabLocalOnly": "以下操作仅用于体验样式，不连接模型或保存业务数据。",
+  "uiLabActions": "按钮与浮层",
+  "uiLabActionsHint": "主要操作突出，次要操作柔和，低频操作保持轻量。",
+  "uiLabPrimaryAction": "主要操作",
+  "uiLabSecondaryAction": "次要操作",
+  "uiLabSheet": "底部弹窗",
+  "uiLabDialog": "确认对话框",
+  "uiLabDisabled": "不可用",
+  "uiLabDialogTitle": "确认本次选择？",
+  "uiLabDialogBody": "这是一个对话框样式示例。确认后将展示轻量提示，不会修改真实配置。",
+  "uiLabConfirm": "确认",
+  "uiLabFeedback": "交互已完成，仅在当前预览中生效。",
+  "uiLabChooseModel": "选择模型",
+  "uiLabOnDevice": "本地模型 · 示例",
+  "uiLabCloud": "云端模型 · 示例",
+  "uiLabForms": "输入与选择",
+  "uiLabFormsHint": "点按输入框、开关、滑块和标签，感受状态变化。",
+  "uiLabName": "助手名称",
+  "uiLabNameHint": "为助手取个名字",
+  "uiLabNameError": "请填写助手名称",
+  "uiLabStreaming": "流式输出",
+  "uiLabStreamingHint": "逐步呈现回答内容",
+  "uiLabTemperature": "温度",
+  "uiLabVision": "视觉能力",
+  "uiLabValidate": "校验输入",
+  "uiLabStates": "状态与进度",
+  "uiLabStatesHint": "颜色辅助识别，文字始终说明当前状态。",
+  "uiLabReady": "已就绪",
+  "uiLabWaiting": "等待中",
+  "uiLabFailed": "失败",
+  "uiLabDownload": "模型下载 · 演示",
+  "uiLabSimulate": "模拟进度",
+  "uiLabAgain": "重新体验",
+  "uiLabChat": "聊天",
+  "uiLabChatHint": "用户气泡、助手正文、工具过程与消息末尾信息。",
+  "uiLabYou": "用户",
+  "uiLabQuestion": "帮我整理一下今天的阅读计划。",
+  "uiLabAssistant": "阅读助手",
+  "uiLabTool": "已完成 · 检索阅读资料",
+  "uiLabToolDetail": "搜索 → 整理 → 返回结果\n这是可展开的工具过程示例，没有发送网络请求。",
+  "uiLabAnswer": "可以先留出 25 分钟，专注读完一个章节。\n\n然后用 5 分钟写下三个要点，以及一个想继续探索的问题。让阅读有节奏，也给思考留一点空间。",
+  "uiLabReply": "已收到这条预览消息。这里展示正文排版与发送反馈，不会调用真实模型。",
+  "uiLabCopy": "复制反馈示例",
+  "uiLabMore": "更多选项",
+  "uiLabManagement": "分组列表与模型卡片",
+  "uiLabManagementHint": "统一对齐、轻量分隔，详细信息按需展开。",
+  "uiLabAssistantHint": "整理知识，陪伴阅读",
+  "uiLabProviderHint": "已配置 2 个模型 · 示例",
+  "uiLabVoice": "语音",
+  "uiLabVoiceHint": "转录与合成 · 示例",
+  "uiLabComposer": "输入一条消息，体验交互",
+  "uiLabSend": "发送预览消息",
+  "uiLabExactValue": "精确值",
+  "uiLabNumericHint": "滑动粗调，右侧输入精确值，最多两位小数。",
+  "uiLabNumericError": "请输入 {min}–{max} 范围内的数值，最多两位小数。",
+  "uiLabMessages": "消息提示",
+  "uiLabMessagesHint": "顶部居中悬浮，3 秒后消失。新消息替换旧消息，也可手动关闭。",
+  "uiLabDismissMessage": "关闭提示",
+  "uiLabMessageSuccess": "成功",
+  "uiLabMessageInfo": "信息",
+  "uiLabMessageWarning": "警告",
+  "uiLabMessageError": "错误",
+  "uiLabMessageInfoText": "当前为样式预览，操作不会影响真实数据。",
+  "uiLabMessageWarningText": "尚未选择模型，请先完成选择。（示例）",
+  "uiLabMessageErrorText": "连接失败，请检查设置后重试。（示例）",
+  "@uiLabNumericError": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "uiLabThemeColor": "切换主题色",
+  "uiLabViolet": "雾紫",
+  "uiLabTea": "茶紫",
+  "uiLabTeaIntro": "紫调融入淡茶色，搭配温润的中性表面。柔和克制，层次清晰。",
+  "numericExactValue": "精确值",
+  "numericHint": "滑动粗调，右侧输入精确值，最多两位小数。",
+  "numericError": "请输入 {min}–{max} 范围内的数值，最多两位小数。",
+  "@numericError": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "commonDismissMessage": "关闭提示",
+  "v2ProviderConfiguration": "配置",
+  "v2ProviderIdentity": "供应商信息",
+  "v2ProviderConnection": "连接配置",
+  "v2ProtocolOpenai": "OpenAI 兼容",
+  "v2ModelCapabilities": "模型能力",
+  "v2ModelCapabilitiesHelp": "请按模型说明设置能力。获取模型仅返回模型 ID，不检测图片或工具支持情况。修改后保存供应商生效。",
+  "v2ModelText": "文本",
+  "v2ModelImages": "图片",
+  "v2ModelTools": "工具",
+  "v2IdentitySettings": "头像与名称",
+  "v2InstructionsHint": "描述助手的角色、回复风格和要求…",
+  "v2Credentials": "访问凭据",
+  "v2ModelImagesUnavailable": "当前模型未启用图片输入，可在供应商的模型设置中调整。",
+  "v2AssistantModelChanged": "此助手的模型选择已变更，请重新打开设置后再修改。",
+  "chatGreetingMorning": "早上好",
+  "chatGreetingNoon": "中午好",
+  "chatGreetingAfternoon": "下午好",
+  "chatGreetingEvening": "晚上好",
+  "chatWelcomeDescription": "今天想聊些什么？",
+  "chatWelcomeTranscribe": "语音转录",
+  "chatWelcomeSynthesize": "语音合成",
+  "chatWelcomeTranscribeHint": "声音转文字",
+  "chatWelcomeSynthesizeHint": "让文字发声"
 }

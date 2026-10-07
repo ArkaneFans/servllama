@@ -1,3 +1,4 @@
+import 'package:servllama/shared/widgets/app_message.dart';
 import 'package:flutter/material.dart';
 import 'package:servllama/features/downloads/models/model_hub.dart';
 import 'package:servllama/l10n/l10n.dart';
@@ -18,8 +19,10 @@ Future<void> openModelRepository(
     // The platform may have no application registered for web links.
   }
   if (!opened && context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.l10n.modelSettingsRepositoryOpenFailed)),
+    AppMessage.show(
+      context,
+      context.l10n.modelSettingsRepositoryOpenFailed,
+      tone: AppMessageTone.error,
     );
   }
 }

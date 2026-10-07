@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mnn_engine/mnn_engine.dart';
 import 'package:mnn_engine/mnn_engine_platform_interface.dart';
@@ -50,6 +52,118 @@ void main() {
     ]);
     expect(result.port, 8083);
   });
+
+  test(
+    'stopping HTTP keeps residency until native unloading is acknowledged',
+    () async {
+      final adapter = MnnEngineAdapter(
+        settingsLoader: _FixedSettingsLoader(const ServerLaunchSettings()),
+      );
+      addTearDown(adapter.dispose);
+      await adapter.start(modelId: 'local/qwen', onPhase: (_) {});
+      platform.unloadBlocker = Completer<void>();
+      final stopping = adapter.stop(onPhase: (_) {});
+      await Future<void>.delayed(Duration.zero);
+      expect(adapter.isRunning, isFalse);
+      expect(adapter.hasResources, isTrue);
+      platform.unloadBlocker!.complete();
+      await stopping;
+      expect(adapter.hasResources, isFalse);
+    },
+  );
+
+  test(
+    'failed unloading retains residency until an explicit retry succeeds',
+    () async {
+      final adapter = MnnEngineAdapter(
+        settingsLoader: _FixedSettingsLoader(const ServerLaunchSettings()),
+      );
+      addTearDown(adapter.dispose);
+      await adapter.start(modelId: 'local/qwen', onPhase: (_) {});
+      platform.unloadError = const MnnEngineException(
+        'model_busy',
+        'Native generation is still stopping',
+      );
+      await expectLater(
+        adapter.stop(onPhase: (_) {}),
+        throwsA(isA<EngineAdapterException>()),
+      );
+      expect(adapter.isRunning, isFalse);
+      expect(adapter.hasResources, isTrue);
+      platform.unloadError = null;
+      await adapter.stop(onPhase: (_) {});
+      expect(adapter.hasResources, isFalse);
+    },
+  );
+
+  test('a server stop timeout prevents model unloading', () async {
+    final adapter = MnnEngineAdapter(
+      settingsLoader: _FixedSettingsLoader(const ServerLaunchSettings()),
+    );
+    addTearDown(adapter.dispose);
+    await adapter.start(modelId: 'local/qwen', onPhase: (_) {});
+    platform.stopError = const MnnEngineException(
+      'server_stop_timeout',
+      'Native generation is still stopping',
+    );
+    await expectLater(
+      adapter.stop(onPhase: (_) {}),
+      throwsA(isA<EngineAdapterException>()),
+    );
+    expect(platform.unloadModelCalls, 0);
+    expect(adapter.hasResources, isTrue);
+  });
+
+  test('startup failure cannot hide a failed cleanup', () async {
+    platform.startError = const MnnEngineException(
+      'port_in_use',
+      'Port unavailable',
+    );
+    platform.unloadError = const MnnEngineException(
+      'runtime_release_failed',
+      'Unloading failed',
+    );
+    final adapter = MnnEngineAdapter(
+      settingsLoader: _FixedSettingsLoader(const ServerLaunchSettings()),
+    );
+    addTearDown(adapter.dispose);
+    await expectLater(
+      adapter.start(modelId: 'local/qwen', onPhase: (_) {}),
+      throwsA(
+        isA<EngineAdapterException>().having(
+          (e) => e.kind,
+          'kind',
+          EngineRuntimeErrorKind.serverStopFailed,
+        ),
+      ),
+    );
+    expect(adapter.hasResources, isTrue);
+    platform.unloadError = null;
+    await adapter.stop(onPhase: (_) {});
+    expect(adapter.hasResources, isFalse);
+  });
+
+  test(
+    'cancelling preparation cannot load a model after cleanup has finished',
+    () async {
+      platform.initializeBlocker = Completer<void>();
+      final adapter = MnnEngineAdapter(
+        settingsLoader: _FixedSettingsLoader(const ServerLaunchSettings()),
+      );
+      addTearDown(adapter.dispose);
+      final starting = expectLater(
+        adapter.start(modelId: 'local/qwen', onPhase: (_) {}),
+        throwsA(isA<EngineOperationCancelledException>()),
+      );
+      await Future<void>.delayed(Duration.zero);
+      await adapter.cancel(onPhase: (_) {});
+      platform.initializeBlocker!.complete();
+      await starting;
+      expect(platform.requestedBackends, isEmpty);
+      expect(platform.startServerCalls, 0);
+      expect(adapter.hasResources, isFalse);
+    },
+  );
 
   test('maps a real bind conflict to the typed port error', () async {
     platform.startError = const MnnEngineException(
@@ -240,6 +354,10 @@ class _FakeMnnPlatform extends MnnEnginePlatform {
   int unloadModelCalls = 0;
   MnnEngineException? startError;
   MnnEngineException? loadError;
+  MnnEngineException? stopError;
+  MnnEngineException? unloadError;
+  Completer<void>? initializeBlocker;
+  Completer<void>? unloadBlocker;
   MnnModelInfo? initialModel;
   final requestedBackends = <MnnBackend>[];
   final requestedOptions = <MnnLoadOptions>[];
@@ -251,16 +369,19 @@ class _FakeMnnPlatform extends MnnEnginePlatform {
   Stream<MnnLogEntry> get logs => const Stream<MnnLogEntry>.empty();
 
   @override
-  Future<MnnEngineInfo> initialize() async => const MnnEngineInfo(
-    pluginVersion: '0.1.0',
-    mnnVersion: '3.6.0',
-    mnnCommit: 'test',
-    abi: 'arm64-v8a',
-    androidApiLevel: 35,
-    ndkVersion: '27',
-    nativeLibraryLoaded: true,
-    testRootPath: '/tmp/mnn',
-  );
+  Future<MnnEngineInfo> initialize() async {
+    await initializeBlocker?.future;
+    return const MnnEngineInfo(
+      pluginVersion: '0.1.0',
+      mnnVersion: '3.6.0',
+      mnnCommit: 'test',
+      abi: 'arm64-v8a',
+      androidApiLevel: 35,
+      ndkVersion: '27',
+      nativeLibraryLoaded: true,
+      testRootPath: '/tmp/mnn',
+    );
+  }
 
   @override
   Future<MnnRuntimeSnapshot> getSnapshot() async {
@@ -332,11 +453,15 @@ class _FakeMnnPlatform extends MnnEnginePlatform {
   }
 
   @override
-  Future<void> stopServer() async {}
+  Future<void> stopServer() async {
+    if (stopError != null) throw stopError!;
+  }
 
   @override
   Future<void> unloadModel() async {
     unloadModelCalls++;
+    await unloadBlocker?.future;
+    if (unloadError != null) throw unloadError!;
   }
 
   @override

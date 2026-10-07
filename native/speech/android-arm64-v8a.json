@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "repository": "https://github.com/CrispStrobe/CrispASR",
+    "commit": "2165cb64633cc8fed8e04c6002332809860b245e",
+    "version": "0.8.37",
+    "ggml": "2f5a80d258c46e6ac8eee95f1328c0f58376d7ee",
+    "c2pa": "e40329b83f16f67bb5ddc7bb13ae18de0a9376fc"
+  },
+  "build": {
+    "abi": "arm64-v8a",
+    "ndk": "27.0.12077973",
+    "minSdk": 28,
+    "stl": "c++_static",
+    "openmp": false,
+    "pageSize": 16384,
+    "exportedSymbols": "crispasr_*",
+    "c2pa": true
+  },
+  "library": {
+    "name": "libservllama_crispasr.so",
+    "bytes": 19012248,
+    "sha256": "e035c0753023f8e7e053320fb68dc2da3b055f56e92f3b0b100fafe84ef61d0b",
+    "needed": [
+      "libdl.so",
+      "libmediandk.so",
+      "libm.so",
+      "libc.so"
+    ]
+  }
+}

@@ -1,9 +1,15 @@
 import 'dart:async';
+import 'dart:collection';
+import 'dart:convert';
+import 'dart:io';
+import 'package:servllama/core/security/log_redactor.dart';
 import 'dart:developer' as developer;
+import 'package:dio/dio.dart';
+import 'package:flutter/services.dart';
 
 import 'package:servllama/core/logging/log_sink.dart';
 
-enum LogChannel { app, engine, server, model, download }
+enum LogChannel { app, engine, server, model, download, client, agent, speech }
 
 enum LogLevel { debug, info, warning, error }
 
@@ -38,12 +44,48 @@ class AppLogger {
 
   LogSink _sink = const NoopLogSink();
 
-  final Map<LogChannel, List<AppLogEntry>> _entries = {
-    for (final channel in LogChannel.values) channel: <AppLogEntry>[],
-  };
+  // One application-wide bound, independent of how many channels exist.
+  final ListQueue<AppLogEntry> _entries = ListQueue<AppLogEntry>();
   final Map<LogChannel, StreamController<AppLogEntry>> _controllers = {
     for (final channel in LogChannel.values)
       channel: StreamController<AppLogEntry>.broadcast(sync: true),
+  };
+
+  /// Diagnostic events contain identifiers, counts and states, never payloads.
+  /// Keep the existing file format and sink for all application features.
+  void event(
+    String name, {
+    LogChannel channel = LogChannel.app,
+    LogLevel level = LogLevel.info,
+    Map<String, Object?> fields = const {},
+  }) {
+    final parts = <String>[name];
+    for (final entry in fields.entries) {
+      final value = entry.value;
+      if (value == null) continue;
+      if (value is String) {
+        final safe = LogRedactor.redact(value);
+        final bounded = safe.length > 160 ? '${safe.substring(0, 160)}…' : safe;
+        parts.add('${entry.key}=${jsonEncode(bounded)}');
+      } else if (value is num || value is bool) {
+        parts.add('${entry.key}=$value');
+      }
+    }
+    _record(parts.join(' '), channel: channel, level: level, inMemory: true);
+  }
+
+  /// Exception messages may contain prompts, tool arguments, URLs or audio
+  /// paths. Use only typed diagnostic metadata for client/speech failures.
+  static Map<String, Object?> errorFields(Object error) => {
+    'error_type': error.runtimeType.toString(),
+    if (error is DioException) ...{
+      'network_kind': error.type.name,
+      'http_status': error.response?.statusCode,
+    },
+    if (error is FileSystemException) 'os_error': error.osError?.errorCode,
+    if (error is PlatformException &&
+        RegExp(r'^[a-zA-Z0-9_.-]{1,64}$').hasMatch(error.code))
+      'platform_code': error.code,
   };
 
   void debug(
@@ -123,7 +165,9 @@ class AppLogger {
   }
 
   List<AppLogEntry> entriesFor(LogChannel channel) =>
-      List<AppLogEntry>.unmodifiable(_entries[channel]!);
+      List<AppLogEntry>.unmodifiable(
+        _entries.where((entry) => entry.channel == channel),
+      );
 
   Stream<AppLogEntry> streamFor(LogChannel channel) =>
       _controllers[channel]!.stream;
@@ -134,11 +178,14 @@ class AppLogger {
 
   void restore(List<AppLogEntry> entries) {
     for (final entry in entries) {
-      final cache = _entries[entry.channel]!;
-      cache.add(entry);
-      if (cache.length > maxEntries) {
-        cache.removeRange(0, cache.length - maxEntries);
-      }
+      _cache(
+        AppLogEntry(
+          timestamp: entry.timestamp,
+          channel: entry.channel,
+          level: entry.level,
+          message: _sanitizeMessage(entry.message),
+        ),
+      );
     }
   }
 
@@ -147,7 +194,7 @@ class AppLogger {
   Future<void> clearPersisted() => _sink.clear();
 
   void clearChannel(LogChannel channel) {
-    _entries[channel]!.clear();
+    _entries.removeWhere((entry) => entry.channel == channel);
   }
 
   void dispose() {
@@ -165,7 +212,7 @@ class AppLogger {
     Object? error,
     StackTrace? stackTrace,
   }) {
-    final normalizedMessage = _composeMessage(message, error);
+    final normalizedMessage = _sanitizeMessage(_composeMessage(message, error));
     if (normalizedMessage.isEmpty) {
       return;
     }
@@ -174,8 +221,10 @@ class AppLogger {
       normalizedMessage,
       name: channel.name,
       level: _developerLevel(level),
-      error: error,
-      stackTrace: stackTrace,
+      error: error == null ? null : LogRedactor.redact(error.toString()),
+      stackTrace: stackTrace == null
+          ? null
+          : StackTrace.fromString(LogRedactor.redact(stackTrace.toString())),
     );
 
     final shouldPersist = persist ?? inMemory;
@@ -191,19 +240,34 @@ class AppLogger {
     );
 
     if (shouldPersist) {
-      _sink.add(entry);
+      // Logging must not turn a successful inference into a failed task.
+      try {
+        _sink.add(entry);
+      } catch (_) {
+        // The in-memory view remains available if persistence fails.
+      }
     }
 
     if (!inMemory) {
       return;
     }
 
-    final entries = _entries[channel]!;
-    entries.add(entry);
-    if (entries.length > maxEntries) {
-      entries.removeRange(0, entries.length - maxEntries);
-    }
+    _cache(entry);
     _controllers[channel]!.add(entry);
+  }
+
+  void _cache(AppLogEntry entry) {
+    _entries.add(entry);
+    while (_entries.length > maxEntries) {
+      _entries.removeFirst();
+    }
+  }
+
+  String _sanitizeMessage(String message) {
+    final redacted = LogRedactor.redact(message);
+    return redacted.length > 8192
+        ? '${redacted.substring(0, 8192)}…'
+        : redacted;
   }
 
   String _composeMessage(String message, Object? error) {

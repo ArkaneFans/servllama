@@ -1,3 +1,4 @@
+import 'package:servllama/shared/widgets/ai_identity_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:servllama/app/app_palette.dart';
 import 'package:servllama/core/models/inference_engine.dart';
@@ -204,7 +205,7 @@ class _ModelRow extends StatelessWidget {
     return ListTile(
       key: Key('chat_model_sheet_row_${model.runtimeId}'),
       contentPadding: EdgeInsets.zero,
-      leading: ModelFormatBadge(engine: model.engine, size: 40),
+      leading: AiIdentityIcon(model: model.name, local: true),
       title: Text(model.name, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(FormatUtils.bytes(model.sizeBytes)),
       selected: isActive,
@@ -240,7 +241,7 @@ class _DownloadingRow extends StatelessWidget {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       enabled: false,
-      leading: ModelFormatBadge(engine: task.engine, size: 40),
+      leading: AiIdentityIcon(model: task.modelName, local: true),
       title: Text(task.modelName, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Padding(
         padding: const EdgeInsets.only(top: 6),

@@ -1,7 +1,8 @@
 import 'dart:io';
 import 'dart:math';
 
-import 'package:hive/hive.dart';
+import 'package:servllama/core/database/app_database.dart';
+import 'package:servllama/core/repositories/gguf_model_store.dart';
 import 'package:servllama/core/errors/model_operation_exception.dart';
 import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/core/models/model_descriptor.dart';
@@ -13,26 +14,25 @@ class LocalModelRepository {
   LocalModelRepository({
     Directory? appSupportDirectory,
     ModelStoragePaths? storagePaths,
-    HiveInterface? hive,
+    AppDatabase? database,
     AppLogger? logger,
   }) : _storagePaths =
            storagePaths ??
            ModelStoragePaths(appSupportDirectory: appSupportDirectory),
-       _hive = hive ?? Hive,
+       _database = database,
        _logger = logger ?? AppLogger.instance;
 
-  static const String boxName = 'imported_models';
   static const String modelsFolderName = ModelStoragePaths.modelsFolderName;
 
   final ModelStoragePaths _storagePaths;
-  final HiveInterface _hive;
+  final AppDatabase? _database;
   final AppLogger _logger;
 
-  Future<Box<ModelDescriptor>>? _boxFuture;
-  String? _initializedHivePath;
+  Future<GgufModelStore> get _store async =>
+      GgufModelStore(_database ?? await AppDatabase.shared());
   final Random _random = Random();
 
-  // Providers own separate repository instances, but share the Hive box.
+  // Providers own separate repository instances, but share the SQLite database.
   // Serialize projector updates so concurrent downloads cannot lose entries.
   static Future<void> _projectorOperations = Future<void>.value();
 
@@ -48,8 +48,8 @@ class LocalModelRepository {
   Future<List<ModelDescriptor>> listModels() => _withProjectorLock(_listModels);
 
   Future<List<ModelDescriptor>> _listModels() async {
-    final box = await _box();
-    final descriptors = box.values.toList(growable: false);
+    final store = await _store;
+    final descriptors = await store.list();
     final staleIds = <String>[];
     final validModels = <ModelDescriptor>[];
 
@@ -85,7 +85,7 @@ class LocalModelRepository {
           visionEnabled:
               existingProjectors.isNotEmpty && descriptor.isVisionEnabled,
         );
-        await box.put(patched.id, patched);
+        await store.save(patched);
         validModels.add(patched);
         continue;
       }
@@ -94,7 +94,9 @@ class LocalModelRepository {
     }
 
     if (staleIds.isNotEmpty) {
-      await box.deleteAll(staleIds);
+      for (final id in staleIds) {
+        await store.remove(id);
+      }
     }
 
     validModels.sort(
@@ -163,8 +165,8 @@ class LocalModelRepository {
         storedFilePath: copiedFile.path,
         importedAt: DateTime.now(),
       );
-      final box = await _box();
-      await box.put(descriptor.id, descriptor);
+      final store = await _store;
+      await store.save(descriptor);
       return descriptor;
     } catch (_) {
       await _cleanupDirectory(modelDirectory.path);
@@ -176,8 +178,8 @@ class LocalModelRepository {
     String modelId,
     PickedGgufFile pickedFile,
   ) => _withProjectorLock(() async {
-    final box = await _box();
-    final descriptor = box.get(modelId);
+    final store = await _store;
+    final descriptor = await store.find(modelId);
     if (descriptor == null) {
       throw const ModelOperationException(
         ModelOperationErrorCode.modelNotFound,
@@ -213,7 +215,7 @@ class LocalModelRepository {
       mmprojFilePath: copiedFile.path,
       visionEnabled: true,
     );
-    await box.put(descriptor.id, updated);
+    await store.save(updated);
     final previous = descriptor.mmprojFilePath;
     if (previous != null &&
         !descriptor.mmprojFiles.containsValue(previous) &&
@@ -225,8 +227,8 @@ class LocalModelRepository {
   });
 
   Future<ModelDescriptor> removeMmproj(String modelId) async {
-    final box = await _box();
-    final descriptor = box.get(modelId);
+    final store = await _store;
+    final descriptor = await store.find(modelId);
     if (descriptor == null) {
       throw const ModelOperationException(
         ModelOperationErrorCode.modelNotFound,
@@ -242,17 +244,17 @@ class LocalModelRepository {
 
   Future<ModelDescriptor> setVisionEnabled(String modelId, bool enabled) =>
       _withProjectorLock(() async {
-        final box = await _box();
-        final descriptor = _requireModel(box, modelId);
+        final store = await _store;
+        final descriptor = await _requireModel(store, modelId);
         final updated = descriptor.copyWith(visionEnabled: enabled);
-        await box.put(descriptor.id, updated);
+        await store.save(updated);
         return updated;
       });
 
   Future<ModelDescriptor> selectMmproj(String modelId, String filePath) =>
       _withProjectorLock(() async {
-        final box = await _box();
-        final descriptor = _requireModel(box, modelId);
+        final store = await _store;
+        final descriptor = await _requireModel(store, modelId);
         if (!descriptor.availableMmprojs.containsValue(filePath) ||
             !await File(filePath).exists()) {
           throw const ModelOperationException(
@@ -260,14 +262,14 @@ class LocalModelRepository {
           );
         }
         final updated = descriptor.copyWith(mmprojFilePath: filePath);
-        await box.put(modelId, updated);
+        await store.save(updated);
         return updated;
       });
 
   Future<ModelDescriptor> removeMmprojFile(String modelId, String filePath) =>
       _withProjectorLock(() async {
-        final box = await _box();
-        final descriptor = _requireModel(box, modelId);
+        final store = await _store;
+        final descriptor = await _requireModel(store, modelId);
         final files = Map<String, String>.from(descriptor.availableMmprojs);
         if (!files.containsValue(filePath)) {
           throw const ModelOperationException(
@@ -287,12 +289,15 @@ class LocalModelRepository {
           mmprojFiles: files,
           visionEnabled: files.isNotEmpty && descriptor.isVisionEnabled,
         );
-        await box.put(modelId, updated);
+        await store.save(updated);
         return updated;
       });
 
-  ModelDescriptor _requireModel(Box<ModelDescriptor> box, String modelId) {
-    final model = box.get(modelId);
+  Future<ModelDescriptor> _requireModel(
+    GgufModelStore store,
+    String modelId,
+  ) async {
+    final model = await store.find(modelId);
     if (model == null) {
       throw const ModelOperationException(
         ModelOperationErrorCode.modelNotFound,
@@ -305,8 +310,8 @@ class LocalModelRepository {
     String modelId,
     String newName,
   ) => _withProjectorLock(() async {
-    final box = await _box();
-    final descriptor = box.get(modelId);
+    final store = await _store;
+    final descriptor = await store.find(modelId);
     if (descriptor == null) {
       throw const ModelOperationException(
         ModelOperationErrorCode.modelNotFound,
@@ -365,7 +370,7 @@ class LocalModelRepository {
       ),
     );
     try {
-      await box.put(descriptor.id, updated);
+      await store.save(updated);
     } catch (_) {
       // Roll the directory back so the stale record does not point at a
       // missing path (listModels would garbage-collect the model otherwise).
@@ -451,8 +456,8 @@ class LocalModelRepository {
         repoId: repoId,
         revision: revision,
       );
-      final box = await _box();
-      await box.put(descriptor.id, descriptor);
+      final store = await _store;
+      await store.save(descriptor);
       _logger.info('已收录下载的模型: $trimmedName', channel: LogChannel.model);
       return descriptor;
     } catch (_) {
@@ -468,8 +473,8 @@ class LocalModelRepository {
     required File mmprojFile,
     String? remotePath,
   }) => _withProjectorLock(() async {
-    final box = await _box();
-    final descriptor = box.get(modelId);
+    final store = await _store;
+    final descriptor = await store.find(modelId);
     if (descriptor == null) {
       throw const ModelOperationException(
         ModelOperationErrorCode.modelNotFound,
@@ -529,7 +534,7 @@ class LocalModelRepository {
       mmprojFilePath: stored.path,
       mmprojFiles: files,
     );
-    await box.put(descriptor.id, updated);
+    await store.save(updated);
     return updated;
   });
 
@@ -584,8 +589,8 @@ class LocalModelRepository {
   }
 
   Future<void> deleteModel(String modelId) async {
-    final box = await _box();
-    final descriptor = box.get(modelId);
+    final store = await _store;
+    final descriptor = await store.find(modelId);
     if (descriptor == null) {
       throw const ModelOperationException(
         ModelOperationErrorCode.modelNotFoundOrDeleted,
@@ -593,31 +598,7 @@ class LocalModelRepository {
     }
 
     await _cleanupDirectory(descriptor.storedDirectoryPath);
-    await box.delete(modelId);
-  }
-
-  Future<Box<ModelDescriptor>> _box() async {
-    return _boxFuture ??= _openBox();
-  }
-
-  Future<Box<ModelDescriptor>> _openBox() async {
-    await _ensureHiveInitialized();
-    if (!_hive.isAdapterRegistered(0)) {
-      _hive.registerAdapter(ModelDescriptorAdapter());
-    }
-    if (_hive.isBoxOpen(boxName)) {
-      return _hive.box<ModelDescriptor>(boxName);
-    }
-    return _hive.openBox<ModelDescriptor>(boxName);
-  }
-
-  Future<void> _ensureHiveInitialized() async {
-    final appSupportDirectory = await _storagePaths.getAppSupportDirectory();
-    if (_initializedHivePath == appSupportDirectory.path) {
-      return;
-    }
-    _hive.init(appSupportDirectory.path);
-    _initializedHivePath = appSupportDirectory.path;
+    await store.remove(modelId);
   }
 
   Future<void> _cleanupDirectory(String directoryPath) async {

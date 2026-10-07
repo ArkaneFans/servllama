@@ -24,6 +24,22 @@ class HuggingFaceRouteResolver {
     ),
   );
 
+  /// Route pinned package URLs without changing their revision or file path.
+  /// Other origins (including imported packages) retain their own URL.
+  Future<String> resolveFileUrl(String url, HuggingFaceRoute route) async {
+    final uri = Uri.parse(url);
+    final origins = [
+      Uri.parse(HuggingFaceHubClient.officialHost),
+      Uri.parse(HuggingFaceHubClient.mirrorHost),
+    ];
+    if (uri.userInfo.isNotEmpty ||
+        !origins.any((origin) => uri.origin == origin.origin)) {
+      return url;
+    }
+    final origin = Uri.parse(await resolve(route));
+    return uri.replace(scheme: origin.scheme, host: origin.host).toString();
+  }
+
   Future<String> resolve(HuggingFaceRoute route) async {
     switch (route) {
       case HuggingFaceRoute.official:

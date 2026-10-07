@@ -1,0 +1,24 @@
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index 67111fab..e71552f7 100755
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -256,3 +256,3 @@ else()
+     # Sources vendored from the standalone c2pa-audio repo (git submodule).
+-    set(_c2pa_audio_dir ${CMAKE_SOURCE_DIR}/third_party/c2pa-audio)
++    set(_c2pa_audio_dir ${CMAKE_CURRENT_SOURCE_DIR}/../third_party/c2pa-audio)
+     add_library(crispasr_c2pa_native STATIC
+@@ -1077,3 +1077,3 @@ endif()
+ # ---------------------------------------------------------------------------
+-set(LLAMA_CORE_DIR ${CMAKE_SOURCE_DIR}/examples/talk-llama)
++set(LLAMA_CORE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../examples/talk-llama)
+ file(GLOB LLAMA_CORE_MODELS CONFIGURE_DEPENDS ${LLAMA_CORE_DIR}/models/*.cpp)
+@@ -2514,3 +2514,3 @@ target_link_libraries     (crispasr-vad-encdec PUBLIC ggml ggml-base crispasr_li
+ # webrtc-vad — WebRTC GMM-based VAD (no model file, pure algorithmic)
+-set(_webrtc_vad_dir ${CMAKE_SOURCE_DIR}/third_party/webrtc)
++set(_webrtc_vad_dir ${CMAKE_CURRENT_SOURCE_DIR}/../third_party/webrtc)
+ file(GLOB_RECURSE _webrtc_vad_c_sources ${_webrtc_vad_dir}/*.c)
+@@ -2521,3 +2521,3 @@ set_target_properties(webrtc-vad PROPERTIES POSITION_INDEPENDENT_CODE ON)
+ target_include_directories(webrtc-vad PUBLIC .)
+-target_include_directories(webrtc-vad PRIVATE ${CMAKE_SOURCE_DIR}/third_party)
++target_include_directories(webrtc-vad PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../third_party)
+ target_compile_features(webrtc-vad PUBLIC cxx_std_17)

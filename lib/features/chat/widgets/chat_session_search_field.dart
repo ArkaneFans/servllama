@@ -50,36 +50,48 @@ class _ChatSessionSearchFieldState extends State<ChatSessionSearchField> {
     }
 
     return Container(
-      height: 40,
+      constraints: const BoxConstraints(minHeight: 40),
       alignment: Alignment.center,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: colorScheme.outlineVariant.withAlpha(56)),
       ),
-      child: TextField(
-        key: widget.fieldKey,
-        controller: _controller,
-        autofocus: widget.autofocus,
-        onChanged: context.read<ChatProvider>().updateSessionQuery,
-        style: theme.textTheme.bodyMedium?.copyWith(
-          color: colorScheme.onSurface,
-        ),
-        decoration: InputDecoration(
-          isCollapsed: true,
-          border: InputBorder.none,
-          hintText: widget.hintText ?? context.l10n.chatSearchHint,
-          hintStyle: theme.textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
-          prefixIcon: Icon(
+      child: Row(
+        children: [
+          Icon(
             Icons.search_rounded,
             size: 18,
             color: colorScheme.onSurfaceVariant,
           ),
-          prefixIconConstraints: const BoxConstraints(minWidth: 26),
-        ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              key: widget.fieldKey,
+              controller: _controller,
+              autofocus: widget.autofocus,
+              textAlignVertical: TextAlignVertical.center,
+              onChanged: context.read<ChatProvider>().updateSessionQuery,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurface,
+              ),
+              decoration: InputDecoration(
+                isCollapsed: true,
+                contentPadding: EdgeInsets.zero,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                filled: false,
+                hintText: widget.hintText ?? context.l10n.chatSearchHint,
+                hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

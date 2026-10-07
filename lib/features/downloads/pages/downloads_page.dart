@@ -1,4 +1,7 @@
+import 'package:servllama/shared/widgets/app_tab_bar.dart';
+import 'package:servllama/shared/widgets/app_scaffold.dart';
 import 'package:flutter/material.dart';
+import 'package:servllama/features/speech/pages/speech_models_page.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/features/downloads/models/download_task_view.dart';
 import 'package:servllama/features/downloads/models/model_hub.dart';
@@ -8,7 +11,8 @@ import 'package:servllama/features/downloads/widgets/download_wifi_only_gate.dar
 import 'package:servllama/l10n/l10n.dart';
 
 class DownloadsPage extends StatefulWidget {
-  const DownloadsPage({super.key});
+  const DownloadsPage({super.key, this.initialTab = 0});
+  final int initialTab;
 
   @override
   State<DownloadsPage> createState() => _DownloadsPageState();
@@ -67,52 +71,71 @@ class _DownloadsPageState extends State<DownloadsPage> {
     final l10n = context.l10n;
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.downloadsTitle)),
-      body: Consumer<DownloadProvider>(
-        builder: (context, downloads, _) {
-          final tasks = downloads.tasks;
-          if (downloads.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (tasks.isEmpty) {
-            return Center(
-              child: Text(
-                l10n.downloadsEmpty,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            );
-          }
-          return SafeArea(
-            top: false,
-            child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-              itemCount: tasks.length,
-              itemBuilder: (_, index) {
-                final task = tasks[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: DownloadTaskCard(
-                    task: task,
-                    onPause: () => downloads.pause(task.id),
-                    onResume: () async {
-                      if (await confirmDownloadOnMeteredNetwork(context)) {
-                        downloads.resume(task.id);
-                      }
-                    },
-                    onCancel: () => _confirmCancel(context, task),
-                    onSwitchSource: () => downloads.switchSource(
-                      task.id,
-                      _otherSource(task.source),
+    return DefaultTabController(
+      length: 2,
+      initialIndex: widget.initialTab,
+      child: AppScaffold(
+        appBar: AppBar(
+          title: Text(l10n.downloadsTitle),
+          bottom: AppTabBar(
+            tabs: [
+              Tab(text: l10n.v2LlmModels),
+              Tab(text: l10n.v2SpeechModels),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            Consumer<DownloadProvider>(
+              builder: (context, downloads, _) {
+                final tasks = downloads.tasks;
+                if (downloads.isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (tasks.isEmpty) {
+                  return Center(
+                    child: Text(
+                      l10n.downloadsEmpty,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
+                  );
+                }
+                return SafeArea(
+                  top: false,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+                    itemCount: tasks.length,
+                    itemBuilder: (_, index) {
+                      final task = tasks[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 14),
+                        child: DownloadTaskCard(
+                          task: task,
+                          onPause: () => downloads.pause(task.id),
+                          onResume: () async {
+                            if (await confirmDownloadOnMeteredNetwork(
+                              context,
+                            )) {
+                              downloads.resume(task.id);
+                            }
+                          },
+                          onCancel: () => _confirmCancel(context, task),
+                          onSwitchSource: () => downloads.switchSource(
+                            task.id,
+                            _otherSource(task.source),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 );
               },
             ),
-          );
-        },
+            const SpeechModelsPage(embedded: true, downloadsOnly: true),
+          ],
+        ),
       ),
     );
   }

@@ -1,6 +1,23 @@
 import 'package:flutter/material.dart';
 
 class SettingsSection extends StatelessWidget {
+  factory SettingsSection.form({
+    Key? key,
+    String? title,
+    String? subtitle,
+    required List<Widget> children,
+  }) => SettingsSection(
+    key: key,
+    title: title,
+    subtitle: subtitle,
+    padding: const EdgeInsets.all(16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 16,
+      children: children,
+    ),
+  );
+
   const SettingsSection({
     super.key,
     this.title,
@@ -18,7 +35,6 @@ class SettingsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isLight = theme.brightness == Brightness.light;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -28,9 +44,9 @@ class SettingsSection extends StatelessWidget {
             padding: const EdgeInsets.only(left: 4),
             child: Text(
               title!,
-              style: theme.textTheme.titleSmall?.copyWith(
+              style: theme.textTheme.titleMedium?.copyWith(
                 color: colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
@@ -48,14 +64,10 @@ class SettingsSection extends StatelessWidget {
           ),
         ],
         if (title != null || subtitle != null) const SizedBox(height: 10),
-        DecoratedBox(
-          decoration: BoxDecoration(
-            color: isLight ? Colors.white : colorScheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(26),
-            border: Border.all(
-              color: colorScheme.outlineVariant.withAlpha(110),
-            ),
-          ),
+        Material(
+          color: colorScheme.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(18),
+          clipBehavior: Clip.antiAlias,
           child: Padding(padding: padding, child: child),
         ),
       ],

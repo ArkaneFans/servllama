@@ -98,6 +98,42 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @v2McpEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No MCP servers yet. Tap + to add one.'**
+  String get v2McpEmpty;
+
+  /// No description provided for @v2SkillsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No skills yet. Tap + to import one.'**
+  String get v2SkillsEmpty;
+
+  /// No description provided for @v2ManageMcp.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage MCP'**
+  String get v2ManageMcp;
+
+  /// No description provided for @v2ManageSkills.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage skills'**
+  String get v2ManageSkills;
+
+  /// No description provided for @v2LocalTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Local tools'**
+  String get v2LocalTools;
+
+  /// No description provided for @v2AssistantManagement.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant management'**
+  String get v2AssistantManagement;
+
   /// No description provided for @appTitle.
   ///
   /// In en, this message translates to:
@@ -1433,101 +1469,101 @@ abstract class AppLocalizations {
   /// **'Unable to get the selected file path.'**
   String get modelErrorSelectedFilePathUnavailable;
 
-  /// No description provided for @serverLogsTitle.
+  /// No description provided for @appLogsTitle.
   ///
   /// In en, this message translates to:
-  /// **'Logs'**
-  String get serverLogsTitle;
+  /// **'App logs'**
+  String get appLogsTitle;
 
-  /// No description provided for @serverLogsCopyAll.
+  /// No description provided for @appLogsCopyAll.
   ///
   /// In en, this message translates to:
-  /// **'Copy all'**
-  String get serverLogsCopyAll;
+  /// **'Copy filtered logs'**
+  String get appLogsCopyAll;
 
-  /// No description provided for @serverLogsClear.
+  /// No description provided for @appLogsClear.
   ///
   /// In en, this message translates to:
-  /// **'Clear'**
-  String get serverLogsClear;
+  /// **'Clear all logs'**
+  String get appLogsClear;
 
-  /// No description provided for @serverLogsCopied.
+  /// No description provided for @appLogsClearFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The log view was cleared, but saved log files could not be deleted.'**
+  String get appLogsClearFailed;
+
+  /// No description provided for @appLogsCopied.
   ///
   /// In en, this message translates to:
   /// **'Logs copied'**
-  String get serverLogsCopied;
+  String get appLogsCopied;
 
-  /// No description provided for @serverLogsCount.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} logs total'**
-  String serverLogsCount(int count);
-
-  /// No description provided for @serverLogsEmpty.
+  /// No description provided for @appLogsEmpty.
   ///
   /// In en, this message translates to:
   /// **'No logs yet'**
-  String get serverLogsEmpty;
+  String get appLogsEmpty;
 
-  /// No description provided for @serverLogsExport.
+  /// No description provided for @appLogsExport.
   ///
   /// In en, this message translates to:
   /// **'Export logs'**
-  String get serverLogsExport;
+  String get appLogsExport;
 
-  /// No description provided for @serverLogsExported.
+  /// No description provided for @appLogsExported.
   ///
   /// In en, this message translates to:
   /// **'Logs exported to {path}'**
-  String serverLogsExported(String path);
+  String appLogsExported(String path);
 
-  /// No description provided for @serverLogsExportFailed.
+  /// No description provided for @appLogsExportFailed.
   ///
   /// In en, this message translates to:
   /// **'Export failed: {error}'**
-  String serverLogsExportFailed(String error);
+  String appLogsExportFailed(String error);
 
-  /// No description provided for @serverLogsAutoScroll.
+  /// No description provided for @appLogsAutoScroll.
   ///
   /// In en, this message translates to:
   /// **'Auto-scroll'**
-  String get serverLogsAutoScroll;
+  String get appLogsAutoScroll;
 
-  /// No description provided for @serverLogsFilterAll.
+  /// No description provided for @appLogsFilterAll.
   ///
   /// In en, this message translates to:
   /// **'All'**
-  String get serverLogsFilterAll;
+  String get appLogsFilterAll;
 
-  /// No description provided for @serverLogsFilterEngine.
+  /// No description provided for @appLogsFilterEngine.
   ///
   /// In en, this message translates to:
   /// **'Engine'**
-  String get serverLogsFilterEngine;
+  String get appLogsFilterEngine;
 
-  /// No description provided for @serverLogsFilterServer.
+  /// No description provided for @appLogsFilterServer.
   ///
   /// In en, this message translates to:
   /// **'Service'**
-  String get serverLogsFilterServer;
+  String get appLogsFilterServer;
 
-  /// No description provided for @serverLogsFilterModel.
+  /// No description provided for @appLogsFilterModel.
   ///
   /// In en, this message translates to:
   /// **'Model'**
-  String get serverLogsFilterModel;
+  String get appLogsFilterModel;
 
-  /// No description provided for @serverLogsFilterDownload.
+  /// No description provided for @appLogsFilterDownload.
   ///
   /// In en, this message translates to:
   /// **'Download'**
-  String get serverLogsFilterDownload;
+  String get appLogsFilterDownload;
 
-  /// No description provided for @serverLogsFilterErrors.
+  /// No description provided for @appLogsFilterErrors.
   ///
   /// In en, this message translates to:
   /// **'Errors only'**
-  String get serverLogsFilterErrors;
+  String get appLogsFilterErrors;
 
   /// No description provided for @engineSectionTitle.
   ///
@@ -1766,7 +1802,7 @@ abstract class AppLocalizations {
   /// No description provided for @modelLibraryEmptyTitle.
   ///
   /// In en, this message translates to:
-  /// **'No models yet. Tap Add a model to download or import one.'**
+  /// **'No models yet. Download from Discover or import a local model.'**
   String get modelLibraryEmptyTitle;
 
   /// No description provided for @modelLibraryEmptyDescription.
@@ -2890,6 +2926,2616 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not clear the mmap cache.'**
   String get mnnMmapCacheClearFailed;
+
+  /// No description provided for @v2FirstAssistants.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistants'**
+  String get v2FirstAssistants;
+
+  /// No description provided for @v2Chat.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat'**
+  String get v2Chat;
+
+  /// No description provided for @v2Models.
+  ///
+  /// In en, this message translates to:
+  /// **'Models'**
+  String get v2Models;
+
+  /// No description provided for @v2Add.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get v2Add;
+
+  /// No description provided for @v2OperationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Operation failed'**
+  String get v2OperationFailed;
+
+  /// No description provided for @v2NoInstructions.
+  ///
+  /// In en, this message translates to:
+  /// **'Default conversation behavior'**
+  String get v2NoInstructions;
+
+  /// No description provided for @v2Duplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate'**
+  String get v2Duplicate;
+
+  /// No description provided for @v2AssistantEditor.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant settings'**
+  String get v2AssistantEditor;
+
+  /// No description provided for @v2Name.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get v2Name;
+
+  /// No description provided for @v2Instructions.
+  ///
+  /// In en, this message translates to:
+  /// **'System instructions'**
+  String get v2Instructions;
+
+  /// No description provided for @v2Connection.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider'**
+  String get v2Connection;
+
+  /// No description provided for @v2LocalInference.
+  ///
+  /// In en, this message translates to:
+  /// **'Local inference'**
+  String get v2LocalInference;
+
+  /// No description provided for @v2MissingTarget.
+  ///
+  /// In en, this message translates to:
+  /// **'Target unavailable. Check that its provider is enabled and the model is listed, or choose another.'**
+  String get v2MissingTarget;
+
+  /// No description provided for @v2Model.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get v2Model;
+
+  /// No description provided for @v2CurrentLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Current local model'**
+  String get v2CurrentLocal;
+
+  /// No description provided for @v2ModelId.
+  ///
+  /// In en, this message translates to:
+  /// **'Model ID'**
+  String get v2ModelId;
+
+  /// No description provided for @v2Connections.
+  ///
+  /// In en, this message translates to:
+  /// **'Providers'**
+  String get v2Connections;
+
+  /// No description provided for @v2ConnectionsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a provider and its models to use them in chat.'**
+  String get v2ConnectionsEmpty;
+
+  /// No description provided for @v2ConnectionEditor.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider settings'**
+  String get v2ConnectionEditor;
+
+  /// No description provided for @v2Protocol.
+  ///
+  /// In en, this message translates to:
+  /// **'Protocol'**
+  String get v2Protocol;
+
+  /// No description provided for @v2BaseUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'API base URL'**
+  String get v2BaseUrl;
+
+  /// No description provided for @v2BaseUrlHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Include /v1 or /v1beta. Use HTTP only on a trusted local network.'**
+  String get v2BaseUrlHelp;
+
+  /// No description provided for @v2ApiKey.
+  ///
+  /// In en, this message translates to:
+  /// **'API key'**
+  String get v2ApiKey;
+
+  /// No description provided for @v2KeyHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Stored securely. Leave blank to keep the existing key.'**
+  String get v2KeyHelp;
+
+  /// No description provided for @v2ClearKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear saved key'**
+  String get v2ClearKey;
+
+  /// No description provided for @v2ModelsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Model IDs, one per line (manual entry supported)'**
+  String get v2ModelsHelp;
+
+  /// No description provided for @v2Images.
+  ///
+  /// In en, this message translates to:
+  /// **'Image input supported'**
+  String get v2Images;
+
+  /// No description provided for @v2Tools.
+  ///
+  /// In en, this message translates to:
+  /// **'Tool calls supported'**
+  String get v2Tools;
+
+  /// No description provided for @v2FetchModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch models'**
+  String get v2FetchModels;
+
+  /// No description provided for @v2TestConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Test provider'**
+  String get v2TestConnection;
+
+  /// No description provided for @v2TestPassed.
+  ///
+  /// In en, this message translates to:
+  /// **'Test succeeded. Changes are not saved yet.'**
+  String get v2TestPassed;
+
+  /// No description provided for @v2DraftHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to apply changes; going back discards unsaved edits. Testing and model discovery do not save automatically.'**
+  String get v2DraftHelp;
+
+  /// No description provided for @v2Profile.
+  ///
+  /// In en, this message translates to:
+  /// **'User profile'**
+  String get v2Profile;
+
+  /// No description provided for @v2ProfileHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Local user details stay on this device. Your avatar and name are used for display and are not automatically added to model requests.'**
+  String get v2ProfileHelp;
+
+  /// No description provided for @v2KeepOneAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Create another assistant before deleting the last one.'**
+  String get v2KeepOneAssistant;
+
+  /// No description provided for @v2DeleteConnectionHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting this provider clears model selections for its assistants. Conversations and messages remain; select a model before sending.'**
+  String get v2DeleteConnectionHelp;
+
+  /// No description provided for @v2Avatar.
+  ///
+  /// In en, this message translates to:
+  /// **'Avatar'**
+  String get v2Avatar;
+
+  /// No description provided for @v2AvatarHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a local image or emoji for your avatar. Used for display only.'**
+  String get v2AvatarHelp;
+
+  /// No description provided for @v2AvatarImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose image'**
+  String get v2AvatarImage;
+
+  /// No description provided for @v2AvatarEmoji.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose emoji'**
+  String get v2AvatarEmoji;
+
+  /// No description provided for @v2AvatarReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset avatar'**
+  String get v2AvatarReset;
+
+  /// No description provided for @v2AvatarImageTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an image under 10 MB, with each side at most 8192 pixels and at most 32 megapixels.'**
+  String get v2AvatarImageTooLarge;
+
+  /// No description provided for @v2AvatarInvalidImage.
+  ///
+  /// In en, this message translates to:
+  /// **'This image could not be read. Choose another image.'**
+  String get v2AvatarInvalidImage;
+
+  /// No description provided for @v2AvatarEmojiTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose avatar emoji'**
+  String get v2AvatarEmojiTitle;
+
+  /// No description provided for @v2AvatarEmojiHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter one emoji or character'**
+  String get v2AvatarEmojiHint;
+
+  /// No description provided for @v2ChatUserName.
+  ///
+  /// In en, this message translates to:
+  /// **'User'**
+  String get v2ChatUserName;
+
+  /// No description provided for @v2ChatAssistantName.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant'**
+  String get v2ChatAssistantName;
+
+  /// No description provided for @v2UserName.
+  ///
+  /// In en, this message translates to:
+  /// **'User name'**
+  String get v2UserName;
+
+  /// No description provided for @v2ProfileDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get v2ProfileDescription;
+
+  /// No description provided for @v2ProfileDescriptionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'A short introduction about yourself…'**
+  String get v2ProfileDescriptionHint;
+
+  /// No description provided for @v2StartLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Load this conversation\'s local model'**
+  String get v2StartLocal;
+
+  /// No description provided for @v2RemoteReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat directly with the selected provider'**
+  String get v2RemoteReady;
+
+  /// No description provided for @v2Skills.
+  ///
+  /// In en, this message translates to:
+  /// **'Skills'**
+  String get v2Skills;
+
+  /// No description provided for @v2SkillsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Import static packages containing SKILL.md, then select them in assistant permissions.'**
+  String get v2SkillsHelp;
+
+  /// No description provided for @v2ImportSkill.
+  ///
+  /// In en, this message translates to:
+  /// **'Import skill (ZIP / Markdown)'**
+  String get v2ImportSkill;
+
+  /// No description provided for @v2ScriptsUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Contains script references. Only static instructions are used; scripts are not executed.'**
+  String get v2ScriptsUnsupported;
+
+  /// No description provided for @v2Mcp.
+  ///
+  /// In en, this message translates to:
+  /// **'MCP'**
+  String get v2Mcp;
+
+  /// No description provided for @v2McpHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Streamable HTTP and legacy SSE. Select tools per assistant; approve each remote call.'**
+  String get v2McpHelp;
+
+  /// No description provided for @v2McpToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Static bearer token'**
+  String get v2McpToken;
+
+  /// No description provided for @v2McpHeaders.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom HTTP headers (JSON)'**
+  String get v2McpHeaders;
+
+  /// No description provided for @v2McpHeadersHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'JSON string values, for example an X-API-Key header. Stored securely; leave blank to keep existing headers. Protocol headers are managed by the app.'**
+  String get v2McpHeadersHelp;
+
+  /// No description provided for @v2ClearMcpToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove saved bearer token'**
+  String get v2ClearMcpToken;
+
+  /// No description provided for @v2ClearMcpHeaders.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove saved custom headers'**
+  String get v2ClearMcpHeaders;
+
+  /// No description provided for @v2ShowHideCredential.
+  ///
+  /// In en, this message translates to:
+  /// **'Show / hide credential'**
+  String get v2ShowHideCredential;
+
+  /// No description provided for @v2DiscoverTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect and discover tools'**
+  String get v2DiscoverTools;
+
+  /// No description provided for @v2PermissionsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Permissions are captured when a run starts. Revocation stops affected runs; additions apply next time.'**
+  String get v2PermissionsHelp;
+
+  /// No description provided for @v2ToolClock.
+  ///
+  /// In en, this message translates to:
+  /// **'Current time'**
+  String get v2ToolClock;
+
+  /// No description provided for @v2ToolRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Read conversation files'**
+  String get v2ToolRead;
+
+  /// No description provided for @v2ToolAsk.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask the user'**
+  String get v2ToolAsk;
+
+  /// No description provided for @v2ToolSkill.
+  ///
+  /// In en, this message translates to:
+  /// **'Read selected skill resources'**
+  String get v2ToolSkill;
+
+  /// No description provided for @v2ToolActivity.
+  ///
+  /// In en, this message translates to:
+  /// **'Tool call history'**
+  String get v2ToolActivity;
+
+  /// No description provided for @v2ToolHistoryEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No tool call records in this conversation.'**
+  String get v2ToolHistoryEmpty;
+
+  /// No description provided for @v2AwaitingApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'Awaiting approval'**
+  String get v2AwaitingApproval;
+
+  /// No description provided for @v2Succeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get v2Succeeded;
+
+  /// No description provided for @v2UnknownOutcome.
+  ///
+  /// In en, this message translates to:
+  /// **'Outcome unknown'**
+  String get v2UnknownOutcome;
+
+  /// No description provided for @v2Rejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get v2Rejected;
+
+  /// No description provided for @v2Cancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get v2Cancelled;
+
+  /// No description provided for @v2Executing.
+  ///
+  /// In en, this message translates to:
+  /// **'Executing'**
+  String get v2Executing;
+
+  /// No description provided for @v2Failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get v2Failed;
+
+  /// No description provided for @v2UnknownOutcomeHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The operation may have taken effect. It will not retry automatically. Verify the outcome before starting a new run.'**
+  String get v2UnknownOutcomeHelp;
+
+  /// No description provided for @v2Details.
+  ///
+  /// In en, this message translates to:
+  /// **'Arguments, target and receipt'**
+  String get v2Details;
+
+  /// No description provided for @v2YourAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Your answer'**
+  String get v2YourAnswer;
+
+  /// No description provided for @v2Reject.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject'**
+  String get v2Reject;
+
+  /// No description provided for @v2ApproveOnce.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow once'**
+  String get v2ApproveOnce;
+
+  /// No description provided for @v2Review.
+  ///
+  /// In en, this message translates to:
+  /// **'Review'**
+  String get v2Review;
+
+  /// No description provided for @v2Rerun.
+  ///
+  /// In en, this message translates to:
+  /// **'Execute as a new run'**
+  String get v2Rerun;
+
+  /// No description provided for @v2RerunHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Tools use current permissions; actions that require approval will ask again.'**
+  String get v2RerunHelp;
+
+  /// No description provided for @v2BudgetReached.
+  ///
+  /// In en, this message translates to:
+  /// **'Run budget reached. Completed results are retained.'**
+  String get v2BudgetReached;
+
+  /// No description provided for @v2Interrupted.
+  ///
+  /// In en, this message translates to:
+  /// **'Interrupted. Create a new task explicitly to retry.'**
+  String get v2Interrupted;
+
+  /// No description provided for @v2Speech.
+  ///
+  /// In en, this message translates to:
+  /// **'Speech'**
+  String get v2Speech;
+
+  /// No description provided for @v2Asr.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcribe'**
+  String get v2Asr;
+
+  /// No description provided for @v2Tts.
+  ///
+  /// In en, this message translates to:
+  /// **'Synthesize'**
+  String get v2Tts;
+
+  /// No description provided for @v2Tasks.
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks'**
+  String get v2Tasks;
+
+  /// No description provided for @v2SpeechModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Speech models'**
+  String get v2SpeechModels;
+
+  /// No description provided for @v2LlmModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Language models'**
+  String get v2LlmModels;
+
+  /// No description provided for @v2Voices.
+  ///
+  /// In en, this message translates to:
+  /// **'Reference voices'**
+  String get v2Voices;
+
+  /// No description provided for @v2SpeechLocalHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio stays on this device. Record or import a file, then view the transcript below.'**
+  String get v2SpeechLocalHelp;
+
+  /// No description provided for @v2SpeechAudioInput.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording & audio'**
+  String get v2SpeechAudioInput;
+
+  /// No description provided for @v2RecordingReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the microphone to record'**
+  String get v2RecordingReady;
+
+  /// No description provided for @v2RecordingNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording · tap to stop'**
+  String get v2RecordingNow;
+
+  /// No description provided for @v2SpeechCreatedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Created'**
+  String get v2SpeechCreatedAt;
+
+  /// No description provided for @v2SynthesisContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Synthesis text'**
+  String get v2SynthesisContent;
+
+  /// No description provided for @v2SpeechAudioResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Synthesized audio'**
+  String get v2SpeechAudioResult;
+
+  /// No description provided for @v2TranscriptPending.
+  ///
+  /// In en, this message translates to:
+  /// **'No transcript yet'**
+  String get v2TranscriptPending;
+
+  /// No description provided for @v2SpeechTextCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Text copied'**
+  String get v2SpeechTextCopied;
+
+  /// No description provided for @v2LanguageHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Language code (zh / en; empty for auto)'**
+  String get v2LanguageHint;
+
+  /// No description provided for @v2StartAsr.
+  ///
+  /// In en, this message translates to:
+  /// **'Start transcription'**
+  String get v2StartAsr;
+
+  /// No description provided for @v2StartTts.
+  ///
+  /// In en, this message translates to:
+  /// **'Start synthesis'**
+  String get v2StartTts;
+
+  /// No description provided for @v2InstallSpeechFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Download or import a compatible speech model first.'**
+  String get v2InstallSpeechFirst;
+
+  /// No description provided for @v2SynthesisText.
+  ///
+  /// In en, this message translates to:
+  /// **'Text to synthesize'**
+  String get v2SynthesisText;
+
+  /// No description provided for @v2SpeakerId.
+  ///
+  /// In en, this message translates to:
+  /// **'Preset speaker ID (0–217)'**
+  String get v2SpeakerId;
+
+  /// No description provided for @v2Voice.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice'**
+  String get v2Voice;
+
+  /// No description provided for @v2PresetVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Model default voice'**
+  String get v2PresetVoice;
+
+  /// No description provided for @v2SynthesisSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Synthesis speed'**
+  String get v2SynthesisSpeed;
+
+  /// No description provided for @v2CrispMarking.
+  ///
+  /// In en, this message translates to:
+  /// **'CrispASR exports include AI-generated audio provenance.'**
+  String get v2CrispMarking;
+
+  /// No description provided for @v2NoSpeechJobs.
+  ///
+  /// In en, this message translates to:
+  /// **'No speech tasks yet. Completed, cancelled and interrupted tasks appear here.'**
+  String get v2NoSpeechJobs;
+
+  /// No description provided for @v2CancelTask.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel task'**
+  String get v2CancelTask;
+
+  /// No description provided for @v2NoAudioSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'No audio selected'**
+  String get v2NoAudioSelected;
+
+  /// No description provided for @v2ImportAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Import audio'**
+  String get v2ImportAudio;
+
+  /// No description provided for @v2Record.
+  ///
+  /// In en, this message translates to:
+  /// **'Record'**
+  String get v2Record;
+
+  /// No description provided for @v2StopRecording.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop recording'**
+  String get v2StopRecording;
+
+  /// No description provided for @v2UseRecording.
+  ///
+  /// In en, this message translates to:
+  /// **'Use latest recording'**
+  String get v2UseRecording;
+
+  /// No description provided for @v2RecordingHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Record up to 10 minutes. Recording stops when the app enters the background or audio is interrupted.'**
+  String get v2RecordingHelp;
+
+  /// No description provided for @v2SpeechWaitingHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for the previous speech task to release its resources. LLM service and chat can run alongside speech.'**
+  String get v2SpeechWaitingHelp;
+
+  /// No description provided for @v2Queued.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued'**
+  String get v2Queued;
+
+  /// No description provided for @v2WaitingLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for speech resources'**
+  String get v2WaitingLocal;
+
+  /// No description provided for @v2Cancelling.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelling; waiting for native completion'**
+  String get v2Cancelling;
+
+  /// No description provided for @v2TaskResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Task result'**
+  String get v2TaskResult;
+
+  /// No description provided for @v2CancellationHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The next speech task waits until the native segment finishes and releases speech resources. LLM service and chat can continue.'**
+  String get v2CancellationHelp;
+
+  /// No description provided for @v2NoSpeechDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'No text detected. Try a different language or model in a new task.'**
+  String get v2NoSpeechDetected;
+
+  /// No description provided for @v2ChunkTimingHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'This model provides chunk ranges without reliable subtitle timestamps. TXT export is available.'**
+  String get v2ChunkTimingHelp;
+
+  /// No description provided for @v2Transcript.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcript'**
+  String get v2Transcript;
+
+  /// No description provided for @v2EditTranscript.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit transcript'**
+  String get v2EditTranscript;
+
+  /// No description provided for @v2ExportTxt.
+  ///
+  /// In en, this message translates to:
+  /// **'Export TXT'**
+  String get v2ExportTxt;
+
+  /// No description provided for @v2ExportSrt.
+  ///
+  /// In en, this message translates to:
+  /// **'Export SRT'**
+  String get v2ExportSrt;
+
+  /// No description provided for @v2ExportWav.
+  ///
+  /// In en, this message translates to:
+  /// **'Export WAV'**
+  String get v2ExportWav;
+
+  /// No description provided for @v2InsertTranscript.
+  ///
+  /// In en, this message translates to:
+  /// **'Insert into chat draft'**
+  String get v2InsertTranscript;
+
+  /// No description provided for @v2PlayPause.
+  ///
+  /// In en, this message translates to:
+  /// **'Play / pause'**
+  String get v2PlayPause;
+
+  /// No description provided for @v2PreviewAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview reference audio'**
+  String get v2PreviewAudio;
+
+  /// No description provided for @v2VoiceModelMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'The original model is unavailable. You can export this reference audio and create a new voice after installing a compatible model.'**
+  String get v2VoiceModelMissing;
+
+  /// No description provided for @v2PlaybackSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback speed (keeps the generated audio)'**
+  String get v2PlaybackSpeed;
+
+  /// No description provided for @v2InputSnapshot.
+  ///
+  /// In en, this message translates to:
+  /// **'Task input snapshot'**
+  String get v2InputSnapshot;
+
+  /// No description provided for @v2SpeechPackageHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Each recipe is a self-contained package. An import ZIP must contain speech-package.json at its root.'**
+  String get v2SpeechPackageHelp;
+
+  /// No description provided for @v2ImportSpeechPackage.
+  ///
+  /// In en, this message translates to:
+  /// **'Import model ZIP'**
+  String get v2ImportSpeechPackage;
+
+  /// No description provided for @v2Ready.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get v2Ready;
+
+  /// No description provided for @v2ModelIncomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Incomplete or paused'**
+  String get v2ModelIncomplete;
+
+  /// No description provided for @v2ResumeDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume download'**
+  String get v2ResumeDownload;
+
+  /// No description provided for @v2PauseDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause download'**
+  String get v2PauseDownload;
+
+  /// No description provided for @v2DeleteSpeechModelHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete local model files. Existing results remain. Cancel queued jobs first; reference voices require a compatible model.'**
+  String get v2DeleteSpeechModelHelp;
+
+  /// No description provided for @v2AvailableModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Available recipes'**
+  String get v2AvailableModels;
+
+  /// No description provided for @v2ModelLicenseHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Review the upstream model card, supported languages and license before downloading.'**
+  String get v2ModelLicenseHelp;
+
+  /// No description provided for @v2ModelCard.
+  ///
+  /// In en, this message translates to:
+  /// **'Model card'**
+  String get v2ModelCard;
+
+  /// No description provided for @v2DownloadModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get v2DownloadModel;
+
+  /// No description provided for @v2CreateVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Create reference voice'**
+  String get v2CreateVoice;
+
+  /// No description provided for @v2VoiceHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Qwen3-TTS Base supports reference audio cloning. Use 3–30 seconds of clear single-speaker audio with an accurate transcript. Voices are bound to the model revision.'**
+  String get v2VoiceHelp;
+
+  /// No description provided for @v2InstallCloningFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Install a cloning-capable recipe first.'**
+  String get v2InstallCloningFirst;
+
+  /// No description provided for @v2VoiceName.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice name'**
+  String get v2VoiceName;
+
+  /// No description provided for @v2ReferenceText.
+  ///
+  /// In en, this message translates to:
+  /// **'Exact reference transcript'**
+  String get v2ReferenceText;
+
+  /// No description provided for @v2VoiceRights.
+  ///
+  /// In en, this message translates to:
+  /// **'I have permission to use this voice as a reference'**
+  String get v2VoiceRights;
+
+  /// No description provided for @v2VoiceTestText.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview text (required)'**
+  String get v2VoiceTestText;
+
+  /// No description provided for @v2SaveAndPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Save and create preview task'**
+  String get v2SaveAndPreview;
+
+  /// No description provided for @v2TranscribeToChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice to text'**
+  String get v2TranscribeToChat;
+
+  /// No description provided for @v2NoAutomaticAudioUpload.
+  ///
+  /// In en, this message translates to:
+  /// **'Only text is inserted. Nothing is sent automatically; original audio is not uploaded.'**
+  String get v2NoAutomaticAudioUpload;
+
+  /// No description provided for @v2ReplaceDraft.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace draft'**
+  String get v2ReplaceDraft;
+
+  /// No description provided for @v2AppendDraft.
+  ///
+  /// In en, this message translates to:
+  /// **'Append to draft'**
+  String get v2AppendDraft;
+
+  /// No description provided for @v2TranscriptInserted.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcript inserted into the selected chat draft.'**
+  String get v2TranscriptInserted;
+
+  /// No description provided for @v2ReadAloud.
+  ///
+  /// In en, this message translates to:
+  /// **'Read aloud'**
+  String get v2ReadAloud;
+
+  /// No description provided for @v2SynthesisParameters.
+  ///
+  /// In en, this message translates to:
+  /// **'Speaker: {speaker} · Synthesis speed: {speed}'**
+  String v2SynthesisParameters(String speaker, String speed);
+
+  /// No description provided for @v2SampleRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Output sample rate: {rate} Hz'**
+  String v2SampleRate(int rate);
+
+  /// No description provided for @v2DownloadSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Download size: about {size} MiB'**
+  String v2DownloadSize(int size);
+
+  /// No description provided for @v2TranscriptDestination.
+  ///
+  /// In en, this message translates to:
+  /// **'Destination: {name}'**
+  String v2TranscriptDestination(String name);
+
+  /// No description provided for @v2RetrySpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry as a new task'**
+  String get v2RetrySpeech;
+
+  /// No description provided for @v2TranscriptSegment.
+  ///
+  /// In en, this message translates to:
+  /// **'Segment {index}'**
+  String v2TranscriptSegment(int index);
+
+  /// No description provided for @v2ReadAloudHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The final answer is ready to edit and synthesize. Use up to 4,000 characters per task; split longer answers.'**
+  String get v2ReadAloudHelp;
+
+  /// No description provided for @v2NativeRestart.
+  ///
+  /// In en, this message translates to:
+  /// **'Speech cleanup is unconfirmed. Restart the app before running another speech task. Task records are retained.'**
+  String get v2NativeRestart;
+
+  /// No description provided for @v2CancelImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel import'**
+  String get v2CancelImport;
+
+  /// No description provided for @v2OriginalChatMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'The original destination is unavailable. Choose a conversation or assistant draft. The transcript is retained.'**
+  String get v2OriginalChatMissing;
+
+  /// No description provided for @v2AssistantDraft.
+  ///
+  /// In en, this message translates to:
+  /// **'New conversation · {name}'**
+  String v2AssistantDraft(String name);
+
+  /// No description provided for @v2TranscriptTarget.
+  ///
+  /// In en, this message translates to:
+  /// **'Destination draft'**
+  String get v2TranscriptTarget;
+
+  /// No description provided for @v2DraftChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'The destination draft changed. Open it again before confirming a replacement.'**
+  String get v2DraftChanged;
+
+  /// No description provided for @v2IncompleteAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'This answer is incomplete. Finish generating it before reading it aloud.'**
+  String get v2IncompleteAnswer;
+
+  /// No description provided for @v2SkillsGrantHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected skills can read their own instructions and resources. Other tools still need separate authorization.'**
+  String get v2SkillsGrantHelp;
+
+  /// No description provided for @v2DiscardRecording.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard the recent recording'**
+  String get v2DiscardRecording;
+
+  /// No description provided for @v2StartupFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Local data could not be opened. Existing data is retained; resolve the storage error and retry.'**
+  String get v2StartupFailed;
+
+  /// No description provided for @v2RetryStartup.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry startup'**
+  String get v2RetryStartup;
+
+  /// No description provided for @appLogsFilterApp.
+  ///
+  /// In en, this message translates to:
+  /// **'App'**
+  String get appLogsFilterApp;
+
+  /// No description provided for @appLogsFilterClient.
+  ///
+  /// In en, this message translates to:
+  /// **'Client'**
+  String get appLogsFilterClient;
+
+  /// No description provided for @appLogsFilterAgent.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent'**
+  String get appLogsFilterAgent;
+
+  /// No description provided for @appLogsFilterSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'Speech'**
+  String get appLogsFilterSpeech;
+
+  /// No description provided for @appLogsSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search logs or task ID'**
+  String get appLogsSearch;
+
+  /// No description provided for @appLogsClearSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear search'**
+  String get appLogsClearSearch;
+
+  /// No description provided for @appLogsAllLevels.
+  ///
+  /// In en, this message translates to:
+  /// **'All levels'**
+  String get appLogsAllLevels;
+
+  /// No description provided for @appLogsLevelDebug.
+  ///
+  /// In en, this message translates to:
+  /// **'Debug and above'**
+  String get appLogsLevelDebug;
+
+  /// No description provided for @appLogsLevelInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Info and above'**
+  String get appLogsLevelInfo;
+
+  /// No description provided for @appLogsLevelWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Warnings and errors'**
+  String get appLogsLevelWarning;
+
+  /// No description provided for @appLogsVisibleCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{visible} / {total} logs'**
+  String appLogsVisibleCount(int visible, int total);
+
+  /// No description provided for @appLogsRetention.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the latest {limit} entries. Copy and export use the current filters.'**
+  String appLogsRetention(int limit);
+
+  /// No description provided for @appLogsNoMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching logs'**
+  String get appLogsNoMatches;
+
+  /// No description provided for @v2ToolSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Web search'**
+  String get v2ToolSearch;
+
+  /// No description provided for @v2SearchGrantHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow this assistant to send search queries to the selected provider without asking each time. Bing and DuckDuckGo need no API key. Changing providers stops an active run that uses this permission.'**
+  String get v2SearchGrantHelp;
+
+  /// No description provided for @v2SearchProvider.
+  ///
+  /// In en, this message translates to:
+  /// **'Search provider'**
+  String get v2SearchProvider;
+
+  /// No description provided for @v2SearchBing.
+  ///
+  /// In en, this message translates to:
+  /// **'Bing'**
+  String get v2SearchBing;
+
+  /// No description provided for @v2SearchDuckDuckGo.
+  ///
+  /// In en, this message translates to:
+  /// **'DuckDuckGo'**
+  String get v2SearchDuckDuckGo;
+
+  /// No description provided for @v2SearchMaxResults.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum results per search'**
+  String get v2SearchMaxResults;
+
+  /// No description provided for @v2SearchSources.
+  ///
+  /// In en, this message translates to:
+  /// **'Search sources'**
+  String get v2SearchSources;
+
+  /// No description provided for @v2SearchNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching web results. Try a different query.'**
+  String get v2SearchNoResults;
+
+  /// No description provided for @v2SearchUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Search is unavailable. Check the network or select another provider.'**
+  String get v2SearchUnavailable;
+
+  /// No description provided for @v2SearchRateLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'The search provider is limiting requests. Try again later or change providers.'**
+  String get v2SearchRateLimited;
+
+  /// No description provided for @v2SearchChallenge.
+  ///
+  /// In en, this message translates to:
+  /// **'The provider requires verification or has blocked this request. Try later or select another provider.'**
+  String get v2SearchChallenge;
+
+  /// No description provided for @v2SearchInvalidResponse.
+  ///
+  /// In en, this message translates to:
+  /// **'The provider returned an unrecognized search page. Try later or select another provider.'**
+  String get v2SearchInvalidResponse;
+
+  /// No description provided for @v2SearchTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'The search response exceeded the size limit. Try a more specific query.'**
+  String get v2SearchTooLarge;
+
+  /// No description provided for @v2SearchTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'The search timed out. Try again later or select another provider.'**
+  String get v2SearchTimeout;
+
+  /// No description provided for @v2SearchOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to open this source link.'**
+  String get v2SearchOpenFailed;
+
+  /// No description provided for @v2ConversationModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose model'**
+  String get v2ConversationModel;
+
+  /// No description provided for @v2ConversationModelHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a model by provider. Selecting a local model loads it and starts the service.'**
+  String get v2ConversationModelHelp;
+
+  /// No description provided for @v2NoLocalChatModels.
+  ///
+  /// In en, this message translates to:
+  /// **'No local LLM is available. Download or import one from Models.'**
+  String get v2NoLocalChatModels;
+
+  /// No description provided for @v2AssistantDefaultModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat model'**
+  String get v2AssistantDefaultModel;
+
+  /// No description provided for @v2NoDefaultModel.
+  ///
+  /// In en, this message translates to:
+  /// **'No model selected'**
+  String get v2NoDefaultModel;
+
+  /// No description provided for @v2ClearDefaultModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear model selection'**
+  String get v2ClearDefaultModel;
+
+  /// No description provided for @v2AssistantDefaultModelHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'All conversations with this assistant share this model. Changing the model in chat updates this setting; historical messages stay unchanged.'**
+  String get v2AssistantDefaultModelHelp;
+
+  /// No description provided for @v2UnassignedAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant not assigned or removed'**
+  String get v2UnassignedAssistant;
+
+  /// No description provided for @v2ChangeConversationAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Change this conversation’s assistant'**
+  String get v2ChangeConversationAssistant;
+
+  /// No description provided for @v2ChangeConversationAssistantHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep this conversation’s model, messages, versions and draft. Future replies use the new assistant’s instructions and permissions; historical attribution stays unchanged.'**
+  String get v2ChangeConversationAssistantHelp;
+
+  /// No description provided for @v2ChooseConversationModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a model'**
+  String get v2ChooseConversationModel;
+
+  /// No description provided for @v2AllAssistantHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversations from all assistants'**
+  String get v2AllAssistantHistory;
+
+  /// No description provided for @v2ConnectionConversationCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} conversations use this provider and will need another model selection.'**
+  String v2ConnectionConversationCount(int count);
+
+  /// No description provided for @v2DeleteAssistantHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting this assistant also deletes all associated conversations, messages, and drafts. This cannot be undone.'**
+  String get v2DeleteAssistantHelp;
+
+  /// No description provided for @v2SwitchAssistantNewChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch assistant and start a new chat'**
+  String get v2SwitchAssistantNewChat;
+
+  /// No description provided for @v2ToolCallCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 tool call} other{{count} tool calls}}'**
+  String v2ToolCallCount(int count);
+
+  /// No description provided for @v2ToolRetryLoad.
+  ///
+  /// In en, this message translates to:
+  /// **'Reload'**
+  String get v2ToolRetryLoad;
+
+  /// No description provided for @v2ToolHistoryFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load tool activity.'**
+  String get v2ToolHistoryFailed;
+
+  /// No description provided for @v2ToolPrepared.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting to execute'**
+  String get v2ToolPrepared;
+
+  /// No description provided for @v2ToolApproved.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved, waiting to execute'**
+  String get v2ToolApproved;
+
+  /// No description provided for @v2ToolAwaitingAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for your answer'**
+  String get v2ToolAwaitingAnswer;
+
+  /// No description provided for @v2ToolList.
+  ///
+  /// In en, this message translates to:
+  /// **'List conversation files'**
+  String get v2ToolList;
+
+  /// No description provided for @v2ToolWriteAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Write conversation file'**
+  String get v2ToolWriteAction;
+
+  /// No description provided for @v2ToolQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Question'**
+  String get v2ToolQuestion;
+
+  /// No description provided for @v2ToolArguments.
+  ///
+  /// In en, this message translates to:
+  /// **'Arguments'**
+  String get v2ToolArguments;
+
+  /// No description provided for @v2ToolResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Result'**
+  String get v2ToolResult;
+
+  /// No description provided for @v2ToolSendAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Send answer'**
+  String get v2ToolSendAnswer;
+
+  /// No description provided for @chatDeleteMessageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete message'**
+  String get chatDeleteMessageTitle;
+
+  /// No description provided for @chatDeleteCurrentVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this version'**
+  String get chatDeleteCurrentVersion;
+
+  /// No description provided for @chatDeleteAllVersions.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete all versions'**
+  String get chatDeleteAllVersions;
+
+  /// No description provided for @chatDeleteAllVersionsConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this message and all its versions? Their tool call records and generation data will also be removed. Later messages will remain. This cannot be undone.'**
+  String get chatDeleteAllVersionsConfirm;
+
+  /// No description provided for @chatDeleteVersionConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete version {version} of {count}? Its tool call records and generation data will also be removed. Other versions and later messages will remain. This cannot be undone.'**
+  String chatDeleteVersionConfirm(int version, int count);
+
+  /// No description provided for @v2ToolResultTruncated.
+  ///
+  /// In en, this message translates to:
+  /// **'This result was truncated. Only the saved excerpt can be viewed or exported.'**
+  String get v2ToolResultTruncated;
+
+  /// No description provided for @v2ProviderPreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Preset'**
+  String get v2ProviderPreset;
+
+  /// No description provided for @v2ProviderCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get v2ProviderCustom;
+
+  /// No description provided for @v2ProviderPresetHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Preset providers cannot be deleted. You can configure or disable them.'**
+  String get v2ProviderPresetHelp;
+
+  /// No description provided for @v2ProviderEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable provider'**
+  String get v2ProviderEnabled;
+
+  /// No description provided for @v2ProviderEnabledHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Disabling preserves settings and history and stops runs using this provider.'**
+  String get v2ProviderEnabledHelp;
+
+  /// No description provided for @v2ProviderOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get v2ProviderOn;
+
+  /// No description provided for @v2ProviderOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled'**
+  String get v2ProviderOff;
+
+  /// No description provided for @v2ProviderModelCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} models'**
+  String v2ProviderModelCount(int count);
+
+  /// No description provided for @v2ProviderModelsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No models added. Add models manually or fetch them in provider settings.'**
+  String get v2ProviderModelsEmpty;
+
+  /// No description provided for @v2AddModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Add model manually'**
+  String get v2AddModel;
+
+  /// No description provided for @v2RemoveModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove model'**
+  String get v2RemoveModel;
+
+  /// No description provided for @v2RemoveModelHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving will remove {model} from this provider. Conversations and assistant defaults using it will be unavailable; messages remain.'**
+  String v2RemoveModelHelp(String model);
+
+  /// No description provided for @v2ModelIdRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a model ID'**
+  String get v2ModelIdRequired;
+
+  /// No description provided for @v2DiscoveredModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose models to add'**
+  String get v2DiscoveredModels;
+
+  /// No description provided for @v2ModelAlreadyAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Already added'**
+  String get v2ModelAlreadyAdded;
+
+  /// No description provided for @v2ModelSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search model IDs'**
+  String get v2ModelSearch;
+
+  /// No description provided for @v2ProviderNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching providers or models'**
+  String get v2ProviderNoResults;
+
+  /// No description provided for @v2ProviderModelSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search providers or models'**
+  String get v2ProviderModelSearch;
+
+  /// No description provided for @v2AddSelectedModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Add selected ({count})'**
+  String v2AddSelectedModels(int count);
+
+  /// No description provided for @v2SelectVisible.
+  ///
+  /// In en, this message translates to:
+  /// **'Select search results'**
+  String get v2SelectVisible;
+
+  /// No description provided for @v2DeselectVisible.
+  ///
+  /// In en, this message translates to:
+  /// **'Deselect search results'**
+  String get v2DeselectVisible;
+
+  /// No description provided for @v2LocalProvider.
+  ///
+  /// In en, this message translates to:
+  /// **'Local · {engine}'**
+  String v2LocalProvider(String engine);
+
+  /// No description provided for @v2LocalProviderHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Managed in the local model library; load or stop models to control the runtime.'**
+  String get v2LocalProviderHelp;
+
+  /// No description provided for @v2ServicePublished.
+  ///
+  /// In en, this message translates to:
+  /// **'Serving externally'**
+  String get v2ServicePublished;
+
+  /// No description provided for @v2PublishedModelLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop the published model in the service center before switching local models.'**
+  String get v2PublishedModelLocked;
+
+  /// No description provided for @v2LocalModelLoaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Loaded'**
+  String get v2LocalModelLoaded;
+
+  /// No description provided for @v2LocalModelUnloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Not loaded'**
+  String get v2LocalModelUnloaded;
+
+  /// No description provided for @drawerAssistantSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant settings'**
+  String get drawerAssistantSettings;
+
+  /// No description provided for @settingsUser.
+  ///
+  /// In en, this message translates to:
+  /// **'User settings'**
+  String get settingsUser;
+
+  /// No description provided for @settingsSectionServices.
+  ///
+  /// In en, this message translates to:
+  /// **'Services & diagnostics'**
+  String get settingsSectionServices;
+
+  /// No description provided for @settingsSectionDeveloper.
+  ///
+  /// In en, this message translates to:
+  /// **'Developer tools'**
+  String get settingsSectionDeveloper;
+
+  /// No description provided for @settingsMnnTest.
+  ///
+  /// In en, this message translates to:
+  /// **'MNN test'**
+  String get settingsMnnTest;
+
+  /// No description provided for @settingsDebug.
+  ///
+  /// In en, this message translates to:
+  /// **'Debug'**
+  String get settingsDebug;
+
+  /// No description provided for @localModelImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Import local model'**
+  String get localModelImport;
+
+  /// No description provided for @localModelChooseImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose and import'**
+  String get localModelChooseImport;
+
+  /// No description provided for @localModelImportHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The selected file or folder is copied into app storage. Import starts after selection.'**
+  String get localModelImportHelp;
+
+  /// No description provided for @discoveryQuery.
+  ///
+  /// In en, this message translates to:
+  /// **'Search preset names or engines'**
+  String get discoveryQuery;
+
+  /// No description provided for @discoveryReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset filters'**
+  String get discoveryReset;
+
+  /// No description provided for @discoveryPurpose.
+  ///
+  /// In en, this message translates to:
+  /// **'Purpose'**
+  String get discoveryPurpose;
+
+  /// No description provided for @discoveryEngine.
+  ///
+  /// In en, this message translates to:
+  /// **'Engine'**
+  String get discoveryEngine;
+
+  /// No description provided for @discoveryState.
+  ///
+  /// In en, this message translates to:
+  /// **'Installation'**
+  String get discoveryState;
+
+  /// No description provided for @discoveryNotInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'Not installed'**
+  String get discoveryNotInstalled;
+
+  /// No description provided for @discoveryDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading'**
+  String get discoveryDownloading;
+
+  /// No description provided for @discoveryIncomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused / incomplete'**
+  String get discoveryIncomplete;
+
+  /// No description provided for @discoveryCloneOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice cloning'**
+  String get discoveryCloneOnly;
+
+  /// No description provided for @discoverySmallOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to 200 MiB'**
+  String get discoverySmallOnly;
+
+  /// No description provided for @discoverySpeechHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Download a complete preset package, including its dependencies. Runtime compatibility and quality still need verification on your device.'**
+  String get discoverySpeechHelp;
+
+  /// No description provided for @discoverySpeechLibraryHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Get speech models from Discover. Installed and incomplete packages appear here.'**
+  String get discoverySpeechLibraryHelp;
+
+  /// No description provided for @discoveryOnlineLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Search language models online'**
+  String get discoveryOnlineLanguage;
+
+  /// No description provided for @v2StartupPreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing ServLlama'**
+  String get v2StartupPreparing;
+
+  /// No description provided for @v2MigrationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrading your data'**
+  String get v2MigrationTitle;
+
+  /// No description provided for @v2MigrationHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Your chats, model records and download progress are being upgraded. Model files stay in place. Original data is retained until the upgrade succeeds.'**
+  String get v2MigrationHelp;
+
+  /// No description provided for @v2MigrationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The upgrade could not finish. Resolve the storage issue and retry; your original data is retained.'**
+  String get v2MigrationFailed;
+
+  /// No description provided for @v2MigrationChats.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading chat history'**
+  String get v2MigrationChats;
+
+  /// No description provided for @v2MigrationModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading local model records'**
+  String get v2MigrationModels;
+
+  /// No description provided for @v2MigrationDownloads.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading download tasks'**
+  String get v2MigrationDownloads;
+
+  /// No description provided for @v2MigrationWriting.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving upgraded records'**
+  String get v2MigrationWriting;
+
+  /// No description provided for @v2MigrationVerifying.
+  ///
+  /// In en, this message translates to:
+  /// **'Verifying model and download records'**
+  String get v2MigrationVerifying;
+
+  /// No description provided for @v2MigrationComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade complete. Finishing startup…'**
+  String get v2MigrationComplete;
+
+  /// No description provided for @v2MigrationRecords.
+  ///
+  /// In en, this message translates to:
+  /// **'This step: {completed} / {total} records'**
+  String v2MigrationRecords(int completed, int total);
+
+  /// No description provided for @migrationPreviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Migration preview'**
+  String get migrationPreviewTitle;
+
+  /// No description provided for @migrationPreviewHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Simulates the interface only. No real data is read or changed. You can leave at any time.'**
+  String get migrationPreviewHelp;
+
+  /// No description provided for @migrationPreviewRestart.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart preview'**
+  String get migrationPreviewRestart;
+
+  /// No description provided for @migrationPreviewFailure.
+  ///
+  /// In en, this message translates to:
+  /// **'Simulate failure'**
+  String get migrationPreviewFailure;
+
+  /// No description provided for @migrationPreviewError.
+  ///
+  /// In en, this message translates to:
+  /// **'Simulated error: Not enough storage. Retry to preview recovery.'**
+  String get migrationPreviewError;
+
+  /// No description provided for @migrationPreviewComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview complete. Your real data is unchanged.'**
+  String get migrationPreviewComplete;
+
+  /// No description provided for @migrationPreviewReturn.
+  ///
+  /// In en, this message translates to:
+  /// **'Return to sidebar'**
+  String get migrationPreviewReturn;
+
+  /// No description provided for @uiLabTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'UI primitives'**
+  String get uiLabTitle;
+
+  /// No description provided for @uiLabDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview dark theme'**
+  String get uiLabDark;
+
+  /// No description provided for @uiLabLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview light theme'**
+  String get uiLabLight;
+
+  /// No description provided for @uiLabVisuals.
+  ///
+  /// In en, this message translates to:
+  /// **'Visuals'**
+  String get uiLabVisuals;
+
+  /// No description provided for @uiLabControls.
+  ///
+  /// In en, this message translates to:
+  /// **'Controls'**
+  String get uiLabControls;
+
+  /// No description provided for @uiLabScenes.
+  ///
+  /// In en, this message translates to:
+  /// **'Scenes'**
+  String get uiLabScenes;
+
+  /// No description provided for @uiLabPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Design preview'**
+  String get uiLabPreview;
+
+  /// No description provided for @uiLabHeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'Let content lead'**
+  String get uiLabHeadline;
+
+  /// No description provided for @uiLabIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Neutral surfaces, gentle blue-violet accents. Compact and ordered, with room to breathe.'**
+  String get uiLabIntro;
+
+  /// No description provided for @uiLabQuiet.
+  ///
+  /// In en, this message translates to:
+  /// **'Restrained'**
+  String get uiLabQuiet;
+
+  /// No description provided for @uiLabSoft.
+  ///
+  /// In en, this message translates to:
+  /// **'Soft & clear'**
+  String get uiLabSoft;
+
+  /// No description provided for @uiLabPalette.
+  ///
+  /// In en, this message translates to:
+  /// **'Color & surfaces'**
+  String get uiLabPalette;
+
+  /// No description provided for @uiLabPaletteHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Neutral backgrounds with accents where attention matters.'**
+  String get uiLabPaletteHint;
+
+  /// No description provided for @uiLabCanvas.
+  ///
+  /// In en, this message translates to:
+  /// **'Canvas'**
+  String get uiLabCanvas;
+
+  /// No description provided for @uiLabSurface.
+  ///
+  /// In en, this message translates to:
+  /// **'Surface'**
+  String get uiLabSurface;
+
+  /// No description provided for @uiLabPrimary.
+  ///
+  /// In en, this message translates to:
+  /// **'Primary'**
+  String get uiLabPrimary;
+
+  /// No description provided for @uiLabSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Selection'**
+  String get uiLabSelected;
+
+  /// No description provided for @uiLabTypography.
+  ///
+  /// In en, this message translates to:
+  /// **'Typography'**
+  String get uiLabTypography;
+
+  /// No description provided for @uiLabTypographyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hierarchy through size, weight and spacing.'**
+  String get uiLabTypographyHint;
+
+  /// No description provided for @uiLabTypeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clarity starts with reading'**
+  String get uiLabTypeTitle;
+
+  /// No description provided for @uiLabTypeSection.
+  ///
+  /// In en, this message translates to:
+  /// **'A clear section heading'**
+  String get uiLabTypeSection;
+
+  /// No description provided for @uiLabTypeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Comfortable line spacing makes longer answers easy to read. Information flows naturally, with actions close at hand.'**
+  String get uiLabTypeBody;
+
+  /// No description provided for @uiLabTypeCaption.
+  ///
+  /// In en, this message translates to:
+  /// **'Supporting text · 12 sp · Time, status and descriptions'**
+  String get uiLabTypeCaption;
+
+  /// No description provided for @uiLabRhythm.
+  ///
+  /// In en, this message translates to:
+  /// **'Spacing, corners & icons'**
+  String get uiLabRhythm;
+
+  /// No description provided for @uiLabRhythmHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Compact groups, generous separation and comfortable touch targets.'**
+  String get uiLabRhythmHint;
+
+  /// No description provided for @uiLabRadii.
+  ///
+  /// In en, this message translates to:
+  /// **'Card radius 18 dp · Fields 14 dp\nTouch targets at least 48 dp'**
+  String get uiLabRadii;
+
+  /// No description provided for @uiLabLocalOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'These interactions preview the design without connecting to models or saving application data.'**
+  String get uiLabLocalOnly;
+
+  /// No description provided for @uiLabActions.
+  ///
+  /// In en, this message translates to:
+  /// **'Buttons & overlays'**
+  String get uiLabActions;
+
+  /// No description provided for @uiLabActionsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'A clear primary action, softer secondary actions and lightweight utilities.'**
+  String get uiLabActionsHint;
+
+  /// No description provided for @uiLabPrimaryAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Primary'**
+  String get uiLabPrimaryAction;
+
+  /// No description provided for @uiLabSecondaryAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Secondary'**
+  String get uiLabSecondaryAction;
+
+  /// No description provided for @uiLabSheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Bottom sheet'**
+  String get uiLabSheet;
+
+  /// No description provided for @uiLabDialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Dialog'**
+  String get uiLabDialog;
+
+  /// No description provided for @uiLabDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled'**
+  String get uiLabDisabled;
+
+  /// No description provided for @uiLabDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm this selection?'**
+  String get uiLabDialogTitle;
+
+  /// No description provided for @uiLabDialogBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This previews a dialog. Confirm to see feedback; your real settings stay unchanged.'**
+  String get uiLabDialogBody;
+
+  /// No description provided for @uiLabConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get uiLabConfirm;
+
+  /// No description provided for @uiLabFeedback.
+  ///
+  /// In en, this message translates to:
+  /// **'Done — this change applies only to the preview.'**
+  String get uiLabFeedback;
+
+  /// No description provided for @uiLabChooseModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a model'**
+  String get uiLabChooseModel;
+
+  /// No description provided for @uiLabOnDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'On-device · Example'**
+  String get uiLabOnDevice;
+
+  /// No description provided for @uiLabCloud.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud · Example'**
+  String get uiLabCloud;
+
+  /// No description provided for @uiLabForms.
+  ///
+  /// In en, this message translates to:
+  /// **'Input & selection'**
+  String get uiLabForms;
+
+  /// No description provided for @uiLabFormsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Try the field, switch, slider and chip states.'**
+  String get uiLabFormsHint;
+
+  /// No description provided for @uiLabName.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant name'**
+  String get uiLabName;
+
+  /// No description provided for @uiLabNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Give your assistant a name'**
+  String get uiLabNameHint;
+
+  /// No description provided for @uiLabNameError.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an assistant name'**
+  String get uiLabNameError;
+
+  /// No description provided for @uiLabStreaming.
+  ///
+  /// In en, this message translates to:
+  /// **'Stream responses'**
+  String get uiLabStreaming;
+
+  /// No description provided for @uiLabStreamingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the answer as it arrives'**
+  String get uiLabStreamingHint;
+
+  /// No description provided for @uiLabTemperature.
+  ///
+  /// In en, this message translates to:
+  /// **'Temperature'**
+  String get uiLabTemperature;
+
+  /// No description provided for @uiLabVision.
+  ///
+  /// In en, this message translates to:
+  /// **'Vision'**
+  String get uiLabVision;
+
+  /// No description provided for @uiLabValidate.
+  ///
+  /// In en, this message translates to:
+  /// **'Validate input'**
+  String get uiLabValidate;
+
+  /// No description provided for @uiLabStates.
+  ///
+  /// In en, this message translates to:
+  /// **'Status & progress'**
+  String get uiLabStates;
+
+  /// No description provided for @uiLabStatesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Color supports the label; the label always explains the state.'**
+  String get uiLabStatesHint;
+
+  /// No description provided for @uiLabReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get uiLabReady;
+
+  /// No description provided for @uiLabWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting'**
+  String get uiLabWaiting;
+
+  /// No description provided for @uiLabFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get uiLabFailed;
+
+  /// No description provided for @uiLabDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Model download · Preview'**
+  String get uiLabDownload;
+
+  /// No description provided for @uiLabSimulate.
+  ///
+  /// In en, this message translates to:
+  /// **'Simulate progress'**
+  String get uiLabSimulate;
+
+  /// No description provided for @uiLabAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get uiLabAgain;
+
+  /// No description provided for @uiLabChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation'**
+  String get uiLabChat;
+
+  /// No description provided for @uiLabChatHint.
+  ///
+  /// In en, this message translates to:
+  /// **'User bubbles, open assistant text, inline tools and message metadata.'**
+  String get uiLabChatHint;
+
+  /// No description provided for @uiLabYou.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get uiLabYou;
+
+  /// No description provided for @uiLabQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Help me plan today’s reading.'**
+  String get uiLabQuestion;
+
+  /// No description provided for @uiLabAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading assistant'**
+  String get uiLabAssistant;
+
+  /// No description provided for @uiLabTool.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed · Find reading resources'**
+  String get uiLabTool;
+
+  /// No description provided for @uiLabToolDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Search → Organize → Return results\nAn expandable tool example. No network request was made.'**
+  String get uiLabToolDetail;
+
+  /// No description provided for @uiLabAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Set aside 25 minutes to focus on one chapter.\n\nThen spend 5 minutes noting three key ideas and one question to explore. Leave some room for reflection.'**
+  String get uiLabAnswer;
+
+  /// No description provided for @uiLabReply.
+  ///
+  /// In en, this message translates to:
+  /// **'Your preview message was received. This demonstrates text layout and send feedback without calling a model.'**
+  String get uiLabReply;
+
+  /// No description provided for @uiLabCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview copy feedback'**
+  String get uiLabCopy;
+
+  /// No description provided for @uiLabMore.
+  ///
+  /// In en, this message translates to:
+  /// **'More options'**
+  String get uiLabMore;
+
+  /// No description provided for @uiLabManagement.
+  ///
+  /// In en, this message translates to:
+  /// **'Grouped lists & model cards'**
+  String get uiLabManagement;
+
+  /// No description provided for @uiLabManagementHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Consistent alignment, subtle separators and details on demand.'**
+  String get uiLabManagementHint;
+
+  /// No description provided for @uiLabAssistantHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Organize ideas and explore reading'**
+  String get uiLabAssistantHint;
+
+  /// No description provided for @uiLabProviderHint.
+  ///
+  /// In en, this message translates to:
+  /// **'2 configured models · Example'**
+  String get uiLabProviderHint;
+
+  /// No description provided for @uiLabVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Speech'**
+  String get uiLabVoice;
+
+  /// No description provided for @uiLabVoiceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcription & synthesis · Example'**
+  String get uiLabVoiceHint;
+
+  /// No description provided for @uiLabComposer.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a message to try the interaction'**
+  String get uiLabComposer;
+
+  /// No description provided for @uiLabSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send preview message'**
+  String get uiLabSend;
+
+  /// No description provided for @uiLabExactValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Value'**
+  String get uiLabExactValue;
+
+  /// No description provided for @uiLabNumericHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag for a rough value, or type up to two decimal places.'**
+  String get uiLabNumericHint;
+
+  /// No description provided for @uiLabNumericError.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a value from {min} to {max}, with at most two decimal places.'**
+  String uiLabNumericError(String min, String max);
+
+  /// No description provided for @uiLabMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages'**
+  String get uiLabMessages;
+
+  /// No description provided for @uiLabMessagesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Centered at the top for 3 seconds. A new message replaces the previous one; you can also dismiss it.'**
+  String get uiLabMessagesHint;
+
+  /// No description provided for @uiLabDismissMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss message'**
+  String get uiLabDismissMessage;
+
+  /// No description provided for @uiLabMessageSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Success'**
+  String get uiLabMessageSuccess;
+
+  /// No description provided for @uiLabMessageInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Info'**
+  String get uiLabMessageInfo;
+
+  /// No description provided for @uiLabMessageWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Warning'**
+  String get uiLabMessageWarning;
+
+  /// No description provided for @uiLabMessageError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error'**
+  String get uiLabMessageError;
+
+  /// No description provided for @uiLabMessageInfoText.
+  ///
+  /// In en, this message translates to:
+  /// **'This is a design preview. Your real data stays unchanged.'**
+  String get uiLabMessageInfoText;
+
+  /// No description provided for @uiLabMessageWarningText.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a model before continuing. (Example)'**
+  String get uiLabMessageWarningText;
+
+  /// No description provided for @uiLabMessageErrorText.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection failed. Check your settings and retry. (Example)'**
+  String get uiLabMessageErrorText;
+
+  /// No description provided for @uiLabThemeColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme color'**
+  String get uiLabThemeColor;
+
+  /// No description provided for @uiLabViolet.
+  ///
+  /// In en, this message translates to:
+  /// **'Mist violet'**
+  String get uiLabViolet;
+
+  /// No description provided for @uiLabTea.
+  ///
+  /// In en, this message translates to:
+  /// **'Tea violet'**
+  String get uiLabTea;
+
+  /// No description provided for @uiLabTeaIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Violet with a touch of tea, paired with warm neutral surfaces. Soft, restrained and clearly layered.'**
+  String get uiLabTeaIntro;
+
+  /// No description provided for @numericExactValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Value'**
+  String get numericExactValue;
+
+  /// No description provided for @numericHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag for a rough value, or type up to two decimal places.'**
+  String get numericHint;
+
+  /// No description provided for @numericError.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a value from {min} to {max}, with at most two decimal places.'**
+  String numericError(String min, String max);
+
+  /// No description provided for @commonDismissMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss message'**
+  String get commonDismissMessage;
+
+  /// No description provided for @v2ProviderConfiguration.
+  ///
+  /// In en, this message translates to:
+  /// **'Configuration'**
+  String get v2ProviderConfiguration;
+
+  /// No description provided for @v2ProviderIdentity.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider'**
+  String get v2ProviderIdentity;
+
+  /// No description provided for @v2ProviderConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection'**
+  String get v2ProviderConnection;
+
+  /// No description provided for @v2ProtocolOpenai.
+  ///
+  /// In en, this message translates to:
+  /// **'OpenAI compatible'**
+  String get v2ProtocolOpenai;
+
+  /// No description provided for @v2ModelCapabilities.
+  ///
+  /// In en, this message translates to:
+  /// **'Model capabilities'**
+  String get v2ModelCapabilities;
+
+  /// No description provided for @v2ModelCapabilitiesHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Set capabilities for each model according to its documentation. Fetching models only returns IDs; it does not verify image or tool support. Save the provider to apply your changes.'**
+  String get v2ModelCapabilitiesHelp;
+
+  /// No description provided for @v2ModelText.
+  ///
+  /// In en, this message translates to:
+  /// **'Text'**
+  String get v2ModelText;
+
+  /// No description provided for @v2ModelImages.
+  ///
+  /// In en, this message translates to:
+  /// **'Images'**
+  String get v2ModelImages;
+
+  /// No description provided for @v2ModelTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Tools'**
+  String get v2ModelTools;
+
+  /// No description provided for @v2IdentitySettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Identity'**
+  String get v2IdentitySettings;
+
+  /// No description provided for @v2InstructionsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Describe the assistant’s role, response style and requirements…'**
+  String get v2InstructionsHint;
+
+  /// No description provided for @v2Credentials.
+  ///
+  /// In en, this message translates to:
+  /// **'Credentials'**
+  String get v2Credentials;
+
+  /// No description provided for @v2ModelImagesUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This model has image input disabled. Check its capabilities in provider settings.'**
+  String get v2ModelImagesUnavailable;
+
+  /// No description provided for @v2AssistantModelChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'This assistant’s model selection changed. Reopen its settings before editing it.'**
+  String get v2AssistantModelChanged;
+
+  /// No description provided for @chatGreetingMorning.
+  ///
+  /// In en, this message translates to:
+  /// **'Good morning'**
+  String get chatGreetingMorning;
+
+  /// No description provided for @chatGreetingNoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Good afternoon'**
+  String get chatGreetingNoon;
+
+  /// No description provided for @chatGreetingAfternoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Good afternoon'**
+  String get chatGreetingAfternoon;
+
+  /// No description provided for @chatGreetingEvening.
+  ///
+  /// In en, this message translates to:
+  /// **'Good evening'**
+  String get chatGreetingEvening;
+
+  /// No description provided for @chatWelcomeDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'What’s on your mind today?'**
+  String get chatWelcomeDescription;
+
+  /// No description provided for @chatWelcomeTranscribe.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcribe'**
+  String get chatWelcomeTranscribe;
+
+  /// No description provided for @chatWelcomeSynthesize.
+  ///
+  /// In en, this message translates to:
+  /// **'Synthesize'**
+  String get chatWelcomeSynthesize;
+
+  /// No description provided for @chatWelcomeTranscribeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio to text'**
+  String get chatWelcomeTranscribeHint;
+
+  /// No description provided for @chatWelcomeSynthesizeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Text to audio'**
+  String get chatWelcomeSynthesizeHint;
 }
 
 class _AppLocalizationsDelegate

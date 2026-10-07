@@ -1,3 +1,4 @@
+import 'package:servllama/shared/widgets/app_scaffold.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mnn_engine/mnn_engine.dart' show MnnLogEntry, MnnServerBindMode;
@@ -87,7 +88,7 @@ class _MnnTestPageState extends State<MnnTestPage> {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<MnnTestController>.value(
       value: _controller,
-      child: Scaffold(
+      child: AppScaffold(
         appBar: AppBar(title: const Text('MNN 测试')),
         body: Consumer<MnnTestController>(
           builder: (context, controller, _) {
@@ -347,7 +348,7 @@ class _ServerCard extends StatelessWidget {
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           ],
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           TextField(
             controller: portController,
             enabled: serverState == 'stopped',
@@ -357,7 +358,7 @@ class _ServerCard extends StatelessWidget {
               hintText: '8081',
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           TextField(
             controller: apiKeyController,
             enabled: serverState == 'stopped',
@@ -507,7 +508,7 @@ class _ApiCard extends StatelessWidget {
             maxLines: 3,
             decoration: const InputDecoration(labelText: 'System Prompt（可选）'),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           TextField(
             controller: promptController,
             minLines: 2,
@@ -517,7 +518,7 @@ class _ApiCard extends StatelessWidget {
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
-            runSpacing: 8,
+            runSpacing: 16,
             children: [
               SizedBox(
                 width: 150,

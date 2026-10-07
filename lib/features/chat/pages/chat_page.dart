@@ -1,4 +1,13 @@
+import 'package:servllama/core/models/model_asset.dart';
+import 'package:servllama/features/server/pages/server_page.dart';
+import 'package:servllama/shared/widgets/app_message.dart';
+import 'package:servllama/shared/widgets/app_scaffold.dart';
+import 'package:servllama/features/agent/pages/tool_activity_page.dart';
+import 'package:servllama/features/chat/pages/chat_target_picker.dart';
 import 'dart:async';
+import 'package:servllama/features/speech/services/speech_job_service.dart';
+import 'package:servllama/features/speech/pages/speech_page.dart';
+import 'package:servllama/shared/widgets/async_action.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -23,6 +32,7 @@ import 'package:servllama/features/chat/widgets/chat_message_list.dart';
 import 'package:servllama/features/chat/widgets/chat_message_sheets.dart';
 import 'package:servllama/features/chat/widgets/chat_model_sheet.dart';
 import 'package:servllama/features/chat/widgets/chat_staged_message_list.dart';
+import 'package:servllama/features/chat/widgets/chat_session_actions.dart';
 import 'package:servllama/features/downloads/pages/model_discovery_page.dart';
 import 'package:servllama/features/downloads/providers/download_provider.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
@@ -61,6 +71,18 @@ class _ChatView extends StatefulWidget {
 class _ChatViewState extends State<_ChatView> {
   final ChatScrollCoordinator _scrollCoordinator = ChatScrollCoordinator();
   final TextEditingController _inputController = TextEditingController();
+  ChatProvider? _draftProvider;
+  void _saveInput() => _draftProvider?.updateDraft(_inputController.text);
+  void _restoreInput() {
+    final value = _draftProvider?.currentDraft ?? '';
+    if (_inputController.text != value) {
+      _inputController.value = TextEditingValue(
+        text: value,
+        selection: TextSelection.collapsed(offset: value.length),
+      );
+    }
+  }
+
   final ImageAttachmentService _imageAttachmentService =
       ImageAttachmentService();
 
@@ -78,38 +100,57 @@ class _ChatViewState extends State<_ChatView> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final provider = context.read<ChatProvider>();
+    if (!identical(_draftProvider, provider)) {
+      _draftProvider?.removeListener(_restoreInput);
+      _inputController.removeListener(_saveInput);
+      _draftProvider = provider;
+      provider.addListener(_restoreInput);
+      _inputController.addListener(_saveInput);
+      _restoreInput();
+    }
     _scrollCoordinator.attachProvider(context.read<ChatProvider>());
   }
 
   @override
   void dispose() {
+    _draftProvider?.removeListener(_restoreInput);
+    unawaited(_draftProvider?.flushDrafts());
     _scrollCoordinator.dispose();
     _inputController.dispose();
     super.dispose();
   }
 
   Future<void> _send(BuildContext context) async {
+    final chat = context.read<ChatProvider>();
+    if (!chat.canSubmitInput) return;
     final text = _inputController.text;
     if (text.trim().isEmpty &&
         context.read<ChatProvider>().pendingImageAttachments.isEmpty) {
       return;
     }
-    _inputController.clear();
+    if (chat.hasAssistantContext && chat.currentTarget == null) {
+      AppMessage.show(context, context.l10n.v2ChooseConversationModel);
+      return;
+    }
     _scrollCoordinator.enableAutoStickToBottom();
     final provider = context.read<ChatProvider>();
     final attachments = List<String>.from(provider.pendingImageAttachments);
-    await provider.sendMessage(text, imageAttachments: attachments);
+    await runUiAction(
+      context,
+      () => provider.sendMessage(text, imageAttachments: attachments),
+    );
     if (!context.mounted) return;
     final errorMessage = provider.lastErrorMessage;
     if (errorMessage != null) {
       provider.clearLastError();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(errorMessage)));
+      AppMessage.show(context, errorMessage, tone: AppMessageTone.error);
     }
   }
 
   Future<void> _pickFromGallery(BuildContext context) async {
+    // The Android picker is an activity, not a Flutter Navigator route.
+    FocusManager.instance.primaryFocus?.unfocus();
     final provider = context.read<ChatProvider>();
     try {
       final paths = await _imageAttachmentService.pickFromGallery(
@@ -120,19 +161,17 @@ class _ChatViewState extends State<_ChatView> {
       }
     } on ImageAttachmentException catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.message)));
+      AppMessage.show(context, e.message, tone: AppMessageTone.error);
     }
   }
 
   Future<void> _handleServerAction(BuildContext context) async {
     final runtime = context.read<EngineRuntimeProvider?>();
-    if (runtime == null) {
+    if (runtime == null || runtime.isBusy) {
       return;
     }
 
-    if (runtime.isRunning) {
+    if (runtime.canStop) {
       await runtime.stop();
       if (context.mounted) {
         _showRuntimeError(context, runtime);
@@ -145,6 +184,8 @@ class _ChatViewState extends State<_ChatView> {
     final engine = await showModalBottomSheet<InferenceEngine>(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true,
+      useSafeArea: true,
       builder: (sheetContext) =>
           Consumer2<EngineRuntimeProvider, ModelManagementProvider>(
             builder: (_, runtime, library, __) => ChatEngineStartSheet(
@@ -161,7 +202,10 @@ class _ChatViewState extends State<_ChatView> {
             ),
           ),
     );
-    if (engine == null || !context.mounted) {
+    if (engine == null ||
+        !context.mounted ||
+        runtime.isBusy ||
+        runtime.canStop) {
       return;
     }
 
@@ -175,11 +219,11 @@ class _ChatViewState extends State<_ChatView> {
     // Both engines are model-specific. Choosing a model owns the remaining
     // start sequence when the selected engine has no saved default.
     if (runtime.selectedModelId == null) {
-      await _showModels(context);
+      await _showLocalModels(context, privateStart: true);
       return;
     }
 
-    await runtime.start();
+    await runtime.startPrivate();
     if (context.mounted) {
       _showRuntimeError(context, runtime);
     }
@@ -202,6 +246,33 @@ class _ChatViewState extends State<_ChatView> {
   }
 
   Future<void> _showModels(BuildContext context) async {
+    final chat = context.read<ChatProvider>();
+    if (!chat.canSelectModels) return;
+    if (chat.hasAssistantContext) {
+      var source = chat.draftKey;
+      await showChatTargetPicker(
+        context,
+        initialTarget: chat.currentTarget,
+        onSelected: (picked) async {
+          if (!chat.canSelectModels || chat.draftKey != source) {
+            throw StateError('Conversation changed; reopen the model picker');
+          }
+          try {
+            await chat.selectTarget(picked, startLocal: true);
+          } finally {
+            source = chat.draftKey;
+          }
+        },
+      );
+      return;
+    }
+    await _showLocalModels(context);
+  }
+
+  Future<void> _showLocalModels(
+    BuildContext context, {
+    bool privateStart = false,
+  }) async {
     final runtime = context.read<EngineRuntimeProvider?>();
     if (runtime == null) {
       return;
@@ -247,12 +318,22 @@ class _ChatViewState extends State<_ChatView> {
           ),
     );
 
-    if (picked == null || !context.mounted) {
+    if (picked == null ||
+        !context.mounted ||
+        runtime.activeEngine != picked.engine ||
+        runtime.isBusy) {
       return;
     }
     // One tap owns the whole bring-up: idle starts the engine, running swaps
-    // within it. Progress surfaces on the hero, so the sheet closes first.
-    await runtime.activateModel(picked.runtimeId);
+    // within it. Progress remains in the runtime subtitle after the sheet closes.
+    if (privateStart) {
+      // Starting a local service must not change the conversation's target.
+      if (runtime.canStop) return;
+      await runtime.selectModel(picked.runtimeId);
+      await runtime.startPrivate();
+    } else {
+      await runtime.activateModel(picked.runtimeId);
+    }
     if (!context.mounted) {
       return;
     }
@@ -264,12 +345,10 @@ class _ChatViewState extends State<_ChatView> {
     if (error == null) {
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          RuntimeLabels.runtimeError(context.l10n, error, runtime.port),
-        ),
-      ),
+    AppMessage.show(
+      context,
+      RuntimeLabels.runtimeError(context.l10n, error, runtime.port),
+      tone: AppMessageTone.error,
     );
   }
 
@@ -289,9 +368,7 @@ class _ChatViewState extends State<_ChatView> {
     if (!context.mounted) {
       return;
     }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(context.l10n.chatMessageCopied)));
+    AppMessage.show(context, context.l10n.chatMessageCopied);
   }
 
   Future<void> _handleEditMessage(
@@ -312,16 +389,54 @@ class _ChatViewState extends State<_ChatView> {
     if (!context.mounted) {
       return;
     }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(context.l10n.chatMessageUpdated)));
+    AppMessage.show(context, context.l10n.chatMessageUpdated);
   }
 
   Future<void> _handleDeleteMessage(
     BuildContext context,
-    ChatMessageRecord message,
-  ) async {
-    await context.read<ChatProvider>().deleteMessage(message.id);
+    ChatMessageRecord message, {
+    bool allVersions = true,
+  }) async {
+    final l = context.l10n;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          allVersions ? l.chatDeleteMessageTitle : l.chatDeleteCurrentVersion,
+        ),
+        content: Text(
+          allVersions
+              ? l.chatDeleteAllVersionsConfirm
+              : l.chatDeleteVersionConfirm(
+                  message.currentVersionIndex + 1,
+                  message.versionCount,
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(l.commonCancel),
+          ),
+          FilledButton(
+            key: const Key('chat_message_delete_confirm'),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(l.commonDelete),
+          ),
+        ],
+      ),
+    );
+    if (!context.mounted || confirmed != true) return;
+    await runUiAction(
+      context,
+      () => context.read<ChatProvider>().deleteMessage(
+        message.id,
+        allVersions: allVersions,
+        expectedMessage: message,
+      ),
+    );
   }
 
   Future<void> _handleRegenerateMessage(
@@ -337,9 +452,7 @@ class _ChatViewState extends State<_ChatView> {
     final errorMessage = provider.lastErrorMessage;
     if (errorMessage != null) {
       provider.clearLastError();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(errorMessage)));
+      AppMessage.show(context, errorMessage, tone: AppMessageTone.error);
     }
   }
 
@@ -366,8 +479,33 @@ class _ChatViewState extends State<_ChatView> {
         await _handleEditMessage(context, message);
       case ChatMessageAction.regenerate:
         await _handleRegenerateMessage(context, message);
+      case ChatMessageAction.rerun:
+        await context.read<ChatProvider>().regenerateFromMessage(
+          message.id,
+          executeTools: true,
+        );
+      case ChatMessageAction.speak:
+        await runUiAction(context, () async {
+          final answer = await context.read<ChatProvider>().finalAnswer(
+            message,
+          );
+          if (!context.mounted) return;
+          if (answer == null) throw StateError(context.l10n.v2IncompleteAnswer);
+          if (context.mounted) {
+            await Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                builder: (_) => SpeechPage(
+                  initialText: SpeechJobService.spokenText(answer),
+                ),
+              ),
+            );
+          }
+        });
       case ChatMessageAction.delete:
         await _handleDeleteMessage(context, message);
+      case ChatMessageAction.deleteVersion:
+        await _handleDeleteMessage(context, message, allVersions: false);
     }
   }
 
@@ -393,7 +531,7 @@ class _ChatViewState extends State<_ChatView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppScaffold(
       appBar: AppBar(
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -435,7 +573,6 @@ class _ChatViewState extends State<_ChatView> {
               child: _ChatInputOverlayScaffold(
                 scrollCoordinator: _scrollCoordinator,
                 inputController: _inputController,
-                onDiscoverModels: () => _openDiscovery(context),
                 onOpenModels: () => _showModels(context),
                 onServerAction: () => _handleServerAction(context),
                 onSend: () => _send(context),
@@ -465,7 +602,6 @@ class _ChatInputOverlayScaffold extends StatefulWidget {
   const _ChatInputOverlayScaffold({
     required this.scrollCoordinator,
     required this.inputController,
-    required this.onDiscoverModels,
     required this.onOpenModels,
     required this.onServerAction,
     required this.onSend,
@@ -480,7 +616,6 @@ class _ChatInputOverlayScaffold extends StatefulWidget {
 
   final ChatScrollCoordinator scrollCoordinator;
   final TextEditingController inputController;
-  final VoidCallback onDiscoverModels;
   final VoidCallback onOpenModels;
   final VoidCallback onServerAction;
   final VoidCallback onSend;
@@ -520,8 +655,6 @@ class _ChatInputOverlayScaffoldState extends State<_ChatInputOverlayScaffold> {
       content: _ChatConversationPanel(
         scrollCoordinator: widget.scrollCoordinator,
         bottomContentPadding: _inputHeight + _messageBottomGap,
-        onDiscoverModels: widget.onDiscoverModels,
-        onOpenModels: widget.onOpenModels,
         onCopyMessage: widget.onCopyMessage,
         onEditMessage: widget.onEditMessage,
         onDeleteMessage: widget.onDeleteMessage,
@@ -579,8 +712,6 @@ class _ChatConversationPanel extends StatelessWidget {
   const _ChatConversationPanel({
     required this.scrollCoordinator,
     required this.bottomContentPadding,
-    required this.onDiscoverModels,
-    required this.onOpenModels,
     required this.onCopyMessage,
     required this.onEditMessage,
     required this.onDeleteMessage,
@@ -591,8 +722,6 @@ class _ChatConversationPanel extends StatelessWidget {
 
   final ChatScrollCoordinator scrollCoordinator;
   final double bottomContentPadding;
-  final VoidCallback onDiscoverModels;
-  final VoidCallback onOpenModels;
   final Future<void> Function(ChatMessageRecord message) onCopyMessage;
   final Future<void> Function(ChatMessageRecord message) onEditMessage;
   final Future<void> Function(ChatMessageRecord message) onDeleteMessage;
@@ -626,8 +755,6 @@ class _ChatConversationPanel extends StatelessWidget {
         serverProvider: serverProvider,
         bottomContentPadding: bottomContentPadding,
         scrollCoordinator: scrollCoordinator,
-        onDiscoverModels: onDiscoverModels,
-        onOpenModels: onOpenModels,
         onCopyMessage: onCopyMessage,
         onEditMessage: onEditMessage,
         onDeleteMessage: onDeleteMessage,
@@ -660,30 +787,49 @@ class _ChatInputPanel extends StatelessWidget {
       _ChatInputSnapshot.fromProvider,
     );
     final serverProvider = context.watch<EngineRuntimeProvider?>();
-    final isServerRunning =
-        serverProvider?.isRunning ?? snapshot.isServerRunning;
-    final isServerBusy = serverProvider?.isBusy ?? false;
+    final isRemote = context.select<ChatProvider, bool>((p) => p.isRemote);
     final provider = context.read<ChatProvider>();
+    final isServerRunning = serverProvider?.canStop ?? false;
+    final isServerBusy = serverProvider?.isBusy ?? false;
 
-    return ChatInputBar(
-      key: const Key('chat_input_bar'),
-      controller: controller,
-      hintText: _inputHintText(context, snapshot, isServerBusy: isServerBusy),
-      isServerRunning: isServerRunning,
-      isServerBusy: isServerBusy,
-      modelLabel: _modelSelectorLabel(context, snapshot),
-      canOpenModels: snapshot.canOpenModels && !isServerBusy,
-      isModelLoading: isServerBusy,
-      hasLoadedModel: snapshot.hasLoadedModel,
-      onServerAction: serverProvider == null ? null : onServerAction,
-      onOpenModels: onOpenModels,
-      canSend: snapshot.canSend,
-      isSending: snapshot.isSending,
-      onSend: onSend,
-      onStop: provider.cancelStreaming,
-      onPickFromGallery: onPickFromGallery,
-      pendingImageAttachments: snapshot.pendingImageAttachments,
-      onRemoveImageAttachment: provider.removeImageAttachment,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const AgentApprovalBanner(),
+        if (provider.stopReason?.endsWith('Budget') == true)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Text(context.l10n.v2BudgetReached),
+          ),
+        ChatInputBar(
+          key: const Key('chat_input_bar'),
+          controller: controller,
+          hintText: _inputHintText(
+            context,
+            snapshot,
+            isServerBusy: !isRemote && isServerBusy,
+          ),
+          isServerRunning: isServerRunning,
+          isServerBusy: isServerBusy,
+          modelLabel: _modelSelectorLabel(context, snapshot),
+          localModel: !isRemote,
+          canOpenModels: snapshot.canOpenModels && (isRemote || !isServerBusy),
+          isModelLoading: isServerBusy,
+          hasLoadedModel: snapshot.hasLoadedModel,
+          onServerAction: serverProvider == null || !provider.canManageSessions
+              ? null
+              : onServerAction,
+          onOpenModels: onOpenModels,
+          canSend: snapshot.canSend,
+          canAttachImages: snapshot.canAttachImages,
+          isSending: snapshot.isSending,
+          onSend: onSend,
+          onStop: provider.cancelStreaming,
+          onPickFromGallery: onPickFromGallery,
+          pendingImageAttachments: snapshot.pendingImageAttachments,
+          onRemoveImageAttachment: provider.removeImageAttachment,
+        ),
+      ],
     );
   }
 }
@@ -694,8 +840,6 @@ class _ChatConversationBody extends StatelessWidget {
     required this.serverProvider,
     required this.bottomContentPadding,
     required this.scrollCoordinator,
-    required this.onDiscoverModels,
-    required this.onOpenModels,
     required this.onCopyMessage,
     required this.onEditMessage,
     required this.onDeleteMessage,
@@ -708,8 +852,6 @@ class _ChatConversationBody extends StatelessWidget {
   final EngineRuntimeProvider? serverProvider;
   final double bottomContentPadding;
   final ChatScrollCoordinator scrollCoordinator;
-  final VoidCallback onDiscoverModels;
-  final VoidCallback onOpenModels;
   final Future<void> Function(ChatMessageRecord message) onCopyMessage;
   final Future<void> Function(ChatMessageRecord message) onEditMessage;
   final Future<void> Function(ChatMessageRecord message) onDeleteMessage;
@@ -729,37 +871,53 @@ class _ChatConversationBody extends StatelessWidget {
     }
 
     final visibleMessages = snapshot.visibleMessages;
-    final shouldShowHeroState =
-        visibleMessages.isEmpty &&
-        (!snapshot.isServerRunning || !snapshot.hasLoadedModel);
-    if (shouldShowHeroState) {
-      // The hero is the only place the orchestration progress shows while the
-      // conversation is still empty, so it reads the runtime directly.
+    final chat = context.watch<ChatProvider>();
+    if (visibleMessages.isEmpty && chat.hasAssistantContext) {
+      if (chat.currentAssistant == null) {
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(context.l10n.v2UnassignedAssistant),
+              if (chat.selectedSession != null)
+                TextButton(
+                  onPressed: !chat.canManageSessions
+                      ? null
+                      : () => runUiAction(
+                          context,
+                          () => ChatSessionActions.changeAssistant(
+                            provider: chat,
+                            presentationContext: context,
+                            session: chat.selectedSession!,
+                          ),
+                        ),
+                  child: Text(context.l10n.v2ChangeConversationAssistant),
+                ),
+            ],
+          ),
+        );
+      }
+    }
+    if (visibleMessages.isEmpty) {
       final runtime = serverProvider;
-      final isPreparing = runtime?.isBusy == true;
-      final phase = runtime?.currentPhase;
-      final preparingLabel = isPreparing && phase != null && runtime != null
-          ? RuntimeLabels.phase(context.l10n, phase)
-          : null;
-      // Nullable like the runtime above: the page is embeddable without the
-      // library scope (it only changes which hero action is offered).
-      final hasLibraryModels = context.select<ModelManagementProvider?, bool>(
-        (library) =>
-            (library?.countFor(
-                  runtime?.activeEngine ?? InferenceEngine.llamaCpp,
-                ) ??
-                0) >
-            0,
-      );
+      final status = runtime?.isBusy == true && runtime?.currentPhase != null
+          ? RuntimeLabels.phase(context.l10n, runtime!.currentPhase!)
+          : runtime?.isRunning == true
+          ? context.l10n.serverStatusRunning
+          : context.l10n.serverStatusStopped;
+      void open(Widget page) => Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => page));
       return Padding(
         padding: EdgeInsets.only(bottom: bottomContentPadding),
         child: ChatConversationHero(
           key: ValueKey<String>('chat_conversation_hero_$conversationKey'),
-          isPreparing: isPreparing,
-          preparingLabel: preparingLabel,
-          hasLibraryModels: hasLibraryModels,
-          onDiscoverModels: onDiscoverModels,
-          onOpenModels: isPreparing ? null : onOpenModels,
+          serverStatus: status,
+          onServer: () => open(const ServerPage()),
+          onTranscribe: () =>
+              open(const SpeechPage(initialKind: AssetKind.asr)),
+          onSynthesize: () =>
+              open(const SpeechPage(initialKind: AssetKind.tts)),
         ),
       );
     }
@@ -861,26 +1019,38 @@ class _ChatRuntimeTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final chat = context.watch<ChatProvider>();
     final runtime = context.watch<EngineRuntimeProvider?>();
-    if (runtime == null) {
-      return const SizedBox.shrink();
-    }
     final library = context.watch<ModelManagementProvider?>();
     final l10n = context.l10n;
     final theme = Theme.of(context);
-    final state = runtime.state;
-    final engineName = state.engine.displayName;
-
-    final String detail;
-    if (state.status == EngineRuntimeStatus.preparing && state.phase != null) {
-      detail = RuntimeLabels.phase(l10n, state.phase!);
-    } else if (state.status == EngineRuntimeStatus.stopping) {
-      detail = l10n.serverStatusStopping;
+    String label;
+    if (chat.hasAssistantContext) {
+      label = chat.targetLabel ?? l10n.chatSelectModel;
+      if (chat.targetAsset != null &&
+          runtime?.isBusy == true &&
+          runtime?.currentPhase != null) {
+        label = RuntimeLabels.phase(l10n, runtime!.currentPhase!);
+      }
     } else {
-      final runtimeId = runtime.activeModelId ?? runtime.selectedModelId;
-      detail =
-          _modelName(library, state.engine, runtimeId) ??
-          l10n.serverNoModelSelected;
+      if (runtime == null) return const SizedBox.shrink();
+      final state = runtime.state;
+      String detail;
+      if (state.status == EngineRuntimeStatus.preparing &&
+          state.phase != null) {
+        detail = RuntimeLabels.phase(l10n, state.phase!);
+      } else if (state.status == EngineRuntimeStatus.stopping) {
+        detail = l10n.serverStatusStopping;
+      } else {
+        detail =
+            _modelName(
+              library,
+              state.engine,
+              runtime.activeModelId ?? runtime.selectedModelId,
+            ) ??
+            l10n.serverNoModelSelected;
+      }
+      label = '${state.engine.displayName} / $detail';
     }
 
     return Padding(
@@ -890,11 +1060,11 @@ class _ChatRuntimeTitle extends StatelessWidget {
         child: InkWell(
           key: const Key('chat_runtime_subtitle'),
           borderRadius: BorderRadius.circular(6),
-          onTap: onTap,
+          onTap: chat.canSelectModels ? onTap : null,
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 0),
             child: AnimatedTextSwap(
-              text: '$engineName / $detail',
+              text: label,
               alignment: Alignment.center,
               style: TextStyle(
                 fontSize: 10,
@@ -937,7 +1107,7 @@ class _ChatTitleSnapshot {
 
   factory _ChatTitleSnapshot.fromProvider(ChatProvider provider) {
     return _ChatTitleSnapshot(
-      conversationKey: provider.selectedSession?.id ?? 'draft',
+      conversationKey: provider.draftKey,
       title: provider.selectedSession?.title,
     );
   }
@@ -963,8 +1133,6 @@ class _ChatBodySnapshot {
     required this.isLoadingMessages,
     required this.visibleMessages,
     required this.visibleMessagesRevision,
-    required this.isServerRunning,
-    required this.hasLoadedModel,
     required this.streamingMessages,
     required this.draftMessageId,
     required this.canManageMessages,
@@ -972,12 +1140,10 @@ class _ChatBodySnapshot {
 
   factory _ChatBodySnapshot.fromProvider(ChatProvider provider) {
     return _ChatBodySnapshot(
-      conversationKey: provider.selectedSession?.id ?? 'draft',
+      conversationKey: provider.draftKey,
       isLoadingMessages: provider.isLoadingMessages,
       visibleMessages: provider.visibleMessages,
       visibleMessagesRevision: provider.visibleMessagesRevision,
-      isServerRunning: provider.isServerRunning,
-      hasLoadedModel: provider.currentModel?.isLoaded == true,
       streamingMessages: provider.streamingMessages,
       draftMessageId: provider.draftMessageId,
       canManageMessages: provider.canManageMessages,
@@ -988,8 +1154,6 @@ class _ChatBodySnapshot {
   final bool isLoadingMessages;
   final List<ChatMessageRecord> visibleMessages;
   final int visibleMessagesRevision;
-  final bool isServerRunning;
-  final bool hasLoadedModel;
   final StreamingChatMessageNotifier streamingMessages;
   final String? draftMessageId;
   final bool canManageMessages;
@@ -1000,8 +1164,6 @@ class _ChatBodySnapshot {
         other.conversationKey == conversationKey &&
         other.isLoadingMessages == isLoadingMessages &&
         other.visibleMessagesRevision == visibleMessagesRevision &&
-        other.isServerRunning == isServerRunning &&
-        other.hasLoadedModel == hasLoadedModel &&
         identical(other.streamingMessages, streamingMessages) &&
         other.draftMessageId == draftMessageId &&
         other.canManageMessages == canManageMessages;
@@ -1012,8 +1174,6 @@ class _ChatBodySnapshot {
     conversationKey,
     isLoadingMessages,
     visibleMessagesRevision,
-    isServerRunning,
-    hasLoadedModel,
     streamingMessages,
     draftMessageId,
     canManageMessages,
@@ -1029,6 +1189,7 @@ class _ChatInputSnapshot {
     required this.hasLoadedModel,
     required this.canOpenModels,
     required this.canSend,
+    required this.canAttachImages,
     required this.isSending,
     required this.pendingImageAttachments,
   });
@@ -1036,14 +1197,15 @@ class _ChatInputSnapshot {
   factory _ChatInputSnapshot.fromProvider(ChatProvider provider) {
     final currentModel = provider.currentModel;
     return _ChatInputSnapshot(
-      isServerRunning: provider.isServerRunning,
+      isServerRunning: provider.isServerRunning || provider.isRemote,
       currentModelId: provider.currentModelId,
       loadedModelDisplayName: currentModel?.isLoaded == true
           ? currentModel?.displayName
           : null,
       hasLoadedModel: currentModel?.isLoaded == true,
       canOpenModels: provider.canSelectModels,
-      canSend: provider.canSend,
+      canSend: provider.canSubmitInput,
+      canAttachImages: provider.canAttachImages,
       isSending: provider.isSending,
       pendingImageAttachments: List<String>.unmodifiable(
         provider.pendingImageAttachments,
@@ -1057,6 +1219,7 @@ class _ChatInputSnapshot {
   final bool hasLoadedModel;
   final bool canOpenModels;
   final bool canSend;
+  final bool canAttachImages;
   final bool isSending;
   final List<String> pendingImageAttachments;
 
@@ -1069,6 +1232,7 @@ class _ChatInputSnapshot {
         other.hasLoadedModel == hasLoadedModel &&
         other.canOpenModels == canOpenModels &&
         other.canSend == canSend &&
+        other.canAttachImages == canAttachImages &&
         other.isSending == isSending &&
         listEquals(other.pendingImageAttachments, pendingImageAttachments);
   }
@@ -1081,6 +1245,7 @@ class _ChatInputSnapshot {
     hasLoadedModel,
     canOpenModels,
     canSend,
+    canAttachImages,
     isSending,
     Object.hashAll(pendingImageAttachments),
   );
@@ -1092,6 +1257,11 @@ String _inputHintText(
   required bool isServerBusy,
 }) {
   final l10n = context.l10n;
+  final chat = context.read<ChatProvider>();
+  if (chat.hasAssistantContext) {
+    if (chat.currentAssistant == null) return l10n.v2UnassignedAssistant;
+    if (chat.currentTarget == null) return l10n.chatInputHintEnterMessage;
+  }
   if (!snapshot.isServerRunning) {
     return l10n.chatInputHintStartServer;
   }

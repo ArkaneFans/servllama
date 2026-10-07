@@ -84,7 +84,7 @@ class ModelDownloadService {
           expectedSha256 == null ||
           await _sha256Matches(destination, expectedSha256);
       // Recover the narrow process-death window after `.part` was renamed but
-      // before the completed flag reached Hive.
+      // before the completed flag reached the database.
       final canRecover =
           lengthMatches &&
           hashMatches &&

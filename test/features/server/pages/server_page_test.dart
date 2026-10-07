@@ -1,3 +1,5 @@
+import 'package:servllama/core/services/llama_cpp_device_probe_service.dart';
+import 'package:servllama/core/models/llama_cpp_backend.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -51,6 +53,9 @@ void main() {
       );
       final serverProvider = EngineRuntimeProvider(
         llamaCppAdapter: LlamaCppEngineAdapter(
+          deviceProbeService: LlamaCppDeviceProbeService(
+            resultOverride: () => const LlamaCppDeviceProbeResult(),
+          ),
           serverService: serverService,
           settingsLoader: _FixedServerLaunchSettingsLoader(settings),
           modelRepository: _FixedModelStoragePaths(r'C:\app\models'),
@@ -112,6 +117,9 @@ void main() {
       final serverService = _FailingLlamaServerService();
       final serverProvider = EngineRuntimeProvider(
         llamaCppAdapter: LlamaCppEngineAdapter(
+          deviceProbeService: LlamaCppDeviceProbeService(
+            resultOverride: () => const LlamaCppDeviceProbeResult(),
+          ),
           serverService: serverService,
           settingsLoader: _FixedServerLaunchSettingsLoader(
             const ServerLaunchSettings(
@@ -175,6 +183,9 @@ void main() {
       );
       final serverProvider = EngineRuntimeProvider(
         llamaCppAdapter: LlamaCppEngineAdapter(
+          deviceProbeService: LlamaCppDeviceProbeService(
+            resultOverride: () => const LlamaCppDeviceProbeResult(),
+          ),
           serverService: serverService,
           settingsLoader: _FixedServerLaunchSettingsLoader(
             const ServerLaunchSettings(),
@@ -216,6 +227,9 @@ void main() {
       );
       final serverProvider = EngineRuntimeProvider(
         llamaCppAdapter: LlamaCppEngineAdapter(
+          deviceProbeService: LlamaCppDeviceProbeService(
+            resultOverride: () => const LlamaCppDeviceProbeResult(),
+          ),
           serverService: serverService,
           settingsLoader: _FixedServerLaunchSettingsLoader(
             const ServerLaunchSettings(),
@@ -295,6 +309,7 @@ void main() {
               selectedModelId: null,
               selectedModelName: null,
               canStart: false,
+              canStop: false,
               onSelectModel: () {},
               onToggle: () {},
               onCopyUrl: () {},
@@ -312,10 +327,51 @@ void main() {
       expect(find.byKey(const Key('server_page_phase_list')), findsNothing);
     });
 
+    testWidgets('offers stop again when failed cleanup still owns resources', (
+      tester,
+    ) async {
+      var stops = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: RuntimeHeroCard(
+              state: const EngineRuntimeState(
+                engine: InferenceEngine.mnn,
+                status: EngineRuntimeStatus.error,
+                error: EngineRuntimeError(
+                  kind: EngineRuntimeErrorKind.serverStopFailed,
+                ),
+              ),
+              displayUrl: 'http://127.0.0.1:8080',
+              selectedModelId: 'qwen',
+              selectedModelName: 'Qwen',
+              canStart: false,
+              canStop: true,
+              onSelectModel: () {},
+              onToggle: () {
+                stops++;
+              },
+              onCopyUrl: () {},
+            ),
+          ),
+        ),
+      );
+      final action = find.byKey(const Key('server_page_toggle_button'));
+      expect(
+        find.descendant(of: action, matching: find.text('停止')),
+        findsOneWidget,
+      );
+      await tester.tap(action);
+      expect(stops, 1);
+    });
+
     testWidgets('opens logs page from grouped menu', (tester) async {
       final serverService = _ControllableLlamaServerService();
       final serverProvider = EngineRuntimeProvider(
         llamaCppAdapter: LlamaCppEngineAdapter(
+          deviceProbeService: LlamaCppDeviceProbeService(
+            resultOverride: () => const LlamaCppDeviceProbeResult(),
+          ),
           serverService: serverService,
           settingsLoader: _FixedServerLaunchSettingsLoader(
             const ServerLaunchSettings(),
@@ -339,7 +395,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.descendant(of: find.byType(AppBar), matching: find.text('日志')),
+        find.descendant(of: find.byType(AppBar), matching: find.text('应用日志')),
         findsOneWidget,
       );
     });
@@ -350,6 +406,9 @@ void main() {
       final serverService = _ControllableLlamaServerService();
       final serverProvider = EngineRuntimeProvider(
         llamaCppAdapter: LlamaCppEngineAdapter(
+          deviceProbeService: LlamaCppDeviceProbeService(
+            resultOverride: () => const LlamaCppDeviceProbeResult(),
+          ),
           serverService: serverService,
           settingsLoader: _FixedServerLaunchSettingsLoader(
             const ServerLaunchSettings(),

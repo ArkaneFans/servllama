@@ -1,4 +1,10 @@
 {
+  "v2McpEmpty": "No MCP servers yet. Tap + to add one.",
+  "v2SkillsEmpty": "No skills yet. Tap + to import one.",
+  "v2ManageMcp": "Manage MCP",
+  "v2ManageSkills": "Manage skills",
+  "v2LocalTools": "Local tools",
+  "v2AssistantManagement": "Assistant management",
   "@@locale": "en",
   "appTitle": "ServLlama",
   "commonAuto": "Auto",
@@ -409,43 +415,36 @@
   "modelErrorModelDirectoryExists": "The model directory already exists.",
   "modelErrorModelNotFoundOrDeleted": "The model does not exist or has already been deleted.",
   "modelErrorSelectedFilePathUnavailable": "Unable to get the selected file path.",
-  "serverLogsTitle": "Logs",
-  "serverLogsCopyAll": "Copy all",
-  "serverLogsClear": "Clear",
-  "serverLogsCopied": "Logs copied",
-  "serverLogsCount": "{count} logs total",
-  "@serverLogsCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "serverLogsEmpty": "No logs yet",
-  "serverLogsExport": "Export logs",
-  "serverLogsExported": "Logs exported to {path}",
-  "@serverLogsExported": {
+  "appLogsTitle": "App logs",
+  "appLogsCopyAll": "Copy filtered logs",
+  "appLogsClear": "Clear all logs",
+  "appLogsClearFailed": "The log view was cleared, but saved log files could not be deleted.",
+  "appLogsCopied": "Logs copied",
+  "appLogsEmpty": "No logs yet",
+  "appLogsExport": "Export logs",
+  "appLogsExported": "Logs exported to {path}",
+  "@appLogsExported": {
     "placeholders": {
       "path": {
         "type": "String"
       }
     }
   },
-  "serverLogsExportFailed": "Export failed: {error}",
-  "@serverLogsExportFailed": {
+  "appLogsExportFailed": "Export failed: {error}",
+  "@appLogsExportFailed": {
     "placeholders": {
       "error": {
         "type": "String"
       }
     }
   },
-  "serverLogsAutoScroll": "Auto-scroll",
-  "serverLogsFilterAll": "All",
-  "serverLogsFilterEngine": "Engine",
-  "serverLogsFilterServer": "Service",
-  "serverLogsFilterModel": "Model",
-  "serverLogsFilterDownload": "Download",
-  "serverLogsFilterErrors": "Errors only",
+  "appLogsAutoScroll": "Auto-scroll",
+  "appLogsFilterAll": "All",
+  "appLogsFilterEngine": "Engine",
+  "appLogsFilterServer": "Service",
+  "appLogsFilterModel": "Model",
+  "appLogsFilterDownload": "Download",
+  "appLogsFilterErrors": "Errors only",
   "engineSectionTitle": "Inference engine",
   "serverStatusIdle": "Stopped",
   "serverStatusPreparing": "Starting",
@@ -530,7 +529,7 @@
   "modelAddMnnDir": "Import an MNN directory",
   "modelAddMnnDirDesc": "A whole model folder for the MNN engine",
   "modelFormatExplainer": "GGUF is a single file; MNN models are whole directories. The engine badge on each card tells them apart.",
-  "modelLibraryEmptyTitle": "No models yet. Tap Add a model to download or import one.",
+  "modelLibraryEmptyTitle": "No models yet. Download from Discover or import a local model.",
   "modelLibraryEmptyDescription": "Download one, or import a file you already have.",
   "modelLibrarySearchHint": "Search model names",
   "modelLibraryEmptySearchTitle": "No matching models",
@@ -626,13 +625,21 @@
   "modelSettingsProjectorSelected": "Selected",
   "modelSettingsProjectorDeleteConfirm": "Delete “{fileName}”? If it is selected, another downloaded version will be used. Vision turns off when no versions remain.",
   "@modelSettingsProjectorDeleteConfirm": {
-    "placeholders": { "fileName": { "type": "String" } }
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      }
+    }
   },
   "modelSettingsOpenRepository": "Open model repository",
   "modelSettingsRepositoryOpenFailed": "Could not open the model repository. Please try again.",
   "modelSettingsVisionUpdateFailed": "Could not update vision settings: {error}",
   "@modelSettingsVisionUpdateFailed": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "modelSettingsProjectorDownloadPending": "Finish or cancel projector downloads before renaming or deleting the model.",
   "repoVisionNoMmproj": "This repository has no mmproj files.",
@@ -841,7 +848,13 @@
   "mnnBackendTitle": "MNN inference backend",
   "mnnBackendNextStart": "Changes apply the next time a model is loaded.",
   "mnnBackendActive": "Loaded backend: {backend}",
-  "@mnnBackendActive": {"placeholders": {"backend": {"type": "String"}}},
+  "@mnnBackendActive": {
+    "placeholders": {
+      "backend": {
+        "type": "String"
+      }
+    }
+  },
   "mnnBackendRefresh": "Check available backends",
   "mnnBackendCpu": "CPU",
   "mnnBackendOpencl": "OpenCL GPU",
@@ -854,7 +867,9 @@
   "mnnBackendHexagonArchitecture": "Automatically matched the {architecture} runtime.",
   "@mnnBackendHexagonArchitecture": {
     "placeholders": {
-      "architecture": { "type": "String" }
+      "architecture": {
+        "type": "String"
+      }
     }
   },
   "mnnBackendNotBuilt": "Not included in this plugin build.",
@@ -879,7 +894,9 @@
   "mnnMmapCacheSubtitle": "Current cache: {size}",
   "@mnnMmapCacheSubtitle": {
     "placeholders": {
-      "size": { "type": "String" }
+      "size": {
+        "type": "String"
+      }
     }
   },
   "mnnMmapCacheEmpty": "No mmap cache yet",
@@ -889,15 +906,588 @@
   "mnnMmapCacheDialogContent": "This deletes generated mmap and GPU runtime caches ({size}). The next model load will rebuild them.",
   "@mnnMmapCacheDialogContent": {
     "placeholders": {
-      "size": { "type": "String" }
+      "size": {
+        "type": "String"
+      }
     }
   },
   "mnnMmapCacheCleared": "Cleared {size} of mmap cache",
   "@mnnMmapCacheCleared": {
     "placeholders": {
-      "size": { "type": "String" }
+      "size": {
+        "type": "String"
+      }
     }
   },
-  "mnnMmapCacheClearFailed": "Could not clear the mmap cache."
-
+  "mnnMmapCacheClearFailed": "Could not clear the mmap cache.",
+  "v2FirstAssistants": "Assistants",
+  "v2Chat": "Chat",
+  "v2Models": "Models",
+  "v2Add": "Add",
+  "v2OperationFailed": "Operation failed",
+  "v2NoInstructions": "Default conversation behavior",
+  "v2Duplicate": "Duplicate",
+  "v2AssistantEditor": "Assistant settings",
+  "v2Name": "Name",
+  "v2Instructions": "System instructions",
+  "v2Connection": "Provider",
+  "v2LocalInference": "Local inference",
+  "v2MissingTarget": "Target unavailable. Check that its provider is enabled and the model is listed, or choose another.",
+  "v2Model": "Model",
+  "v2CurrentLocal": "Current local model",
+  "v2ModelId": "Model ID",
+  "v2Connections": "Providers",
+  "v2ConnectionsEmpty": "Add a provider and its models to use them in chat.",
+  "v2ConnectionEditor": "Provider settings",
+  "v2Protocol": "Protocol",
+  "v2BaseUrl": "API base URL",
+  "v2BaseUrlHelp": "Include /v1 or /v1beta. Use HTTP only on a trusted local network.",
+  "v2ApiKey": "API key",
+  "v2KeyHelp": "Stored securely. Leave blank to keep the existing key.",
+  "v2ClearKey": "Clear saved key",
+  "v2ModelsHelp": "Model IDs, one per line (manual entry supported)",
+  "v2Images": "Image input supported",
+  "v2Tools": "Tool calls supported",
+  "v2FetchModels": "Fetch models",
+  "v2TestConnection": "Test provider",
+  "v2TestPassed": "Test succeeded. Changes are not saved yet.",
+  "v2DraftHelp": "Save to apply changes; going back discards unsaved edits. Testing and model discovery do not save automatically.",
+  "v2Profile": "User profile",
+  "v2ProfileHelp": "Local user details stay on this device. Your avatar and name are used for display and are not automatically added to model requests.",
+  "v2KeepOneAssistant": "Create another assistant before deleting the last one.",
+  "v2DeleteConnectionHelp": "Deleting this provider clears model selections for its assistants. Conversations and messages remain; select a model before sending.",
+  "v2Avatar": "Avatar",
+  "v2AvatarHelp": "Choose a local image or emoji for your avatar. Used for display only.",
+  "v2AvatarImage": "Choose image",
+  "v2AvatarEmoji": "Choose emoji",
+  "v2AvatarReset": "Reset avatar",
+  "v2AvatarImageTooLarge": "Choose an image under 10 MB, with each side at most 8192 pixels and at most 32 megapixels.",
+  "v2AvatarInvalidImage": "This image could not be read. Choose another image.",
+  "v2AvatarEmojiTitle": "Choose avatar emoji",
+  "v2AvatarEmojiHint": "Enter one emoji or character",
+  "v2ChatUserName": "User",
+  "v2ChatAssistantName": "Assistant",
+  "v2UserName": "User name",
+  "v2ProfileDescription": "Description",
+  "v2ProfileDescriptionHint": "A short introduction about yourself…",
+  "v2StartLocal": "Load this conversation's local model",
+  "v2RemoteReady": "Chat directly with the selected provider",
+  "v2Skills": "Skills",
+  "v2SkillsHelp": "Import static packages containing SKILL.md, then select them in assistant permissions.",
+  "v2ImportSkill": "Import skill (ZIP / Markdown)",
+  "v2ScriptsUnsupported": "Contains script references. Only static instructions are used; scripts are not executed.",
+  "v2Mcp": "MCP",
+  "v2McpHelp": "Streamable HTTP and legacy SSE. Select tools per assistant; approve each remote call.",
+  "v2McpToken": "Static bearer token",
+  "v2McpHeaders": "Custom HTTP headers (JSON)",
+  "v2McpHeadersHelp": "JSON string values, for example an X-API-Key header. Stored securely; leave blank to keep existing headers. Protocol headers are managed by the app.",
+  "v2ClearMcpToken": "Remove saved bearer token",
+  "v2ClearMcpHeaders": "Remove saved custom headers",
+  "v2ShowHideCredential": "Show / hide credential",
+  "v2DiscoverTools": "Connect and discover tools",
+  "v2PermissionsHelp": "Permissions are captured when a run starts. Revocation stops affected runs; additions apply next time.",
+  "v2ToolClock": "Current time",
+  "v2ToolRead": "Read conversation files",
+  "v2ToolAsk": "Ask the user",
+  "v2ToolSkill": "Read selected skill resources",
+  "v2ToolActivity": "Tool call history",
+  "v2ToolHistoryEmpty": "No tool call records in this conversation.",
+  "v2AwaitingApproval": "Awaiting approval",
+  "v2Succeeded": "Completed",
+  "v2UnknownOutcome": "Outcome unknown",
+  "v2Rejected": "Rejected",
+  "v2Cancelled": "Cancelled",
+  "v2Executing": "Executing",
+  "v2Failed": "Failed",
+  "v2UnknownOutcomeHelp": "The operation may have taken effect. It will not retry automatically. Verify the outcome before starting a new run.",
+  "v2Details": "Arguments, target and receipt",
+  "v2YourAnswer": "Your answer",
+  "v2Reject": "Reject",
+  "v2ApproveOnce": "Allow once",
+  "v2Review": "Review",
+  "v2Rerun": "Execute as a new run",
+  "v2RerunHelp": "Tools use current permissions; actions that require approval will ask again.",
+  "v2BudgetReached": "Run budget reached. Completed results are retained.",
+  "v2Interrupted": "Interrupted. Create a new task explicitly to retry.",
+  "v2Speech": "Speech",
+  "v2Asr": "Transcribe",
+  "v2Tts": "Synthesize",
+  "v2Tasks": "Tasks",
+  "v2SpeechModels": "Speech models",
+  "v2LlmModels": "Language models",
+  "v2Voices": "Reference voices",
+  "v2SpeechLocalHelp": "Audio stays on this device. Record or import a file, then view the transcript below.",
+  "v2SpeechAudioInput": "Recording & audio",
+  "v2RecordingReady": "Tap the microphone to record",
+  "v2RecordingNow": "Recording · tap to stop",
+  "v2SpeechCreatedAt": "Created",
+  "v2SynthesisContent": "Synthesis text",
+  "v2SpeechAudioResult": "Synthesized audio",
+  "v2TranscriptPending": "No transcript yet",
+  "v2SpeechTextCopied": "Text copied",
+  "v2LanguageHint": "Language code (zh / en; empty for auto)",
+  "v2StartAsr": "Start transcription",
+  "v2StartTts": "Start synthesis",
+  "v2InstallSpeechFirst": "Download or import a compatible speech model first.",
+  "v2SynthesisText": "Text to synthesize",
+  "v2SpeakerId": "Preset speaker ID (0–217)",
+  "v2Voice": "Voice",
+  "v2PresetVoice": "Model default voice",
+  "v2SynthesisSpeed": "Synthesis speed",
+  "v2CrispMarking": "CrispASR exports include AI-generated audio provenance.",
+  "v2NoSpeechJobs": "No speech tasks yet. Completed, cancelled and interrupted tasks appear here.",
+  "v2CancelTask": "Cancel task",
+  "v2NoAudioSelected": "No audio selected",
+  "v2ImportAudio": "Import audio",
+  "v2Record": "Record",
+  "v2StopRecording": "Stop recording",
+  "v2UseRecording": "Use latest recording",
+  "v2RecordingHelp": "Record up to 10 minutes. Recording stops when the app enters the background or audio is interrupted.",
+  "v2SpeechWaitingHelp": "Waiting for the previous speech task to release its resources. LLM service and chat can run alongside speech.",
+  "v2Queued": "Queued",
+  "v2WaitingLocal": "Waiting for speech resources",
+  "v2Cancelling": "Cancelling; waiting for native completion",
+  "v2TaskResult": "Task result",
+  "v2CancellationHelp": "The next speech task waits until the native segment finishes and releases speech resources. LLM service and chat can continue.",
+  "v2NoSpeechDetected": "No text detected. Try a different language or model in a new task.",
+  "v2ChunkTimingHelp": "This model provides chunk ranges without reliable subtitle timestamps. TXT export is available.",
+  "v2Transcript": "Transcript",
+  "v2EditTranscript": "Edit transcript",
+  "v2ExportTxt": "Export TXT",
+  "v2ExportSrt": "Export SRT",
+  "v2ExportWav": "Export WAV",
+  "v2InsertTranscript": "Insert into chat draft",
+  "v2PlayPause": "Play / pause",
+  "v2PreviewAudio": "Preview reference audio",
+  "v2VoiceModelMissing": "The original model is unavailable. You can export this reference audio and create a new voice after installing a compatible model.",
+  "v2PlaybackSpeed": "Playback speed (keeps the generated audio)",
+  "v2InputSnapshot": "Task input snapshot",
+  "v2SpeechPackageHelp": "Each recipe is a self-contained package. An import ZIP must contain speech-package.json at its root.",
+  "v2ImportSpeechPackage": "Import model ZIP",
+  "v2Ready": "Ready",
+  "v2ModelIncomplete": "Incomplete or paused",
+  "v2ResumeDownload": "Resume download",
+  "v2PauseDownload": "Pause download",
+  "v2DeleteSpeechModelHelp": "Delete local model files. Existing results remain. Cancel queued jobs first; reference voices require a compatible model.",
+  "v2AvailableModels": "Available recipes",
+  "v2ModelLicenseHelp": "Review the upstream model card, supported languages and license before downloading.",
+  "v2ModelCard": "Model card",
+  "v2DownloadModel": "Download",
+  "v2CreateVoice": "Create reference voice",
+  "v2VoiceHelp": "Qwen3-TTS Base supports reference audio cloning. Use 3–30 seconds of clear single-speaker audio with an accurate transcript. Voices are bound to the model revision.",
+  "v2InstallCloningFirst": "Install a cloning-capable recipe first.",
+  "v2VoiceName": "Voice name",
+  "v2ReferenceText": "Exact reference transcript",
+  "v2VoiceRights": "I have permission to use this voice as a reference",
+  "v2VoiceTestText": "Preview text (required)",
+  "v2SaveAndPreview": "Save and create preview task",
+  "v2TranscribeToChat": "Voice to text",
+  "v2NoAutomaticAudioUpload": "Only text is inserted. Nothing is sent automatically; original audio is not uploaded.",
+  "v2ReplaceDraft": "Replace draft",
+  "v2AppendDraft": "Append to draft",
+  "v2TranscriptInserted": "Transcript inserted into the selected chat draft.",
+  "v2ReadAloud": "Read aloud",
+  "v2SynthesisParameters": "Speaker: {speaker} · Synthesis speed: {speed}",
+  "v2SampleRate": "Output sample rate: {rate} Hz",
+  "v2DownloadSize": "Download size: about {size} MiB",
+  "v2TranscriptDestination": "Destination: {name}",
+  "@v2SynthesisParameters": {
+    "placeholders": {
+      "speaker": {
+        "type": "String"
+      },
+      "speed": {
+        "type": "String"
+      }
+    }
+  },
+  "@v2SampleRate": {
+    "placeholders": {
+      "rate": {
+        "type": "int"
+      }
+    }
+  },
+  "@v2DownloadSize": {
+    "placeholders": {
+      "size": {
+        "type": "int"
+      }
+    }
+  },
+  "@v2TranscriptDestination": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "v2RetrySpeech": "Retry as a new task",
+  "v2TranscriptSegment": "Segment {index}",
+  "v2ReadAloudHelp": "The final answer is ready to edit and synthesize. Use up to 4,000 characters per task; split longer answers.",
+  "v2NativeRestart": "Speech cleanup is unconfirmed. Restart the app before running another speech task. Task records are retained.",
+  "v2CancelImport": "Cancel import",
+  "v2OriginalChatMissing": "The original destination is unavailable. Choose a conversation or assistant draft. The transcript is retained.",
+  "v2AssistantDraft": "New conversation · {name}",
+  "@v2AssistantDraft": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "v2TranscriptTarget": "Destination draft",
+  "v2DraftChanged": "The destination draft changed. Open it again before confirming a replacement.",
+  "v2IncompleteAnswer": "This answer is incomplete. Finish generating it before reading it aloud.",
+  "@v2TranscriptSegment": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "v2SkillsGrantHelp": "Selected skills can read their own instructions and resources. Other tools still need separate authorization.",
+  "v2DiscardRecording": "Discard the recent recording",
+  "v2StartupFailed": "Local data could not be opened. Existing data is retained; resolve the storage error and retry.",
+  "v2RetryStartup": "Retry startup",
+  "appLogsFilterApp": "App",
+  "appLogsFilterClient": "Client",
+  "appLogsFilterAgent": "Agent",
+  "appLogsFilterSpeech": "Speech",
+  "appLogsSearch": "Search logs or task ID",
+  "appLogsClearSearch": "Clear search",
+  "appLogsAllLevels": "All levels",
+  "appLogsLevelDebug": "Debug and above",
+  "appLogsLevelInfo": "Info and above",
+  "appLogsLevelWarning": "Warnings and errors",
+  "appLogsVisibleCount": "{visible} / {total} logs",
+  "appLogsRetention": "Showing the latest {limit} entries. Copy and export use the current filters.",
+  "appLogsNoMatches": "No matching logs",
+  "v2ToolSearch": "Web search",
+  "v2SearchGrantHelp": "Allow this assistant to send search queries to the selected provider without asking each time. Bing and DuckDuckGo need no API key. Changing providers stops an active run that uses this permission.",
+  "v2SearchProvider": "Search provider",
+  "v2SearchBing": "Bing",
+  "v2SearchDuckDuckGo": "DuckDuckGo",
+  "v2SearchMaxResults": "Maximum results per search",
+  "v2SearchSources": "Search sources",
+  "v2SearchNoResults": "No matching web results. Try a different query.",
+  "v2SearchUnavailable": "Search is unavailable. Check the network or select another provider.",
+  "v2SearchRateLimited": "The search provider is limiting requests. Try again later or change providers.",
+  "v2SearchChallenge": "The provider requires verification or has blocked this request. Try later or select another provider.",
+  "v2SearchInvalidResponse": "The provider returned an unrecognized search page. Try later or select another provider.",
+  "v2SearchTooLarge": "The search response exceeded the size limit. Try a more specific query.",
+  "v2SearchTimeout": "The search timed out. Try again later or select another provider.",
+  "v2SearchOpenFailed": "Unable to open this source link.",
+  "@appLogsVisibleCount": {
+    "placeholders": {
+      "visible": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "@appLogsRetention": {
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "v2ConversationModel": "Choose model",
+  "v2ConversationModelHelp": "Choose a model by provider. Selecting a local model loads it and starts the service.",
+  "v2NoLocalChatModels": "No local LLM is available. Download or import one from Models.",
+  "v2AssistantDefaultModel": "Chat model",
+  "v2NoDefaultModel": "No model selected",
+  "v2ClearDefaultModel": "Clear model selection",
+  "v2AssistantDefaultModelHelp": "All conversations with this assistant share this model. Changing the model in chat updates this setting; historical messages stay unchanged.",
+  "v2UnassignedAssistant": "Assistant not assigned or removed",
+  "v2ChangeConversationAssistant": "Change this conversation’s assistant",
+  "v2ChangeConversationAssistantHelp": "Keep this conversation’s model, messages, versions and draft. Future replies use the new assistant’s instructions and permissions; historical attribution stays unchanged.",
+  "v2ChooseConversationModel": "Please select a model",
+  "v2AllAssistantHistory": "Conversations from all assistants",
+  "v2ConnectionConversationCount": "{count} conversations use this provider and will need another model selection.",
+  "v2DeleteAssistantHelp": "Deleting this assistant also deletes all associated conversations, messages, and drafts. This cannot be undone.",
+  "@v2ConnectionConversationCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "v2SwitchAssistantNewChat": "Switch assistant and start a new chat",
+  "v2ToolCallCount": "{count, plural, =1{1 tool call} other{{count} tool calls}}",
+  "v2ToolRetryLoad": "Reload",
+  "v2ToolHistoryFailed": "Could not load tool activity.",
+  "v2ToolPrepared": "Waiting to execute",
+  "v2ToolApproved": "Approved, waiting to execute",
+  "v2ToolAwaitingAnswer": "Waiting for your answer",
+  "v2ToolList": "List conversation files",
+  "v2ToolWriteAction": "Write conversation file",
+  "v2ToolQuestion": "Question",
+  "v2ToolArguments": "Arguments",
+  "v2ToolResult": "Result",
+  "v2ToolSendAnswer": "Send answer",
+  "@v2ToolCallCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatDeleteMessageTitle": "Delete message",
+  "chatDeleteCurrentVersion": "Delete this version",
+  "chatDeleteAllVersions": "Delete all versions",
+  "chatDeleteAllVersionsConfirm": "Delete this message and all its versions? Their tool call records and generation data will also be removed. Later messages will remain. This cannot be undone.",
+  "chatDeleteVersionConfirm": "Delete version {version} of {count}? Its tool call records and generation data will also be removed. Other versions and later messages will remain. This cannot be undone.",
+  "v2ToolResultTruncated": "This result was truncated. Only the saved excerpt can be viewed or exported.",
+  "@chatDeleteVersionConfirm": {
+    "placeholders": {
+      "version": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "v2ProviderPreset": "Preset",
+  "v2ProviderCustom": "Custom",
+  "v2ProviderPresetHelp": "Preset providers cannot be deleted. You can configure or disable them.",
+  "v2ProviderEnabled": "Enable provider",
+  "v2ProviderEnabledHelp": "Disabling preserves settings and history and stops runs using this provider.",
+  "v2ProviderOn": "Enabled",
+  "v2ProviderOff": "Disabled",
+  "v2ProviderModelCount": "{count} models",
+  "v2ProviderModelsEmpty": "No models added. Add models manually or fetch them in provider settings.",
+  "v2AddModel": "Add model manually",
+  "v2RemoveModel": "Remove model",
+  "v2RemoveModelHelp": "Saving will remove {model} from this provider. Conversations and assistant defaults using it will be unavailable; messages remain.",
+  "v2ModelIdRequired": "Enter a model ID",
+  "v2DiscoveredModels": "Choose models to add",
+  "v2ModelAlreadyAdded": "Already added",
+  "v2ModelSearch": "Search model IDs",
+  "v2ProviderNoResults": "No matching providers or models",
+  "v2ProviderModelSearch": "Search providers or models",
+  "v2AddSelectedModels": "Add selected ({count})",
+  "v2SelectVisible": "Select search results",
+  "v2DeselectVisible": "Deselect search results",
+  "v2LocalProvider": "Local · {engine}",
+  "v2LocalProviderHelp": "Managed in the local model library; load or stop models to control the runtime.",
+  "v2ServicePublished": "Serving externally",
+  "v2PublishedModelLocked": "Stop the published model in the service center before switching local models.",
+  "v2LocalModelLoaded": "Loaded",
+  "v2LocalModelUnloaded": "Not loaded",
+  "@v2ProviderModelCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@v2RemoveModelHelp": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
+  },
+  "@v2AddSelectedModels": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@v2LocalProvider": {
+    "placeholders": {
+      "engine": {
+        "type": "String"
+      }
+    }
+  },
+  "drawerAssistantSettings": "Assistant settings",
+  "settingsUser": "User settings",
+  "settingsSectionServices": "Services & diagnostics",
+  "settingsSectionDeveloper": "Developer tools",
+  "settingsMnnTest": "MNN test",
+  "settingsDebug": "Debug",
+  "localModelImport": "Import local model",
+  "localModelChooseImport": "Choose and import",
+  "localModelImportHelp": "The selected file or folder is copied into app storage. Import starts after selection.",
+  "discoveryQuery": "Search preset names or engines",
+  "discoveryReset": "Reset filters",
+  "discoveryPurpose": "Purpose",
+  "discoveryEngine": "Engine",
+  "discoveryState": "Installation",
+  "discoveryNotInstalled": "Not installed",
+  "discoveryDownloading": "Downloading",
+  "discoveryIncomplete": "Paused / incomplete",
+  "discoveryCloneOnly": "Voice cloning",
+  "discoverySmallOnly": "Up to 200 MiB",
+  "discoverySpeechHelp": "Download a complete preset package, including its dependencies. Runtime compatibility and quality still need verification on your device.",
+  "discoverySpeechLibraryHelp": "Get speech models from Discover. Installed and incomplete packages appear here.",
+  "discoveryOnlineLanguage": "Search language models online",
+  "v2StartupPreparing": "Preparing ServLlama",
+  "v2MigrationTitle": "Upgrading your data",
+  "v2MigrationHelp": "Your chats, model records and download progress are being upgraded. Model files stay in place. Original data is retained until the upgrade succeeds.",
+  "v2MigrationFailed": "The upgrade could not finish. Resolve the storage issue and retry; your original data is retained.",
+  "v2MigrationChats": "Reading chat history",
+  "v2MigrationModels": "Reading local model records",
+  "v2MigrationDownloads": "Reading download tasks",
+  "v2MigrationWriting": "Saving upgraded records",
+  "v2MigrationVerifying": "Verifying model and download records",
+  "v2MigrationComplete": "Upgrade complete. Finishing startup…",
+  "v2MigrationRecords": "This step: {completed} / {total} records",
+  "@v2MigrationRecords": {"placeholders": {"completed": {"type": "int"}, "total": {"type": "int"}}},
+  "migrationPreviewTitle": "Migration preview",
+  "migrationPreviewHelp": "Simulates the interface only. No real data is read or changed. You can leave at any time.",
+  "migrationPreviewRestart": "Restart preview",
+  "migrationPreviewFailure": "Simulate failure",
+  "migrationPreviewError": "Simulated error: Not enough storage. Retry to preview recovery.",
+  "migrationPreviewComplete": "Preview complete. Your real data is unchanged.",
+  "migrationPreviewReturn": "Return to sidebar",
+  "uiLabTitle": "UI primitives",
+  "uiLabDark": "Preview dark theme",
+  "uiLabLight": "Preview light theme",
+  "uiLabVisuals": "Visuals",
+  "uiLabControls": "Controls",
+  "uiLabScenes": "Scenes",
+  "uiLabPreview": "Design preview",
+  "uiLabHeadline": "Let content lead",
+  "uiLabIntro": "Neutral surfaces, gentle blue-violet accents. Compact and ordered, with room to breathe.",
+  "uiLabQuiet": "Restrained",
+  "uiLabSoft": "Soft & clear",
+  "uiLabPalette": "Color & surfaces",
+  "uiLabPaletteHint": "Neutral backgrounds with accents where attention matters.",
+  "uiLabCanvas": "Canvas",
+  "uiLabSurface": "Surface",
+  "uiLabPrimary": "Primary",
+  "uiLabSelected": "Selection",
+  "uiLabTypography": "Typography",
+  "uiLabTypographyHint": "Hierarchy through size, weight and spacing.",
+  "uiLabTypeTitle": "Clarity starts with reading",
+  "uiLabTypeSection": "A clear section heading",
+  "uiLabTypeBody": "Comfortable line spacing makes longer answers easy to read. Information flows naturally, with actions close at hand.",
+  "uiLabTypeCaption": "Supporting text · 12 sp · Time, status and descriptions",
+  "uiLabRhythm": "Spacing, corners & icons",
+  "uiLabRhythmHint": "Compact groups, generous separation and comfortable touch targets.",
+  "uiLabRadii": "Card radius 18 dp · Fields 14 dp\nTouch targets at least 48 dp",
+  "uiLabLocalOnly": "These interactions preview the design without connecting to models or saving application data.",
+  "uiLabActions": "Buttons & overlays",
+  "uiLabActionsHint": "A clear primary action, softer secondary actions and lightweight utilities.",
+  "uiLabPrimaryAction": "Primary",
+  "uiLabSecondaryAction": "Secondary",
+  "uiLabSheet": "Bottom sheet",
+  "uiLabDialog": "Dialog",
+  "uiLabDisabled": "Disabled",
+  "uiLabDialogTitle": "Confirm this selection?",
+  "uiLabDialogBody": "This previews a dialog. Confirm to see feedback; your real settings stay unchanged.",
+  "uiLabConfirm": "Confirm",
+  "uiLabFeedback": "Done — this change applies only to the preview.",
+  "uiLabChooseModel": "Choose a model",
+  "uiLabOnDevice": "On-device · Example",
+  "uiLabCloud": "Cloud · Example",
+  "uiLabForms": "Input & selection",
+  "uiLabFormsHint": "Try the field, switch, slider and chip states.",
+  "uiLabName": "Assistant name",
+  "uiLabNameHint": "Give your assistant a name",
+  "uiLabNameError": "Enter an assistant name",
+  "uiLabStreaming": "Stream responses",
+  "uiLabStreamingHint": "Show the answer as it arrives",
+  "uiLabTemperature": "Temperature",
+  "uiLabVision": "Vision",
+  "uiLabValidate": "Validate input",
+  "uiLabStates": "Status & progress",
+  "uiLabStatesHint": "Color supports the label; the label always explains the state.",
+  "uiLabReady": "Ready",
+  "uiLabWaiting": "Waiting",
+  "uiLabFailed": "Failed",
+  "uiLabDownload": "Model download · Preview",
+  "uiLabSimulate": "Simulate progress",
+  "uiLabAgain": "Try again",
+  "uiLabChat": "Conversation",
+  "uiLabChatHint": "User bubbles, open assistant text, inline tools and message metadata.",
+  "uiLabYou": "You",
+  "uiLabQuestion": "Help me plan today’s reading.",
+  "uiLabAssistant": "Reading assistant",
+  "uiLabTool": "Completed · Find reading resources",
+  "uiLabToolDetail": "Search → Organize → Return results\nAn expandable tool example. No network request was made.",
+  "uiLabAnswer": "Set aside 25 minutes to focus on one chapter.\n\nThen spend 5 minutes noting three key ideas and one question to explore. Leave some room for reflection.",
+  "uiLabReply": "Your preview message was received. This demonstrates text layout and send feedback without calling a model.",
+  "uiLabCopy": "Preview copy feedback",
+  "uiLabMore": "More options",
+  "uiLabManagement": "Grouped lists & model cards",
+  "uiLabManagementHint": "Consistent alignment, subtle separators and details on demand.",
+  "uiLabAssistantHint": "Organize ideas and explore reading",
+  "uiLabProviderHint": "2 configured models · Example",
+  "uiLabVoice": "Speech",
+  "uiLabVoiceHint": "Transcription & synthesis · Example",
+  "uiLabComposer": "Type a message to try the interaction",
+  "uiLabSend": "Send preview message",
+  "uiLabExactValue": "Value",
+  "uiLabNumericHint": "Drag for a rough value, or type up to two decimal places.",
+  "uiLabNumericError": "Enter a value from {min} to {max}, with at most two decimal places.",
+  "uiLabMessages": "Messages",
+  "uiLabMessagesHint": "Centered at the top for 3 seconds. A new message replaces the previous one; you can also dismiss it.",
+  "uiLabDismissMessage": "Dismiss message",
+  "uiLabMessageSuccess": "Success",
+  "uiLabMessageInfo": "Info",
+  "uiLabMessageWarning": "Warning",
+  "uiLabMessageError": "Error",
+  "uiLabMessageInfoText": "This is a design preview. Your real data stays unchanged.",
+  "uiLabMessageWarningText": "Choose a model before continuing. (Example)",
+  "uiLabMessageErrorText": "Connection failed. Check your settings and retry. (Example)",
+  "@uiLabNumericError": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "uiLabThemeColor": "Theme color",
+  "uiLabViolet": "Mist violet",
+  "uiLabTea": "Tea violet",
+  "uiLabTeaIntro": "Violet with a touch of tea, paired with warm neutral surfaces. Soft, restrained and clearly layered.",
+  "numericExactValue": "Value",
+  "numericHint": "Drag for a rough value, or type up to two decimal places.",
+  "numericError": "Enter a value from {min} to {max}, with at most two decimal places.",
+  "@numericError": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "commonDismissMessage": "Dismiss message",
+  "v2ProviderConfiguration": "Configuration",
+  "v2ProviderIdentity": "Provider",
+  "v2ProviderConnection": "Connection",
+  "v2ProtocolOpenai": "OpenAI compatible",
+  "v2ModelCapabilities": "Model capabilities",
+  "v2ModelCapabilitiesHelp": "Set capabilities for each model according to its documentation. Fetching models only returns IDs; it does not verify image or tool support. Save the provider to apply your changes.",
+  "v2ModelText": "Text",
+  "v2ModelImages": "Images",
+  "v2ModelTools": "Tools",
+  "v2IdentitySettings": "Identity",
+  "v2InstructionsHint": "Describe the assistant’s role, response style and requirements…",
+  "v2Credentials": "Credentials",
+  "v2ModelImagesUnavailable": "This model has image input disabled. Check its capabilities in provider settings.",
+  "v2AssistantModelChanged": "This assistant’s model selection changed. Reopen its settings before editing it.",
+  "chatGreetingMorning": "Good morning",
+  "chatGreetingNoon": "Good afternoon",
+  "chatGreetingAfternoon": "Good afternoon",
+  "chatGreetingEvening": "Good evening",
+  "chatWelcomeDescription": "What’s on your mind today?",
+  "chatWelcomeTranscribe": "Transcribe",
+  "chatWelcomeSynthesize": "Synthesize",
+  "chatWelcomeTranscribeHint": "Audio to text",
+  "chatWelcomeSynthesizeHint": "Text to audio"
 }

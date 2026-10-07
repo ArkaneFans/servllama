@@ -1,0 +1,116 @@
+{
+  "package": "@lobehub/icons-static-svg",
+  "version": "1.95.1",
+  "license": "MIT",
+  "licenseSource": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/LICENSE",
+  "repository": "https://github.com/lobehub/lobe-icons",
+  "files": [
+    {
+      "file": "openai.svg",
+      "source": "package/icons/openai.svg",
+      "sha256": "a595df6b423920c67a7f8f73c063e4bfb72d415948097b6cac063a2366bb5186"
+    },
+    {
+      "file": "anthropic.svg",
+      "source": "package/icons/anthropic.svg",
+      "sha256": "e833fdfa7e7187a86a05b870925067556a506dcd4239089aed73e1e58c9366a3"
+    },
+    {
+      "file": "gemini.svg",
+      "source": "package/icons/gemini-color.svg",
+      "sha256": "8ab0a9bafec11f7e69bcb9fc4ffd8f1bc927d1ddcbbb6ff36dee5ae8b5a9d602"
+    },
+    {
+      "file": "deepseek.svg",
+      "source": "package/icons/deepseek-color.svg",
+      "sha256": "deba5f98a5c1796e20fcac3149bcd7eb8a32f0bdd04d048819400b1f28bd1439"
+    },
+    {
+      "file": "qwen.svg",
+      "source": "package/icons/qwen-color.svg",
+      "sha256": "77f5768c66d08ce1d3d14e73373975c1bc0454be88c81523ddd0ffd7e2974029"
+    },
+    {
+      "file": "meta.svg",
+      "source": "package/icons/meta-color.svg",
+      "sha256": "adf9f2c1a646ccd3a37ca8c2e7e5985d64630cd633f4b95fba393d1d44e0578c"
+    },
+    {
+      "file": "mistral.svg",
+      "source": "package/icons/mistral-color.svg",
+      "sha256": "722f74b289d95486b43662fe24fa883b333701296f618406cd0ed502299170b6"
+    },
+    {
+      "file": "openrouter.svg",
+      "source": "package/icons/openrouter-color.svg",
+      "sha256": "17bede1b89166f824ee06753dc526a3f5e18b769706deaab09d04a3a98de1a78"
+    },
+    {
+      "file": "siliconcloud.svg",
+      "source": "package/icons/siliconcloud-color.svg",
+      "sha256": "a02d8d7ccb81739fbc720e2e5daaf149013dd5088605dc2dce1b71df0784d424"
+    },
+    {
+      "file": "alibabacloud.svg",
+      "source": "package/icons/alibabacloud-color.svg",
+      "sha256": "73ea97baf919edb3d888a77cd45b21574e190a80124a59e199ea6953a28a959c"
+    },
+    {
+      "file": "zhipu.svg",
+      "source": "package/icons/zhipu-color.svg",
+      "sha256": "8174e65ff71647d5c705c920c953a82bd723d9e3e42887bdd4ffc9dfe51207a0"
+    },
+    {
+      "file": "grok.svg",
+      "source": "package/icons/grok.svg",
+      "sha256": "9175fc90c22655160231976c849f25a03b888d7cc0e04c5f1b987b659bb07c95"
+    },
+    {
+      "file": "moonshot.svg",
+      "source": "package/icons/moonshot.svg",
+      "sha256": "435f41b74e6a87639b6bf860e9628f20cbe7d6229bece412d548f4cea3081852"
+    },
+    {
+      "file": "minimax.svg",
+      "source": "package/icons/minimax-color.svg",
+      "sha256": "7f7187fa6d9b341ac5f22f6c5a970523afb439dc45566d64eb4f4b9b604d6b01"
+    },
+    {
+      "file": "doubao.svg",
+      "source": "package/icons/doubao-color.svg",
+      "sha256": "3cd31ba03ae44b8c29561597a3b863809efecb13fcdfd08407a086df86a69b55"
+    },
+    {
+      "file": "yi.svg",
+      "source": "package/icons/yi-color.svg",
+      "sha256": "d78b1ce0eeb7a7d1a6132785dfa0218be48d6d1ccd3751ca3f9240a2e3b38756"
+    },
+    {
+      "file": "microsoft.svg",
+      "source": "package/icons/microsoft-color.svg",
+      "sha256": "5cfb0ffa3231313c2968b5e3fedfcce8e2e96c61bde4572384c3889a77a80350"
+    },
+    {
+      "file": "huggingface.svg",
+      "source": "package/icons/huggingface-color.svg",
+      "sha256": "5d39d66bb6c9b026d3cb5de7bd9978dad3906570df2aca8f00078a6f8a3d0f5e"
+    },
+    {
+      "file": "claude.svg",
+      "source": "package/icons/claude-color.svg",
+      "sha256": "a3101f3047a119aa11825ad9369510f0c472428c8c52d420e31bc62db44a8364"
+    },
+    {
+      "file": "gemma.svg",
+      "source": "package/icons/gemma-color.svg",
+      "sha256": "8cdc48e35113d2f76f602fc93977ce8b8eebe41bc66a65f532ed9c89f6a68e2d"
+    },
+    {
+      "file": "kimi.svg",
+      "source": "package/icons/kimi-color.svg",
+      "sha256": "0bdb95375d7c6e90a1850e91cd36770da2bc98fa33ec2d783f4a8fed027da85f",
+      "upstreamSha256": "74a7292aeb0220445d14c5d397d75760e2e8c6ed6a9e5fe4f3023471bf62a9ff",
+      "modification": "Use currentColor for the white K glyph for light/dark contrast; preserve the blue brand accent."
+    }
+  ]
+}

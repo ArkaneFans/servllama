@@ -1,4 +1,8 @@
 import 'dart:async';
+import 'dart:math';
+import 'package:servllama/core/models/server_launch_settings.dart';
+import 'package:servllama/core/runtime/resource_coordinator.dart';
+import 'package:servllama/core/security/log_redactor.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
@@ -27,14 +31,19 @@ class EngineRuntimeProvider extends ChangeNotifier {
     ServerLaunchSettingsLoader? settingsLoader,
     KvStorage? kvStorage,
     AppLogger? logger,
+    ResourceCoordinator? resources,
     Future<String?> Function() localIpResolver = NetworkUtils.getLocalIpAddress,
   }) : _settingsLoader = settingsLoader ?? ServerLaunchSettingsLoader(),
        _kvStorage = kvStorage ?? KvStorage.instance,
        _logger = logger ?? AppLogger.instance,
+       resources = resources ?? ResourceCoordinator(),
        _localIpResolver = localIpResolver {
     _adapters = <InferenceEngine, InferenceEngineAdapter>{
-      InferenceEngine.llamaCpp: llamaCppAdapter ?? LlamaCppEngineAdapter(),
-      InferenceEngine.mnn: mnnAdapter ?? MnnEngineAdapter(),
+      InferenceEngine.llamaCpp:
+          llamaCppAdapter ??
+          LlamaCppEngineAdapter(settingsLoader: _settingsLoader),
+      InferenceEngine.mnn:
+          mnnAdapter ?? MnnEngineAdapter(settingsLoader: _settingsLoader),
     };
     for (final adapter in _adapters.values) {
       _runningSubscriptions.add(
@@ -47,6 +56,22 @@ class EngineRuntimeProvider extends ChangeNotifier {
   }
 
   final ServerLaunchSettingsLoader _settingsLoader;
+  final ResourceCoordinator resources;
+  ResourceLease? _lease;
+  bool _published = true;
+  bool get isPublished => _published && _lease != null;
+  String get apiKey => _apiKey;
+  void _releaseIfStopped() {
+    if (_pendingOperation != null ||
+        _adapters.values.any((a) => a.hasResources)) {
+      return;
+    }
+    if (_lease != null) resources.release(_lease!);
+    _lease = null;
+  }
+
+  Future<void> startPrivate() => start(publish: false);
+
   final KvStorage _kvStorage;
   final AppLogger _logger;
   final Future<String?> Function() _localIpResolver;
@@ -61,6 +86,7 @@ class EngineRuntimeProvider extends ChangeNotifier {
 
   bool _disposed = false;
   int _operationEpoch = 0;
+  Future<void>? _pendingOperation;
   String _host = '127.0.0.1';
   int _port = 8080;
   String _apiKey = '';
@@ -72,11 +98,15 @@ class EngineRuntimeProvider extends ChangeNotifier {
   bool get isRunning => _state.isRunning;
   bool get isBusy => _state.isBusy;
   bool get canSwitchEngine =>
-      _state.canSwitchEngine && !_adapters[_state.engine]!.isRunning;
+      _state.canSwitchEngine && !_adapters.values.any((a) => a.hasResources);
+  bool get canStop =>
+      !_state.isBusy &&
+      (_state.isRunning || _adapters[_state.engine]!.hasResources);
   bool get canStart =>
       (_state.status == EngineRuntimeStatus.idle ||
           _state.status == EngineRuntimeStatus.error) &&
-      selectedModelId != null;
+      selectedModelId != null &&
+      !_adapters.values.any((a) => a.hasResources);
   EngineRuntimeError? get lastError => _state.error;
   RuntimePhase? get currentPhase => _state.phase;
   String? get activeModelId => _state.activeModelId;
@@ -142,12 +172,29 @@ class EngineRuntimeProvider extends ChangeNotifier {
       return;
     }
     final running = adapter.isRunning;
+    final hasResources = adapter.hasResources;
+    if (hasResources) {
+      _lease = resources.tryAcquire(
+        kind: LocalResourceKind.llm,
+        assetId: _selectedModelIds[engine] ?? 'restored',
+        owner: 'llm',
+      );
+    }
     _state = EngineRuntimeState(
       engine: engine,
-      status: running ? EngineRuntimeStatus.ready : EngineRuntimeStatus.idle,
-      activeModelId: running ? _selectedModelIds[engine] : null,
-      activeModelName: running ? _selectedModelIds[engine] : null,
+      status: running
+          ? EngineRuntimeStatus.ready
+          : hasResources
+          ? EngineRuntimeStatus.error
+          : EngineRuntimeStatus.idle,
+      activeModelId: hasResources ? _selectedModelIds[engine] : null,
+      activeModelName: hasResources ? _selectedModelIds[engine] : null,
       startedAt: running ? DateTime.now() : null,
+      error: !running && hasResources
+          ? const EngineRuntimeError(
+              kind: EngineRuntimeErrorKind.serverStopFailed,
+            )
+          : null,
     );
     notifyListeners();
   }
@@ -165,7 +212,7 @@ class EngineRuntimeProvider extends ChangeNotifier {
   /// Re-reads the configured endpoint. The server config page persists
   /// immediately, so the runtime picks the change up on the next visit.
   Future<void> refresh() async {
-    await _loadEndpoint();
+    if (!isRunning && !isBusy) await _loadEndpoint();
     final adapter = _adapters[_state.engine]!;
     if (!_state.isBusy && adapter.isRunning != _state.isRunning) {
       _state = _state.copyWith(
@@ -180,6 +227,7 @@ class EngineRuntimeProvider extends ChangeNotifier {
   /// Applies an endpoint the config page just persisted, so the base URL row
   /// reflects it without waiting for the next restart.
   void setEndpoint({String? host, int? port, String? apiKey}) {
+    if (isRunning || isBusy) return; // Saved changes apply on next start.
     var changed = false;
     if (host != null && host != _host) {
       _host = host;
@@ -266,15 +314,17 @@ class EngineRuntimeProvider extends ChangeNotifier {
     if (_state.status == EngineRuntimeStatus.stopping) {
       return;
     }
-    if (_state.isRunning) {
+    if (canStop) {
       await stop();
       return;
     }
     await start();
   }
 
-  Future<void> start() async {
-    if (_state.isBusy || _state.isRunning) {
+  Future<void> start({bool publish = true}) async {
+    if (_state.isBusy ||
+        _state.isRunning ||
+        _adapters.values.any((a) => a.hasResources)) {
       return;
     }
 
@@ -291,17 +341,52 @@ class EngineRuntimeProvider extends ChangeNotifier {
       return;
     }
 
-    await _runOrchestrated(() async {
+    _lease = resources.tryAcquire(
+      kind: LocalResourceKind.llm,
+      assetId: modelId,
+      owner: 'llm',
+    );
+    if (_lease == null) {
+      _state = _state.copyWith(
+        status: EngineRuntimeStatus.error,
+        error: const EngineRuntimeError(
+          kind: EngineRuntimeErrorKind.serverStartFailed,
+          detail: 'Local resource is busy',
+        ),
+      );
+      notifyListeners();
+      return;
+    }
+    _published = publish;
+    await _runOrchestrated((checkActive) async {
       await _requestNotificationPermissionOnce();
-      await _loadEndpoint();
+      checkActive();
+      final saved = await _settingsLoader.load();
+      checkActive();
+      final internalKey = List.generate(
+        32,
+        (_) => Random.secure().nextInt(256).toRadixString(16).padLeft(2, '0'),
+      ).join();
+      _settingsLoader.runtimeOverride = publish
+          ? saved
+          : saved.copyWith(
+              listenMode: ServerListenMode.localhost,
+              apiKey: internalKey,
+            );
+      final settings = _settingsLoader.runtimeOverride!;
+      _host = settings.host;
+      _port = settings.port;
+      _apiKey = settings.apiKey;
+      LogRedactor.remember(_apiKey);
       final adapter = _adapters[engine]!;
       await adapter.prepare();
+      checkActive();
       return adapter.start(modelId: modelId, onPhase: _emitPhase);
     });
   }
 
   Future<void> stop() async {
-    if (_state.isBusy || !_state.isRunning) {
+    if (!canStop) {
       return;
     }
 
@@ -314,7 +399,17 @@ class EngineRuntimeProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await adapter.stop(onPhase: (_) {});
+      await adapter.stop(
+        onPhase: (phase) {
+          _state = _state.copyWith(phase: phase);
+          notifyListeners();
+        },
+      );
+      if (adapter.hasResources) {
+        throw const EngineAdapterException(
+          EngineRuntimeErrorKind.serverStopFailed,
+        );
+      }
       _state = EngineRuntimeState(
         engine: _state.engine,
         activeModelId: null,
@@ -336,12 +431,14 @@ class EngineRuntimeProvider extends ChangeNotifier {
         ),
       );
     } finally {
+      _releaseIfStopped();
       notifyListeners();
     }
   }
 
   /// Cancels a start/model-swap operation and invalidates its eventual async
-  /// result before asking the adapter to release partial resources.
+  /// result before asking the adapter to release partial resources. Keep the
+  /// reservation until the earlier operation has also finished its cleanup.
   Future<void> cancel() async {
     if (_state.status != EngineRuntimeStatus.preparing) {
       return;
@@ -357,7 +454,16 @@ class EngineRuntimeProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _adapters[engine]!.cancel(onPhase: (_) {});
+      try {
+        await _adapters[engine]!.cancel(onPhase: (_) {});
+      } finally {
+        await _pendingOperation;
+      }
+      if (_adapters[engine]!.hasResources) {
+        throw const EngineAdapterException(
+          EngineRuntimeErrorKind.serverStopFailed,
+        );
+      }
       if (_state.engine == engine) {
         _state = EngineRuntimeState(engine: engine);
       }
@@ -377,6 +483,7 @@ class EngineRuntimeProvider extends ChangeNotifier {
         ),
       );
     } finally {
+      _releaseIfStopped();
       notifyListeners();
     }
   }
@@ -387,6 +494,11 @@ class EngineRuntimeProvider extends ChangeNotifier {
   Future<void> activateModel(String modelId) async {
     if (_state.isBusy) {
       return;
+    }
+    if (isPublished && _state.activeModelId != modelId) {
+      throw StateError(
+        'Stop the published LLM service before changing its model',
+      );
     }
 
     await selectModel(modelId);
@@ -402,14 +514,23 @@ class EngineRuntimeProvider extends ChangeNotifier {
 
     final adapter = _adapters[_state.engine]!;
     await _runOrchestrated(
-      () => adapter.activateModel(modelId, onPhase: _emitPhase),
+      (_) => adapter.activateModel(modelId, onPhase: _emitPhase),
     );
   }
 
   Future<void> _runOrchestrated(
-    Future<EngineStartResult> Function() operation,
+    Future<EngineStartResult> Function(void Function() checkActive) operation,
   ) async {
     final operationEpoch = ++_operationEpoch;
+    final settled = Completer<void>();
+    // Register before notifying: a listener may cancel synchronously.
+    _pendingOperation = settled.future;
+    void checkActive() {
+      if (_disposed || operationEpoch != _operationEpoch) {
+        throw const EngineOperationCancelledException();
+      }
+    }
+
     _state = _state.copyWith(
       status: EngineRuntimeStatus.preparing,
       phase: null,
@@ -418,7 +539,8 @@ class EngineRuntimeProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final result = await operation();
+      checkActive();
+      final result = await operation(checkActive);
       if (_disposed || operationEpoch != _operationEpoch) {
         return;
       }
@@ -473,7 +595,12 @@ class EngineRuntimeProvider extends ChangeNotifier {
         ),
       );
     } finally {
+      if (identical(_pendingOperation, settled.future)) {
+        _pendingOperation = null;
+      }
+      settled.complete();
       if (operationEpoch == _operationEpoch) {
+        _releaseIfStopped();
         notifyListeners();
       }
     }
@@ -491,6 +618,7 @@ class EngineRuntimeProvider extends ChangeNotifier {
     if (_disposed || engine != _state.engine || _state.isBusy) {
       return;
     }
+    if (!running) _releaseIfStopped();
     if (_state.status == EngineRuntimeStatus.error) {
       // Keep the error visible, but rebuild consumers because engine
       // switching becomes safe as soon as the adapter finishes cleanup.

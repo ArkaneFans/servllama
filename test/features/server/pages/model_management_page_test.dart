@@ -66,7 +66,7 @@ void main() {
       await tester.pumpWidget(_host(provider));
       await tester.pumpAndSettle();
 
-      expect(find.text('还没有模型，点击添加模型并下载或导入模型。'), findsOneWidget);
+      expect(find.text('还没有模型，请前往发现模型下载，或导入本地模型。'), findsOneWidget);
       expect(
         find.byKey(const Key('model_management_import_fab')),
         findsOneWidget,
@@ -105,7 +105,7 @@ void main() {
       expect(find.text('paused-model'), findsOneWidget);
       expect(find.text('failed-model'), findsOneWidget);
       expect(find.text('installed-model'), findsOneWidget);
-      expect(find.text('还没有模型，点击添加模型并下载或导入模型。'), findsNothing);
+      expect(find.text('还没有模型，请前往发现模型下载，或导入本地模型。'), findsNothing);
       expect(tester.widget<Badge>(find.byType(Badge)).isLabelVisible, isFalse);
     });
 
@@ -312,7 +312,7 @@ void main() {
       await _settle(tester);
 
       expect(find.text('模型已删除: delete'), findsOneWidget);
-      expect(find.text('还没有模型，点击添加模型并下载或导入模型。'), findsOneWidget);
+      expect(find.text('还没有模型，请前往发现模型下载，或导入本地模型。'), findsOneWidget);
     });
 
     testWidgets('imports model and shows snackbar feedback', (tester) async {
@@ -330,11 +330,11 @@ void main() {
       await tester.pumpWidget(_host(provider));
       await tester.pumpAndSettle();
 
-      // The FAB now offers download / GGUF file / MNN directory rather than
-      // importing a GGUF straight away.
+      // Local import offers engine selection before opening the file picker.
       await tester.tap(find.byKey(const Key('model_management_import_fab')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('导入 GGUF 文件'));
+      expect(find.text('下载模型'), findsNothing);
+      await tester.tap(find.text('选择并导入'));
       await _settle(tester);
 
       expect(find.text('模型导入成功: picked'), findsOneWidget);

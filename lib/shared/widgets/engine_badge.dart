@@ -66,12 +66,20 @@ class ModelFormatBadge extends StatelessWidget {
         color: color.withAlpha(theme.brightness == Brightness.light ? 28 : 46),
         borderRadius: BorderRadius.circular(size * 0.32),
       ),
-      child: Text(
-        label,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: color,
-          fontWeight: FontWeight.w800,
-          fontSize: size * 0.22,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            label,
+            maxLines: 1,
+            softWrap: false,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w800,
+              fontSize: size * 0.22,
+            ),
+          ),
         ),
       ),
     );

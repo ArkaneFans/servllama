@@ -1,3 +1,4 @@
+import 'package:servllama/shared/widgets/ai_identity_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:servllama/core/models/engine_runtime_state.dart';
 import 'package:servllama/core/models/inference_engine.dart';
@@ -17,6 +18,7 @@ class RuntimeHeroCard extends StatelessWidget {
     required this.selectedModelId,
     required this.selectedModelName,
     required this.canStart,
+    required this.canStop,
     required this.onSelectModel,
     required this.onToggle,
     required this.onCopyUrl,
@@ -27,6 +29,7 @@ class RuntimeHeroCard extends StatelessWidget {
   final String? selectedModelId;
   final String? selectedModelName;
   final bool canStart;
+  final bool canStop;
   final VoidCallback onSelectModel;
   final VoidCallback onToggle;
   final VoidCallback onCopyUrl;
@@ -36,7 +39,6 @@ class RuntimeHeroCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = context.l10n;
-    final isLight = theme.brightness == Brightness.light;
     final statusLabel = state.isBusy && state.phase != null
         ? RuntimeLabels.phase(l10n, state.phase!)
         : RuntimeLabels.status(l10n, state.status);
@@ -44,8 +46,8 @@ class RuntimeHeroCard extends StatelessWidget {
     return DecoratedBox(
       key: const Key('server_page_status_card'),
       decoration: BoxDecoration(
-        color: isLight ? Colors.white : colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(28),
+        color: colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: colorScheme.outlineVariant.withAlpha(110)),
       ),
       child: Padding(
@@ -53,12 +55,17 @@ class RuntimeHeroCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                StatusPill(label: statusLabel, tone: _tone),
-                const Spacer(),
-                EngineBadge(engine: state.engine),
-              ],
+            SizedBox(
+              width: double.infinity,
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  StatusPill(label: statusLabel, tone: _tone),
+                  EngineBadge(engine: state.engine),
+                ],
+              ),
             ),
             if (state.isRunning && state.startedAt != null) ...[
               const SizedBox(height: 8),
@@ -99,6 +106,7 @@ class RuntimeHeroCard extends StatelessWidget {
             _PrimaryAction(
               state: state,
               canStart: canStart,
+              canStop: canStop,
               onToggle: onToggle,
             ),
           ],
@@ -159,7 +167,7 @@ class _ModelRow extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
           child: Row(
             children: [
-              ModelFormatBadge(engine: engine, size: 40),
+              AiIdentityIcon(model: modelName, local: true),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -170,7 +178,7 @@ class _ModelRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                         color: hasModel
                             ? colorScheme.onSurface
                             : colorScheme.onSurfaceVariant,
@@ -266,11 +274,13 @@ class _PrimaryAction extends StatelessWidget {
   const _PrimaryAction({
     required this.state,
     required this.canStart,
+    required this.canStop,
     required this.onToggle,
   });
 
   final EngineRuntimeState state;
   final bool canStart;
+  final bool canStop;
   final VoidCallback onToggle;
 
   @override
@@ -278,10 +288,10 @@ class _PrimaryAction extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = context.l10n;
-    final isRunning = state.isRunning;
+    final showStop = state.isRunning || canStop;
     final isPreparing = state.status == EngineRuntimeStatus.preparing;
     final isStopping = state.status == EngineRuntimeStatus.stopping;
-    final enabled = isPreparing || (isRunning ? !isStopping : canStart);
+    final enabled = !isStopping && (isPreparing || canStop || canStart);
 
     final String label;
     if (isPreparing) {
@@ -289,7 +299,7 @@ class _PrimaryAction extends StatelessWidget {
     } else if (isStopping) {
       label = l10n.serverStatusStopping;
     } else {
-      label = isRunning ? l10n.serverStop : l10n.serverStart;
+      label = showStop ? l10n.serverStop : l10n.serverStart;
     }
 
     return SizedBox(
@@ -309,17 +319,17 @@ class _PrimaryAction extends StatelessWidget {
             : Icon(
                 isPreparing
                     ? Icons.close_rounded
-                    : (isRunning
+                    : (showStop
                           ? Icons.stop_rounded
                           : Icons.play_arrow_rounded),
                 size: 20,
               ),
         label: Text(label),
         style: FilledButton.styleFrom(
-          backgroundColor: isRunning
+          backgroundColor: showStop
               ? colorScheme.errorContainer
               : colorScheme.primary,
-          foregroundColor: isRunning
+          foregroundColor: showStop
               ? colorScheme.onErrorContainer
               : colorScheme.onPrimary,
           minimumSize: const Size.fromHeight(52),
@@ -327,7 +337,7 @@ class _PrimaryAction extends StatelessWidget {
             borderRadius: BorderRadius.circular(18),
           ),
           textStyle: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),

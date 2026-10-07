@@ -1,4 +1,6 @@
+import 'package:servllama/shared/widgets/ai_identity_icon.dart';
 import 'package:flutter/material.dart';
+import 'package:servllama/app/app_palette.dart';
 import 'package:servllama/features/chat/widgets/chat_image_widgets.dart';
 import 'package:servllama/l10n/l10n.dart';
 
@@ -10,10 +12,12 @@ class ChatInputBar extends StatelessWidget {
     required this.isServerRunning,
     required this.isServerBusy,
     required this.modelLabel,
+    this.localModel = true,
     required this.canOpenModels,
     required this.isModelLoading,
     required this.hasLoadedModel,
     required this.canSend,
+    this.canAttachImages = true,
     required this.isSending,
     required this.onServerAction,
     required this.onOpenModels,
@@ -29,10 +33,12 @@ class ChatInputBar extends StatelessWidget {
   final bool isServerRunning;
   final bool isServerBusy;
   final String modelLabel;
+  final bool localModel;
   final bool canOpenModels;
   final bool isModelLoading;
   final bool hasLoadedModel;
   final bool canSend;
+  final bool canAttachImages;
   final bool isSending;
   final VoidCallback? onServerAction;
   final VoidCallback onOpenModels;
@@ -44,278 +50,172 @@ class ChatInputBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
+    final l = context.l10n;
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final brightness = theme.brightness;
-    final isLight = brightness == Brightness.light;
-    final panelBorderColor = colorScheme.outlineVariant.withAlpha(
-      isLight ? 190 : 128,
+    final c = theme.colorScheme;
+    final actionStyle = IconButton.styleFrom(
+      minimumSize: const Size(48, 48),
+      padding: EdgeInsets.zero,
+      alignment: Alignment.center,
+      foregroundColor: c.onSurfaceVariant,
+      disabledForegroundColor: c.onSurfaceVariant.withValues(alpha: .45),
+      backgroundColor: Colors.transparent,
+      shape: const StadiumBorder(),
     );
-    final panelBackgroundColor = colorScheme.surface;
-    final actionButtonShape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(24),
-    );
-    final actionButtonIconColor = _chatActionButtonBackgroundColor(brightness);
-    final disabledModelButtonIconColor = _chatDisabledActionButtonIconColor(
-      brightness,
-    );
-    final sendButtonBackgroundColor = isSending
-        ? colorScheme.error
-        : canSend
-        ? colorScheme.primary
-        : colorScheme.surfaceContainerHighest;
-    final sendButtonForegroundColor = isSending
-        ? colorScheme.onError
-        : canSend
-        ? colorScheme.onPrimary
-        : colorScheme.onSurfaceVariant;
-
     return SafeArea(
       top: false,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              panelBackgroundColor.withAlpha(0),
-              theme.scaffoldBackgroundColor.withAlpha(isLight ? 236 : 214),
-            ],
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(2, 8, 2, 12),
+        child: Material(
+          key: const Key('chat_composer_surface'),
+          color: c.surfaceContainerLowest,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+            side: BorderSide(color: c.outlineVariant),
           ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(2, 6, 2, 0),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(18, 12, 14, 10),
-            decoration: BoxDecoration(
-              color: panelBackgroundColor,
-              borderRadius: BorderRadius.circular(26),
-              border: Border.all(color: panelBorderColor),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha(isLight ? 15 : 48),
-                  blurRadius: 28,
-                  offset: const Offset(0, 12),
-                ),
-                BoxShadow(
-                  color: Colors.black.withAlpha(isLight ? 10 : 28),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
+          child: Padding(
+            // A centered 20 dp icon in a 48 dp button adds 14 dp inset.
+            // Keep its left edge aligned with the text at 6 + 14 = 20 dp.
+            padding: const EdgeInsets.fromLTRB(6, 4, 10, 4),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (pendingImageAttachments.isNotEmpty)
-                  PendingImageStrip(
-                    paths: pendingImageAttachments,
-                    onRemove: onRemoveImageAttachment,
+                  Padding(
+                    padding: const EdgeInsets.only(left: 14),
+                    child: PendingImageStrip(
+                      paths: pendingImageAttachments,
+                      onRemove: onRemoveImageAttachment,
+                    ),
                   ),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 40),
-                  child: Stack(
-                    alignment: Alignment.topLeft,
-                    children: [
-                      ValueListenableBuilder<TextEditingValue>(
-                        valueListenable: controller,
-                        builder: (context, value, _) {
-                          if (value.text.isNotEmpty) {
-                            return const SizedBox.shrink();
-                          }
-                          return IgnorePointer(
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(4, 4, 0, 0),
-                              child: Text(
-                                hintText,
-                                textAlign: TextAlign.left,
-                                style: theme.textTheme.bodyLarge?.copyWith(
-                                  color: colorScheme.onSurfaceVariant.withAlpha(
-                                    isLight ? 140 : 170,
-                                  ),
-                                  height: 1.5,
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(4, 2, 0, 2),
-                        child: TextField(
-                          key: const Key('chat_input_field'),
-                          controller: controller,
-                          minLines: 1,
-                          maxLines: 6,
-                          enabled: canSend,
-                          textInputAction: TextInputAction.send,
-                          cursorColor: colorScheme.primary,
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            color: colorScheme.onSurface,
-                            height: 1.5,
-                          ),
-                          onSubmitted: (_) {
-                            if (canSend) {
-                              onSend();
-                            }
-                          },
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
-                            isCollapsed: true,
-                          ),
-                        ),
-                      ),
-                    ],
+                TextField(
+                  key: const Key('chat_input_field'),
+                  controller: controller,
+                  minLines: 1,
+                  maxLines: 6,
+                  enabled: !isSending,
+                  textInputAction: TextInputAction.send,
+                  style: theme.textTheme.bodyLarge,
+                  onSubmitted: (_) {
+                    if (canSend) onSend();
+                  },
+                  decoration: InputDecoration(
+                    hintText: hintText,
+                    filled: false,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    contentPadding: const EdgeInsets.fromLTRB(14, 10, 0, 10),
                   ),
                 ),
                 Row(
                   children: [
-                    Tooltip(
-                      message: isServerRunning
-                          ? l10n.serverStop
-                          : l10n.serverStart,
-                      child: Semantics(
-                        button: true,
-                        label: isServerRunning
-                            ? l10n.serverStop
-                            : l10n.serverStart,
-                        child: IconButton(
-                          key: const Key('chat_server_toggle_button'),
-                          onPressed: isServerBusy ? null : onServerAction,
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            disabledBackgroundColor: Colors.transparent,
-                            foregroundColor: actionButtonIconColor,
-                            disabledForegroundColor: actionButtonIconColor,
-                            minimumSize: const Size(42, 42),
-                            padding: EdgeInsets.zero,
-                            shape: actionButtonShape,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    IconButton(
+                      key: const Key('chat_server_toggle_button'),
+                      tooltip: isServerRunning ? l.serverStop : l.serverStart,
+                      onPressed: isServerBusy ? null : onServerAction,
+                      style: actionStyle,
+                      icon: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Icon(
+                            Icons.dns_outlined,
+                            size: 20,
+                            color: c.onSurfaceVariant,
                           ),
-                          icon: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              Icon(
-                                Icons.dns_outlined,
-                                size: 22,
-                                color: actionButtonIconColor,
-                              ),
-                              Positioned(
-                                right: -1,
-                                bottom: -1,
-                                child: Container(
-                                  key: const Key('chat_server_status_badge'),
-                                  width: 10,
-                                  height: 10,
-                                  decoration: BoxDecoration(
-                                    color: isServerRunning
-                                        ? const Color(0xFF10B981)
-                                        : colorScheme.outlineVariant,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: panelBackgroundColor,
-                                      width: 2,
-                                    ),
-                                  ),
+                          Positioned(
+                            right: -1,
+                            bottom: -1,
+                            child: Container(
+                              key: const Key('chat_server_status_badge'),
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: isServerRunning
+                                    ? theme.palette.okMark
+                                    : theme.palette.idleMark,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: c.surfaceContainerLowest,
+                                  width: 2,
                                 ),
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                      ),
-                    ),
-                    Tooltip(
-                      message: modelLabel,
-                      child: Semantics(
-                        button: true,
-                        label: modelLabel,
-                        child: IconButton(
-                          key: const Key('chat_model_selector_button'),
-                          onPressed: canOpenModels ? onOpenModels : null,
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            disabledBackgroundColor: Colors.transparent,
-                            foregroundColor: actionButtonIconColor,
-                            disabledForegroundColor:
-                                disabledModelButtonIconColor,
-                            minimumSize: const Size(42, 42),
-                            padding: EdgeInsets.zero,
-                            shape: actionButtonShape,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          icon: isModelLoading
-                              ? SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: canOpenModels
-                                        ? actionButtonIconColor
-                                        : disabledModelButtonIconColor,
-                                  ),
-                                )
-                              : Icon(
-                                  Icons.memory_outlined,
-                                  size: 22,
-                                  color: canOpenModels
-                                      ? actionButtonIconColor
-                                      : disabledModelButtonIconColor,
-                                ),
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    Tooltip(
-                      message: l10n.chatAttachImage,
-                      child: Semantics(
-                        button: true,
-                        label: l10n.chatAttachImage,
-                        child: IconButton(
-                          key: const Key('chat_gallery_button'),
-                          onPressed: canSend ? onPickFromGallery : null,
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            disabledBackgroundColor: Colors.transparent,
-                            foregroundColor: actionButtonIconColor,
-                            disabledForegroundColor:
-                                disabledModelButtonIconColor,
-                            minimumSize: const Size(42, 42),
-                            padding: EdgeInsets.zero,
-                            shape: actionButtonShape,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          icon: Icon(
-                            Icons.add,
-                            size: 22,
-                            color: canSend
-                                ? actionButtonIconColor
-                                : disabledModelButtonIconColor,
-                          ),
-                        ),
+                        ],
                       ),
                     ),
                     IconButton(
-                      key: const Key('chat_send_button'),
-                      tooltip: isSending ? l10n.chatStop : l10n.chatSend,
-                      onPressed: isSending ? onStop : (canSend ? onSend : null),
-                      style: IconButton.styleFrom(
-                        backgroundColor: sendButtonBackgroundColor,
-                        disabledBackgroundColor:
-                            colorScheme.surfaceContainerHighest,
-                        foregroundColor: sendButtonForegroundColor,
-                        disabledForegroundColor: colorScheme.onSurfaceVariant
-                            .withAlpha(170),
-                        minimumSize: const Size(42, 42),
-                        padding: EdgeInsets.zero,
-                        shape: actionButtonShape,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      key: const Key('chat_model_selector_button'),
+                      tooltip: modelLabel,
+                      onPressed: canOpenModels ? onOpenModels : null,
+                      style: actionStyle,
+                      icon: AiIdentityIcon(
+                        model: modelLabel,
+                        local: localModel,
+                        size: 20,
+                        framed: false,
                       ),
-                      icon: Icon(
-                        isSending ? Icons.stop_rounded : Icons.send_rounded,
-                        size: 22,
-                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      key: const Key('chat_gallery_button'),
+                      tooltip: canAttachImages
+                          ? l.chatAttachImage
+                          : l.v2ModelImagesUnavailable,
+                      onPressed: canSend && canAttachImages
+                          ? onPickFromGallery
+                          : null,
+                      style: actionStyle,
+                      icon: const Icon(Icons.add, size: 20),
+                    ),
+                    ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: controller,
+                      builder: (context, value, _) {
+                        final ready =
+                            canSend &&
+                            (value.text.trim().isNotEmpty ||
+                                pendingImageAttachments.isNotEmpty);
+                        return IconButton.filledTonal(
+                          key: const Key('chat_send_button'),
+                          tooltip: isSending ? l.chatStop : l.chatSend,
+                          onPressed: isSending
+                              ? onStop
+                              : ready
+                              ? onSend
+                              : null,
+                          style: IconButton.styleFrom(
+                            // A small visible disc inside the standard 48 dp
+                            // Material tap target, like the other toolbar icons.
+                            minimumSize: const Size(32, 32),
+                            maximumSize: const Size(32, 32),
+                            tapTargetSize: MaterialTapTargetSize.padded,
+                            visualDensity: VisualDensity.standard,
+                            padding: EdgeInsets.zero,
+                            backgroundColor: isSending
+                                ? c.errorContainer
+                                : c.primaryContainer,
+                            foregroundColor: isSending
+                                ? c.onErrorContainer
+                                : c.onPrimaryContainer,
+                            disabledBackgroundColor: c.onSurface.withValues(
+                              alpha: .08,
+                            ),
+                            disabledForegroundColor: c.onSurface.withValues(
+                              alpha: .38,
+                            ),
+                            shape: const StadiumBorder(),
+                          ),
+                          icon: Icon(
+                            isSending
+                                ? Icons.stop_rounded
+                                : Icons.arrow_upward_rounded,
+                            size: 18,
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -326,15 +226,4 @@ class ChatInputBar extends StatelessWidget {
       ),
     );
   }
-}
-
-Color _chatActionButtonBackgroundColor(Brightness brightness) {
-  return brightness == Brightness.light
-      ? const Color(0xFF565C68)
-      : const Color(0xFF253042);
-}
-
-Color _chatDisabledActionButtonIconColor(Brightness brightness) {
-  final color = _chatActionButtonBackgroundColor(brightness);
-  return color.withAlpha(brightness == Brightness.light ? 170 : 190);
 }

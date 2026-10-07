@@ -1,0 +1,70 @@
+name: ServLlama 2.0 Flutter checks
+
+on:
+  workflow_dispatch:
+    inputs:
+      mnn_engine_ref:
+        description: Published mnn_engine ref with HTTP cancellation and native drain support (0.2.0 or later)
+        required: true
+        default: feature/0.2.0
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: servllama
+      - uses: actions/checkout@v4
+        with:
+          repository: ArkaneFans/mnn_engine
+          ref: ${{ inputs.mnn_engine_ref }}
+          path: mnn_engine
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.35.2
+          channel: stable
+          cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare the unpublished plugin dependency
+        working-directory: servllama
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          Path('pubspec_overrides.yaml').write_text(
+              'dependency_overrides:\n  mnn_engine:\n    path: ../mnn_engine\n', encoding='utf-8')
+          PY
+          flutter pub get
+      - name: Check generated localization
+        working-directory: servllama
+        run: |
+          flutter gen-l10n
+          git diff --exit-code -- lib/l10n/generated
+      - name: Application analysis and contracts
+        working-directory: servllama
+        run: |
+          flutter analyze --no-pub
+          flutter test --no-pub --coverage
+          python -m unittest discover -s tool -p test_package_speech_model.py -v
+      - name: Plugin Dart contracts
+        working-directory: mnn_engine
+        run: |
+          flutter pub get
+          flutter analyze --no-pub
+          flutter test --no-pub
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: servllama-v2-coverage
+          path: servllama/coverage/lcov.info
+
+# Kept manual while the plugin dependency and native/model qualification are
+# local development gates. APK packaging also requires the pinned native bundle;
+# this job does not download model weights or claim on-device inference coverage.

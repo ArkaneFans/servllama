@@ -1,7 +1,7 @@
 <div align="center">
   <img src="assets/app_icon.svg" alt="ServLlama icon" width="112" />
   <h1>ServLlama</h1>
-  <p><strong>Turn your phone into a powerful local LLM server with one tap</strong></p>
+  <p><strong>Local and cloud AI, assistants, tools and offline speech on your phone</strong></p>
 
   <p>
     <a href="https://github.com/ArkaneFans/Servllama/releases/latest">
@@ -29,10 +29,18 @@
 
 ## Overview
 
-ServLlama turns your Android device into a self-contained local LLM server, combining model discovery and downloads, switching between the llama.cpp and MNN inference engines, server controls, log viewing, and chat in a single app. Model inference runs directly on the device, and other apps on the same phone or local network can call it through an OpenAI-compatible API.
+ServLlama 2.0 combines local and cloud chat, configurable assistants, bounded Agent tools, static Skills, remote MCP, and offline transcription/speech synthesis in one Android app. Local LLM inference uses llama.cpp or MNN and can still be published as an OpenAI-compatible service for other clients. Speech runs inside the app.
+
+This branch is **2.0.0-dev.8**, not a published stable release. Code and automated checks are complete; device/model/provider qualification is tracked in the [implementation report](docs/2.0/IMPLEMENTATION_REPORT_ZH.md) and [acceptance guide](docs/2.0/ACCEPTANCE_GUIDE_ZH.md) (Chinese). The screenshots above show the 1.x interface; the current [chat avatars and attribution](docs/2.0/CHAT_IDENTITY_ZH.md) include a device preview.
 
 ## Features
 
+- Five destinations: Chat, Assistants, Speech, Models, Settings.
+- Local profile and assistant settings, with explicit selection of which profile fields an assistant may use; no account or cloud sync.
+- Conversations belong to assistants and keep independent model selections; changing an assistant's optional default does not retarget existing chats. See the [relationship design](docs/2.0/CONVERSATION_ASSISTANTS_ZH.md).
+- Direct OpenAI-compatible, Anthropic and Gemini connections, with credentials in secure storage.
+- Bounded Agent runs with tool approval, conversation files, saved execution receipts, static Skill import, and remote MCP over Streamable HTTP or legacy SSE.
+- Offline ASR/TTS through sherpa-onnx and CrispASR: recording/import, transcription editing, TXT/SRT export where timestamps are available, synthesis/playback/WAV export, and model-compatible reference voices.
 - Dual inference engines: run GGUF models with [llama.cpp](https://github.com/ggml-org/llama.cpp) or MNN models with [MNN](https://github.com/alibaba/MNN).
 - In-app model discovery: browse featured models, or search Hugging Face and ModelScope at the same time.
 - Reliable download management: download GGUF / MNN models with support for pausing, resuming, retrying, and switching sources; tasks persist across page and app state changes.
@@ -48,7 +56,9 @@ ServLlama turns your Android device into a self-contained local LLM server, comb
 | llama.cpp | A single `.gguf` file, with an optional `mmproj` file for vision | GGUF is the most widely adopted format for community model distribution — most popular open-source models on Hugging Face ship ready-made quantized GGUF builds, so choices are plentiful. |
 | MNN | MNN model | Open-sourced and actively maintained by Alibaba, with deep optimization for mobile ARM CPU / GPU and strong performance; models must be exported through the MNN conversion toolchain. |
 
-Both engines require a model to be selected before startup. Only one engine runs at a time and owns the configured server port. Both engines expose the core endpoints above; other llama-server-specific features are available only while the llama.cpp engine is active.
+Both LLM engines require a model before startup. LLM and speech have independent residency and can run together. ASR/TTS share one speech FIFO. Speech does not stop local chat or a published LLM service. Both LLM engines expose the core endpoints above; other llama-server-specific features are available only while the llama.cpp engine is active.
+
+Speech packages currently cover sherpa Whisper, sherpa VITS, Crisp Whisper and Crisp Qwen3-TTS Base. Download/import instructions, model dependencies and license status are in the [speech model package guide](docs/2.0/SPEECH_MODEL_PACKAGES_ZH.md). ASR/TTS do not expose an HTTP API.
 
 Use the Vision control on a GGUF download card to choose whether to download a projector with the model. Model settings let you open the original repository, download or delete projector versions, and select one installed version to use. Turning vision off keeps the files. Deleting the selected version selects another installed version, or turns vision off when none remain. Locally imported models support importing a compatible projector and toggling vision separately.
 
@@ -62,13 +72,13 @@ Actual speed and memory usage depend on the model, quantization, context length,
 
 ## Quick Start
 
-1. Download the latest APK from [GitHub Releases](https://github.com/ArkaneFans/Servllama/releases/latest) and install it.
-2. Open the model library. Download a model from Hugging Face or ModelScope, or import a local GGUF or MNN model.
-3. Choose an inference engine and model from the Chat or Server page.
-4. Start the server and chat in ServLlama, or copy the API Base URL into another AI client.
-5. For access from another device, select **Listen on all** in Server config and set an API key.
+1. Build this development version using the guide below. [GitHub Releases](https://github.com/ArkaneFans/Servllama/releases/latest) contains published versions; this local 2.0 branch has not been published.
+2. For local chat, download/import a GGUF or MNN model under Models. For cloud chat, add a provider connection under Settings.
+3. Choose an assistant, then select a model for the conversation. An assistant may provide an optional default for new chats. Enable individual tools or Skills only for assistants that need them.
+4. For transcription or synthesis, download/import a compatible speech package and open Speech. Chat microphone input inserts a reviewed transcript into the draft; it does not send automatically.
+5. To serve local LLM requests to other clients, open the server center under Settings and start the service. For another device, select **Listen on all** and set an API key.
 
-The default server address is `http://127.0.0.1:8080`, which is accessible only from the Android device itself.
+The default published server address is `http://127.0.0.1:8080`, accessible only from the Android device itself. Internal local chat uses its own private endpoint.
 
 ## API
 
@@ -92,16 +102,20 @@ If an API key is configured, add `-H "Authorization: Bearer <api-key>"`. For sam
 
 ## Build from Source
 
-You need a Flutter SDK compatible with Dart 3.9, Android SDK, and JDK 17.
+Validated with Flutter 3.35.2 / Dart 3.9.0, Android SDK, JDK 17 and NDK 27.0.12077973. Use the sibling application/plugin checkouts described in the [acceptance guide](docs/2.0/ACCEPTANCE_GUIDE_ZH.md). The unpublished mnn_engine 0.2.0 requires a local sibling override; a fresh public checkout cannot resolve that version yet.
 
 ```bash
-git clone https://github.com/ArkaneFans/Servllama.git
-cd Servllama
 flutter pub get
-flutter build apk --release
+flutter gen-l10n
+flutter analyze --no-pub
+flutter test --no-pub
+# After preparing the native bundles described below:
+flutter build apk --release --no-pub --target-platform android-arm64
 ```
 
-MNN native artifacts are provided by the `mnn_engine` package. llama-server is a prebuilt Snapdragon bundle (CPU variants + OpenCL + Hexagon) that is **not** stored in git. Copy the `.so` files into `android/app/src/main/jniLibs/arm64-v8a/` from a release extra, the GitHub Actions artifact, or a local WSL build before compiling the APK. See `patches/llama.cpp/README.md`.
+MNN native artifacts are provided by the sibling `mnn_engine` plugin. llama-server is a prebuilt Snapdragon bundle (CPU variants + OpenCL + Hexagon) that is **not** stored in git. Copy the `.so` files into `android/app/src/main/jniLibs/arm64-v8a/` from a release extra, the GitHub Actions artifact, or a local WSL build before compiling the APK. See `patches/llama.cpp/README.md`.
+
+Build the pinned Crisp library with `pwsh -File tool/build_speech_native.ps1 -AndroidSdk <sdk-path>`; sherpa native libraries come from the pinned pub dependencies. Gradle checks the Crisp manifest hash. Run `python tool/verify_android_bundle.py <apk-path>` on the final APK and verify its version/signature. Without `android/key.properties`, release builds use the debug signing certificate. Model weights are separate from the APK.
 
 For development verification, run `flutter analyze` and `flutter test`.
 
@@ -118,6 +132,8 @@ The GitHub workflow `.github/workflows/build-llama-server-android.yml` builds th
 - [llama.cpp](https://github.com/ggml-org/llama.cpp)
 - [MNN](https://github.com/alibaba/MNN)
 - [mnn_engine](https://pub.dev/packages/mnn_engine)
+- [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)
+- [CrispASR](https://github.com/CrispStrobe/CrispASR)
 
 ## License
 

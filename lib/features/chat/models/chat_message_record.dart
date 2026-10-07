@@ -1,4 +1,6 @@
 import 'package:hive/hive.dart';
+import 'package:servllama/features/chat/models/message_author.dart';
+import 'package:servllama/features/chat/models/chat_message_version_record.dart';
 
 part 'chat_message_record.g.dart';
 
@@ -19,6 +21,8 @@ class ChatMessageRecord {
     required this.content,
     required this.createdAt,
     this.sessionId,
+    this.runId,
+    this.author,
     this.modelName,
     this.reasoningContent,
     this.imageFilePaths = const [],
@@ -41,6 +45,9 @@ class ChatMessageRecord {
   @HiveField(9)
   final String? sessionId;
 
+  final String? runId;
+  final MessageAuthor? author;
+
   @HiveField(4)
   final String? modelName;
 
@@ -60,12 +67,32 @@ class ChatMessageRecord {
 
   bool get hasMultipleVersions => versionIds.length > 1;
 
+  ChatMessageRecord withVersion(ChatMessageVersionRecord version, int index) =>
+      copyWith(
+        content: version.content,
+        runId: version.runId,
+        clearRunId: version.runId == null,
+        author: version.author,
+        clearAuthor: version.author == null,
+        createdAt: version.createdAt,
+        modelName: version.modelName,
+        clearModelName: version.modelName == null,
+        reasoningContent: version.reasoningContent,
+        clearReasoningContent: version.reasoningContent == null,
+        imageFilePaths: version.imageFilePaths,
+        currentVersionIndex: index,
+      );
+
   ChatMessageRecord copyWith({
     String? id,
     ChatRole? role,
     String? content,
     DateTime? createdAt,
     String? sessionId,
+    String? runId,
+    MessageAuthor? author,
+    bool clearAuthor = false,
+    bool clearRunId = false,
     bool clearSessionId = false,
     String? modelName,
     String? reasoningContent,
@@ -83,6 +110,8 @@ class ChatMessageRecord {
       content: content ?? this.content,
       createdAt: createdAt ?? this.createdAt,
       sessionId: clearSessionId ? null : sessionId ?? this.sessionId,
+      runId: clearRunId ? null : runId ?? this.runId,
+      author: clearAuthor ? null : author ?? this.author,
       modelName: clearModelName ? null : modelName ?? this.modelName,
       reasoningContent: clearReasoningContent
           ? null

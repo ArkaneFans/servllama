@@ -61,6 +61,37 @@ class ModelDescriptor {
   @HiveField(11, defaultValue: <String, String>{})
   final Map<String, String> mmprojFiles;
 
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'modelName': modelName,
+    'sizeBytes': sizeBytes,
+    'storedDirectoryPath': storedDirectoryPath,
+    'storedFilePath': storedFilePath,
+    'importedAt': importedAt.toIso8601String(),
+    'mmprojFilePath': mmprojFilePath,
+    'sourceValue': sourceValue,
+    'repoId': repoId,
+    'revision': revision,
+    'visionEnabled': visionEnabled,
+    'mmprojFiles': Map<String, String>.from(mmprojFiles),
+  };
+
+  factory ModelDescriptor.fromJson(Map<String, dynamic> json) =>
+      ModelDescriptor(
+        id: json['id'] as String,
+        modelName: json['modelName'] as String,
+        sizeBytes: json['sizeBytes'] as int,
+        storedDirectoryPath: json['storedDirectoryPath'] as String,
+        storedFilePath: json['storedFilePath'] as String,
+        importedAt: DateTime.parse(json['importedAt'] as String),
+        mmprojFilePath: json['mmprojFilePath'] as String?,
+        sourceValue: json['sourceValue'] as String?,
+        repoId: json['repoId'] as String?,
+        revision: json['revision'] as String?,
+        visionEnabled: json['visionEnabled'] as bool?,
+        mmprojFiles: Map<String, String>.from(json['mmprojFiles'] as Map),
+      );
+
   bool get isVisionEnabled => visionEnabled ?? mmprojFilePath != null;
 
   String? get activeMmprojFilePath => isVisionEnabled ? mmprojFilePath : null;

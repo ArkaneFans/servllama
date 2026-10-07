@@ -1,3 +1,4 @@
+import 'package:servllama/shared/widgets/app_message.dart';
 import 'package:flutter/material.dart';
 import 'package:mnn_engine/mnn_engine.dart';
 import 'package:provider/provider.dart';
@@ -321,14 +322,11 @@ class _MnnRuntimeSettingsState extends State<MnnRuntimeSettings> {
     if (!context.mounted) {
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          cleared
-              ? context.l10n.mnnMmapCacheCleared(sizeLabel)
-              : context.l10n.mnnMmapCacheClearFailed,
-        ),
-      ),
+    AppMessage.show(
+      context,
+      cleared
+          ? context.l10n.mnnMmapCacheCleared(sizeLabel)
+          : context.l10n.mnnMmapCacheClearFailed,
     );
   }
 }

@@ -1,10 +1,24 @@
+import 'package:servllama/shared/widgets/app_scaffold.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/app/providers/chat_timeout_provider.dart';
 import 'package:servllama/app/providers/app_locale_provider.dart';
 import 'package:servllama/app/providers/app_theme_mode_provider.dart';
 import 'package:servllama/features/about/pages/about_page.dart';
-import 'package:servllama/features/settings/widgets/download_settings_section.dart';
+import 'package:servllama/features/agent/pages/mcp_servers_page.dart';
+import 'package:servllama/features/agent/pages/skills_page.dart';
+import 'package:servllama/features/assistants/pages/assistants_page.dart';
+import 'package:servllama/features/assistants/pages/connections_page.dart';
+import 'package:servllama/features/assistants/pages/profile_page.dart';
+import 'package:servllama/features/assistants/providers/assistant_provider.dart';
+import 'package:servllama/features/assistants/widgets/identity_avatar.dart';
+import 'package:servllama/features/logs/pages/app_logs_page.dart';
+import 'package:servllama/features/mnn_test/pages/mnn_test_page.dart';
+import 'package:servllama/features/server/pages/debug_page.dart';
+import 'package:servllama/features/server/pages/server_page.dart';
+import 'package:servllama/features/speech/pages/speech_page.dart';
+import 'package:servllama/features/settings/pages/download_settings_page.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
 import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/widgets/settings_menu_tile.dart';
@@ -23,83 +37,172 @@ class SettingsPage extends StatelessWidget {
       AppLocaleProvider,
       ChatTimeoutProvider
     >(
-      builder: (context, themeProvider, localeProvider, chatTimeoutProvider, _) => Scaffold(
-        appBar: AppBar(title: Text(l10n.settingsTitle)),
-        body: SafeArea(
-          top: false,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-            children: [
-              SettingsSection(
-                title: l10n.settingsSectionGeneral,
-                child: SettingsTileList(
+      builder:
+          (context, themeProvider, localeProvider, chatTimeoutProvider, _) {
+            return AppScaffold(
+              appBar: AppBar(title: Text(l10n.settingsTitle)),
+              body: SafeArea(
+                top: false,
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
                   children: [
-                    SettingsMenuTile(
-                      key: const Key('settings_theme_mode_tile'),
-                      icon: Icons.palette_outlined,
-                      title: l10n.settingsThemeMode,
-                      value: _themeModeLabel(l10n, themeProvider.themeMode),
-                      onTap: () => _showThemeModeSheet(context, themeProvider),
-                    ),
-                    SettingsMenuTile(
-                      key: const Key('settings_language_tile'),
-                      icon: Icons.language_rounded,
-                      title: l10n.settingsLanguage,
-                      value: _localeModeLabel(
-                        l10n,
-                        localeProvider.localeMode,
+                    const _ProfileSettingsCard(),
+                    const SizedBox(height: 24),
+                    SettingsSection(
+                      title: l10n.settingsSectionGeneral,
+                      child: SettingsTileList(
+                        children: [
+                          SettingsMenuTile(
+                            key: const Key('settings_theme_mode_tile'),
+                            icon: Icons.palette_outlined,
+                            title: l10n.settingsThemeMode,
+                            value: _themeModeLabel(
+                              l10n,
+                              themeProvider.themeMode,
+                            ),
+                            onTap: () =>
+                                _showThemeModeSheet(context, themeProvider),
+                          ),
+                          SettingsMenuTile(
+                            key: const Key('settings_downloads_tile'),
+                            icon: Icons.download_outlined,
+                            title: l10n.settingsSectionDownload,
+                            onTap: () =>
+                                _push(context, const DownloadSettingsPage()),
+                          ),
+                          SettingsMenuTile(
+                            key: const Key('settings_language_tile'),
+                            icon: Icons.language_rounded,
+                            title: l10n.settingsLanguage,
+                            value: _localeModeLabel(
+                              l10n,
+                              localeProvider.localeMode,
+                            ),
+                            onTap: () =>
+                                _showLanguageSheet(context, localeProvider),
+                          ),
+                        ],
                       ),
-                      onTap: () => _showLanguageSheet(context, localeProvider),
                     ),
+                    const SizedBox(height: 18),
+                    SettingsSection(
+                      title: l10n.settingsSectionChat,
+                      child: SettingsTileList(
+                        children: [
+                          SettingsMenuTile(
+                            key: const Key('settings_assistants_tile'),
+                            icon: Icons.smart_toy_outlined,
+                            title: l10n.v2AssistantManagement,
+                            onTap: () => _push(context, const AssistantsPage()),
+                          ),
+                          SettingsMenuTile(
+                            key: const Key('settings_providers_tile'),
+                            icon: Icons.cloud_outlined,
+                            title: l10n.v2Connections,
+                            onTap: () =>
+                                _push(context, const ConnectionsPage()),
+                          ),
+                          SettingsMenuTile(
+                            key: const Key('settings_skills_tile'),
+                            icon: Icons.extension_outlined,
+                            title: l10n.v2Skills,
+                            onTap: () => _push(context, const SkillsPage()),
+                          ),
+                          SettingsMenuTile(
+                            key: const Key('settings_mcp_tile'),
+                            icon: Icons.hub_outlined,
+                            title: l10n.v2Mcp,
+                            onTap: () => _push(context, const McpServersPage()),
+                          ),
+                          SettingsMenuTile(
+                            key: const Key('settings_chat_timeout_tile'),
+                            icon: Icons.timer_outlined,
+                            title: l10n.settingsChatTimeout,
+                            value: l10n.settingsChatTimeoutValue(
+                              chatTimeoutProvider.timeoutSeconds,
+                            ),
+                            onTap: () => _showChatTimeoutSheet(
+                              context,
+                              chatTimeoutProvider,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    SettingsSection(
+                      title: l10n.settingsSectionServices,
+                      child: SettingsTileList(
+                        children: [
+                          SettingsMenuTile(
+                            key: const Key('settings_server_tile'),
+                            icon: Icons.dns_outlined,
+                            title: l10n.drawerServer,
+                            onTap: () => _push(context, const ServerPage()),
+                          ),
+                          SettingsMenuTile(
+                            key: const Key('settings_speech_tile'),
+                            icon: Icons.graphic_eq_rounded,
+                            title: l10n.v2Speech,
+                            onTap: () => _push(context, const SpeechPage()),
+                          ),
+                          SettingsMenuTile(
+                            key: const Key('settings_logs_tile'),
+                            icon: Icons.receipt_long_outlined,
+                            title: l10n.appLogsTitle,
+                            onTap: () => _push(context, const AppLogsPage()),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    SettingsSection(
+                      title: l10n.settingsSectionAbout,
+                      child: SettingsTileList(
+                        children: [
+                          SettingsMenuTile(
+                            icon: Icons.info_outline_rounded,
+                            key: const Key('settings_about_tile'),
+                            title: l10n.settingsAbout,
+                            onTap: () => _push(context, const AboutPage()),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (kDebugMode) ...[
+                      const SizedBox(height: 18),
+                      SettingsSection(
+                        title: l10n.settingsSectionDeveloper,
+                        child: SettingsTileList(
+                          children: [
+                            SettingsMenuTile(
+                              key: const Key('settings_mnn_test_tile'),
+                              icon: Icons.memory_outlined,
+                              title: l10n.settingsMnnTest,
+                              onTap: () => _push(context, const MnnTestPage()),
+                            ),
+                            SettingsMenuTile(
+                              key: const Key('settings_debug_tile'),
+                              icon: Icons.bug_report_outlined,
+                              title: l10n.settingsDebug,
+                              onTap: () => _push(context, const DebugPage()),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
-              const SizedBox(height: 18),
-              SettingsSection(
-                title: l10n.settingsSectionChat,
-                child: SettingsTileList(
-                  children: [
-                    SettingsMenuTile(
-                      key: const Key('settings_chat_timeout_tile'),
-                      icon: Icons.timer_outlined,
-                      title: l10n.settingsChatTimeout,
-                      value: l10n.settingsChatTimeoutValue(
-                        chatTimeoutProvider.timeoutSeconds,
-                      ),
-                      onTap: () => _showChatTimeoutSheet(
-                        context,
-                        chatTimeoutProvider,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              const DownloadSettingsSection(),
-              const SizedBox(height: 18),
-              SettingsSection(
-                title: l10n.settingsSectionAbout,
-                child: SettingsTileList(
-                  children: [
-                    SettingsMenuTile(
-                      icon: Icons.info_outline_rounded,
-                      title: l10n.settingsAbout,
-                      onTap: () => _push(context, const AboutPage()),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+            );
+          },
     );
   }
 
   static Future<void> _push(BuildContext context, Widget page) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => page),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => page));
   }
 
   static Future<void> _showThemeModeSheet(
@@ -223,10 +326,7 @@ class SettingsPage extends StatelessWidget {
     }
   }
 
-  static String _localeModeLabel(
-    AppLocalizations l10n,
-    AppLocaleMode value,
-  ) {
+  static String _localeModeLabel(AppLocalizations l10n, AppLocaleMode value) {
     switch (value) {
       case AppLocaleMode.system:
         return l10n.languageModeSystem;
@@ -235,6 +335,61 @@ class SettingsPage extends StatelessWidget {
       case AppLocaleMode.en:
         return 'English (EN)';
     }
+  }
+}
+
+class _ProfileSettingsCard extends StatelessWidget {
+  const _ProfileSettingsCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = context.watch<AssistantProvider>().profile;
+    final l = context.l10n;
+    final colors = Theme.of(context).colorScheme;
+    return Material(
+      color: colors.surfaceContainerLowest,
+      borderRadius: BorderRadius.circular(18),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        key: const Key('settings_profile_tile'),
+        onTap: () => SettingsPage._push(context, const ProfilePage()),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            children: [
+              IdentityAvatar(
+                value: profile.avatar,
+                name: profile.name,
+                size: 52,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      profile.name.isEmpty ? l.settingsUser : profile.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      profile.name.isEmpty ? l.v2ProfileHelp : l.settingsUser,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(Icons.chevron_right_rounded, color: colors.onSurfaceVariant),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

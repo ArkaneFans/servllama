@@ -1,3 +1,5 @@
+import 'package:servllama/shared/widgets/app_message.dart';
+import 'package:servllama/shared/widgets/app_scaffold.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -142,18 +144,12 @@ class _DebugPageState extends State<DebugPage> {
 
   void _copyToClipboard(String label, String value) {
     Clipboard.setData(ClipboardData(text: value));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$label 已复制'),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    AppMessage.show(context, '$label 已复制');
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppScaffold(
       appBar: AppBar(
         title: const Text('调试'),
         actions: [
@@ -190,7 +186,10 @@ class _DebugPageState extends State<DebugPage> {
                     enabled: !_isRunning,
                     maxLines: 3,
                     minLines: 1,
-                    style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 13,
+                    ),
                     decoration: const InputDecoration(
                       labelText: '启动参数',
                       hintText: '例如: -m <模型路径> --device HTP0 -ngl 99',
@@ -202,7 +201,9 @@ class _DebugPageState extends State<DebugPage> {
                     children: [
                       Expanded(
                         child: FilledButton.icon(
-                          onPressed: _isRunning || _isBusy ? null : _startServer,
+                          onPressed: _isRunning || _isBusy
+                              ? null
+                              : _startServer,
                           icon: const Icon(Icons.play_arrow),
                           label: const Text('启动'),
                         ),
@@ -210,7 +211,9 @@ class _DebugPageState extends State<DebugPage> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: FilledButton.tonalIcon(
-                          onPressed: !_isRunning || _isBusy ? null : _stopServer,
+                          onPressed: !_isRunning || _isBusy
+                              ? null
+                              : _stopServer,
                           icon: const Icon(Icons.stop),
                           label: const Text('停止'),
                         ),
@@ -230,17 +233,17 @@ class _DebugPageState extends State<DebugPage> {
   Widget _buildLogConsole(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      margin: const EdgeInsets.all(16),
+      margin: const EdgeInsets.fromLTRB(20, 12, 20, 24),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.circular(12),
+        color: theme.colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(18),
       ),
       child: _logs.isEmpty
           ? Center(
               child: Text(
                 '暂无日志输出',
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: Colors.grey[500],
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             )
@@ -253,8 +256,8 @@ class _DebugPageState extends State<DebugPage> {
                   padding: const EdgeInsets.only(bottom: 4),
                   child: SelectableText(
                     _logs[index],
-                    style: const TextStyle(
-                      color: Colors.lightGreen,
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurface,
                       fontFamily: 'monospace',
                       fontSize: 12,
                       height: 1.4,
@@ -298,9 +301,7 @@ class _PathRow extends StatelessWidget {
             path ?? '-',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontFamily: 'monospace',
-            ),
+            style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
           ),
         ),
         if (path != null)

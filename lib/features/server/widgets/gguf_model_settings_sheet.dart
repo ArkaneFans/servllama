@@ -1,3 +1,4 @@
+import 'package:servllama/shared/widgets/app_message.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/core/models/inference_engine.dart';
@@ -61,9 +62,7 @@ class _GgufModelSettingsSheetState extends State<GgufModelSettingsSheet> {
 
   void _showMessage(String? message) {
     if (mounted && message != null && message.isNotEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      AppMessage.show(context, message);
     }
   }
 
@@ -101,7 +100,7 @@ class _GgufModelSettingsSheetState extends State<GgufModelSettingsSheet> {
   }
 
   Future<void> _rename() async {
-    FocusScope.of(context).unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
     _showMessage(
       await _models.renameModel(
         widget.descriptor.id,

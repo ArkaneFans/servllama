@@ -289,6 +289,17 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
   }
 
   @override
+  Future<void> commitSession(
+    ChatSessionRecord session, {
+    List<ChatMessageRecord> changedMessages = const [],
+  }) async {
+    for (final message in changedMessages) {
+      await saveMessage(message);
+    }
+    await saveSession(session);
+  }
+
+  @override
   Future<void> saveSession(ChatSessionRecord session) async {
     final cleanSession = _migrateSession(session);
     final index = sessions.indexWhere((item) => item.id == session.id);
@@ -390,6 +401,17 @@ class _PendingChatSessionRepository extends ChatSessionRepository {
       ..clear()
       ..addAll(migratedSessions);
     return migratedSessions;
+  }
+
+  @override
+  Future<void> commitSession(
+    ChatSessionRecord session, {
+    List<ChatMessageRecord> changedMessages = const [],
+  }) async {
+    for (final message in changedMessages) {
+      await saveMessage(message);
+    }
+    await saveSession(session);
   }
 
   @override

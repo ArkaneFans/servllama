@@ -64,7 +64,7 @@ void main() {
     expect(find.text('\u7cfb\u7edf'), findsOneWidget);
     expect(find.text('Android'), findsOneWidget);
     expect(find.text('llama.cpp'), findsOneWidget);
-    expect(find.text('b10441'), findsOneWidget);
+    expect(find.text('v0.4.1'), findsOneWidget);
     expect(find.text('MNN \u7248\u672c'), findsOneWidget);
     expect(find.text('3.2.0 \u00b7 abcdef1234'), findsOneWidget);
     expect(find.text('\u5728 GitHub \u4e0a\u70b9\u4eae Star'), findsOneWidget);

@@ -1,3 +1,4 @@
+import 'package:servllama/shared/widgets/app_scaffold.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -93,8 +94,8 @@ class _ImageThumbnail extends StatelessWidget {
               // Decode at display size — full-size bitmaps of multi-MB photos
               // are wasted on a thumbnail. The fullscreen preview keeps the
               // original resolution.
-              cacheWidth:
-                  (size * MediaQuery.devicePixelRatioOf(context)).round(),
+              cacheWidth: (size * MediaQuery.devicePixelRatioOf(context))
+                  .round(),
               errorBuilder: (_, __, ___) => Container(
                 color: colorScheme.surfaceContainerHighest,
                 child: Icon(
@@ -154,7 +155,7 @@ class _ImagePreviewOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppScaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [

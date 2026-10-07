@@ -1,10 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:servllama/core/database/app_database.dart';
 import 'package:servllama/core/errors/model_operation_exception.dart';
 import 'package:servllama/core/logging/app_logger.dart';
-import 'package:servllama/core/models/model_descriptor.dart';
 import 'package:servllama/core/repositories/local_model_repository.dart';
 import 'package:servllama/core/services/gguf_file_picker.dart';
 
@@ -15,27 +14,25 @@ void main() {
     late Directory appSupportDirectory;
     late Directory sourceDirectory;
     late LocalModelRepository repository;
+    late AppDatabase db;
 
     setUp(() async {
-      await Hive.close();
       appSupportDirectory = await Directory.systemTemp.createTemp(
         'servllama_models_app_',
       );
       sourceDirectory = await Directory.systemTemp.createTemp(
         'servllama_models_source_',
       );
-      Hive.init(appSupportDirectory.path);
-      if (!Hive.isAdapterRegistered(0)) {
-        Hive.registerAdapter(ModelDescriptorAdapter());
-      }
+      db = AppDatabase.at(appSupportDirectory);
       repository = LocalModelRepository(
         appSupportDirectory: appSupportDirectory,
+        database: db,
         logger: AppLogger(),
       );
     });
 
     tearDown(() async {
-      await Hive.close();
+      await db.close();
       if (await appSupportDirectory.exists()) {
         await appSupportDirectory.delete(recursive: true);
       }
@@ -140,7 +137,9 @@ void main() {
       expect(models, isEmpty);
       expect(await Directory(descriptor.storedDirectoryPath).exists(), isFalse);
       expect(
-        Hive.box<ModelDescriptor>(LocalModelRepository.boxName).isEmpty,
+        (await db.query(
+          "SELECT id FROM model_assets WHERE json_type(manifest,'\$.gguf')='object'",
+        )).isEmpty,
         isTrue,
       );
     });
@@ -181,7 +180,9 @@ void main() {
       expect(models, isEmpty);
       expect(await Directory(descriptor.storedDirectoryPath).exists(), isFalse);
       expect(
-        Hive.box<ModelDescriptor>(LocalModelRepository.boxName).isEmpty,
+        (await db.query(
+          "SELECT id FROM model_assets WHERE json_type(manifest,'\$.gguf')='object'",
+        )).isEmpty,
         isTrue,
       );
     });
@@ -477,6 +478,7 @@ void main() {
         );
         final secondRepository = LocalModelRepository(
           appSupportDirectory: appSupportDirectory,
+          database: db,
         );
         final first = await _createSourceFile(
           sourceDirectory,
@@ -501,6 +503,9 @@ void main() {
           ),
         ]);
         var installed = (await repository.listModels()).single;
+        final assetId = (await db.query(
+          'SELECT id FROM model_assets',
+        )).single.read<String>('id');
         expect(installed.availableMmprojs, hasLength(2));
         expect(
           await File(installed.mmprojFiles['f16/mmproj.gguf']!).readAsString(),
@@ -512,9 +517,11 @@ void main() {
         );
 
         await repository.setVisionEnabled(model.id, false);
-        await Hive.close();
+        await db.close();
+        db = AppDatabase.at(appSupportDirectory);
         repository = LocalModelRepository(
           appSupportDirectory: appSupportDirectory,
+          database: db,
         );
         installed = (await repository.listModels()).single;
         expect(installed.isVisionEnabled, isFalse);
@@ -522,6 +529,12 @@ void main() {
         expect(installed.mmprojFilePath, isNotNull);
 
         installed = await repository.renameModel(model.id, 'renamed');
+        final renamedAsset = (await db.query(
+          'SELECT id,name,path FROM model_assets',
+        )).single;
+        expect(renamedAsset.read<String>('id'), assetId);
+        expect(renamedAsset.read<String>('name'), 'renamed');
+        expect(renamedAsset.read<String>('path'), installed.storedFilePath);
         final firstPath = installed.mmprojFiles['f16/mmproj.gguf']!;
         final secondPath = installed.mmprojFiles['f32/mmproj.gguf']!;
         expect(firstPath, startsWith(installed.storedDirectoryPath));

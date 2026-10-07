@@ -16,6 +16,7 @@ class ChatSessionListController extends ChangeNotifier {
   List<ChatSessionRecord> get sessions =>
       List<ChatSessionRecord>.unmodifiable(_sessions);
   bool get isLoading => _isLoading;
+  bool get isLoaded => _isInitialized;
   String get query => _query;
 
   List<ChatSessionRecord> get filteredSessions {
@@ -81,10 +82,14 @@ class ChatSessionListController extends ChangeNotifier {
     }
 
     await _repository.deleteSession(sessionId);
-    _sessions = List<ChatSessionRecord>.from(_sessions)
-      ..removeWhere((item) => item.id == sessionId);
-    notifyListeners();
+    removeSessions({sessionId});
     return true;
+  }
+
+  void removeSessions(Set<String> ids, {bool notify = true}) {
+    _sessions = List<ChatSessionRecord>.from(_sessions)
+      ..removeWhere((item) => ids.contains(item.id));
+    if (notify) notifyListeners();
   }
 
   Future<void> saveSession(

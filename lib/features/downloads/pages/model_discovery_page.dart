@@ -1,4 +1,12 @@
+import 'package:servllama/shared/widgets/app_tab_bar.dart';
+import 'package:servllama/shared/widgets/app_scaffold.dart';
+import 'package:servllama/shared/widgets/ai_identity_icon.dart';
 import 'dart:async';
+import 'package:servllama/core/models/model_asset.dart';
+import 'package:servllama/features/speech/models/speech_models.dart';
+import 'package:servllama/features/speech/services/speech_job_service.dart';
+import 'package:servllama/features/speech/widgets/speech_catalog_card.dart';
+import 'package:servllama/features/downloads/pages/downloads_page.dart';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -11,10 +19,10 @@ import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/l10n/runtime_labels.dart';
 import 'package:servllama/shared/widgets/engine_badge.dart';
 
-/// Two ways to find a model (design decision D3): a curated list that has
-/// been run on real devices, and raw hub search for everything else.
+/// Curated language/speech packages and online language repository search.
 class ModelDiscoveryPage extends StatefulWidget {
-  const ModelDiscoveryPage({super.key});
+  const ModelDiscoveryPage({super.key, this.initialPurpose = 'all'});
+  final String initialPurpose;
 
   @override
   State<ModelDiscoveryPage> createState() => _ModelDiscoveryPageState();
@@ -73,14 +81,24 @@ class _ModelDiscoveryPageState extends State<ModelDiscoveryPage>
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    return Scaffold(
+    return AppScaffold(
       appBar: AppBar(
         title: Text(l10n.discoverTitle),
-        bottom: TabBar(
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download_outlined),
+            tooltip: l10n.downloadsTitle,
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(builder: (_) => const DownloadsPage()),
+            ),
+          ),
+        ],
+        bottom: AppTabBar(
           controller: _tabController,
           tabs: [
             Tab(text: l10n.discoverTabFeatured),
-            Tab(text: l10n.discoverTabSearch),
+            Tab(text: l10n.discoveryOnlineLanguage),
           ],
         ),
       ),
@@ -89,7 +107,11 @@ class _ModelDiscoveryPageState extends State<ModelDiscoveryPage>
           return TabBarView(
             controller: _tabController,
             children: [
-              _FeaturedTab(discovery: discovery, onOpen: _openRepo),
+              _FeaturedTab(
+                discovery: discovery,
+                onOpen: _openRepo,
+                initialPurpose: widget.initialPurpose,
+              ),
               _SearchTab(
                 discovery: discovery,
                 controller: _searchController,
@@ -111,30 +133,194 @@ typedef _OpenRepo =
       InferenceEngine engine,
     );
 
-class _FeaturedTab extends StatelessWidget {
-  const _FeaturedTab({required this.discovery, required this.onOpen});
-
+class _FeaturedTab extends StatefulWidget {
+  const _FeaturedTab({
+    required this.discovery,
+    required this.onOpen,
+    required this.initialPurpose,
+  });
   final ModelDiscoveryProvider discovery;
   final _OpenRepo onOpen;
+  final String initialPurpose;
+  @override
+  State<_FeaturedTab> createState() => _FeaturedTabState();
+}
+
+class _FeaturedTabState extends State<_FeaturedTab>
+    with AutomaticKeepAliveClientMixin {
+  late String purpose = widget.initialPurpose;
+  String engine = 'all', status = 'all';
+  bool clone = false, small = false;
+  final query = TextEditingController();
+  @override
+  bool get wantKeepAlive => true;
+  @override
+  void dispose() {
+    query.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (discovery.isLoadingCatalog) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
+    super.build(context);
+    final l = context.l10n;
+    final speech = context.watch<SpeechJobService?>();
+    final m = speech?.ready == true ? speech!.models : null;
+    final speechOnly = ['speech', 'asr', 'tts'].contains(purpose);
+    final engines = <String, String>{
+      'all': l.modelLibraryFilterAll,
+      if (!speechOnly) 'llamaCpp': 'llama.cpp',
+      if (!speechOnly) 'mnn': 'MNN',
+      if (purpose != 'llm') 'sherpa_onnx': 'sherpa-onnx',
+      if (purpose != 'llm') 'crispasr': 'CrispASR',
+    };
+    final q = query.text.trim().toLowerCase();
+    final languages = widget.discovery.catalog
+        .where(
+          (e) =>
+              !speechOnly &&
+              (engine == 'all' || e.engine.name == engine) &&
+              '${e.displayName} ${e.vendor} ${e.engine.name} ${RuntimeLabels.catalogSummary(l, e.summaryKey)}'
+                  .toLowerCase()
+                  .contains(q),
+        )
+        .toList();
+    final packages = (m?.catalog ?? <SpeechPackage>[]).where((p) {
+      if (purpose == 'llm' ||
+          (purpose == 'asr' && p.recipe.kind != AssetKind.asr) ||
+          (purpose == 'tts' && p.recipe.kind != AssetKind.tts)) {
+        return false;
+      }
+      if (engine != 'all' && engine != p.recipe.engine) return false;
+      if (!'${p.name} ${p.recipe.engine} ${p.recipe.name}'
+          .toLowerCase()
+          .contains(q.replaceAll('sherpa-onnx', 'sherpa_onnx'))) {
+        return false;
+      }
+      if (clone && !p.recipe.canClone ||
+          small && p.totalBytes > 200 * 1024 * 1024) {
+        return false;
+      }
+      final a = m!.assetForPackage(p);
+      final busy =
+          m.isInstalling(p) || (a != null && m.progress.containsKey(a.id));
+      return switch (status) {
+        'ready' => a?.isReady == true,
+        'active' => busy,
+        'missing' => a == null && !busy,
+        'incomplete' => a != null && !a.isReady && !busy,
+        _ => true,
+      };
+    }).toList();
+    Widget filter(
+      String label,
+      String value,
+      Map<String, String> values,
+      ValueChanged<String> change,
+    ) => DropdownButton<String>(
+      value: value,
+      isExpanded: true,
+      items: [
+        for (final e in values.entries)
+          DropdownMenuItem(
+            value: e.key,
+            child: Text('$label: ${e.value}', overflow: TextOverflow.ellipsis),
+          ),
+      ],
+      onChanged: (v) {
+        if (v != null) setState(() => change(v));
+      },
+    );
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
       children: [
-        for (final entry in discovery.catalog)
+        TextField(
+          controller: query,
+          onChanged: (_) => setState(() {}),
+          decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.search),
+            hintText: l.discoveryQuery,
+          ),
+        ),
+        filter(
+          l.discoveryPurpose,
+          purpose,
+          {
+            'all': l.modelLibraryFilterAll,
+            'llm': l.v2LlmModels,
+            'speech': l.v2SpeechModels,
+            'asr': l.v2Asr,
+            'tts': l.v2Tts,
+          },
+          (v) {
+            purpose = v;
+            engine = 'all';
+            status = 'all';
+            clone = false;
+            small = false;
+          },
+        ),
+        filter(l.discoveryEngine, engine, engines, (v) => engine = v),
+        if (speechOnly) ...[
+          filter(l.discoveryState, status, {
+            'all': l.modelLibraryFilterAll,
+            'missing': l.discoveryNotInstalled,
+            'active': l.discoveryDownloading,
+            'ready': l.v2Ready,
+            'incomplete': l.discoveryIncomplete,
+          }, (v) => status = v),
+          Wrap(
+            spacing: 8,
+            children: [
+              if (purpose != 'asr')
+                FilterChip(
+                  label: Text(l.discoveryCloneOnly),
+                  selected: clone,
+                  onSelected: (v) => setState(() => clone = v),
+                ),
+              FilterChip(
+                label: Text(l.discoverySmallOnly),
+                selected: small,
+                onSelected: (v) => setState(() => small = v),
+              ),
+            ],
+          ),
+        ],
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: () => setState(() {
+              purpose = 'all';
+              engine = 'all';
+              status = 'all';
+              clone = false;
+              small = false;
+              query.clear();
+            }),
+            child: Text(l.discoveryReset),
+          ),
+        ),
+        if (widget.discovery.isLoadingCatalog && !speechOnly)
+          const LinearProgressIndicator(),
+        for (final entry in languages)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: _CatalogCard(
               entry: entry,
-              source: discovery.activeSource,
-              onOpen: onOpen,
+              source: widget.discovery.activeSource,
+              onOpen: widget.onOpen,
             ),
           ),
+        if (purpose != 'llm' && m == null && speech != null)
+          speech.loadError == null
+              ? const LinearProgressIndicator()
+              : Text(speech.loadError!),
+        if (packages.isNotEmpty) Text(l.discoverySpeechHelp),
+        for (final p in packages) SpeechCatalogCard(package: p),
+        if (languages.isEmpty &&
+            packages.isEmpty &&
+            !widget.discovery.isLoadingCatalog)
+          _CenteredHint(text: l.modelLibraryEmptySearchTitle),
       ],
     );
   }
@@ -155,7 +341,6 @@ class _CatalogCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isLight = theme.brightness == Brightness.light;
     final l10n = context.l10n;
     // Fall back to whichever hub carries this model when the preferred one
     // does not have it.
@@ -165,16 +350,16 @@ class _CatalogCard extends StatelessWidget {
         : entry.sources.keys.first;
 
     return Material(
-      color: isLight ? Colors.white : colorScheme.surfaceContainerLow,
-      borderRadius: BorderRadius.circular(22),
+      color: colorScheme.surfaceContainerLowest,
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(18),
         onTap: repoId == null
             ? null
             : () => onOpen(repoId, effectiveSource, entry.engine),
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(color: colorScheme.outlineVariant.withAlpha(96)),
           ),
           padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
@@ -183,7 +368,7 @@ class _CatalogCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  ModelFormatBadge(engine: entry.engine, size: 40),
+                  AiIdentityIcon(model: entry.displayName, local: true),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -194,12 +379,12 @@ class _CatalogCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          '${entry.vendor} · ${entry.parameterLabel}',
+                          '${entry.engine.displayName} · ${entry.vendor} · ${entry.parameterLabel}',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: colorScheme.onSurfaceVariant,
                           ),
@@ -427,7 +612,6 @@ class _RepoResultCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isLight = theme.brightness == Brightness.light;
     final l10n = context.l10n;
     final updated = repo.lastModified == null
         ? l10n.discoverUpdatedUnknown
@@ -438,19 +622,21 @@ class _RepoResultCard extends StatelessWidget {
           );
 
     return Material(
-      color: isLight ? Colors.white : colorScheme.surfaceContainerLow,
-      borderRadius: BorderRadius.circular(20),
+      color: colorScheme.surfaceContainerLowest,
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         onTap: onOpen,
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(color: colorScheme.outlineVariant.withAlpha(96)),
           ),
           padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
           child: Row(
             children: [
+              AiIdentityIcon(model: repo.repoId, local: true),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -460,7 +646,7 @@ class _RepoResultCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 4),

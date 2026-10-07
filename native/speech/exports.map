@@ -1,0 +1,4 @@
+SERVLLAMA_CRISPASR_1 {
+  global: crispasr_*;
+  local: *;
+};

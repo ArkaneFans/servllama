@@ -1,3 +1,4 @@
+import 'package:servllama/shared/widgets/app_message.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/core/utils/format_utils.dart';
@@ -285,9 +286,7 @@ class _StorageTileState extends State<_StorageTile> {
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.l10n.settingsClearStagingDone)),
-    );
+    AppMessage.show(context, context.l10n.settingsClearStagingDone);
     await _refresh();
   }
 

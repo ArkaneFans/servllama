@@ -21,6 +21,9 @@ class StubEngineAdapter implements InferenceEngineAdapter {
   bool get isRunning => _isRunning;
 
   @override
+  bool get hasResources => _isRunning;
+
+  @override
   Stream<bool> get runningStateStream => _runningStateController.stream;
 
   @override

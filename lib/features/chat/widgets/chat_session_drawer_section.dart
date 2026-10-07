@@ -42,7 +42,7 @@ class ChatSessionDrawerSection extends StatelessWidget {
         final theme = Theme.of(context);
         final colorScheme = theme.colorScheme;
         final l10n = context.l10n;
-        final filteredSessions = provider.filteredSessions;
+        final filteredSessions = provider.assistantSessions;
         final isQueryEmpty = provider.sessionQuery.trim().isEmpty;
 
         return Column(

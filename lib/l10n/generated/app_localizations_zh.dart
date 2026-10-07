@@ -9,6 +9,24 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get v2McpEmpty => '还没有 MCP 服务，点击 + 添加';
+
+  @override
+  String get v2SkillsEmpty => '还没有技能，点击 + 导入';
+
+  @override
+  String get v2ManageMcp => '管理 MCP';
+
+  @override
+  String get v2ManageSkills => '管理技能';
+
+  @override
+  String get v2LocalTools => '本地工具';
+
+  @override
+  String get v2AssistantManagement => '助手管理';
+
+  @override
   String get appTitle => 'ServLlama';
 
   @override
@@ -738,58 +756,56 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modelErrorSelectedFilePathUnavailable => '无法获取所选文件的路径。';
 
   @override
-  String get serverLogsTitle => '日志';
+  String get appLogsTitle => '应用日志';
 
   @override
-  String get serverLogsCopyAll => '复制全部';
+  String get appLogsCopyAll => '复制筛选结果';
 
   @override
-  String get serverLogsClear => '清空';
+  String get appLogsClear => '清空全部日志';
 
   @override
-  String get serverLogsCopied => '日志已复制';
+  String get appLogsClearFailed => '已清空日志视图，但未能删除已保存的日志文件。';
 
   @override
-  String serverLogsCount(int count) {
-    return '共 $count 条日志';
-  }
+  String get appLogsCopied => '日志已复制';
 
   @override
-  String get serverLogsEmpty => '暂无日志输出';
+  String get appLogsEmpty => '暂无日志输出';
 
   @override
-  String get serverLogsExport => '导出日志';
+  String get appLogsExport => '导出日志';
 
   @override
-  String serverLogsExported(String path) {
+  String appLogsExported(String path) {
     return '日志已导出到 $path';
   }
 
   @override
-  String serverLogsExportFailed(String error) {
+  String appLogsExportFailed(String error) {
     return '导出失败：$error';
   }
 
   @override
-  String get serverLogsAutoScroll => '自动滚动';
+  String get appLogsAutoScroll => '自动滚动';
 
   @override
-  String get serverLogsFilterAll => '全部';
+  String get appLogsFilterAll => '全部';
 
   @override
-  String get serverLogsFilterEngine => '引擎';
+  String get appLogsFilterEngine => '引擎';
 
   @override
-  String get serverLogsFilterServer => '服务';
+  String get appLogsFilterServer => '服务';
 
   @override
-  String get serverLogsFilterModel => '模型';
+  String get appLogsFilterModel => '模型';
 
   @override
-  String get serverLogsFilterDownload => '下载';
+  String get appLogsFilterDownload => '下载';
 
   @override
-  String get serverLogsFilterErrors => '仅错误';
+  String get appLogsFilterErrors => '仅错误';
 
   @override
   String get engineSectionTitle => '推理引擎';
@@ -922,7 +938,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modelFormatExplainer => 'GGUF 是单个文件，MNN 模型是整个目录。卡片上的引擎徽标用于区分两者。';
 
   @override
-  String get modelLibraryEmptyTitle => '还没有模型，点击添加模型并下载或导入模型。';
+  String get modelLibraryEmptyTitle => '还没有模型，请前往发现模型下载，或导入本地模型。';
 
   @override
   String get modelLibraryEmptyDescription => '可以下载一个，或导入已有的模型文件。';
@@ -1540,4 +1556,1357 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get mnnMmapCacheClearFailed => '无法清理 mmap 缓存。';
+
+  @override
+  String get v2FirstAssistants => '助手';
+
+  @override
+  String get v2Chat => '聊天';
+
+  @override
+  String get v2Models => '模型';
+
+  @override
+  String get v2Add => '新增';
+
+  @override
+  String get v2OperationFailed => '操作未完成';
+
+  @override
+  String get v2NoInstructions => '使用默认对话行为';
+
+  @override
+  String get v2Duplicate => '复制';
+
+  @override
+  String get v2AssistantEditor => '助手设置';
+
+  @override
+  String get v2Name => '名称';
+
+  @override
+  String get v2Instructions => '系统指令';
+
+  @override
+  String get v2Connection => '供应商';
+
+  @override
+  String get v2LocalInference => '本地推理';
+
+  @override
+  String get v2MissingTarget => '目标不可用，请检查供应商是否启用、模型是否仍在列表中，或重新选择。';
+
+  @override
+  String get v2Model => '模型';
+
+  @override
+  String get v2CurrentLocal => '当前本地模型';
+
+  @override
+  String get v2ModelId => '模型 ID';
+
+  @override
+  String get v2Connections => '供应商';
+
+  @override
+  String get v2ConnectionsEmpty => '添加供应商并维护模型列表，即可在聊天中选择。';
+
+  @override
+  String get v2ConnectionEditor => '供应商设置';
+
+  @override
+  String get v2Protocol => '协议';
+
+  @override
+  String get v2BaseUrl => 'API 基础地址';
+
+  @override
+  String get v2BaseUrlHelp => '包含版本路径，例如 /v1 或 /v1beta；仅可信局域网使用 HTTP。';
+
+  @override
+  String get v2ApiKey => 'API Key';
+
+  @override
+  String get v2KeyHelp => '安全存储；编辑时留空保留已有密钥。';
+
+  @override
+  String get v2ClearKey => '清除已保存的密钥';
+
+  @override
+  String get v2ModelsHelp => '模型 ID，每行一个（可手工输入）';
+
+  @override
+  String get v2Images => '支持图片输入';
+
+  @override
+  String get v2Tools => '支持工具调用';
+
+  @override
+  String get v2FetchModels => '获取模型列表';
+
+  @override
+  String get v2TestConnection => '测试供应商';
+
+  @override
+  String get v2TestPassed => '测试成功，尚未保存。';
+
+  @override
+  String get v2DraftHelp => '保存后生效；返回放弃未保存的修改。测试和获取模型不会自动保存。';
+
+  @override
+  String get v2Profile => '用户档案';
+
+  @override
+  String get v2ProfileHelp => '本地用户信息仅保存在此设备，用于显示头像和名称，不会自动添加到模型请求。';
+
+  @override
+  String get v2KeepOneAssistant => '请先创建另一个助手，再删除最后一个助手。';
+
+  @override
+  String get v2DeleteConnectionHelp =>
+      '删除此供应商将清空相关助手的模型选择。历史会话与消息保留，发送消息前请重新选择模型。';
+
+  @override
+  String get v2Avatar => '头像';
+
+  @override
+  String get v2AvatarHelp => '选择本地图片或表情作为头像。仅用于显示。';
+
+  @override
+  String get v2AvatarImage => '选择图片';
+
+  @override
+  String get v2AvatarEmoji => '选择表情';
+
+  @override
+  String get v2AvatarReset => '恢复默认';
+
+  @override
+  String get v2AvatarImageTooLarge =>
+      '图片过大，请选择不超过 10 MB、边长不超过 8192 像素且总像素不超过 3200 万的图片。';
+
+  @override
+  String get v2AvatarInvalidImage => '无法读取这张图片，请选择其他图片。';
+
+  @override
+  String get v2AvatarEmojiTitle => '选择头像表情';
+
+  @override
+  String get v2AvatarEmojiHint => '输入一个表情或字符';
+
+  @override
+  String get v2ChatUserName => '用户';
+
+  @override
+  String get v2ChatAssistantName => '助手';
+
+  @override
+  String get v2UserName => '用户名称';
+
+  @override
+  String get v2ProfileDescription => '描述';
+
+  @override
+  String get v2ProfileDescriptionHint => '简单介绍一下自己…';
+
+  @override
+  String get v2StartLocal => '加载当前会话的本地模型';
+
+  @override
+  String get v2RemoteReady => '直接与所选供应商对话';
+
+  @override
+  String get v2Skills => '技能';
+
+  @override
+  String get v2SkillsHelp => '导入含 SKILL.md 的静态技能包，在助手权限中明确选择后使用。';
+
+  @override
+  String get v2ImportSkill => '导入技能（ZIP / Markdown）';
+
+  @override
+  String get v2ScriptsUnsupported => '含脚本参考；本应用只读取静态说明，不执行脚本。';
+
+  @override
+  String get v2Mcp => 'MCP';
+
+  @override
+  String get v2McpHelp => '支持 Streamable HTTP 与旧版 SSE。每个助手单独选择工具，远端调用逐次审批。';
+
+  @override
+  String get v2McpToken => '静态 Bearer Token';
+
+  @override
+  String get v2McpHeaders => '自定义 HTTP 请求头（JSON）';
+
+  @override
+  String get v2McpHeadersHelp =>
+      '值为字符串的 JSON 对象，例如 X-API-Key 请求头。安全保存；留空保留原值。协议请求头由应用管理。';
+
+  @override
+  String get v2ClearMcpToken => '清除已保存的 Bearer Token';
+
+  @override
+  String get v2ClearMcpHeaders => '清除已保存的自定义请求头';
+
+  @override
+  String get v2ShowHideCredential => '显示 / 隐藏凭据';
+
+  @override
+  String get v2DiscoverTools => '连接并发现工具';
+
+  @override
+  String get v2PermissionsHelp => '权限在每次运行开始时确定。撤销权限会停止受影响的运行；新增权限在下次生效。';
+
+  @override
+  String get v2ToolClock => '当前时间';
+
+  @override
+  String get v2ToolRead => '读取会话文件';
+
+  @override
+  String get v2ToolAsk => '向用户提问';
+
+  @override
+  String get v2ToolSkill => '读取选定技能的参考文件';
+
+  @override
+  String get v2ToolActivity => '工具调用记录';
+
+  @override
+  String get v2ToolHistoryEmpty => '当前会话没有工具调用记录。';
+
+  @override
+  String get v2AwaitingApproval => '等待审批';
+
+  @override
+  String get v2Succeeded => '已完成';
+
+  @override
+  String get v2UnknownOutcome => '结果未知';
+
+  @override
+  String get v2Rejected => '已拒绝';
+
+  @override
+  String get v2Cancelled => '已取消';
+
+  @override
+  String get v2Executing => '执行中';
+
+  @override
+  String get v2Failed => '失败';
+
+  @override
+  String get v2UnknownOutcomeHelp => '操作可能已经生效，不会自动重试。核查结果后再明确发起新的运行。';
+
+  @override
+  String get v2Details => '参数、目标与回执';
+
+  @override
+  String get v2YourAnswer => '你的回答';
+
+  @override
+  String get v2Reject => '拒绝';
+
+  @override
+  String get v2ApproveOnce => '允许本次';
+
+  @override
+  String get v2Review => '审阅';
+
+  @override
+  String get v2Rerun => '重新执行为新一轮';
+
+  @override
+  String get v2RerunHelp => '工具将按当前权限重新运行，需要审批的操作会再次请求确认。';
+
+  @override
+  String get v2BudgetReached => '已达到本轮预算，保留已完成的结果。';
+
+  @override
+  String get v2Interrupted => '执行已中断，请明确创建新任务重试。';
+
+  @override
+  String get v2Speech => '语音';
+
+  @override
+  String get v2Asr => '转录';
+
+  @override
+  String get v2Tts => '合成';
+
+  @override
+  String get v2Tasks => '任务';
+
+  @override
+  String get v2SpeechModels => '语音模型';
+
+  @override
+  String get v2LlmModels => '语言模型';
+
+  @override
+  String get v2Voices => '参考音色';
+
+  @override
+  String get v2SpeechLocalHelp => '音频在本机处理。录音或导入文件，转录完成后在下方查看文本。';
+
+  @override
+  String get v2SpeechAudioInput => '录音与音频';
+
+  @override
+  String get v2RecordingReady => '点击麦克风开始录音';
+
+  @override
+  String get v2RecordingNow => '正在录音 · 点击停止';
+
+  @override
+  String get v2SpeechCreatedAt => '创建时间';
+
+  @override
+  String get v2SynthesisContent => '合成文本';
+
+  @override
+  String get v2SpeechAudioResult => '合成音频';
+
+  @override
+  String get v2TranscriptPending => '暂无转录文本';
+
+  @override
+  String get v2SpeechTextCopied => '文本已复制';
+
+  @override
+  String get v2LanguageHint => '语言代码（zh / en；留空自动识别）';
+
+  @override
+  String get v2StartAsr => '开始转录';
+
+  @override
+  String get v2StartTts => '开始合成';
+
+  @override
+  String get v2InstallSpeechFirst => '请先在模型页下载或导入相应语音模型。';
+
+  @override
+  String get v2SynthesisText => '要合成的文本';
+
+  @override
+  String get v2SpeakerId => '预置说话人 ID（0–217）';
+
+  @override
+  String get v2Voice => '音色';
+
+  @override
+  String get v2PresetVoice => '模型默认音色';
+
+  @override
+  String get v2SynthesisSpeed => '合成语速';
+
+  @override
+  String get v2CrispMarking => 'CrispASR 导出音频保留 AI 生成来源标记。';
+
+  @override
+  String get v2NoSpeechJobs => '尚无语音任务。完成、取消和中断的结果都会保留在这里。';
+
+  @override
+  String get v2CancelTask => '取消任务';
+
+  @override
+  String get v2NoAudioSelected => '尚未选择音频';
+
+  @override
+  String get v2ImportAudio => '导入音频';
+
+  @override
+  String get v2Record => '录音';
+
+  @override
+  String get v2StopRecording => '停止录音';
+
+  @override
+  String get v2UseRecording => '使用最近录音';
+
+  @override
+  String get v2RecordingHelp => '录音最长 10 分钟；离开应用或音频被中断时自动停止。';
+
+  @override
+  String get v2SpeechWaitingHelp => '等待上一项语音任务释放资源后自动继续。LLM 服务和聊天可与语音同时运行。';
+
+  @override
+  String get v2Queued => '已排队';
+
+  @override
+  String get v2WaitingLocal => '等待语音资源';
+
+  @override
+  String get v2Cancelling => '取消中，等待原生执行结束';
+
+  @override
+  String get v2TaskResult => '任务结果';
+
+  @override
+  String get v2CancellationHelp => '当前原生分段结束后释放语音资源，再开始下一项语音任务。LLM 服务和聊天可继续运行。';
+
+  @override
+  String get v2NoSpeechDetected => '没有识别到文本。可更换语言或模型后创建新任务。';
+
+  @override
+  String get v2ChunkTimingHelp => '此模型仅提供分段时间范围，未提供可靠字幕时间戳，因此只支持 TXT 导出。';
+
+  @override
+  String get v2Transcript => '转录文本';
+
+  @override
+  String get v2EditTranscript => '修订文本';
+
+  @override
+  String get v2ExportTxt => '导出 TXT';
+
+  @override
+  String get v2ExportSrt => '导出 SRT';
+
+  @override
+  String get v2ExportWav => '导出 WAV';
+
+  @override
+  String get v2InsertTranscript => '插入聊天草稿';
+
+  @override
+  String get v2PlayPause => '播放 / 暂停';
+
+  @override
+  String get v2PreviewAudio => '试听参考音频';
+
+  @override
+  String get v2VoiceModelMissing => '原模型已不可用。可导出参考音频，安装兼容模型后重新创建音色。';
+
+  @override
+  String get v2PlaybackSpeed => '播放倍速（不改变已合成音频）';
+
+  @override
+  String get v2InputSnapshot => '任务输入快照';
+
+  @override
+  String get v2SpeechPackageHelp =>
+      '语音模型按固定配方安装，每个包独立保存模型、词表、codec 和音色依赖。导入 ZIP 根目录须包含 speech-package.json。';
+
+  @override
+  String get v2ImportSpeechPackage => '导入模型 ZIP';
+
+  @override
+  String get v2Ready => '可用';
+
+  @override
+  String get v2ModelIncomplete => '文件不完整或下载已暂停';
+
+  @override
+  String get v2ResumeDownload => '继续下载';
+
+  @override
+  String get v2PauseDownload => '暂停下载';
+
+  @override
+  String get v2DeleteSpeechModelHelp =>
+      '删除本机模型文件。已完成的结果会保留；队列中的任务须先取消，参考音色将需要重新选择模型。';
+
+  @override
+  String get v2AvailableModels => '可下载配方';
+
+  @override
+  String get v2ModelLicenseHelp => '下载前请查看上游模型说明、支持语言和使用许可。';
+
+  @override
+  String get v2ModelCard => '模型说明';
+
+  @override
+  String get v2DownloadModel => '下载';
+
+  @override
+  String get v2CreateVoice => '创建参考音色';
+
+  @override
+  String get v2VoiceHelp =>
+      'Qwen3-TTS Base 支持参考音频克隆。使用 3–30 秒清晰单人录音，并填写准确参考文本；音色绑定当前模型版本。';
+
+  @override
+  String get v2InstallCloningFirst => '请先安装支持克隆的模型配方。';
+
+  @override
+  String get v2VoiceName => '音色名称';
+
+  @override
+  String get v2ReferenceText => '参考音频的准确文本';
+
+  @override
+  String get v2VoiceRights => '我有权使用这段声音作为参考音色';
+
+  @override
+  String get v2VoiceTestText => '试听文本（必填）';
+
+  @override
+  String get v2SaveAndPreview => '保存并创建试听任务';
+
+  @override
+  String get v2TranscribeToChat => '语音转文字';
+
+  @override
+  String get v2NoAutomaticAudioUpload => '只插入文本，不自动发送消息或上传原始音频。';
+
+  @override
+  String get v2ReplaceDraft => '替换草稿';
+
+  @override
+  String get v2AppendDraft => '追加到草稿';
+
+  @override
+  String get v2TranscriptInserted => '转录文本已写入指定聊天草稿。';
+
+  @override
+  String get v2ReadAloud => '朗读回答';
+
+  @override
+  String v2SynthesisParameters(String speaker, String speed) {
+    return '说话人：$speaker · 合成语速：$speed';
+  }
+
+  @override
+  String v2SampleRate(int rate) {
+    return '输出采样率：$rate Hz';
+  }
+
+  @override
+  String v2DownloadSize(int size) {
+    return '下载大小约 $size MiB';
+  }
+
+  @override
+  String v2TranscriptDestination(String name) {
+    return '投递到：$name';
+  }
+
+  @override
+  String get v2RetrySpeech => '重新创建任务';
+
+  @override
+  String v2TranscriptSegment(int index) {
+    return '第 $index 段';
+  }
+
+  @override
+  String get v2ReadAloudHelp => '已填入最终回答正文，可编辑后合成。单次最多 4000 字；长回答请分段处理。';
+
+  @override
+  String get v2NativeRestart => '语音资源释放尚未确认。请重启应用后再运行语音任务；当前记录会保留。';
+
+  @override
+  String get v2CancelImport => '取消导入';
+
+  @override
+  String get v2OriginalChatMissing => '原目标已失效或无法确认，请选择其他会话或助手草稿。转录结果仍会保留。';
+
+  @override
+  String v2AssistantDraft(String name) {
+    return '新对话 · $name';
+  }
+
+  @override
+  String get v2TranscriptTarget => '投递到草稿';
+
+  @override
+  String get v2DraftChanged => '目标草稿已变化，请重新打开并确认后再替换。';
+
+  @override
+  String get v2IncompleteAnswer => '这条回答尚未完整生成，请完成回答后再朗读。';
+
+  @override
+  String get v2SkillsGrantHelp => '所选技能可以读取自身的说明和资源。其他工具仍需单独授权。';
+
+  @override
+  String get v2DiscardRecording => '删除最近录音';
+
+  @override
+  String get v2StartupFailed => '暂时无法打开本地数据。已有数据会保留，请处理存储错误后重试。';
+
+  @override
+  String get v2RetryStartup => '重新启动';
+
+  @override
+  String get appLogsFilterApp => '应用';
+
+  @override
+  String get appLogsFilterClient => '客户端';
+
+  @override
+  String get appLogsFilterAgent => 'Agent';
+
+  @override
+  String get appLogsFilterSpeech => '语音';
+
+  @override
+  String get appLogsSearch => '搜索日志或任务 ID';
+
+  @override
+  String get appLogsClearSearch => '清除搜索';
+
+  @override
+  String get appLogsAllLevels => '全部级别';
+
+  @override
+  String get appLogsLevelDebug => '调试及以上';
+
+  @override
+  String get appLogsLevelInfo => '信息及以上';
+
+  @override
+  String get appLogsLevelWarning => '警告及错误';
+
+  @override
+  String appLogsVisibleCount(int visible, int total) {
+    return '$visible / $total 条日志';
+  }
+
+  @override
+  String appLogsRetention(int limit) {
+    return '显示最近 $limit 条记录，复制与导出使用当前筛选结果。';
+  }
+
+  @override
+  String get appLogsNoMatches => '没有匹配的日志';
+
+  @override
+  String get v2ToolSearch => '网络搜索';
+
+  @override
+  String get v2SearchGrantHelp =>
+      '允许此助手向所选供应商发送搜索词，无需逐次审批。Bing 和 DuckDuckGo 均无需 API 密钥。切换供应商会停止正在使用此权限的运行。';
+
+  @override
+  String get v2SearchProvider => '搜索供应商';
+
+  @override
+  String get v2SearchBing => 'Bing';
+
+  @override
+  String get v2SearchDuckDuckGo => 'DuckDuckGo';
+
+  @override
+  String get v2SearchMaxResults => '每次搜索最多返回结果数';
+
+  @override
+  String get v2SearchSources => '搜索来源';
+
+  @override
+  String get v2SearchNoResults => '没有匹配的网页结果，可以换一个搜索词重试。';
+
+  @override
+  String get v2SearchUnavailable => '暂时无法搜索，请检查网络或切换供应商。';
+
+  @override
+  String get v2SearchRateLimited => '搜索服务限制了请求频率，请稍后重试或切换供应商。';
+
+  @override
+  String get v2SearchChallenge => '搜索服务要求验证或限制了本次访问，请稍后重试或切换供应商。';
+
+  @override
+  String get v2SearchInvalidResponse => '搜索服务返回了无法识别的页面，请稍后重试或切换供应商。';
+
+  @override
+  String get v2SearchTooLarge => '搜索响应超过大小限制，请使用更具体的搜索词重试。';
+
+  @override
+  String get v2SearchTimeout => '搜索超时，请稍后重试或切换供应商。';
+
+  @override
+  String get v2SearchOpenFailed => '无法打开此来源链接。';
+
+  @override
+  String get v2ConversationModel => '选择模型';
+
+  @override
+  String get v2ConversationModelHelp => '按供应商选择模型。点击本地模型后加载并启动服务。';
+
+  @override
+  String get v2NoLocalChatModels => '暂无可用的本地 LLM，请先在模型页下载或导入。';
+
+  @override
+  String get v2AssistantDefaultModel => '聊天模型';
+
+  @override
+  String get v2NoDefaultModel => '未选择模型';
+
+  @override
+  String get v2ClearDefaultModel => '清除模型选择';
+
+  @override
+  String get v2AssistantDefaultModelHelp =>
+      '此助手的所有会话共用此模型。在聊天中切换模型也会更新此设置，历史消息保持不变。';
+
+  @override
+  String get v2UnassignedAssistant => '助手未指定或已删除';
+
+  @override
+  String get v2ChangeConversationAssistant => '更换此会话的助手';
+
+  @override
+  String get v2ChangeConversationAssistantHelp =>
+      '保留本会话的模型、消息、版本和草稿。之后的生成使用新助手的提示词与权限，历史消息署名保持不变。';
+
+  @override
+  String get v2ChooseConversationModel => '请选择模型';
+
+  @override
+  String get v2AllAssistantHistory => '全部助手的会话';
+
+  @override
+  String v2ConnectionConversationCount(int count) {
+    return '$count 个会话使用此供应商，删除后需重新选择模型。';
+  }
+
+  @override
+  String get v2DeleteAssistantHelp => '删除助手会同时删除关联的所有会话、消息和草稿。此操作不可撤销。';
+
+  @override
+  String get v2SwitchAssistantNewChat => '切换助手并新建会话';
+
+  @override
+  String v2ToolCallCount(int count) {
+    return '工具调用 · $count 次';
+  }
+
+  @override
+  String get v2ToolRetryLoad => '重新加载';
+
+  @override
+  String get v2ToolHistoryFailed => '工具记录加载失败。';
+
+  @override
+  String get v2ToolPrepared => '等待执行';
+
+  @override
+  String get v2ToolApproved => '已批准，等待执行';
+
+  @override
+  String get v2ToolAwaitingAnswer => '等待你的回答';
+
+  @override
+  String get v2ToolList => '列出会话文件';
+
+  @override
+  String get v2ToolWriteAction => '写入会话文件';
+
+  @override
+  String get v2ToolQuestion => '问题';
+
+  @override
+  String get v2ToolArguments => '调用参数';
+
+  @override
+  String get v2ToolResult => '结果';
+
+  @override
+  String get v2ToolSendAnswer => '提交回答';
+
+  @override
+  String get chatDeleteMessageTitle => '删除消息';
+
+  @override
+  String get chatDeleteCurrentVersion => '删除本版本';
+
+  @override
+  String get chatDeleteAllVersions => '删除全部版本';
+
+  @override
+  String get chatDeleteAllVersionsConfirm =>
+      '确定删除此消息及其全部版本吗？关联的工具调用记录和生成数据也会一并清理，后续消息保留。此操作无法撤销。';
+
+  @override
+  String chatDeleteVersionConfirm(int version, int count) {
+    return '确定删除第 $version/$count 个版本吗？关联的工具调用记录和生成数据也会一并清理，其他版本和后续消息保留。此操作无法撤销。';
+  }
+
+  @override
+  String get v2ToolResultTruncated => '此结果已截断，仅可查看或导出已保存的片段。';
+
+  @override
+  String get v2ProviderPreset => '预设';
+
+  @override
+  String get v2ProviderCustom => '自定义';
+
+  @override
+  String get v2ProviderPresetHelp => '预设供应商不可删除，可以修改配置或禁用。';
+
+  @override
+  String get v2ProviderEnabled => '启用供应商';
+
+  @override
+  String get v2ProviderEnabledHelp => '禁用后保留配置和历史，停止使用此供应商的运行。';
+
+  @override
+  String get v2ProviderOn => '已启用';
+
+  @override
+  String get v2ProviderOff => '已禁用';
+
+  @override
+  String v2ProviderModelCount(int count) {
+    return '$count 个模型';
+  }
+
+  @override
+  String get v2ProviderModelsEmpty => '尚未添加模型，请在供应商设置中手动添加或获取模型。';
+
+  @override
+  String get v2AddModel => '手动添加模型';
+
+  @override
+  String get v2RemoveModel => '移除模型';
+
+  @override
+  String v2RemoveModelHelp(String model) {
+    return '保存后将从供应商列表移除 $model。使用它的会话和助手默认目标将不可用，历史消息保留。';
+  }
+
+  @override
+  String get v2ModelIdRequired => '请输入模型 ID';
+
+  @override
+  String get v2DiscoveredModels => '选择要添加的模型';
+
+  @override
+  String get v2ModelAlreadyAdded => '已添加';
+
+  @override
+  String get v2ModelSearch => '搜索模型 ID';
+
+  @override
+  String get v2ProviderNoResults => '没有匹配的供应商或模型';
+
+  @override
+  String get v2ProviderModelSearch => '搜索供应商或模型';
+
+  @override
+  String v2AddSelectedModels(int count) {
+    return '添加所选（$count）';
+  }
+
+  @override
+  String get v2SelectVisible => '选择搜索结果';
+
+  @override
+  String get v2DeselectVisible => '取消选择搜索结果';
+
+  @override
+  String v2LocalProvider(String engine) {
+    return '本地 · $engine';
+  }
+
+  @override
+  String get v2LocalProviderHelp => '从本地模型库管理，通过加载和停止控制运行。';
+
+  @override
+  String get v2ServicePublished => '正在对外提供服务';
+
+  @override
+  String get v2PublishedModelLocked => '请先在服务中心停止已发布的模型，再切换本地模型。';
+
+  @override
+  String get v2LocalModelLoaded => '已加载';
+
+  @override
+  String get v2LocalModelUnloaded => '未加载';
+
+  @override
+  String get drawerAssistantSettings => '助手设置';
+
+  @override
+  String get settingsUser => '用户设置';
+
+  @override
+  String get settingsSectionServices => '服务与诊断';
+
+  @override
+  String get settingsSectionDeveloper => '开发工具';
+
+  @override
+  String get settingsMnnTest => 'MNN 测试';
+
+  @override
+  String get settingsDebug => '调试';
+
+  @override
+  String get localModelImport => '导入本地模型';
+
+  @override
+  String get localModelChooseImport => '选择并导入';
+
+  @override
+  String get localModelImportHelp => '选择文件或目录后即开始导入，文件将复制到应用存储中。';
+
+  @override
+  String get discoveryQuery => '搜索预设名称或引擎';
+
+  @override
+  String get discoveryReset => '重置筛选';
+
+  @override
+  String get discoveryPurpose => '用途';
+
+  @override
+  String get discoveryEngine => '引擎';
+
+  @override
+  String get discoveryState => '安装状态';
+
+  @override
+  String get discoveryNotInstalled => '未安装';
+
+  @override
+  String get discoveryDownloading => '下载中';
+
+  @override
+  String get discoveryIncomplete => '已暂停 / 未完成';
+
+  @override
+  String get discoveryCloneOnly => '声音克隆';
+
+  @override
+  String get discoverySmallOnly => '不超过 200 MiB';
+
+  @override
+  String get discoverySpeechHelp => '下载包含全部依赖的预设模型包。运行兼容性和效果仍需在你的设备上验证。';
+
+  @override
+  String get discoverySpeechLibraryHelp => '请前往发现模型下载语音模型。已安装和未完成的模型包将在这里显示。';
+
+  @override
+  String get discoveryOnlineLanguage => '在线搜索语言模型';
+
+  @override
+  String get v2StartupPreparing => '正在启动 ServLlama';
+
+  @override
+  String get v2MigrationTitle => '正在升级应用数据';
+
+  @override
+  String get v2MigrationHelp => '正在升级聊天、模型记录和下载进度。模型文件保持原位，升级成功前保留原始数据。';
+
+  @override
+  String get v2MigrationFailed => '数据升级未完成。请排除存储问题后重试，原始数据仍保留。';
+
+  @override
+  String get v2MigrationChats => '读取聊天记录';
+
+  @override
+  String get v2MigrationModels => '读取本地模型记录';
+
+  @override
+  String get v2MigrationDownloads => '读取下载任务';
+
+  @override
+  String get v2MigrationWriting => '保存升级后的记录';
+
+  @override
+  String get v2MigrationVerifying => '校验模型和下载记录';
+
+  @override
+  String get v2MigrationComplete => '数据升级完成，正在完成启动…';
+
+  @override
+  String v2MigrationRecords(int completed, int total) {
+    return '当前步骤：$completed / $total 条记录';
+  }
+
+  @override
+  String get migrationPreviewTitle => '迁移演示';
+
+  @override
+  String get migrationPreviewHelp => '仅模拟界面与交互，不读取或修改真实数据。可随时返回退出。';
+
+  @override
+  String get migrationPreviewRestart => '重新演示';
+
+  @override
+  String get migrationPreviewFailure => '模拟失败';
+
+  @override
+  String get migrationPreviewError => '模拟错误：存储空间不足。点击重试可演示恢复流程。';
+
+  @override
+  String get migrationPreviewComplete => '迁移演示已完成，真实数据未改变。';
+
+  @override
+  String get migrationPreviewReturn => '返回侧边栏';
+
+  @override
+  String get uiLabTitle => 'UI 原语';
+
+  @override
+  String get uiLabDark => '预览深色';
+
+  @override
+  String get uiLabLight => '预览浅色';
+
+  @override
+  String get uiLabVisuals => '视觉基础';
+
+  @override
+  String get uiLabControls => '交互组件';
+
+  @override
+  String get uiLabScenes => '场景示例';
+
+  @override
+  String get uiLabPreview => '设计预览';
+
+  @override
+  String get uiLabHeadline => '让内容成为主角';
+
+  @override
+  String get uiLabIntro => '以灰白承托内容，用柔和蓝紫标记重点。紧凑有序，也留出恰当的呼吸空间。';
+
+  @override
+  String get uiLabQuiet => '简洁克制';
+
+  @override
+  String get uiLabSoft => '柔和清爽';
+
+  @override
+  String get uiLabPalette => '色彩与表面';
+
+  @override
+  String get uiLabPaletteHint => '大面积保持中性，强调色只出现在需要注意的位置。';
+
+  @override
+  String get uiLabCanvas => '页面底色';
+
+  @override
+  String get uiLabSurface => '内容表面';
+
+  @override
+  String get uiLabPrimary => '主色';
+
+  @override
+  String get uiLabSelected => '选中底色';
+
+  @override
+  String get uiLabTypography => '文字层级';
+
+  @override
+  String get uiLabTypographyHint => '通过字号、字重与间距建立层级，减少装饰。';
+
+  @override
+  String get uiLabTypeTitle => '清晰，从阅读开始';
+
+  @override
+  String get uiLabTypeSection => '一个恰当的分组标题';
+
+  @override
+  String get uiLabTypeBody => '正文保持舒适的行高，让长回答也容易阅读。信息自然流动，操作安静地留在需要的位置。';
+
+  @override
+  String get uiLabTypeCaption => '辅助信息 · 12 sp · 用于时间、状态与说明';
+
+  @override
+  String get uiLabRhythm => '间距、圆角与图标';
+
+  @override
+  String get uiLabRhythmHint => '组内紧凑，组间舒展；小图标也拥有充足触控空间。';
+
+  @override
+  String get uiLabRadii => '卡片圆角 18 dp · 输入框 14 dp\n操作区域至少 48 dp';
+
+  @override
+  String get uiLabLocalOnly => '以下操作仅用于体验样式，不连接模型或保存业务数据。';
+
+  @override
+  String get uiLabActions => '按钮与浮层';
+
+  @override
+  String get uiLabActionsHint => '主要操作突出，次要操作柔和，低频操作保持轻量。';
+
+  @override
+  String get uiLabPrimaryAction => '主要操作';
+
+  @override
+  String get uiLabSecondaryAction => '次要操作';
+
+  @override
+  String get uiLabSheet => '底部弹窗';
+
+  @override
+  String get uiLabDialog => '确认对话框';
+
+  @override
+  String get uiLabDisabled => '不可用';
+
+  @override
+  String get uiLabDialogTitle => '确认本次选择？';
+
+  @override
+  String get uiLabDialogBody => '这是一个对话框样式示例。确认后将展示轻量提示，不会修改真实配置。';
+
+  @override
+  String get uiLabConfirm => '确认';
+
+  @override
+  String get uiLabFeedback => '交互已完成，仅在当前预览中生效。';
+
+  @override
+  String get uiLabChooseModel => '选择模型';
+
+  @override
+  String get uiLabOnDevice => '本地模型 · 示例';
+
+  @override
+  String get uiLabCloud => '云端模型 · 示例';
+
+  @override
+  String get uiLabForms => '输入与选择';
+
+  @override
+  String get uiLabFormsHint => '点按输入框、开关、滑块和标签，感受状态变化。';
+
+  @override
+  String get uiLabName => '助手名称';
+
+  @override
+  String get uiLabNameHint => '为助手取个名字';
+
+  @override
+  String get uiLabNameError => '请填写助手名称';
+
+  @override
+  String get uiLabStreaming => '流式输出';
+
+  @override
+  String get uiLabStreamingHint => '逐步呈现回答内容';
+
+  @override
+  String get uiLabTemperature => '温度';
+
+  @override
+  String get uiLabVision => '视觉能力';
+
+  @override
+  String get uiLabValidate => '校验输入';
+
+  @override
+  String get uiLabStates => '状态与进度';
+
+  @override
+  String get uiLabStatesHint => '颜色辅助识别，文字始终说明当前状态。';
+
+  @override
+  String get uiLabReady => '已就绪';
+
+  @override
+  String get uiLabWaiting => '等待中';
+
+  @override
+  String get uiLabFailed => '失败';
+
+  @override
+  String get uiLabDownload => '模型下载 · 演示';
+
+  @override
+  String get uiLabSimulate => '模拟进度';
+
+  @override
+  String get uiLabAgain => '重新体验';
+
+  @override
+  String get uiLabChat => '聊天';
+
+  @override
+  String get uiLabChatHint => '用户气泡、助手正文、工具过程与消息末尾信息。';
+
+  @override
+  String get uiLabYou => '用户';
+
+  @override
+  String get uiLabQuestion => '帮我整理一下今天的阅读计划。';
+
+  @override
+  String get uiLabAssistant => '阅读助手';
+
+  @override
+  String get uiLabTool => '已完成 · 检索阅读资料';
+
+  @override
+  String get uiLabToolDetail => '搜索 → 整理 → 返回结果\n这是可展开的工具过程示例，没有发送网络请求。';
+
+  @override
+  String get uiLabAnswer =>
+      '可以先留出 25 分钟，专注读完一个章节。\n\n然后用 5 分钟写下三个要点，以及一个想继续探索的问题。让阅读有节奏，也给思考留一点空间。';
+
+  @override
+  String get uiLabReply => '已收到这条预览消息。这里展示正文排版与发送反馈，不会调用真实模型。';
+
+  @override
+  String get uiLabCopy => '复制反馈示例';
+
+  @override
+  String get uiLabMore => '更多选项';
+
+  @override
+  String get uiLabManagement => '分组列表与模型卡片';
+
+  @override
+  String get uiLabManagementHint => '统一对齐、轻量分隔，详细信息按需展开。';
+
+  @override
+  String get uiLabAssistantHint => '整理知识，陪伴阅读';
+
+  @override
+  String get uiLabProviderHint => '已配置 2 个模型 · 示例';
+
+  @override
+  String get uiLabVoice => '语音';
+
+  @override
+  String get uiLabVoiceHint => '转录与合成 · 示例';
+
+  @override
+  String get uiLabComposer => '输入一条消息，体验交互';
+
+  @override
+  String get uiLabSend => '发送预览消息';
+
+  @override
+  String get uiLabExactValue => '精确值';
+
+  @override
+  String get uiLabNumericHint => '滑动粗调，右侧输入精确值，最多两位小数。';
+
+  @override
+  String uiLabNumericError(String min, String max) {
+    return '请输入 $min–$max 范围内的数值，最多两位小数。';
+  }
+
+  @override
+  String get uiLabMessages => '消息提示';
+
+  @override
+  String get uiLabMessagesHint => '顶部居中悬浮，3 秒后消失。新消息替换旧消息，也可手动关闭。';
+
+  @override
+  String get uiLabDismissMessage => '关闭提示';
+
+  @override
+  String get uiLabMessageSuccess => '成功';
+
+  @override
+  String get uiLabMessageInfo => '信息';
+
+  @override
+  String get uiLabMessageWarning => '警告';
+
+  @override
+  String get uiLabMessageError => '错误';
+
+  @override
+  String get uiLabMessageInfoText => '当前为样式预览，操作不会影响真实数据。';
+
+  @override
+  String get uiLabMessageWarningText => '尚未选择模型，请先完成选择。（示例）';
+
+  @override
+  String get uiLabMessageErrorText => '连接失败，请检查设置后重试。（示例）';
+
+  @override
+  String get uiLabThemeColor => '切换主题色';
+
+  @override
+  String get uiLabViolet => '雾紫';
+
+  @override
+  String get uiLabTea => '茶紫';
+
+  @override
+  String get uiLabTeaIntro => '紫调融入淡茶色，搭配温润的中性表面。柔和克制，层次清晰。';
+
+  @override
+  String get numericExactValue => '精确值';
+
+  @override
+  String get numericHint => '滑动粗调，右侧输入精确值，最多两位小数。';
+
+  @override
+  String numericError(String min, String max) {
+    return '请输入 $min–$max 范围内的数值，最多两位小数。';
+  }
+
+  @override
+  String get commonDismissMessage => '关闭提示';
+
+  @override
+  String get v2ProviderConfiguration => '配置';
+
+  @override
+  String get v2ProviderIdentity => '供应商信息';
+
+  @override
+  String get v2ProviderConnection => '连接配置';
+
+  @override
+  String get v2ProtocolOpenai => 'OpenAI 兼容';
+
+  @override
+  String get v2ModelCapabilities => '模型能力';
+
+  @override
+  String get v2ModelCapabilitiesHelp =>
+      '请按模型说明设置能力。获取模型仅返回模型 ID，不检测图片或工具支持情况。修改后保存供应商生效。';
+
+  @override
+  String get v2ModelText => '文本';
+
+  @override
+  String get v2ModelImages => '图片';
+
+  @override
+  String get v2ModelTools => '工具';
+
+  @override
+  String get v2IdentitySettings => '头像与名称';
+
+  @override
+  String get v2InstructionsHint => '描述助手的角色、回复风格和要求…';
+
+  @override
+  String get v2Credentials => '访问凭据';
+
+  @override
+  String get v2ModelImagesUnavailable => '当前模型未启用图片输入，可在供应商的模型设置中调整。';
+
+  @override
+  String get v2AssistantModelChanged => '此助手的模型选择已变更，请重新打开设置后再修改。';
+
+  @override
+  String get chatGreetingMorning => '早上好';
+
+  @override
+  String get chatGreetingNoon => '中午好';
+
+  @override
+  String get chatGreetingAfternoon => '下午好';
+
+  @override
+  String get chatGreetingEvening => '晚上好';
+
+  @override
+  String get chatWelcomeDescription => '今天想聊些什么？';
+
+  @override
+  String get chatWelcomeTranscribe => '语音转录';
+
+  @override
+  String get chatWelcomeSynthesize => '语音合成';
+
+  @override
+  String get chatWelcomeTranscribeHint => '声音转文字';
+
+  @override
+  String get chatWelcomeSynthesizeHint => '让文字发声';
 }

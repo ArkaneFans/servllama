@@ -1,3 +1,9 @@
+import 'package:servllama/features/speech/services/speech_job_service.dart';
+import 'package:servllama/features/speech/widgets/speech_catalog_card.dart';
+import 'package:servllama/features/speech/pages/speech_models_page.dart';
+import 'package:servllama/features/speech/pages/speech_page.dart';
+import 'package:servllama/features/speech/models/speech_models.dart';
+import '../../speech/speech_test_support.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -11,6 +17,139 @@ import 'package:servllama/features/downloads/services/model_hub_client.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
 
 void main() {
+  testWidgets('speech presets filter by engine, size, clone and reset', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 2200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final h = SpeechHarness();
+    await tester.runAsync(h.initialize);
+    addTearDown(() => tester.runAsync(h.close));
+    final discovery = ModelDiscoveryProvider(
+      catalogService: _EmptyCatalogService(),
+      capabilityService: _UnknownCapabilityService(),
+      settingsStore: _MemoryDownloadSettingsStore(),
+      huggingFaceClient: _WidgetFakeHubClient(ModelHubSource.huggingFace),
+      modelScopeClient: _WidgetFakeHubClient(ModelHubSource.modelScope),
+    );
+    addTearDown(discovery.dispose);
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<ModelDiscoveryProvider>.value(
+            value: discovery,
+          ),
+          ChangeNotifierProvider<SpeechJobService>.value(value: h.service),
+        ],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: ModelDiscoveryPage(initialPurpose: 'speech'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(SpeechCatalogCard), findsNWidgets(4));
+    expect(find.text('导入语音模型包'), findsNothing);
+    await tester.tap(find.text('不超过 200 MiB'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SpeechCatalogCard), findsNWidgets(3));
+    await tester.tap(find.text('不超过 200 MiB'));
+    await tester.tap(find.widgetWithText(FilterChip, '声音克隆'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SpeechCatalogCard), findsOneWidget);
+    await tester.tap(find.text('重置筛选'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SpeechCatalogCard), findsNWidgets(4));
+    await tester.enterText(find.byType(TextField).first, 'sherpa-onnx');
+    await tester.pumpAndSettle();
+    expect(find.byType(SpeechCatalogCard), findsNWidgets(2));
+    await tester.tap(find.byType(DropdownButton<String>).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('用途: 转录').last);
+    await tester.pumpAndSettle();
+    expect(find.byType(SpeechCatalogCard), findsOneWidget);
+    expect(find.widgetWithText(FilterChip, '声音克隆'), findsNothing);
+    final package = h.service.models.catalog.firstWhere(
+      (p) => p.recipe == SpeechRecipe.sherpaWhisper,
+    );
+    final paused = (await tester.runAsync(
+      () => h.service.models.createAsset(package),
+    ))!;
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(DropdownButton<String>).at(2));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('安装状态: 未安装').last);
+    await tester.pumpAndSettle();
+    expect(find.byType(SpeechCatalogCard), findsNothing);
+    await tester.tap(find.byType(DropdownButton<String>).at(2));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('安装状态: 已暂停 / 未完成').last);
+    await tester.pumpAndSettle();
+    expect(find.byType(SpeechCatalogCard), findsOneWidget);
+    expect(h.service.models.assetForPackage(package)?.id, paused.id);
+    await tester.tap(find.byType(DropdownButton<String>).at(1));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('引擎: CrispASR').last);
+    await tester.pumpAndSettle();
+    expect(find.byType(SpeechCatalogCard), findsNothing);
+
+    expect(find.text('没有匹配的模型'), findsOneWidget);
+    await tester.tap(find.byType(TextField).first);
+    await tester.pump();
+    final searchFocus = tester
+        .widget<EditableText>(find.byType(EditableText).first)
+        .focusNode;
+    expect(searchFocus.hasFocus, isTrue);
+    await tester.tap(find.byType(Tab).at(1));
+    await tester.pumpAndSettle();
+    expect(searchFocus.hasFocus, isFalse);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets(
+    'installed speech has use action and no ZIP or catalog in library',
+    (tester) async {
+      final h = SpeechHarness();
+      await tester.runAsync(h.initialize);
+      addTearDown(() => tester.runAsync(h.close));
+      final asset = (await tester.runAsync(h.model))!;
+      final package = SpeechPackage.fromJson(asset.manifest);
+      Widget host(Widget child) =>
+          ChangeNotifierProvider<SpeechJobService>.value(
+            value: h.service,
+            child: MaterialApp(
+              locale: const Locale('zh'),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: child,
+            ),
+          );
+      await tester.pumpWidget(host(const SpeechModelsPage()));
+      await tester.pumpAndSettle();
+      expect(find.text('导入语音模型包'), findsNothing);
+      expect(find.byType(SpeechCatalogCard), findsNothing);
+      expect(find.text('发现模型'), findsOneWidget);
+      await tester.pumpWidget(
+        host(Scaffold(body: SpeechCatalogCard(package: package))),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('下载模型'), findsNothing);
+      await tester.tap(find.text('合成'));
+      await tester.pumpAndSettle();
+      expect(find.byType(SpeechPage), findsOneWidget);
+      expect(
+        tester.widget<SpeechPage>(find.byType(SpeechPage)).initialKind,
+        asset.kind,
+      );
+      expect(h.service.ttsId, asset.id);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
   testWidgets('uses one source, queries all initially, and scrolls for more', (
     tester,
   ) async {
@@ -77,18 +216,17 @@ void main() {
     expect(find.text('GGUF'), findsWidgets);
     expect(find.text('MNN'), findsWidgets);
     expect(provider.formatFilter, HubFormatFilter.gguf);
-    expect(
-      modelScope.calls.map((call) => call.format),
-      <HubModelFormat>[HubModelFormat.gguf],
-    );
+    expect(modelScope.calls.map((call) => call.format), <HubModelFormat>[
+      HubModelFormat.gguf,
+    ]);
 
     await tester.tap(find.text('MNN').last);
     await tester.pumpAndSettle();
     expect(provider.formatFilter, HubFormatFilter.mnn);
-    expect(
-      modelScope.calls.map((call) => call.format),
-      <HubModelFormat>[HubModelFormat.gguf, HubModelFormat.mnn],
-    );
+    expect(modelScope.calls.map((call) => call.format), <HubModelFormat>[
+      HubModelFormat.gguf,
+      HubModelFormat.mnn,
+    ]);
   });
 }
 

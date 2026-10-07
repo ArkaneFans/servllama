@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -54,10 +55,9 @@ void main() {
     test('removeVisibleMessage drops the record from the window', () {
       controller.removeVisibleMessage('m1');
 
-      expect(
-        controller.visibleMessages.map((message) => message.id),
-        <String>['m2'],
-      );
+      expect(controller.visibleMessages.map((message) => message.id), <String>[
+        'm2',
+      ]);
 
       // Removing an unknown id is a no-op.
       final before = controller.visibleMessages;
@@ -65,6 +65,53 @@ void main() {
       expect(controller.visibleMessages, same(before));
     });
   });
+
+  test(
+    'deleted sessions reject late message loads and evict their cached content',
+    () async {
+      final repository = _DelayedRepository();
+      final sessions = ChatSessionListController(repository: repository);
+      final controller = ChatConversationController(
+        repository: repository,
+        sessionList: sessions,
+        messageWindowSize: 30,
+      );
+      final session = _session('deleted', ['old']);
+      sessions.upsertSession(session);
+      final loading = controller.switchSession(session.id);
+      expect(controller.isLoadingMessages, isTrue);
+      sessions.removeSessions({session.id}, notify: false);
+      controller.forgetSessions({session.id});
+      repository.pending.complete([_message('old', 'Deleted content')]);
+      await loading;
+      expect(controller.selectedSessionId, isNull);
+      expect(controller.visibleMessages, isEmpty);
+      expect(controller.isLoadingMessages, isFalse);
+      // Reintroducing a record cannot recover content from the deleted cache.
+      sessions.upsertSession(session);
+      repository.pending = Completer<List<ChatMessageRecord>>()..complete([]);
+      await controller.switchSession(session.id);
+      expect(repository.loads, 2);
+      expect(controller.visibleMessages, isEmpty);
+      controller.dispose();
+      sessions.dispose();
+    },
+  );
+}
+
+class _DelayedRepository extends ChatSessionRepository {
+  Completer<List<ChatMessageRecord>> pending = Completer();
+  int loads = 0;
+  @override
+  Future<List<ChatMessageRecord>> loadInitialMessages(
+    ChatSessionRecord s, {
+    int minMessages = ChatSessionRepository.defaultInitialMessageMin,
+    int maxMessages = ChatSessionRepository.defaultInitialMessageMax,
+    int textBudget = ChatSessionRepository.defaultInitialTextBudget,
+  }) {
+    loads++;
+    return pending.future;
+  }
 }
 
 ChatSessionRecord _session(String id, List<String> messageIds) {

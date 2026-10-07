@@ -20,6 +20,7 @@ class ModelManagementProvider extends ChangeNotifier {
     MnnEngine? mnnEngine,
     ModelNameCoordinator? nameCoordinator,
     AppLogger? logger,
+    this.onModelDeleted,
     Future<void> Function({
       required InferenceEngine engine,
       required String oldModelId,
@@ -39,6 +40,7 @@ class ModelManagementProvider extends ChangeNotifier {
         ModelNameCoordinator(unifiedRepository: _unifiedRepository);
   }
 
+  final Future<void> Function()? onModelDeleted;
   final LocalModelRepository _repository;
   final UnifiedModelRepository _unifiedRepository;
   final GgufFilePicker _filePicker;
@@ -209,6 +211,14 @@ class ModelManagementProvider extends ChangeNotifier {
             )
           : _l10nService.current.modelManagementImportSuccess(model.modelKey);
     } catch (error, stackTrace) {
+      if (error is MnnEngineException && error.code == 'import_cancelled') {
+        _logger.event(
+          'model.import.cancelled',
+          channel: LogChannel.model,
+          fields: {'engine': 'mnn'},
+        );
+        return null;
+      }
       _logger.error(
         '导入 MNN 模型失败',
         channel: LogChannel.model,
@@ -236,6 +246,7 @@ class ModelManagementProvider extends ChangeNotifier {
 
     try {
       await _unifiedRepository.deleteModel(model);
+      await onModelDeleted?.call();
       await _refreshModelLists();
       _logger.info('模型删除成功: ${model.name}', channel: LogChannel.model);
       return _l10nService.current.modelManagementDeleteSuccess(model.name);
@@ -325,6 +336,7 @@ class ModelManagementProvider extends ChangeNotifier {
         (descriptor) => descriptor.id == modelId,
       );
       await _repository.deleteModel(modelId);
+      await onModelDeleted?.call();
       await _refreshModelLists();
       _logger.info('模型删除成功: ${model.modelName}', channel: LogChannel.model);
       return _l10nService.current.modelManagementDeleteSuccess(model.modelName);

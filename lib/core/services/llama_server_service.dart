@@ -133,12 +133,6 @@ class LlamaServerService implements LlamaServerProcessService {
       _process = process;
       _emitRunningState(true);
 
-      await _foregroundTaskService.start(
-        notificationTitle:
-            _l10nService.current.serverForegroundNotificationTitle,
-        notificationText: _l10nService.current.serverForegroundNotificationText,
-      );
-
       process.stdout
           .transform(const Utf8Decoder(allowMalformed: true))
           .listen(
@@ -178,6 +172,12 @@ class LlamaServerService implements LlamaServerProcessService {
         await _foregroundTaskService.stop();
       });
 
+      await _foregroundTaskService.start(
+        notificationTitle:
+            _l10nService.current.serverForegroundNotificationTitle,
+        notificationText: _l10nService.current.serverForegroundNotificationText,
+      );
+
       _logger.info(
         'Server started successfully, PID: ${process.pid}',
         channel: LogChannel.server,
@@ -191,10 +191,11 @@ class LlamaServerService implements LlamaServerProcessService {
         inMemory: true,
         error: error,
       );
-      _process = null;
-      _emitRunningState(false);
-
-      await _foregroundTaskService.stop();
+      if (_process != null) {
+        await stopServer();
+      } else {
+        await _foregroundTaskService.stop();
+      }
 
       return false;
     } finally {
@@ -295,13 +296,8 @@ class LlamaServerService implements LlamaServerProcessService {
         inMemory: true,
         error: error,
       );
-      // The process state is unknown; force-clear so the UI is not stuck on
-      // a phantom "running" state.
-      if (_process == process) {
-        _process = null;
-        _emitRunningState(false);
-        await _foregroundTaskService.stop();
-      }
+      // Keep ownership until exitCode confirms termination. Clearing an
+      // unknown process here would let speech load over a still-resident LLM.
       return false;
     }
   }

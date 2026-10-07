@@ -1,3 +1,5 @@
+import 'package:servllama/shared/widgets/app_message.dart';
+import 'package:servllama/shared/widgets/app_scaffold.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -113,13 +115,7 @@ class _AboutPageState extends State<AboutPage> {
         await Clipboard.setData(ClipboardData(text: _appVersion));
       } catch (_) {}
     }());
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(context.l10n.aboutVersionCopied),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    AppMessage.show(context, context.l10n.aboutVersionCopied);
   }
 
   Future<void> _openGitHub() async {
@@ -169,7 +165,7 @@ class _AboutPageState extends State<AboutPage> {
     final l10n = context.l10n;
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
+    return AppScaffold(
       appBar: AppBar(title: Text(l10n.aboutTitle)),
       body: SafeArea(
         top: false,
