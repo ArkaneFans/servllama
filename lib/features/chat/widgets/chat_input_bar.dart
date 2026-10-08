@@ -1,4 +1,3 @@
-import 'package:servllama/shared/widgets/ai_identity_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:servllama/app/app_palette.dart';
 import 'package:servllama/features/chat/widgets/chat_image_widgets.dart';
@@ -12,7 +11,6 @@ class ChatInputBar extends StatelessWidget {
     required this.isServerRunning,
     required this.isServerBusy,
     required this.modelLabel,
-    this.localModel = true,
     required this.canOpenModels,
     required this.isModelLoading,
     required this.hasLoadedModel,
@@ -33,7 +31,6 @@ class ChatInputBar extends StatelessWidget {
   final bool isServerRunning;
   final bool isServerBusy;
   final String modelLabel;
-  final bool localModel;
   final bool canOpenModels;
   final bool isModelLoading;
   final bool hasLoadedModel;
@@ -152,12 +149,7 @@ class ChatInputBar extends StatelessWidget {
                       tooltip: modelLabel,
                       onPressed: canOpenModels ? onOpenModels : null,
                       style: actionStyle,
-                      icon: AiIdentityIcon(
-                        model: modelLabel,
-                        local: localModel,
-                        size: 20,
-                        framed: false,
-                      ),
+                      icon: const Icon(Icons.layers_outlined, size: 20),
                     ),
                     const Spacer(),
                     IconButton(

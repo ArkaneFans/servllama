@@ -818,7 +818,7 @@ void main() {
       expect(
         find.descendant(
           of: find.byKey(const Key('chat_model_selector_button')),
-          matching: find.byIcon(Icons.memory_outlined),
+          matching: find.byIcon(Icons.layers_outlined),
         ),
         findsOneWidget,
       );

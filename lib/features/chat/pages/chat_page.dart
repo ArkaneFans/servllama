@@ -812,7 +812,6 @@ class _ChatInputPanel extends StatelessWidget {
           isServerRunning: isServerRunning,
           isServerBusy: isServerBusy,
           modelLabel: _modelSelectorLabel(context, snapshot),
-          localModel: !isRemote,
           canOpenModels: snapshot.canOpenModels && (isRemote || !isServerBusy),
           isModelLoading: isServerBusy,
           hasLoadedModel: snapshot.hasLoadedModel,
