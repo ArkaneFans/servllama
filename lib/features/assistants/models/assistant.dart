@@ -209,11 +209,7 @@ class AiConnection {
 }
 
 class UserProfile {
-  const UserProfile({
-    this.name = '',
-    this.avatar = '🙂',
-    this.description = '',
-  });
+  const UserProfile({this.name = '', this.avatar = '', this.description = ''});
   final String name, avatar, description;
   Map<String, dynamic> toJson() => {
     'name': name,
@@ -222,7 +218,7 @@ class UserProfile {
   };
   factory UserProfile.fromJson(Map<String, dynamic> j) => UserProfile(
     name: j['name'] ?? '',
-    avatar: j['avatar'] ?? '🙂',
+    avatar: j['avatar'] ?? '',
     description: j['description'] ?? j['preferences'] ?? '',
   );
 }

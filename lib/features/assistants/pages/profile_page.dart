@@ -31,6 +31,7 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     final l = context.l10n;
+    final displayName = name.text.trim();
     return AppScaffold(
       appBar: AppBar(
         title: Text(l.v2Profile),
@@ -65,7 +66,7 @@ class _ProfilePageState extends State<ProfilePage> {
             children: [
               AvatarEditor(
                 value: avatar,
-                name: name.text,
+                name: displayName.isEmpty ? l.v2ChatUserName : displayName,
                 centered: true,
                 enabled: !saving,
                 onChanged: (value) => setState(() => avatar = value),
@@ -75,7 +76,10 @@ class _ProfilePageState extends State<ProfilePage> {
                 controller: name,
                 onChanged: (_) => setState(() {}),
                 key: const Key('profile_name'),
-                decoration: InputDecoration(labelText: l.v2UserName),
+                decoration: InputDecoration(
+                  labelText: l.v2UserName,
+                  hintText: l.v2ChatUserName,
+                ),
               ),
             ],
           ),

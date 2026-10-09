@@ -345,6 +345,8 @@ class _ProfileSettingsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final profile = context.watch<AssistantProvider>().profile;
     final l = context.l10n;
+    final name = profile.name.trim();
+    final displayName = name.isEmpty ? l.v2ChatUserName : name;
     final colors = Theme.of(context).colorScheme;
     return Material(
       color: colors.surfaceContainerLowest,
@@ -359,7 +361,7 @@ class _ProfileSettingsCard extends StatelessWidget {
             children: [
               IdentityAvatar(
                 value: profile.avatar,
-                name: profile.name,
+                name: displayName,
                 size: 52,
               ),
               const SizedBox(width: 16),
@@ -368,14 +370,14 @@ class _ProfileSettingsCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      profile.name.isEmpty ? l.settingsUser : profile.name,
+                      displayName,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      profile.name.isEmpty ? l.v2ProfileHelp : l.settingsUser,
+                      l.settingsUser,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: colors.onSurfaceVariant,
                       ),

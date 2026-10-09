@@ -73,6 +73,34 @@ void main() {
     isLocal: false,
   );
 
+  test('new profiles stay empty without an initialization write', () async {
+    expect(provider.profile.name, isEmpty);
+    expect(provider.profile.avatar, isEmpty);
+    final profile = await repository.profile();
+    expect(profile.name, isEmpty);
+    expect(profile.avatar, isEmpty);
+    expect(profile.description, isEmpty);
+    expect(await repository.preferences.getString('v2.userProfile'), isNull);
+  });
+
+  test('a cleared name stays empty after saving and reloading', () async {
+    await provider.saveProfile(
+      const UserProfile(
+        name: 'Saved user',
+        avatar: '🌿',
+        description: 'My description',
+      ),
+    );
+    await provider.saveProfile(
+      const UserProfile(avatar: '🌿', description: 'My description'),
+    );
+    await provider.load();
+    expect(provider.profile.name, isEmpty);
+    expect(provider.profile.avatar, '🌿');
+    expect(provider.profile.description, 'My description');
+    expect((await repository.profile()).name, isEmpty);
+  });
+
   test(
     'historical profile grants are ignored and omitted from new Run inputs',
     () async {
@@ -304,6 +332,30 @@ void main() {
       expect(provider.activeId, a.id);
     },
   );
+
+  testWidgets('profile saves blank names without storing the localized hint', (
+    tester,
+  ) async {
+    await tester.pumpWidget(launcher(const ProfilePage()));
+    final nameField = find.byKey(const Key('profile_name'));
+    for (final value in ['', '  Updated user  ', '', '   ']) {
+      await tester.tap(find.text('Open editor'));
+      await tester.pumpAndSettle();
+      final l = AppLocalizations.of(tester.element(find.byType(ProfilePage)))!;
+      final field = tester.widget<TextField>(nameField);
+      expect(field.controller!.text, provider.profile.name);
+      expect(field.decoration!.hintText, l.v2ChatUserName);
+      expect(
+        tester.widget<IdentityAvatar>(find.byType(IdentityAvatar)).value,
+        isEmpty,
+      );
+      await tester.enterText(nameField, value);
+      await saveEditor(tester, l);
+      expect(find.byType(ProfilePage), findsNothing);
+      expect(provider.profile.name, value.trim());
+      expect((await repository.profile()).name, value.trim());
+    }
+  });
 
   testWidgets(
     'user avatar is a draft until save; reset can also be cancelled',

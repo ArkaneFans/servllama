@@ -37,6 +37,8 @@ dev.34：聊天输入栏恢复固定的 20 dp 服务器线框图标，右下角 
 
 `UserProfile` 只保存 `name`、`avatar`、`description`。读取旧记录时，以已有 `description` 优先，否则将旧 `preferences` 作为描述；旧称呼字段不再使用。保存后不再写 `addressAs`、`preferences`，显式清空描述不会恢复旧值。保留原有长度校验、头像处理及编辑草稿机制，不增加数据库迁移或双写。
 
+名称与头像默认均为空，初始化不写入默认称呼。用户名称允许留空或清空；聊天、设置和档案头像预览在名称为空时，按当前应用语言显示「用户 / User」，名称输入框仅以提示文字展示该称呼。切换语言只更新显示，不写回档案；已保存的名称使用原值，不自动翻译或补全。
+
 ## 界面检查与验收
 
 [浅色](ui-details/overview-light.png) · [深色](ui-details/overview-dark.png) · [大字体](ui-details/large-text.png)

@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/features/assistants/providers/assistant_provider.dart';
+import 'package:servllama/features/assistants/widgets/identity_avatar.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:servllama/app/providers/chat_timeout_provider.dart';
@@ -38,6 +39,28 @@ void main() {
       );
       await tester.pump();
 
+      final profileCard = find.byKey(const Key('settings_profile_tile'));
+      final l = AppLocalizations.of(tester.element(profileCard))!;
+      expect(
+        find.descendant(of: profileCard, matching: find.text('用户')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: profileCard, matching: find.text(l.settingsUser)),
+        findsOneWidget,
+      );
+      expect(find.text(l.v2ProfileHelp), findsNothing);
+      expect(
+        tester
+            .widget<IdentityAvatar>(
+              find.descendant(
+                of: profileCard,
+                matching: find.byType(IdentityAvatar),
+              ),
+            )
+            .value,
+        isEmpty,
+      );
       expect(find.text('通用'), findsOneWidget);
       expect(find.text('关于'), findsNWidgets(2));
       expect(find.text('主题模式'), findsOneWidget);
@@ -106,6 +129,13 @@ void main() {
         tester.widget<MaterialApp>(find.byType(MaterialApp)).locale,
         const Locale('zh'),
       );
+      final profileCard = find.byKey(const Key('settings_profile_tile'));
+      final assistants = tester.element(profileCard).read<AssistantProvider>();
+      expect(assistants.profile.name, isEmpty);
+      expect(
+        find.descendant(of: profileCard, matching: find.text('用户')),
+        findsOneWidget,
+      );
 
       await tester.tap(find.byKey(const Key('settings_language_tile')));
       await tester.pumpAndSettle();
@@ -119,6 +149,11 @@ void main() {
       );
       expect(find.text('App language'), findsOneWidget);
       expect(find.text('English (EN)'), findsWidgets);
+      expect(
+        find.descendant(of: profileCard, matching: find.text('User')),
+        findsOneWidget,
+      );
+      expect(assistants.profile.name, isEmpty);
     });
 
     testWidgets('updates chat timeout from bottom sheet', (tester) async {

@@ -52,11 +52,12 @@ void main() {
     List<ChatMessageRecord> messages, {
     double scale = 1,
     bool withIdentities = true,
+    Locale locale = const Locale('en'),
   }) {
     final result = MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      locale: const Locale('en'),
+      locale: locale,
       builder: (context, child) => MediaQuery(
         data: MediaQuery.of(
           context,
@@ -173,6 +174,32 @@ void main() {
       await tester.pump();
       expect(find.text('Original A'), findsOneWidget);
       expect(find.text('Assistant B'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'blank user names follow the current locale; custom names stay unchanged',
+    (tester) async {
+      final user = message.copyWith(
+        id: 'u1',
+        role: ChatRole.user,
+        clearAuthor: true,
+      );
+      for (final name in ['', '   ', '用户']) {
+        identities.update(user: UserProfile(name: name));
+        for (final (language, fallback) in [('zh', '用户'), ('en', 'User')]) {
+          await tester.pumpWidget(app([user], locale: Locale(language)));
+          await tester.pumpAndSettle();
+          expect(
+            find.descendant(
+              of: header('u1'),
+              matching: find.text(name.trim().isEmpty ? fallback : name),
+            ),
+            findsOneWidget,
+          );
+          expect(identities.profile.name, name);
+        }
+      }
     },
   );
 
