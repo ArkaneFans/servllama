@@ -16,15 +16,15 @@ class AssistantRepository {
   final KvStorage preferences;
   Future<void> initializeProviders() async {
     await db.transaction(() async {
+      final existing = await connections();
+      final existingIds = existing.map((c) => c.id).toSet();
+      var nextOrder = (existing.lastOrNull?.sortOrder ?? -1) + 1;
       for (final preset in providerPresets) {
+        if (existingIds.contains(preset.id)) continue;
+        final value = preset.changed({'sortOrder': nextOrder++});
         await db.execute(
           'INSERT OR IGNORE INTO ai_connections(id,name,revision,config) VALUES(?,?,?,?)',
-          [
-            preset.id,
-            preset.name,
-            preset.revision,
-            jsonEncode(preset.toJson()),
-          ],
+          [value.id, value.name, value.revision, jsonEncode(value.toJson())],
         );
       }
     });
@@ -34,12 +34,14 @@ class AssistantRepository {
       (await db.query('SELECT config FROM assistants ORDER BY name'))
           .map((r) => Assistant.fromJson(jsonDecode(r.read<String>('config'))))
           .toList();
-  Future<List<AiConnection>> connections() async =>
-      (await db.query('SELECT config FROM ai_connections ORDER BY name'))
-          .map(
-            (r) => AiConnection.fromJson(jsonDecode(r.read<String>('config'))),
-          )
-          .toList();
+  Future<List<AiConnection>> connections() async {
+    final values = (await db.query('SELECT config FROM ai_connections'))
+        .map((r) => AiConnection.fromJson(jsonDecode(r.read<String>('config'))))
+        .toList();
+    values.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    return values;
+  }
+
   Future<void> saveAssistantEdit(Assistant a, {int? expectedRevision}) =>
       db.transaction(() async {
         if (expectedRevision != null) {
@@ -154,9 +156,8 @@ class AssistantRepository {
     late AiConnection saved;
     try {
       saved = await db.transaction(() async {
-        final previous = (await connections())
-            .where((v) => v.id == c.id)
-            .firstOrNull;
+        final current = await connections();
+        final previous = current.where((v) => v.id == c.id).firstOrNull;
         if (previous != null && c.revision != previous.revision) {
           throw StateError('Provider changed; reopen its settings');
         }
@@ -169,6 +170,8 @@ class AssistantRepository {
         final value = c.changed({
           'secretRef': nextRef,
           'revision': (previous?.revision ?? 0) + 1,
+          'sortOrder':
+              previous?.sortOrder ?? (current.firstOrNull?.sortOrder ?? 0) - 1,
           'models': c.models.map((id) => id.trim()).toSet().toList(),
           'modelCapabilities': {
             for (final id in c.models)

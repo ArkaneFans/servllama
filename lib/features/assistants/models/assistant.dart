@@ -144,6 +144,7 @@ class AiConnection {
     this.revision = 1,
     this.modelCapabilities = const {},
     this.enabled = true,
+    this.sortOrder = 0,
   });
   final String id, name, baseUrl;
   final String? secretRef;
@@ -151,6 +152,9 @@ class AiConnection {
   final List<String> models;
   final int revision;
   final bool enabled;
+
+  /// Repository-owned catalog position; lower values appear first.
+  final int sortOrder;
   final Map<String, ModelCapabilities> modelCapabilities;
   ModelCapabilities capabilitiesFor(String id) =>
       modelCapabilities[id] ?? const ModelCapabilities();
@@ -167,6 +171,7 @@ class AiConnection {
       for (final model in models) model: capabilitiesFor(model).toJson(),
     },
     'enabled': enabled,
+    'sortOrder': sortOrder,
   };
   factory AiConnection.fromJson(Map<String, dynamic> j) => AiConnection(
     id: j['id'],
@@ -188,6 +193,7 @@ class AiConnection {
         ),
     }),
     enabled: j['enabled'] ?? true,
+    sortOrder: j['sortOrder'] ?? 0,
   );
   AiConnection changed(Map<String, dynamic> changes) =>
       AiConnection.fromJson({...toJson(), ...changes});

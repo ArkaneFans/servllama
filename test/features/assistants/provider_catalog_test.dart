@@ -139,6 +139,7 @@ void main() {
       await repository.initializeProviders();
       final initial = await repository.connections();
       expect(initial, hasLength(8));
+      expect(initial.map((c) => c.id), providerPresets.map((c) => c.id));
       expect(
         initial.every(
           (c) => !c.enabled && c.models.isEmpty && c.secretRef == null,
@@ -161,6 +162,10 @@ void main() {
         (c) => c.id == changed.id,
       );
       expect(restored.toJson(), changed.toJson());
+      expect(
+        (await repository.connections()).map((c) => c.id),
+        initial.map((c) => c.id),
+      );
       expect(secrets.values, isEmpty);
       await repository.saveConnection(custom);
       await repository.deleteConnection(custom.id);
@@ -168,6 +173,86 @@ void main() {
         (await repository.connections()).map((c) => c.id),
         isNot(contains(custom.id)),
       );
+    },
+  );
+
+  test(
+    'new providers prepend while renaming, toggling and reloading preserve positions',
+    () async {
+      await repository.initializeProviders();
+      var first = await repository.saveConnection(
+        custom.changed({'id': 'first', 'name': 'Alpha provider'}),
+      );
+      final newest = await repository.saveConnection(
+        custom.changed({'id': 'newest', 'name': 'Zulu provider'}),
+      );
+      final expected = [
+        newest.id,
+        first.id,
+        ...providerPresets.map((c) => c.id),
+      ];
+      expect((await repository.connections()).map((c) => c.id), expected);
+
+      first = await repository.saveConnection(
+        first.changed({
+          'name': 'ZZZ renamed provider',
+          'enabled': false,
+          'sortOrder': -999,
+          'models': ['updated'],
+        }),
+      );
+      expect((await repository.connections()).map((c) => c.id), expected);
+      first = await repository.saveConnection(first.changed({'enabled': true}));
+
+      final reopened = AssistantRepository(db, secrets: secrets);
+      await reopened.initializeProviders();
+      final loaded = await reopened.connections();
+      expect(loaded.map((c) => c.id), expected);
+      expect(loaded[1].toJson(), first.toJson());
+
+      await reopened.deleteConnection(newest.id);
+      expect((await reopened.connections()).map((c) => c.id), expected.skip(1));
+    },
+  );
+
+  test(
+    'missing presets append without reordering existing providers',
+    () async {
+      await repository.initializeProviders();
+      final missing = providerPresets.first;
+      await db.execute('DELETE FROM ai_connections WHERE id=?', [missing.id]);
+      final added = await repository.saveConnection(custom);
+      final existing = await repository.connections();
+      await repository.initializeProviders();
+      final result = await repository.connections();
+      expect(result.map((c) => c.id), [
+        ...existing.map((c) => c.id),
+        missing.id,
+      ]);
+      expect(result.first.toJson(), added.toJson());
+      expect(
+        result.take(existing.length).map((c) => c.toJson()),
+        existing.map((c) => c.toJson()),
+      );
+    },
+  );
+
+  test(
+    'concurrent additions retain distinct positions ahead of presets',
+    () async {
+      await repository.initializeProviders();
+      final added = await Future.wait([
+        repository.saveConnection(
+          custom.changed({'id': 'one', 'name': 'Alpha'}),
+        ),
+        repository.saveConnection(
+          custom.changed({'id': 'two', 'name': 'Zulu'}),
+        ),
+      ]);
+      final result = await repository.connections();
+      expect(result.take(2).map((c) => c.id), unorderedEquals(['one', 'two']));
+      expect(added.map((c) => c.sortOrder).toSet(), hasLength(2));
+      expect(result.skip(2).map((c) => c.id), providerPresets.map((c) => c.id));
     },
   );
 
@@ -342,6 +427,7 @@ void main() {
         isLocal: false,
       );
       expect(config.authorizedBy(assistant, custom), isTrue);
+      expect(config.snapshot()['connection'], isNot(contains('sortOrder')));
       expect(
         config.authorizedBy(assistant, custom.changed({'enabled': false})),
         isFalse,
@@ -361,6 +447,7 @@ void main() {
           custom.changed({
             'models': ['kept', 'other'],
             'name': 'Renamed',
+            'sortOrder': 99,
           }),
         ),
         isTrue,

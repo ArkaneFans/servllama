@@ -471,6 +471,48 @@ void main() {
   });
 
   testWidgets(
+    'provider management and model selection preserve catalog order',
+    (tester) async {
+      settings.connections = [
+        _cloud.changed({'id': 'zulu', 'name': 'Zulu provider'}),
+        _cloud.changed({
+          'id': 'disabled',
+          'name': 'Disabled provider',
+          'enabled': false,
+        }),
+        _cloud.changed({'id': 'alpha', 'name': 'Alpha provider'}),
+      ];
+      await tester.pumpWidget(app(const ConnectionsPage()));
+      await tester.pumpAndSettle();
+      final zulu = find.byKey(const ValueKey('provider_zulu'));
+      final disabled = find.byKey(const ValueKey('provider_disabled'));
+      final alpha = find.byKey(const ValueKey('provider_alpha'));
+      expect(
+        tester.getTopLeft(zulu).dy,
+        lessThan(tester.getTopLeft(disabled).dy),
+      );
+      expect(
+        tester.getTopLeft(disabled).dy,
+        lessThan(tester.getTopLeft(alpha).dy),
+      );
+
+      await tester.pumpWidget(app(pickerLauncher()));
+      await tester.tap(find.text('Pick'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('chat_target_search')),
+        'provider',
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Disabled provider'), findsNothing);
+      expect(
+        tester.getTopLeft(find.text('Zulu provider')).dy,
+        lessThan(tester.getTopLeft(find.text('Alpha provider')).dy),
+      );
+    },
+  );
+
+  testWidgets(
     'model sheet searches providers and models and hides disabled providers and their models',
     (tester) async {
       ChatTarget? picked;

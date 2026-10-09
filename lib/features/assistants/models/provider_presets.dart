@@ -1,6 +1,7 @@
 import 'package:servllama/features/assistants/models/assistant.dart';
 
-/// Stable identities only seed missing settings; saved user edits win.
+/// Declaration order is the initial display order. Missing presets append to
+/// the saved catalog without replacing user edits or reordering existing rows.
 const providerPresets = <AiConnection>[
   AiConnection(
     id: 'preset:openai',
