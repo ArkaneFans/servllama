@@ -261,22 +261,15 @@ class _ChatTargetPickerState extends State<ChatTargetPicker> {
       );
     }
     for (final c in p.connections.where((c) => c.enabled)) {
+      // Hide enabled providers that have no configured models — there is
+      // nothing to pick, so a heading with an empty body only adds noise.
+      if (c.models.isEmpty) continue;
       final matchesProvider = c.name.toLowerCase().contains(query);
       final models = c.models
           .where((id) => matchesProvider || id.toLowerCase().contains(query))
           .toList();
       if (!matchesProvider && models.isEmpty) continue;
       slivers.add(SliverToBoxAdapter(child: _ProviderHeading(name: c.name)));
-      if (models.isEmpty) {
-        slivers.add(
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(32, 0, 16, 12),
-              child: Text(l.v2ProviderModelsEmpty),
-            ),
-          ),
-        );
-      }
       slivers.add(
         SliverList.builder(
           itemCount: models.length,

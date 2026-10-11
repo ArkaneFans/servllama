@@ -1472,4 +1472,34 @@ void main() {
       );
     });
   });
+
+  testWidgets(
+    'model picker hides enabled providers without configured models',
+    (tester) async {
+      AppDatabase.current = null;
+      await tester.runAsync(
+        () => assistants.saveConnection(
+          const AiConnection(
+            id: 'empty',
+            name: 'Empty Provider',
+            protocol: AiProtocol.openai,
+            baseUrl: 'https://empty.example.com/v1',
+            models: [],
+          ),
+        ),
+      );
+      await tester.pumpWidget(app(const Scaffold(body: ChatTargetPicker())));
+      await tester.pumpAndSettle();
+      final l = AppLocalizations.of(
+        tester.element(find.byType(ChatTargetPicker)),
+      )!;
+
+      // A provider that has models is listed...
+      expect(find.text('Fixture'), findsOneWidget);
+      // ...but an enabled provider with no models is hidden entirely.
+      expect(find.text('Empty Provider'), findsNothing);
+      expect(find.text(l.v2ProviderModelsEmpty), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 }
