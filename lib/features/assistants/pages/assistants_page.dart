@@ -22,16 +22,20 @@ class AssistantsPage extends StatelessWidget {
     final chat = context.watch<ChatProvider?>();
     final l = context.l10n;
     return AppScaffold(
-      appBar: AppBar(title: Text(l.v2AssistantManagement)),
-      floatingActionButton: FloatingActionButton(
-        tooltip: l.v2Add,
-        onPressed: () => _edit(context, null),
-        child: const Icon(Icons.add),
+      appBar: AppBar(
+        title: Text(l.v2AssistantManagement),
+        actions: [
+          IconButton(
+            tooltip: l.v2Add,
+            icon: const Icon(Icons.add),
+            onPressed: () => _edit(context, null),
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: p.load,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 88),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
           children: [
             if (p.error != null)
               ListTile(

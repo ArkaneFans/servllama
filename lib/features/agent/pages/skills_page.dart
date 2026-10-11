@@ -42,14 +42,18 @@ class _SkillsPageState extends State<SkillsPage> {
     final s = context.read<AgentToolService>();
     final l = context.l10n;
     return AppScaffold(
-      appBar: AppBar(title: Text(l.v2Skills)),
-      floatingActionButton: FloatingActionButton(
-        tooltip: l.v2ImportSkill,
-        onPressed: () => runUiAction(context, () async {
-          await s.importSkill();
-          await reload();
-        }),
-        child: const Icon(Icons.add),
+      appBar: AppBar(
+        title: Text(l.v2Skills),
+        actions: [
+          IconButton(
+            tooltip: l.v2ImportSkill,
+            icon: const Icon(Icons.add),
+            onPressed: () => runUiAction(context, () async {
+              await s.importSkill();
+              await reload();
+            }),
+          ),
+        ],
       ),
       body: SafeArea(
         top: false,
@@ -64,7 +68,7 @@ class _SkillsPageState extends State<SkillsPage> {
                 SliverFillRemaining(
                   hasScrollBody: false,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(32, 24, 32, 88),
+                    padding: const EdgeInsets.fromLTRB(32, 24, 32, 24),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -96,7 +100,7 @@ class _SkillsPageState extends State<SkillsPage> {
                 ),
               if (skills.isNotEmpty)
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 88),
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
                   sliver: SliverList.list(
                     children: [
                       Text(l.v2SkillsHelp),

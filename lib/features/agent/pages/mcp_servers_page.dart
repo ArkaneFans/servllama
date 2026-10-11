@@ -45,11 +45,15 @@ class _McpServersPageState extends State<McpServersPage> {
     final s = context.read<AgentToolService>();
     final l = context.l10n;
     return AppScaffold(
-      appBar: AppBar(title: Text(l.v2Mcp)),
-      floatingActionButton: FloatingActionButton(
-        tooltip: l.v2Add,
-        onPressed: () => edit(null),
-        child: const Icon(Icons.add),
+      appBar: AppBar(
+        title: Text(l.v2Mcp),
+        actions: [
+          IconButton(
+            tooltip: l.v2Add,
+            icon: const Icon(Icons.add),
+            onPressed: () => edit(null),
+          ),
+        ],
       ),
       body: SafeArea(
         top: false,
@@ -64,7 +68,7 @@ class _McpServersPageState extends State<McpServersPage> {
                 SliverFillRemaining(
                   hasScrollBody: false,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(32, 24, 32, 88),
+                    padding: const EdgeInsets.fromLTRB(32, 24, 32, 24),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -96,7 +100,7 @@ class _McpServersPageState extends State<McpServersPage> {
                 ),
               if (servers.isNotEmpty)
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 88),
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
                   sliver: SliverList.list(
                     children: [
                       Text(l.v2McpHelp),

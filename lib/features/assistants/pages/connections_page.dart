@@ -45,14 +45,18 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
         )
         .toList();
     return AppScaffold(
-      appBar: AppBar(title: Text(l.v2Connections)),
-      floatingActionButton: FloatingActionButton(
-        tooltip: l.v2Add,
-        onPressed: () => _edit(context, null),
-        child: const Icon(Icons.add),
+      appBar: AppBar(
+        title: Text(l.v2Connections),
+        actions: [
+          IconButton(
+            tooltip: l.v2Add,
+            icon: const Icon(Icons.add),
+            onPressed: () => _edit(context, null),
+          ),
+        ],
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 88),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
         children: [
           TextField(
             key: const Key('provider_search'),
