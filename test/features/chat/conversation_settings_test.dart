@@ -21,6 +21,7 @@ import 'package:servllama/features/assistants/pages/assistants_page.dart';
 import 'package:servllama/features/assistants/providers/assistant_provider.dart';
 import 'package:servllama/features/assistants/repositories/assistant_repository.dart';
 import 'package:servllama/features/chat/models/ai_turn.dart';
+import 'package:servllama/features/chat/models/chat_model_icon_data.dart';
 import 'package:servllama/features/chat/models/chat_session_record.dart';
 import 'package:servllama/features/chat/pages/chat_history_page.dart';
 import 'package:servllama/features/chat/pages/chat_page.dart';
@@ -1443,4 +1444,32 @@ void main() {
       );
     },
   );
+
+  group('modelIconData', () {
+    test('resolves the connection identity for a remote target', () {
+      expect(
+        chat.modelIconData,
+        const ChatModelIconData(
+          model: 'one',
+          local: false,
+          providerId: 'c',
+          providerName: 'Fixture',
+          baseUrl: 'https://example.com/v1',
+        ),
+      );
+    });
+
+    test('is null when the active assistant has no target', () async {
+      await assistants.setChatTarget('a', null);
+      expect(chat.modelIconData, isNull);
+    });
+
+    test('resolves the asset name for a local target', () async {
+      await assistants.setChatTarget('a', local);
+      expect(
+        chat.modelIconData,
+        const ChatModelIconData(model: 'Local fixture', local: true),
+      );
+    });
+  });
 }

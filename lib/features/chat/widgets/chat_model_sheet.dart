@@ -171,8 +171,12 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Inset the section label left of the model rows below: rows align their
+    // leading icon + title at the sheet's 20 dp gutter, while the label sits a
+    // step further left (8 dp) to mark the grouping without competing with the
+    // cards — the hierarchy kelivo and rikkahub use for provider headings.
     return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 14, 0, 6),
+      padding: const EdgeInsets.fromLTRB(8, 14, 0, 6),
       child: Text(
         text,
         style: theme.textTheme.labelLarge?.copyWith(

@@ -21,6 +21,7 @@ import 'package:servllama/core/providers/model_management_provider.dart';
 import 'package:servllama/features/chat/controllers/chat_scroll_coordinator.dart';
 import 'package:servllama/features/chat/controllers/streaming_chat_message_notifier.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
+import 'package:servllama/features/chat/models/chat_model_icon_data.dart';
 import 'package:servllama/features/chat/providers/chat_provider.dart';
 import 'package:servllama/features/chat/services/image_attachment_service.dart';
 import 'package:servllama/features/chat/widgets/chat_conversation_transition.dart';
@@ -827,6 +828,7 @@ class _ChatInputPanel extends StatelessWidget {
           onPickFromGallery: onPickFromGallery,
           pendingImageAttachments: snapshot.pendingImageAttachments,
           onRemoveImageAttachment: provider.removeImageAttachment,
+          modelIcon: snapshot.modelIcon,
         ),
       ],
     );
@@ -1191,6 +1193,7 @@ class _ChatInputSnapshot {
     required this.canAttachImages,
     required this.isSending,
     required this.pendingImageAttachments,
+    required this.modelIcon,
   });
 
   factory _ChatInputSnapshot.fromProvider(ChatProvider provider) {
@@ -1209,6 +1212,7 @@ class _ChatInputSnapshot {
       pendingImageAttachments: List<String>.unmodifiable(
         provider.pendingImageAttachments,
       ),
+      modelIcon: provider.modelIconData,
     );
   }
 
@@ -1221,6 +1225,7 @@ class _ChatInputSnapshot {
   final bool canAttachImages;
   final bool isSending;
   final List<String> pendingImageAttachments;
+  final ChatModelIconData? modelIcon;
 
   @override
   bool operator ==(Object other) {
@@ -1233,7 +1238,8 @@ class _ChatInputSnapshot {
         other.canSend == canSend &&
         other.canAttachImages == canAttachImages &&
         other.isSending == isSending &&
-        listEquals(other.pendingImageAttachments, pendingImageAttachments);
+        listEquals(other.pendingImageAttachments, pendingImageAttachments) &&
+        other.modelIcon == modelIcon;
   }
 
   @override
@@ -1247,6 +1253,7 @@ class _ChatInputSnapshot {
     canAttachImages,
     isSending,
     Object.hashAll(pendingImageAttachments),
+    modelIcon,
   );
 }
 

@@ -18,6 +18,7 @@ import 'package:servllama/features/chat/controllers/chat_model_controller.dart';
 import 'package:servllama/features/chat/controllers/chat_session_list_controller.dart';
 import 'package:servllama/features/chat/controllers/streaming_chat_message_notifier.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
+import 'package:servllama/features/chat/models/chat_model_icon_data.dart';
 import 'package:servllama/features/chat/models/chat_model_option.dart';
 import 'package:servllama/features/chat/models/chat_session_record.dart';
 import 'package:servllama/features/chat/repositories/chat_session_repository.dart';
@@ -93,6 +94,29 @@ class ChatProvider extends ChangeNotifier {
           : '${connection.name} / ${target.modelId ?? ''}';
     }
     return targetAsset?.name;
+  }
+
+  /// Identity for the chat input bar's model selector glyph. Null when no
+  /// target is selected so the bar shows its neutral fallback icon.
+  ChatModelIconData? get modelIconData {
+    final target = currentTarget;
+    if (target == null) return null;
+    if (target.isRemote) {
+      final connection = _assistants?.connection(target.connectionId);
+      final model = target.modelId ?? '';
+      return ChatModelIconData(
+        model: model,
+        local: false,
+        providerId: connection?.id,
+        providerName: connection?.name,
+        baseUrl: connection?.baseUrl,
+      );
+    }
+    final asset = targetAsset;
+    return ChatModelIconData(
+      model: asset?.name ?? target.assetId ?? '',
+      local: true,
+    );
   }
 
   void _initializeDraft() {

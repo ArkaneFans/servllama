@@ -392,8 +392,12 @@ class _ProviderHeading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // The picker's models sit inside a 20 dp SliverPadding; the provider
+    // heading steps a bit further left (8 dp) so it marks the grouping without
+    // lining up with the model rows — the visual hierarchy kelivo and rikkahub
+    // use for supplier headings over their cards.
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 18, 12, 8),
+      padding: const EdgeInsets.fromLTRB(8, 18, 8, 8),
       child: Row(
         children: [
           Flexible(

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:servllama/app/app_palette.dart';
+import 'package:servllama/features/chat/models/chat_model_icon_data.dart';
 import 'package:servllama/features/chat/widgets/chat_image_widgets.dart';
 import 'package:servllama/l10n/l10n.dart';
+import 'package:servllama/shared/widgets/ai_identity_icon.dart';
 
 class ChatInputBar extends StatelessWidget {
   const ChatInputBar({
@@ -24,6 +26,7 @@ class ChatInputBar extends StatelessWidget {
     required this.onPickFromGallery,
     required this.pendingImageAttachments,
     required this.onRemoveImageAttachment,
+    this.modelIcon,
   });
 
   final TextEditingController controller;
@@ -44,6 +47,11 @@ class ChatInputBar extends StatelessWidget {
   final VoidCallback onPickFromGallery;
   final List<String> pendingImageAttachments;
   final ValueChanged<int> onRemoveImageAttachment;
+
+  /// When non-null, replaces the static layers glyph with the selected
+  /// model's brand identity icon. Null keeps the fallback so an unconfigured
+  /// conversation still shows a neutral picker affordance.
+  final ChatModelIconData? modelIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -149,7 +157,7 @@ class ChatInputBar extends StatelessWidget {
                       tooltip: modelLabel,
                       onPressed: canOpenModels ? onOpenModels : null,
                       style: actionStyle,
-                      icon: const Icon(Icons.layers_outlined, size: 20),
+                      icon: _ModelSelectorGlyph(icon: modelIcon),
                     ),
                     const Spacer(),
                     IconButton(
@@ -216,6 +224,32 @@ class ChatInputBar extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Renders the model selector glyph: a brand identity icon when a target is
+/// selected, falling back to the neutral layers icon otherwise. Sizing keeps
+/// it centered within the 48 dp tap target like the other toolbar icons.
+class _ModelSelectorGlyph extends StatelessWidget {
+  const _ModelSelectorGlyph({required this.icon});
+
+  final ChatModelIconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final data = icon;
+    if (data == null) {
+      return const Icon(Icons.layers_outlined, size: 20);
+    }
+    return AiIdentityIcon(
+      model: data.model,
+      providerId: data.providerId,
+      providerName: data.providerName,
+      baseUrl: data.baseUrl,
+      local: data.local,
+      size: 20,
+      framed: false,
     );
   }
 }
