@@ -730,4 +730,75 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  Future<void> revealConfigField(WidgetTester tester, Finder finder) async {
+    await tester.scrollUntilVisible(
+      finder,
+      220,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const PageStorageKey('provider_configuration')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await tester.ensureVisible(finder);
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('editor exposes the api path field with the default path', (
+    tester,
+  ) async {
+    await tester.pumpWidget(app(editorLauncher()));
+    await openEditor(tester);
+    final field = find.byKey(const Key('provider_api_path'));
+    expect(field, findsOneWidget);
+    await revealConfigField(tester, field);
+    expect(
+      tester.widget<TextField>(field).controller!.text,
+      '/chat/completions',
+    );
+  });
+
+  testWidgets('editor loads a stored custom api path and saves edits', (
+    tester,
+  ) async {
+    settings.connections = [_cloud.changed({'apiPath': '/openai/v1/chat'})];
+    await tester.pumpWidget(app(editorLauncher()));
+    await openEditor(tester);
+    final field = find.byKey(const Key('provider_api_path'));
+    await revealConfigField(tester, field);
+    expect(
+      tester.widget<TextField>(field).controller!.text,
+      '/openai/v1/chat',
+    );
+    await tester.enterText(field, '/v1/chat/completions');
+    await tester.pump();
+    final l = AppLocalizations.of(
+      tester.element(find.byType(ConnectionEditor)),
+    )!;
+    await tester.tap(find.text(l.commonSave));
+    await tester.pumpAndSettle();
+    expect(settings.connections.first.apiPath, '/v1/chat/completions');
+  });
+
+  testWidgets('switching away from openai clears the stored api path', (
+    tester,
+  ) async {
+    settings.connections = [_cloud.changed({'apiPath': '/custom'})];
+    await tester.pumpWidget(app(editorLauncher()));
+    await openEditor(tester);
+    await tester.tap(find.byType(DropdownButtonFormField<AiProtocol>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Anthropic'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('provider_api_path')), findsNothing);
+    final l = AppLocalizations.of(
+      tester.element(find.byType(ConnectionEditor)),
+    )!;
+    await tester.tap(find.text(l.commonSave));
+    await tester.pumpAndSettle();
+    expect(settings.connections.first.protocol, AiProtocol.anthropic);
+    expect(settings.connections.first.apiPath, isNull);
+  });
 }

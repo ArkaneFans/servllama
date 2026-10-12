@@ -1656,6 +1656,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2Add => 'Add';
 
   @override
+  String get v2AddProvider => 'Add provider';
+
+  @override
   String get v2OperationFailed => 'Operation failed';
 
   @override
@@ -1718,6 +1721,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get v2KeyHelp =>
       'Stored securely. Leave blank to keep the existing key.';
+
+  @override
+  String get v2ApiPath => 'API path';
+
+  @override
+  String get v2ApiPathHelp =>
+      'Chat completions path appended to the base URL. Leave as /chat/completions for standard OpenAI-compatible APIs.';
 
   @override
   String get v2ClearKey => 'Clear saved key';

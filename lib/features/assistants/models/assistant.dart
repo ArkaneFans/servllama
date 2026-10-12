@@ -140,6 +140,7 @@ class AiConnection {
     required this.protocol,
     required this.baseUrl,
     this.secretRef,
+    this.apiPath,
     this.models = const [],
     this.revision = 1,
     this.modelCapabilities = const {},
@@ -148,6 +149,7 @@ class AiConnection {
   });
   final String id, name, baseUrl;
   final String? secretRef;
+  final String? apiPath;
   final AiProtocol protocol;
   final List<String> models;
   final int revision;
@@ -164,6 +166,7 @@ class AiConnection {
     'name': name,
     'protocol': protocol.name,
     'baseUrl': baseUrl,
+    'apiPath': apiPath,
     'secretRef': secretRef,
     'models': models,
     'revision': revision,
@@ -178,6 +181,7 @@ class AiConnection {
     name: j['name'],
     protocol: AiProtocol.values.byName(j['protocol']),
     baseUrl: j['baseUrl'],
+    apiPath: j['apiPath'],
     secretRef: j['secretRef'],
     models: List<String>.unmodifiable(j['models'] ?? []),
     revision: j['revision'] ?? 1,

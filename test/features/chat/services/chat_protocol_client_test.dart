@@ -407,4 +407,47 @@ void main() {
       );
     },
   );
+
+  test('openai chat completions use the configured api path', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    String? path;
+    server.listen((r) async {
+      path = r.uri.path;
+      r.response.headers.contentType = ContentType(
+        'text',
+        'event-stream',
+        charset: 'utf-8',
+      );
+      r.response.add(
+        utf8.encode(
+          'data: ${jsonEncode({
+            'choices': [
+              {
+                'delta': {'content': 'ok'},
+                'finish_reason': 'stop',
+              },
+            ],
+          })}\n\n',
+        ),
+      );
+      await r.response.close();
+    });
+    final logger = AppLogger();
+    addTearDown(logger.dispose);
+    final client = ChatProtocolClient(logger: logger);
+    addTearDown(() => client.dio.close(force: true));
+    final c = AiConnection(
+      id: 'c',
+      name: 'test',
+      protocol: AiProtocol.openai,
+      baseUrl: 'http://127.0.0.1:${server.port}/v1',
+      apiPath: '/custom/chat',
+    );
+    final received = await client.complete(c, '', 'm', [
+      const AiTurn(role: 'user', text: 'hi'),
+    ], cancelToken: CancelToken()).toList();
+    expect(path, '/v1/custom/chat');
+    expect(received, isNotEmpty);
+  });
 }

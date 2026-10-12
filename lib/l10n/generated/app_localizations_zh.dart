@@ -1570,6 +1570,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2Add => '新增';
 
   @override
+  String get v2AddProvider => '添加供应商';
+
+  @override
   String get v2OperationFailed => '操作未完成';
 
   @override
@@ -1628,6 +1631,13 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get v2KeyHelp => '安全存储；编辑时留空保留已有密钥。';
+
+  @override
+  String get v2ApiPath => 'API 路径';
+
+  @override
+  String get v2ApiPathHelp =>
+      '追加到基础 URL 的聊天补全路径；标准 OpenAI 兼容接口保持 /chat/completions。';
 
   @override
   String get v2ClearKey => '清除已保存的密钥';

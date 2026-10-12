@@ -479,7 +479,10 @@ class ChatProtocolClient {
   }) async* {
     c.validate();
     final path = switch (c.protocol) {
-      AiProtocol.openai => '/chat/completions',
+      AiProtocol.openai =>
+        (c.apiPath?.trim().isNotEmpty ?? false)
+            ? c.apiPath!.trim()
+            : '/chat/completions',
       AiProtocol.anthropic => '/messages',
       AiProtocol.gemini =>
         '/models/${Uri.encodeComponent(model)}:streamGenerateContent?alt=sse',

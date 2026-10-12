@@ -2951,6 +2951,12 @@ abstract class AppLocalizations {
   /// **'Add'**
   String get v2Add;
 
+  /// No description provided for @v2AddProvider.
+  ///
+  /// In en, this message translates to:
+  /// **'Add provider'**
+  String get v2AddProvider;
+
   /// No description provided for @v2OperationFailed.
   ///
   /// In en, this message translates to:
@@ -3070,6 +3076,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Stored securely. Leave blank to keep the existing key.'**
   String get v2KeyHelp;
+
+  /// No description provided for @v2ApiPath.
+  ///
+  /// In en, this message translates to:
+  /// **'API path'**
+  String get v2ApiPath;
+
+  /// No description provided for @v2ApiPathHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat completions path appended to the base URL. Leave as /chat/completions for standard OpenAI-compatible APIs.'**
+  String get v2ApiPathHelp;
 
   /// No description provided for @v2ClearKey.
   ///

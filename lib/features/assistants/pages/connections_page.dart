@@ -1,6 +1,7 @@
 import 'package:servllama/shared/widgets/app_tab_bar.dart';
 import 'package:servllama/shared/widgets/settings_section.dart';
 import 'package:servllama/features/assistants/widgets/model_capabilities_sheet.dart';
+import 'package:servllama/features/assistants/widgets/add_connection_sheet.dart';
 import 'package:servllama/shared/widgets/form_list_view.dart';
 import 'package:servllama/shared/widgets/app_scaffold.dart';
 import 'package:servllama/shared/widgets/ai_identity_icon.dart';
@@ -51,7 +52,7 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
           IconButton(
             tooltip: l.v2Add,
             icon: const Icon(Icons.add),
-            onPressed: () => _edit(context, null),
+            onPressed: () => _add(context),
           ),
         ],
       ),
@@ -142,6 +143,16 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
     );
   }
 
+  Future<void> _add(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (_) => const AddConnectionSheet(),
+    );
+  }
+
   Future<void> _edit(BuildContext context, AiConnection? c) =>
       Navigator.of(context).push(
         MaterialPageRoute<void>(
@@ -219,6 +230,12 @@ class _ConnectionEditorState extends State<ConnectionEditor>
       );
   late final name = TextEditingController(text: original.name);
   late final url = TextEditingController(text: original.baseUrl);
+  static const _defaultApiPath = '/chat/completions';
+  late final apiPath = TextEditingController(
+    text: original.apiPath?.trim().isNotEmpty == true
+        ? original.apiPath!.trim()
+        : _defaultApiPath,
+  );
   final keyInput = TextEditingController();
   late final models = <String>[...original.models];
   final request = CancelToken();
@@ -235,6 +252,10 @@ class _ConnectionEditorState extends State<ConnectionEditor>
     'name': name.text.trim(),
     'protocol': protocol.name,
     'baseUrl': url.text.trim(),
+    'apiPath': protocol == AiProtocol.openai &&
+            apiPath.text.trim().isNotEmpty
+        ? apiPath.text.trim()
+        : null,
     'models': models,
     'enabled': enabled,
     'modelCapabilities': {
@@ -245,7 +266,7 @@ class _ConnectionEditorState extends State<ConnectionEditor>
   @override
   void initState() {
     super.initState();
-    for (final controller in [name, url, keyInput]) {
+    for (final controller in [name, url, apiPath, keyInput]) {
       controller.addListener(() {
         if (mounted && testResult != null) setState(() => testResult = null);
       });
@@ -256,6 +277,7 @@ class _ConnectionEditorState extends State<ConnectionEditor>
   void dispose() {
     name.dispose();
     url.dispose();
+    apiPath.dispose();
     keyInput.dispose();
     tabs.dispose();
     modelSearch.dispose();
@@ -516,6 +538,18 @@ class _ConnectionEditorState extends State<ConnectionEditor>
                         helperText: l.v2BaseUrlHelp,
                       ),
                     ),
+                    if (protocol == AiProtocol.openai)
+                      TextField(
+                        key: const Key('provider_api_path'),
+                        controller: apiPath,
+                        autocorrect: false,
+                        textInputAction: TextInputAction.next,
+                        decoration: InputDecoration(
+                          labelText: l.v2ApiPath,
+                          helperText: l.v2ApiPathHelp,
+                          hintText: _defaultApiPath,
+                        ),
+                      ),
                     TextField(
                       key: const Key('provider_key'),
                       controller: keyInput,
