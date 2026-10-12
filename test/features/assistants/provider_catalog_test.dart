@@ -138,7 +138,7 @@ void main() {
     () async {
       await repository.initializeProviders();
       final initial = await repository.connections();
-      expect(initial, hasLength(8));
+      expect(initial, hasLength(providerPresets.length));
       expect(initial.map((c) => c.id), providerPresets.map((c) => c.id));
       expect(
         initial.every(
