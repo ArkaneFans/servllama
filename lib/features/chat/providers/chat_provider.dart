@@ -109,7 +109,6 @@ class ChatProvider extends ChangeNotifier {
         local: false,
         providerId: connection?.id,
         providerName: connection?.name,
-        baseUrl: connection?.baseUrl,
       );
     }
     final asset = targetAsset;

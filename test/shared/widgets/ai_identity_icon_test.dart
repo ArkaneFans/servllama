@@ -21,19 +21,31 @@ void main() {
     expect(AiBrand.model('custom-model'), isNull);
   });
 
-  test(
-    'provider resolution uses stable identities and real host boundaries',
-    () {
-      expect(AiBrand.provider(id: 'preset:siliconflow'), 'siliconcloud');
-      expect(AiBrand.provider(url: 'https://api.openai.com/v1'), 'openai');
-      expect(
-        AiBrand.provider(url: 'https://openai.com.example.net/v1'),
-        isNull,
-      );
-      expect(AiBrand.provider(url: 'https://example.net/openai.com'), isNull);
-      expect(AiBrand.provider(name: 'Local proxy'), isNull);
-    },
-  );
+  test('provider resolution uses stable identities without URLs', () {
+    expect(AiBrand.provider(id: 'preset:siliconflow'), 'siliconcloud');
+    expect(AiBrand.provider(name: 'Local proxy'), isNull);
+  });
+
+  test('provider names resolve brands without requiring an exact match', () {
+    for (final entry in {
+      'OpenAI compatible': 'openai',
+      'My OpenAI Proxy': 'openai',
+      'GPT-4 Proxy': 'openai',
+      'Google Gemini': 'gemini',
+      'Claude API': 'claude',
+      '硅基流动': 'siliconcloud',
+      '阿里云百炼': 'alibabacloud',
+      '智谱 AI': 'zhipu',
+      '月之暗面': 'kimi',
+      'OpenRouter Proxy': 'openrouter',
+      'Local DeepSeek': 'deepseek',
+    }.entries) {
+      expect(AiBrand.provider(name: entry.key), entry.value);
+    }
+
+    expect(AiBrand.provider(name: 'local proxy'), isNull);
+    expect(AiBrand.provider(name: 'myowncloud'), isNull);
+  });
 
   testWidgets('bundled brands render in both brightness modes and fall back', (
     tester,
@@ -47,15 +59,18 @@ void main() {
               children: [
                 AiIdentityIcon(model: 'Qwen3-8B'),
                 AiIdentityIcon(providerId: 'preset:openai'),
-                AiIdentityIcon(model: 'unknown', local: true),
+                AiIdentityIcon(model: 'custom-model', local: true),
                 AiIdentityIcon(providerName: 'Unknown'),
+                AiIdentityIcon(providerId: 'custom-provider'),
               ],
             ),
           ),
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.byIcon(Icons.memory_outlined), findsOneWidget);
+      expect(find.text('C'), findsOneWidget);
+      expect(find.text('U'), findsOneWidget);
+      expect(find.byIcon(Icons.memory_outlined), findsNothing);
       expect(find.byIcon(Icons.cloud_outlined), findsOneWidget);
       expect(tester.takeException(), isNull);
     }

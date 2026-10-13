@@ -13,14 +13,12 @@ class ChatModelIconData {
     required this.local,
     this.providerId,
     this.providerName,
-    this.baseUrl,
   });
 
   final String model;
   final bool local;
   final String? providerId;
   final String? providerName;
-  final String? baseUrl;
 
   @override
   bool operator ==(Object other) =>
@@ -28,9 +26,8 @@ class ChatModelIconData {
       other.model == model &&
       other.local == local &&
       other.providerId == providerId &&
-      other.providerName == providerName &&
-      other.baseUrl == baseUrl;
+      other.providerName == providerName;
 
   @override
-  int get hashCode => Object.hash(model, local, providerId, providerName, baseUrl);
+  int get hashCode => Object.hash(model, local, providerId, providerName);
 }

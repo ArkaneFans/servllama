@@ -90,7 +90,6 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
                 leading: AiIdentityIcon(
                   providerId: c.id,
                   providerName: c.name,
-                  baseUrl: c.baseUrl,
                 ),
                 title: Text(
                   c.name,
@@ -475,7 +474,6 @@ class _ConnectionEditorState extends State<ConnectionEditor>
                         AiIdentityIcon(
                           providerId: original.id,
                           providerName: name.text,
-                          baseUrl: url.text,
                           size: 40,
                         ),
                         const SizedBox(width: 12),
@@ -708,7 +706,6 @@ class _ConnectionEditorState extends State<ConnectionEditor>
                       model: id,
                       providerId: original.id,
                       providerName: name.text,
-                      baseUrl: url.text,
                     ),
                     title: Text(id),
                     subtitle: Text(modelCapabilityLabel(context, value)),

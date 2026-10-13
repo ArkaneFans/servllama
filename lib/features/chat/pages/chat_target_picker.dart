@@ -282,7 +282,6 @@ class _ChatTargetPickerState extends State<ChatTargetPicker> {
                 model: id,
                 providerId: c.id,
                 providerName: c.name,
-                baseUrl: c.baseUrl,
                 size: 24,
                 framed: false,
               ),

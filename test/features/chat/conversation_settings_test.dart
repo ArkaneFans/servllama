@@ -1454,7 +1454,6 @@ void main() {
           local: false,
           providerId: 'c',
           providerName: 'Fixture',
-          baseUrl: 'https://example.com/v1',
         ),
       );
     });

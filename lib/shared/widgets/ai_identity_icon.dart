@@ -13,23 +13,45 @@ abstract final class AiBrand {
     'aliyun': 'alibabacloud',
     'zhipu': 'zhipu',
   };
-  static const _domains = {
-    'openai.com': 'openai',
-    'anthropic.com': 'anthropic',
-    'generativelanguage.googleapis.com': 'gemini',
-    'deepseek.com': 'deepseek',
-    'openrouter.ai': 'openrouter',
-    'siliconflow.cn': 'siliconcloud',
-    'siliconflow.com': 'siliconcloud',
-    'aliyuncs.com': 'alibabacloud',
-    'bigmodel.cn': 'zhipu',
-    'x.ai': 'grok',
-    'moonshot.cn': 'moonshot',
-    'moonshot.ai': 'moonshot',
-    'minimax.io': 'minimax',
-    'minimaxi.com': 'minimax',
-    'mistral.ai': 'mistral',
-  };
+  static final _providerNames = <(RegExp, String)>[
+    (
+      RegExp(r'(^|[^a-z0-9])(openai|chatgpt|gpt|o[134])(?=$|[^a-z0-9])'),
+      'openai',
+    ),
+    (RegExp(r'(^|[^a-z0-9])anthropic(?=$|[^a-z0-9])'), 'anthropic'),
+    (RegExp(r'(^|[^a-z0-9])claude(?=$|[^a-z0-9])'), 'claude'),
+    (RegExp(r'(^|[^a-z0-9])(gemini|google)(?=$|[^a-z0-9])'), 'gemini'),
+    (RegExp(r'(^|[^a-z0-9])deepseek(?=$|[^a-z0-9])'), 'deepseek'),
+    (RegExp(r'(^|[^a-z0-9])openrouter(?=$|[^a-z0-9])'), 'openrouter'),
+    (
+      RegExp(r'(^|[^a-z0-9])(siliconflow|siliconcloud|硅基流动)(?=$|[^a-z0-9])'),
+      'siliconcloud',
+    ),
+    (
+      RegExp(
+        r'(^|[^a-z0-9])(aliyun|alibabacloud|dashscope|阿里云|百炼)(?=$|[^a-z0-9])',
+      ),
+      'alibabacloud',
+    ),
+    (RegExp(r'(^|[^a-z0-9])(zhipu|zhipuai|glm|智谱)(?=$|[^a-z0-9])'), 'zhipu'),
+    (RegExp(r'(^|[^a-z0-9])(xai|x\.ai|grok)(?=$|[^a-z0-9])'), 'grok'),
+    (RegExp(r'(^|[^a-z0-9])moonshot(?=$|[^a-z0-9])'), 'moonshot'),
+    (RegExp(r'(^|[^a-z0-9])(kimi|月之暗面)(?=$|[^a-z0-9])'), 'kimi'),
+    (RegExp(r'(^|[^a-z0-9])(minimax|minimaxi)(?=$|[^a-z0-9])'), 'minimax'),
+    (
+      RegExp(
+        r'(^|[^a-z0-9])(mistral|mixtral|magistral|ministral|devstral|codestral|pixtral|voxtral)(?=$|[^a-z0-9])',
+      ),
+      'mistral',
+    ),
+    (RegExp(r'(^|[^a-z0-9])(qwen|qwq|qvq|通义千问)(?=$|[^a-z0-9])'), 'qwen'),
+    (RegExp(r'(^|[^a-z0-9])(doubao|豆包)(?=$|[^a-z0-9])'), 'doubao'),
+    (RegExp(r'(^|[^a-z0-9])(yi|零一万物)(?=$|[^a-z0-9])'), 'yi'),
+    (RegExp(r'(^|[^a-z0-9])(microsoft|azure)(?=$|[^a-z0-9])'), 'microsoft'),
+    (RegExp(r'(^|[^a-z0-9])(meta|llama)(?=$|[^a-z0-9])'), 'meta'),
+    (RegExp(r'(^|[^a-z0-9])gemma(?=$|[^a-z0-9])'), 'gemma'),
+    (RegExp(r'(^|[^a-z0-9])huggingface(?=$|[^a-z0-9])'), 'huggingface'),
+  ];
   static final _families = <(RegExp, String)>[
     (RegExp(r'^(deepseek)(?=$|[\d._-])'), 'deepseek'),
     (RegExp(r'^(qwen|qwq)(?=$|[\d._-])'), 'qwen'),
@@ -71,21 +93,16 @@ abstract final class AiBrand {
     return null;
   }
 
-  static String? provider({String? id, String? name, String? url}) {
+  static String? provider({String? id, String? name}) {
     if (id != null && id.startsWith('preset:')) {
       final brand = _presets[id.substring(7)];
       if (brand != null) return brand;
     }
-    final host = Uri.tryParse(url ?? '')?.host.toLowerCase() ?? '';
-    for (final entry in _domains.entries) {
-      if (host == entry.key || host.endsWith('.${entry.key}')) {
-        return entry.value;
-      }
+    final providerName = (name ?? '').trim().toLowerCase();
+    for (final (pattern, brand) in _providerNames) {
+      if (pattern.hasMatch(providerName)) return brand;
     }
-    final normalized = (name ?? '').trim().toLowerCase().replaceAll(
-      RegExp(r'[\s_-]'),
-      '',
-    );
+    final normalized = providerName.replaceAll(RegExp(r'[\s_-]'), '');
     return switch (normalized) {
       'google' || 'googlegemini' => 'gemini',
       'alibabacloud' || '阿里云' || '通义千问' => 'alibabacloud',
@@ -103,23 +120,51 @@ class AiIdentityIcon extends StatelessWidget {
     this.model,
     this.providerId,
     this.providerName,
-    this.baseUrl,
     this.local = false,
     this.size = 40,
     this.framed = true,
   });
-  final String? model, providerId, providerName, baseUrl;
+  final String? model, providerId, providerName;
   final bool local, framed;
   final double size;
+
+  String? get _fallbackCharacter {
+    final value = model?.trim().isNotEmpty == true
+        ? model!.trim()
+        : providerName?.trim().isNotEmpty == true
+        ? providerName!.trim()
+        : null;
+    return value?.characters.first.toUpperCase();
+  }
 
   @override
   Widget build(BuildContext context) {
     final brand =
         AiBrand.model(model) ??
-        AiBrand.provider(id: providerId, name: providerName, url: baseUrl);
+        AiBrand.provider(id: providerId, name: providerName);
     final c = Theme.of(context).colorScheme;
-    final glyph = brand == null
-        ? Icon(
+    final fallback = _fallbackCharacter;
+    final glyph = brand != null
+        ? SvgPicture.asset(
+            'assets/ai-icons/$brand.svg',
+            // Preserve brand fills/gradients; only currentColor follows theme.
+            theme: SvgTheme(currentColor: c.onSurface),
+            width: framed ? size * .6 : size,
+            height: framed ? size * .6 : size,
+          )
+        : fallback != null
+        ? FittedBox(
+            child: Text(
+              fallback,
+              maxLines: 1,
+              style: TextStyle(
+                color: c.primary,
+                fontWeight: FontWeight.w700,
+                fontSize: size * (framed ? .42 : .68),
+              ),
+            ),
+          )
+        : Icon(
             local
                 ? Icons.memory_outlined
                 : model != null
@@ -127,13 +172,6 @@ class AiIdentityIcon extends StatelessWidget {
                 : Icons.cloud_outlined,
             size: framed ? size * .6 : size,
             color: c.onSurfaceVariant,
-          )
-        : SvgPicture.asset(
-            'assets/ai-icons/$brand.svg',
-            // Preserve brand fills/gradients; only currentColor follows theme.
-            theme: SvgTheme(currentColor: c.onSurface),
-            width: framed ? size * .6 : size,
-            height: framed ? size * .6 : size,
           );
     return ExcludeSemantics(
       child: Container(

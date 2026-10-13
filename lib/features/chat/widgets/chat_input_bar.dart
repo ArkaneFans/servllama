@@ -246,7 +246,6 @@ class _ModelSelectorGlyph extends StatelessWidget {
       model: data.model,
       providerId: data.providerId,
       providerName: data.providerName,
-      baseUrl: data.baseUrl,
       local: data.local,
       size: 20,
       framed: false,
