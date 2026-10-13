@@ -25,14 +25,12 @@ class _AddConnectionSheetState extends State<AddConnectionSheet> {
   static const _defaultBaseUrls = {
     AiProtocol.openai: 'https://api.openai.com/v1',
     AiProtocol.anthropic: 'https://api.anthropic.com/v1',
-    AiProtocol.gemini:
-        'https://generativelanguage.googleapis.com/v1beta',
+    AiProtocol.gemini: 'https://generativelanguage.googleapis.com/v1beta',
   };
 
   final name = TextEditingController();
-  final url = TextEditingController(
-    text: _defaultBaseUrls[AiProtocol.openai],
-  );
+  final url = TextEditingController(text: _defaultBaseUrls[AiProtocol.openai]);
+  final Map<AiProtocol, String> _baseUrlsByProtocol = {..._defaultBaseUrls};
   final apiPath = TextEditingController(text: _defaultApiPath);
   final keyInput = TextEditingController();
   bool enabled = true;
@@ -150,14 +148,10 @@ class _AddConnectionSheetState extends State<AddConnectionSheet> {
                             .toList(),
                         onChanged: (v) {
                           if (v == null) return;
-                          final current = url.text.trim();
-                          final isDefaultOrEmpty = current.isEmpty ||
-                              _defaultBaseUrls.values.contains(current);
+                          _baseUrlsByProtocol[protocol] = url.text;
                           setState(() {
                             protocol = v;
-                            if (isDefaultOrEmpty) {
-                              url.text = _defaultBaseUrls[v] ?? '';
-                            }
+                            url.text = _baseUrlsByProtocol[v] ?? '';
                           });
                         },
                       ),
