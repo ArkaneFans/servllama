@@ -22,9 +22,17 @@ class AddConnectionSheet extends StatefulWidget {
 
 class _AddConnectionSheetState extends State<AddConnectionSheet> {
   static const _defaultApiPath = '/chat/completions';
+  static const _defaultBaseUrls = {
+    AiProtocol.openai: 'https://api.openai.com/v1',
+    AiProtocol.anthropic: 'https://api.anthropic.com/v1',
+    AiProtocol.gemini:
+        'https://generativelanguage.googleapis.com/v1beta',
+  };
 
   final name = TextEditingController();
-  final url = TextEditingController();
+  final url = TextEditingController(
+    text: _defaultBaseUrls[AiProtocol.openai],
+  );
   final apiPath = TextEditingController(text: _defaultApiPath);
   final keyInput = TextEditingController();
   bool enabled = true;
@@ -140,7 +148,18 @@ class _AddConnectionSheetState extends State<AddConnectionSheet> {
                               ),
                             )
                             .toList(),
-                        onChanged: (v) => setState(() => protocol = v!),
+                        onChanged: (v) {
+                          if (v == null) return;
+                          final current = url.text.trim();
+                          final isDefaultOrEmpty = current.isEmpty ||
+                              _defaultBaseUrls.values.contains(current);
+                          setState(() {
+                            protocol = v;
+                            if (isDefaultOrEmpty) {
+                              url.text = _defaultBaseUrls[v] ?? '';
+                            }
+                          });
+                        },
                       ),
                       TextField(
                         key: const Key('provider_url'),

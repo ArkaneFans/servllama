@@ -157,4 +157,67 @@ void main() {
     expect(provider.saved, isNull);
     expect(find.byType(AddConnectionSheet), findsOneWidget);
   });
+
+  testWidgets('url field starts with the openai default', (tester) async {
+    await openSheet(tester);
+    expect(
+      tester.widget<TextField>(
+        find.byKey(const Key('provider_url')),
+      ).controller!.text,
+      'https://api.openai.com/v1',
+    );
+  });
+
+  testWidgets('switching to anthropic updates url to its default', (
+    tester,
+  ) async {
+    await openSheet(tester);
+    await tester.tap(find.byType(DropdownButtonFormField<AiProtocol>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Anthropic'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<TextField>(
+        find.byKey(const Key('provider_url')),
+      ).controller!.text,
+      'https://api.anthropic.com/v1',
+    );
+  });
+
+  testWidgets('switching to gemini updates url to its default', (
+    tester,
+  ) async {
+    await openSheet(tester);
+    await tester.tap(find.byType(DropdownButtonFormField<AiProtocol>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Gemini'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<TextField>(
+        find.byKey(const Key('provider_url')),
+      ).controller!.text,
+      'https://generativelanguage.googleapis.com/v1beta',
+    );
+  });
+
+  testWidgets('custom url is preserved when switching protocols', (
+    tester,
+  ) async {
+    await openSheet(tester);
+    await tester.enterText(
+      find.byKey(const Key('provider_url')),
+      'https://proxy.example.com/v1',
+    );
+    await tester.pump();
+    await tester.tap(find.byType(DropdownButtonFormField<AiProtocol>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Anthropic'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<TextField>(
+        find.byKey(const Key('provider_url')),
+      ).controller!.text,
+      'https://proxy.example.com/v1',
+    );
+  });
 }
