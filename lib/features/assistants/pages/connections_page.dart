@@ -97,7 +97,7 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 subtitle: Text(
-                  '${l.v2ProviderModelCount(c.models.length)} · ${isPresetProvider(c.id) ? l.v2ProviderPreset : l.v2ProviderCustom}',
+                  l.v2ProviderModelCount(c.models.length),
                 ),
                 onTap: changing.contains(c.id) ? null : () => _edit(context, c),
                 trailing: Row(
@@ -469,24 +469,6 @@ class _ConnectionEditorState extends State<ConnectionEditor>
                 SettingsSection.form(
                   title: l.v2ProviderIdentity,
                   children: [
-                    Row(
-                      children: [
-                        AiIdentityIcon(
-                          providerId: original.id,
-                          providerName: name.text,
-                          size: 40,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            isPresetProvider(original.id)
-                                ? l.v2ProviderPresetHelp
-                                : l.v2ProviderCustom,
-                            style: theme.textTheme.bodySmall,
-                          ),
-                        ),
-                      ],
-                    ),
                     TextField(
                       key: const Key('provider_name'),
                       controller: name,
