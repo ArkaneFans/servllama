@@ -1661,7 +1661,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2TestPassed => '测试成功，尚未保存。';
 
   @override
-  String get v2DraftHelp => '保存后生效；返回放弃未保存的修改。测试和获取模型不会自动保存。';
+  String get v2DraftHelp => '保存后生效；返回放弃未保存的修改。测试连接不会自动保存。';
 
   @override
   String get v2Profile => '用户档案';
@@ -2867,7 +2867,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get v2ModelCapabilitiesHelp =>
-      '请按模型说明设置能力。获取模型仅返回模型 ID，不检测图片或工具支持情况。修改后保存供应商生效。';
+      '请按模型说明设置能力。获取模型仅返回模型 ID，不检测图片或工具支持情况。模型修改会立即保存。';
 
   @override
   String get v2ModelText => '文本';

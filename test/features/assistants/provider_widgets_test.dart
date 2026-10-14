@@ -215,8 +215,23 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  Future<void> revealConfigField(WidgetTester tester, Finder finder) async {
+    await tester.scrollUntilVisible(
+      finder,
+      220,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const PageStorageKey('provider_configuration')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await tester.ensureVisible(finder);
+    await tester.pumpAndSettle();
+  }
+
   testWidgets(
-    'configuration and models share a draft; capabilities save per model',
+    'model capability edits persist at once while configuration keeps a draft',
     (tester) async {
       settings.connections = [
         _cloud.changed({
@@ -238,10 +253,14 @@ void main() {
       await tester.tap(find.byKey(const Key('model_tools')));
       await tester.tap(find.byKey(const Key('model_capabilities_done')));
       await tester.pumpAndSettle();
-      expect(
-        settings.connections.first.capabilitiesFor('kept').supportsImages,
-        isTrue,
-      );
+      // Capability edits are stored immediately, without pressing save.
+      final saved = settings.connections.first;
+      expect(saved.name, 'Cloud fixture');
+      expect(saved.capabilitiesFor('kept').supportsImages, isFalse);
+      expect(saved.capabilitiesFor('kept').supportsTools, isFalse);
+      expect(saved.capabilitiesFor('other').supportsImages, isTrue);
+      expect(saved.capabilitiesFor('other').supportsTools, isTrue);
+      // The unsaved configuration draft is discarded when leaving.
       await tester.tap(find.byKey(const Key('provider_config_tab')));
       await tester.pumpAndSettle();
       expect(
@@ -251,26 +270,18 @@ void main() {
             .text,
         'Renamed',
       );
-      final l = AppLocalizations.of(
-        tester.element(find.byType(ConnectionEditor)),
-      )!;
-      await tester.tap(find.text(l.commonSave));
-      await tester.pumpAndSettle();
-      final saved = settings.connections.first;
-      expect(saved.name, 'Renamed');
-      expect(saved.capabilitiesFor('kept').supportsImages, isFalse);
-      expect(saved.capabilitiesFor('kept').supportsTools, isFalse);
-      expect(saved.capabilitiesFor('other').supportsImages, isTrue);
-      expect(saved.capabilitiesFor('other').supportsTools, isTrue);
-      await openEditor(tester);
-      await reveal(tester, row);
-      await tester.tap(row);
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('model_images')));
-      await tester.tap(find.byKey(const Key('model_capabilities_done')));
-      await tester.pumpAndSettle();
       await tester.pageBack();
       await tester.pumpAndSettle();
+      expect(settings.connections.first.name, 'Cloud fixture');
+      // The bottom save action commits the configuration draft.
+      await openEditor(tester);
+      await tester.enterText(find.byKey(const Key('provider_name')), 'Renamed');
+      final save = find.byKey(const Key('provider_save_button'));
+      await revealConfigField(tester, save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+      expect(find.byType(ConnectionEditor), findsNothing);
+      expect(settings.connections.first.name, 'Renamed');
       expect(
         settings.connections.first.capabilitiesFor('kept').supportsImages,
         isFalse,
@@ -328,39 +339,85 @@ void main() {
   });
 
   testWidgets(
-    'preset rows cannot be deleted and enable toggles preserve models',
+    'provider rows drop delete actions and deletion lives in the editor',
     (tester) async {
       settings.connections = [providerPresets.first, _cloud];
       await tester.pumpWidget(app(const ConnectionsPage()));
       await tester.pumpAndSettle();
       expect(find.text('Local · llama.cpp'), findsNothing);
       expect(find.text('Local · MNN'), findsNothing);
-      final preset = find.byKey(const ValueKey('provider_preset:openai'));
-      expect(
-        find.descendant(
-          of: preset,
-          matching: find.byIcon(Icons.delete_outline),
-        ),
-        findsNothing,
-      );
+      // List rows no longer carry delete actions.
+      expect(find.byIcon(Icons.delete_outline), findsNothing);
       await tester.tap(
         find.byKey(const ValueKey('provider_enabled_preset:openai')),
       );
       await tester.pumpAndSettle();
       expect(settings.connections.first.enabled, isTrue);
       expect(settings.connections.last.models, ['kept']);
-      expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('provider_cloud')),
-          matching: find.byIcon(Icons.delete_outline),
-        ),
-        findsOneWidget,
-      );
+
+      // Presets expose no delete action in the editor.
+      await tester.tap(find.byKey(const ValueKey('provider_preset:openai')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('provider_delete_button')), findsNothing);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      // Custom providers delete from the configuration page bottom.
+      await tester.tap(find.byKey(const ValueKey('provider_cloud')));
+      await tester.pumpAndSettle();
+      final delete = find.byKey(const Key('provider_delete_button'));
+      await revealConfigField(tester, delete);
+      await tester.tap(delete);
+      await tester.pumpAndSettle();
+      expect(find.byType(ConnectionEditor), findsNothing);
+      expect(settings.connections.map((c) => c.id), ['preset:openai']);
     },
   );
 
+  testWidgets('deleting a referenced provider asks for confirmation first', (
+    tester,
+  ) async {
+    settings.connections = [providerPresets.first, _cloud];
+    settings.assistants = [
+      const Assistant(
+        id: 'chatty',
+        name: 'Chatty',
+        chatTarget: ChatTarget.remote('cloud', 'kept'),
+      ),
+    ];
+    await tester.pumpWidget(app(const ConnectionsPage()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('provider_cloud')));
+    await tester.pumpAndSettle();
+    final l = AppLocalizations.of(
+      tester.element(find.byType(ConnectionEditor)),
+    )!;
+    final delete = find.byKey(const Key('provider_delete_button'));
+    await revealConfigField(tester, delete);
+    await tester.tap(delete);
+    await tester.pumpAndSettle();
+    expect(find.text(l.v2DeleteConnectionHelp), findsOneWidget);
+    expect(find.text('Chatty'), findsOneWidget);
+    await tester.tap(find.text(l.commonCancel));
+    await tester.pumpAndSettle();
+    expect(find.byType(ConnectionEditor), findsOneWidget);
+    expect(settings.connections.map((c) => c.id), ['preset:openai', 'cloud']);
+
+    await tester.tap(delete);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text(l.commonDelete),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(ConnectionEditor), findsNothing);
+    expect(settings.connections.map((c) => c.id), ['preset:openai']);
+  });
+
   testWidgets(
-    'manual model validation, save and discarded removal form a complete edit flow',
+    'manual model additions and removals persist immediately',
     (tester) async {
       await tester.pumpWidget(app(editorLauncher()));
       await openEditor(tester);
@@ -384,15 +441,12 @@ void main() {
       );
       await tester.tap(find.text(l.v2Add));
       await tester.pumpAndSettle();
-      expect(settings.connections.first.models, ['kept']);
-      await tester.tap(find.text(l.commonSave));
-      await tester.pumpAndSettle();
+      // Adding a model saves it without the provider save action.
       expect(settings.connections.first.models, ['kept', 'new-model']);
       expect(
         settings.connections.first.capabilitiesFor('new-model').toJson(),
         ModelCapabilities.textOnly.toJson(),
       );
-      await openEditor(tester);
       final row = find.byKey(const ValueKey('provider_model_new-model'));
       await reveal(tester, row);
       await tester.tap(
@@ -402,9 +456,8 @@ void main() {
       expect(find.text(l.v2RemoveModelHelp('new-model')), findsOneWidget);
       await tester.tap(find.text(l.commonDelete));
       await tester.pumpAndSettle();
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      expect(settings.connections.first.models, ['kept', 'new-model']);
+      // Removal is stored immediately as well.
+      expect(settings.connections.first.models, ['kept']);
       expect(tester.takeException(), isNull);
     },
   );
@@ -440,17 +493,16 @@ void main() {
       await tester.pump();
       await tester.tap(find.byKey(const Key('provider_add_selected')));
       await tester.pumpAndSettle();
-      expect(settings.connections.first.models, ['kept']);
-      settings.failDiscovery = true;
-      await fetch(tester);
-      expect(find.byType(ProviderModelPicker), findsNothing);
-      await tester.tap(find.text(l.commonSave));
-      await tester.pumpAndSettle();
+      // Confirmed candidates are saved immediately.
       expect(settings.connections.first.models, ['kept', 'other']);
       expect(
         settings.connections.first.capabilitiesFor('other').toJson(),
         ModelCapabilities.textOnly.toJson(),
       );
+      settings.failDiscovery = true;
+      await fetch(tester);
+      expect(find.byType(ProviderModelPicker), findsNothing);
+      expect(settings.connections.first.models, ['kept', 'other']);
     },
   );
 
@@ -731,21 +783,6 @@ void main() {
     },
   );
 
-  Future<void> revealConfigField(WidgetTester tester, Finder finder) async {
-    await tester.scrollUntilVisible(
-      finder,
-      220,
-      scrollable: find
-          .descendant(
-            of: find.byKey(const PageStorageKey('provider_configuration')),
-            matching: find.byType(Scrollable),
-          )
-          .first,
-    );
-    await tester.ensureVisible(finder);
-    await tester.pumpAndSettle();
-  }
-
   testWidgets('editor exposes the api path field with the default path', (
     tester,
   ) async {
@@ -774,10 +811,9 @@ void main() {
     );
     await tester.enterText(field, '/v1/chat/completions');
     await tester.pump();
-    final l = AppLocalizations.of(
-      tester.element(find.byType(ConnectionEditor)),
-    )!;
-    await tester.tap(find.text(l.commonSave));
+    final save = find.byKey(const Key('provider_save_button'));
+    await revealConfigField(tester, save);
+    await tester.tap(save);
     await tester.pumpAndSettle();
     expect(settings.connections.first.apiPath, '/v1/chat/completions');
   });
@@ -793,10 +829,9 @@ void main() {
     await tester.tap(find.text('Anthropic'));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('provider_api_path')), findsNothing);
-    final l = AppLocalizations.of(
-      tester.element(find.byType(ConnectionEditor)),
-    )!;
-    await tester.tap(find.text(l.commonSave));
+    final save = find.byKey(const Key('provider_save_button'));
+    await revealConfigField(tester, save);
+    await tester.tap(save);
     await tester.pumpAndSettle();
     expect(settings.connections.first.protocol, AiProtocol.anthropic);
     expect(settings.connections.first.apiPath, isNull);

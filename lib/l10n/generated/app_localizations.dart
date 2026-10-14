@@ -3134,7 +3134,7 @@ abstract class AppLocalizations {
   /// No description provided for @v2DraftHelp.
   ///
   /// In en, this message translates to:
-  /// **'Save to apply changes; going back discards unsaved edits. Testing and model discovery do not save automatically.'**
+  /// **'Save to apply changes; going back discards unsaved edits. Testing a connection does not save.'**
   String get v2DraftHelp;
 
   /// No description provided for @v2Profile.
@@ -5450,7 +5450,7 @@ abstract class AppLocalizations {
   /// No description provided for @v2ModelCapabilitiesHelp.
   ///
   /// In en, this message translates to:
-  /// **'Set capabilities for each model according to its documentation. Fetching models only returns IDs; it does not verify image or tool support. Save the provider to apply your changes.'**
+  /// **'Set capabilities for each model according to its documentation. Fetching models only returns IDs; it does not verify image or tool support. Model changes save immediately.'**
   String get v2ModelCapabilitiesHelp;
 
   /// No description provided for @v2ModelText.

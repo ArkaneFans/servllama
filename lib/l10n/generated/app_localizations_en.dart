@@ -1752,7 +1752,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get v2DraftHelp =>
-      'Save to apply changes; going back discards unsaved edits. Testing and model discovery do not save automatically.';
+      'Save to apply changes; going back discards unsaved edits. Testing a connection does not save.';
 
   @override
   String get v2Profile => 'User profile';
@@ -3045,7 +3045,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get v2ModelCapabilitiesHelp =>
-      'Set capabilities for each model according to its documentation. Fetching models only returns IDs; it does not verify image or tool support. Save the provider to apply your changes.';
+      'Set capabilities for each model according to its documentation. Fetching models only returns IDs; it does not verify image or tool support. Model changes save immediately.';
 
   @override
   String get v2ModelText => 'Text';

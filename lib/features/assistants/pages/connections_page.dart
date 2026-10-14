@@ -100,39 +100,23 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
                   l.v2ProviderModelCount(c.models.length),
                 ),
                 onTap: changing.contains(c.id) ? null : () => _edit(context, c),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Switch(
-                      key: ValueKey('provider_enabled_${c.id}'),
-                      value: c.enabled,
-                      onChanged: changing.contains(c.id)
-                          ? null
-                          : (enabled) async {
-                              setState(() => changing.add(c.id));
-                              await runUiAction(
-                                context,
-                                () => p.saveConnection(
-                                  c.changed({'enabled': enabled}),
-                                ),
-                              );
-                              if (mounted) {
-                                setState(() => changing.remove(c.id));
-                              }
-                            },
-                    ),
-                    if (!isPresetProvider(c.id))
-                      IconButton(
-                        tooltip: l.commonDelete,
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: changing.contains(c.id)
-                            ? null
-                            : () => runUiAction(
-                                context,
-                                () => _delete(context, c),
-                              ),
-                      ),
-                  ],
+                trailing: Switch(
+                  key: ValueKey('provider_enabled_${c.id}'),
+                  value: c.enabled,
+                  onChanged: changing.contains(c.id)
+                      ? null
+                      : (enabled) async {
+                          setState(() => changing.add(c.id));
+                          await runUiAction(
+                            context,
+                            () => p.saveConnection(
+                              c.changed({'enabled': enabled}),
+                            ),
+                          );
+                          if (mounted) {
+                            setState(() => changing.remove(c.id));
+                          }
+                        },
                 ),
               ),
             ),
@@ -158,56 +142,6 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
           builder: (_) => ConnectionEditor(connection: c),
         ),
       );
-
-  Future<void> _delete(BuildContext context, AiConnection connection) async {
-    final provider = context.read<AssistantProvider>();
-    final references = provider.assistants
-        .where((a) => a.chatTarget?.connectionId == connection.id)
-        .toList();
-    final conversationCount =
-        await context.read<ChatProvider?>()?.countUsingConnection(
-          connection.id,
-        ) ??
-        0;
-    if (!context.mounted) return;
-    final l = context.l10n;
-    if (references.isNotEmpty || conversationCount > 0) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text(connection.name),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(l.v2DeleteConnectionHelp),
-                if (conversationCount > 0)
-                  Text(l.v2ConnectionConversationCount(conversationCount)),
-                ...references.map(
-                  (a) => ListTile(
-                    leading: const Icon(Icons.smart_toy_outlined),
-                    title: Text(a.name),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text(l.commonCancel),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text(l.commonDelete),
-            ),
-          ],
-        ),
-      );
-      if (confirmed != true) return;
-    }
-    await provider.deleteConnection(connection.id);
-  }
 }
 
 class ConnectionEditor extends StatefulWidget {
@@ -236,31 +170,29 @@ class _ConnectionEditorState extends State<ConnectionEditor>
         : _defaultApiPath,
   );
   final keyInput = TextEditingController();
-  late final models = <String>[...original.models];
   final request = CancelToken();
   late bool enabled = original.enabled;
   late AiProtocol protocol = original.protocol;
   late final tabs = TabController(length: 2, vsync: this);
   final modelSearch = TextEditingController();
-  late final capabilities = <String, ModelCapabilities>{
-    for (final id in models) id: original.capabilitiesFor(id),
-  };
   bool busy = false, clearKey = false;
   String? testResult;
-  AiConnection get draft => original.changed({
+
+  /// Latest stored row: model edits persist here immediately, while the
+  /// configuration fields stay in a draft until the bottom save action.
+  AiConnection _stored(AssistantProvider provider) =>
+      provider.connections.where((c) => c.id == original.id).firstOrNull ??
+      original;
+
+  /// Configuration draft; models and capabilities are not part of it.
+  AiConnection _draft(AiConnection stored) => stored.changed({
     'name': name.text.trim(),
     'protocol': protocol.name,
     'baseUrl': url.text.trim(),
-    'apiPath': protocol == AiProtocol.openai &&
-            apiPath.text.trim().isNotEmpty
+    'apiPath': protocol == AiProtocol.openai && apiPath.text.trim().isNotEmpty
         ? apiPath.text.trim()
         : null,
-    'models': models,
     'enabled': enabled,
-    'modelCapabilities': {
-      for (final id in models)
-        id: (capabilities[id] ?? const ModelCapabilities()).toJson(),
-    },
   });
   @override
   void initState() {
@@ -291,11 +223,11 @@ class _ConnectionEditorState extends State<ConnectionEditor>
     if (mounted) setState(() => busy = false);
   }
 
-  Future<void> fetchModels() async {
+  Future<void> fetchModels(AiConnection stored) async {
     List<String>? found;
     await act(() async {
       found = await context.read<AssistantProvider>().discover(
-        draft,
+        _draft(stored),
         keyInput.text,
         clearKey: clearKey,
         cancelToken: request,
@@ -305,34 +237,52 @@ class _ConnectionEditorState extends State<ConnectionEditor>
     final added = await showDialog<List<String>>(
       context: context,
       builder: (_) =>
-          ProviderModelPicker(models: found!, existing: models.toSet()),
+          ProviderModelPicker(models: found!, existing: stored.models.toSet()),
     );
-    if (mounted && added != null) {
-      setState(() {
-        for (final id in added.where((id) => !models.contains(id))) {
-          models.add(id);
-          capabilities[id] = ModelCapabilities.textOnly;
-        }
-        testResult = null;
-      });
-    }
+    if (!mounted || added == null || added.isEmpty) return;
+    final provider = context.read<AssistantProvider>();
+    final current = _stored(provider);
+    final ids = added.where((id) => !current.models.contains(id)).toList();
+    if (ids.isEmpty) return;
+    final models = [...current.models, ...ids];
+    await _saveModels(
+      provider,
+      current.changed({
+        'models': models,
+        'modelCapabilities': {
+          for (final id in models)
+            id: ids.contains(id)
+                ? ModelCapabilities.textOnly.toJson()
+                : current.capabilitiesFor(id).toJson(),
+        },
+      }),
+    );
   }
 
-  Future<void> addManualModel() async {
+  Future<void> addManualModel(AiConnection stored) async {
     final id = await showDialog<String>(
       context: context,
-      builder: (_) => AddProviderModelDialog(existing: models.toSet()),
+      builder: (_) => AddProviderModelDialog(existing: stored.models.toSet()),
     );
-    if (mounted && id != null) {
-      setState(() {
-        models.add(id);
-        capabilities[id] = ModelCapabilities.textOnly;
-        testResult = null;
-      });
-    }
+    if (!mounted || id == null) return;
+    final provider = context.read<AssistantProvider>();
+    final current = _stored(provider);
+    final models = [...current.models, id];
+    await _saveModels(
+      provider,
+      current.changed({
+        'models': models,
+        'modelCapabilities': {
+          for (final model in models)
+            model: model == id
+                ? ModelCapabilities.textOnly.toJson()
+                : current.capabilitiesFor(model).toJson(),
+        },
+      }),
+    );
   }
 
-  Future<void> removeModel(String id) async {
+  Future<void> removeModel(AiConnection stored, String id) async {
     final l = context.l10n;
     final confirmed = await showDialog<bool>(
       context: context,
@@ -351,36 +301,115 @@ class _ConnectionEditorState extends State<ConnectionEditor>
         ],
       ),
     );
-    if (mounted && confirmed == true) {
-      setState(() {
-        models.remove(id);
-        capabilities.remove(id);
-        testResult = null;
-      });
-    }
+    if (!mounted || confirmed != true) return;
+    final provider = context.read<AssistantProvider>();
+    final current = _stored(provider);
+    if (!current.models.contains(id)) return;
+    await _saveModels(
+      provider,
+      current.changed({
+        'models': current.models.where((model) => model != id).toList(),
+      }),
+    );
   }
 
-  Future<void> editCapabilities(String id) async {
+  Future<void> editCapabilities(AiConnection stored, String id) async {
     final value = await showModalBottomSheet<ModelCapabilities>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       builder: (_) => ModelCapabilitiesSheet(
         model: id,
-        initial: capabilities[id] ?? const ModelCapabilities(),
+        initial: stored.capabilitiesFor(id),
       ),
     );
-    if (mounted && value != null) {
-      setState(() {
-        capabilities[id] = value;
-        testResult = null;
-      });
+    if (!mounted || value == null) return;
+    final provider = context.read<AssistantProvider>();
+    final current = _stored(provider);
+    if (!current.models.contains(id)) return;
+    await _saveModels(
+      provider,
+      current.changed({
+        'modelCapabilities': {
+          for (final model in current.models)
+            model: (model == id ? value : current.capabilitiesFor(model))
+                .toJson(),
+        },
+      }),
+    );
+  }
+
+  /// Model-side edits save immediately; the configuration keeps its draft.
+  Future<void> _saveModels(AssistantProvider provider, AiConnection next) =>
+      act(() => provider.saveConnection(next));
+
+  Future<void> _save(AiConnection stored) async {
+    final provider = context.read<AssistantProvider>();
+    await act(() async {
+      await provider.saveConnection(
+        _draft(stored),
+        key: keyInput.text,
+        clearKey: clearKey,
+      );
+      if (mounted) Navigator.pop(context);
+    });
+  }
+
+  Future<void> _deleteProvider(AiConnection stored) async {
+    final provider = context.read<AssistantProvider>();
+    final references = provider.assistants
+        .where((a) => a.chatTarget?.connectionId == stored.id)
+        .toList();
+    final conversationCount =
+        await context.read<ChatProvider?>()?.countUsingConnection(stored.id) ??
+        0;
+    if (!mounted) return;
+    final l = context.l10n;
+    if (references.isNotEmpty || conversationCount > 0) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(stored.name),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(l.v2DeleteConnectionHelp),
+                if (conversationCount > 0)
+                  Text(l.v2ConnectionConversationCount(conversationCount)),
+                ...references.map(
+                  (a) => ListTile(
+                    leading: const Icon(Icons.smart_toy_outlined),
+                    title: Text(a.name),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(l.commonCancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(l.commonDelete),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
     }
+    await act(() async {
+      await provider.deleteConnection(stored.id);
+      if (mounted) Navigator.pop(context);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final p = context.read<AssistantProvider>();
+    final provider = context.watch<AssistantProvider>();
+    final stored = _stored(provider);
     final l = context.l10n;
     final theme = Theme.of(context);
     return AppScaffold(
@@ -394,21 +423,6 @@ class _ConnectionEditorState extends State<ConnectionEditor>
                 child: LinearProgressIndicator(),
               )
             : null,
-        actions: [
-          TextButton(
-            onPressed: busy
-                ? null
-                : () => act(() async {
-                    await p.saveConnection(
-                      draft,
-                      key: keyInput.text,
-                      clearKey: clearKey,
-                    );
-                    if (context.mounted) Navigator.pop(context);
-                  }),
-            child: Text(l.commonSave),
-          ),
-        ],
       ),
       bottomNavigationBar: Material(
         color: theme.colorScheme.surfaceContainerLowest,
@@ -557,10 +571,10 @@ class _ConnectionEditorState extends State<ConnectionEditor>
                           ? null
                           : () => act(() async {
                               setState(() => testResult = null);
-                              await p.testConnection(
-                                draft,
+                              await provider.testConnection(
+                                _draft(stored),
                                 keyInput.text,
-                                models.firstOrNull ?? '',
+                                stored.models.firstOrNull ?? '',
                                 clearKey: clearKey,
                                 cancelToken: request,
                               );
@@ -575,20 +589,36 @@ class _ConnectionEditorState extends State<ConnectionEditor>
                   ],
                 ),
                 Text(l.v2DraftHelp, style: theme.textTheme.bodySmall),
+                FilledButton.icon(
+                  key: const Key('provider_save_button'),
+                  onPressed: busy ? null : () => _save(stored),
+                  icon: const Icon(Icons.save_outlined, size: 20),
+                  label: Text(l.commonSave),
+                ),
+                if (!isPresetProvider(original.id))
+                  OutlinedButton.icon(
+                    key: const Key('provider_delete_button'),
+                    onPressed: busy ? null : () => _deleteProvider(stored),
+                    icon: const Icon(Icons.delete_outline, size: 20),
+                    label: Text(l.commonDelete),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: theme.colorScheme.error,
+                    ),
+                  ),
               ],
             ),
-            _modelList(context),
+            _modelList(context, stored),
           ],
         ),
       ),
     );
   }
 
-  Widget _modelList(BuildContext context) {
+  Widget _modelList(BuildContext context, AiConnection stored) {
     final l = context.l10n;
     final theme = Theme.of(context);
     final query = modelSearch.text.trim().toLowerCase();
-    final visible = models
+    final visible = stored.models
         .where((id) => id.toLowerCase().contains(query))
         .toList();
     return CustomScrollView(
@@ -603,7 +633,7 @@ class _ConnectionEditorState extends State<ConnectionEditor>
               spacing: 16,
               children: [
                 Text(
-                  l.v2ProviderModelCount(models.length),
+                  l.v2ProviderModelCount(stored.models.length),
                   style: theme.textTheme.titleMedium,
                 ),
                 Text(
@@ -632,13 +662,13 @@ class _ConnectionEditorState extends State<ConnectionEditor>
                   children: [
                     FilledButton.tonalIcon(
                       key: const Key('provider_add_model'),
-                      onPressed: busy ? null : addManualModel,
+                      onPressed: busy ? null : () => addManualModel(stored),
                       icon: const Icon(Icons.add, size: 20),
                       label: Text(l.v2AddModel),
                     ),
                     OutlinedButton.icon(
                       key: const Key('provider_fetch_models'),
-                      onPressed: busy ? null : fetchModels,
+                      onPressed: busy ? null : () => fetchModels(stored),
                       icon: const Icon(Icons.refresh, size: 20),
                       label: Text(l.v2FetchModels),
                     ),
@@ -680,7 +710,7 @@ class _ConnectionEditorState extends State<ConnectionEditor>
               itemCount: visible.length,
               itemBuilder: (context, index) {
                 final id = visible[index];
-                final value = capabilities[id] ?? const ModelCapabilities();
+                final value = stored.capabilitiesFor(id);
                 return Card(
                   child: ListTile(
                     key: ValueKey('provider_model_$id'),
@@ -691,11 +721,11 @@ class _ConnectionEditorState extends State<ConnectionEditor>
                     ),
                     title: Text(id),
                     subtitle: Text(modelCapabilityLabel(context, value)),
-                    onTap: () => editCapabilities(id),
+                    onTap: () => editCapabilities(stored, id),
                     trailing: IconButton(
                       tooltip: l.commonDelete,
                       icon: const Icon(Icons.remove_circle_outline),
-                      onPressed: () => removeModel(id),
+                      onPressed: busy ? null : () => removeModel(stored, id),
                     ),
                   ),
                 );
