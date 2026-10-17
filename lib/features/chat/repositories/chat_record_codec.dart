@@ -1,7 +1,7 @@
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/models/chat_message_version_record.dart';
-import 'package:servllama/features/chat/models/message_author.dart';
 
+/// Canonical values for equality checks and continuation keys, not SQL payloads.
 Map<String, Object?> encodeMessage(ChatMessageRecord m) => {
   'id': m.id,
   'role': m.role.name,
@@ -16,22 +16,6 @@ Map<String, Object?> encodeMessage(ChatMessageRecord m) => {
   'versionIds': m.versionIds,
   'currentVersionIndex': m.currentVersionIndex,
 };
-ChatMessageRecord decodeMessage(Map<String, dynamic> m) => ChatMessageRecord(
-  id: m['id'] as String,
-  role: ChatRole.values.byName(m['role'] as String),
-  content: m['content'] as String,
-  createdAt: DateTime.fromMillisecondsSinceEpoch(m['createdAt'] as int),
-  sessionId: m['sessionId'] as String?,
-  runId: m['runId'] as String?,
-  author: m['author'] == null
-      ? null
-      : MessageAuthor.fromJson(Map<String, dynamic>.from(m['author'])),
-  modelName: m['modelName'] as String?,
-  reasoningContent: m['reasoningContent'] as String?,
-  imageFilePaths: List<String>.from(m['imageFilePaths'] as List? ?? []),
-  versionIds: List<String>.from(m['versionIds'] as List? ?? []),
-  currentVersionIndex: m['currentVersionIndex'] as int? ?? 0,
-);
 Map<String, Object?> encodeVersion(ChatMessageVersionRecord v) => {
   'id': v.id,
   'messageId': v.messageId,
@@ -43,17 +27,3 @@ Map<String, Object?> encodeVersion(ChatMessageVersionRecord v) => {
   'reasoningContent': v.reasoningContent,
   'imageFilePaths': v.imageFilePaths,
 };
-ChatMessageVersionRecord decodeVersion(Map<String, dynamic> m) =>
-    ChatMessageVersionRecord(
-      id: m['id'] as String,
-      messageId: m['messageId'] as String,
-      runId: m['runId'] as String?,
-      author: m['author'] == null
-          ? null
-          : MessageAuthor.fromJson(Map<String, dynamic>.from(m['author'])),
-      content: m['content'] as String,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(m['createdAt'] as int),
-      modelName: m['modelName'] as String?,
-      reasoningContent: m['reasoningContent'] as String?,
-      imageFilePaths: List<String>.from(m['imageFilePaths'] as List? ?? []),
-    );

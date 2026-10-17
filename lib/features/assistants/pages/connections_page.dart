@@ -87,18 +87,13 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
             (c) => Card(
               child: ListTile(
                 key: ValueKey('provider_${c.id}'),
-                leading: AiIdentityIcon(
-                  providerId: c.id,
-                  providerName: c.name,
-                ),
+                leading: AiIdentityIcon(providerId: c.id, providerName: c.name),
                 title: Text(
                   c.name,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                subtitle: Text(
-                  l.v2ProviderModelCount(c.models.length),
-                ),
+                subtitle: Text(l.v2ProviderModelCount(c.models.length)),
                 onTap: changing.contains(c.id) ? null : () => _edit(context, c),
                 trailing: Switch(
                   key: ValueKey('provider_enabled_${c.id}'),
@@ -365,41 +360,39 @@ class _ConnectionEditorState extends State<ConnectionEditor>
         0;
     if (!mounted) return;
     final l = context.l10n;
-    if (references.isNotEmpty || conversationCount > 0) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text(stored.name),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(l.v2DeleteConnectionHelp),
-                if (conversationCount > 0)
-                  Text(l.v2ConnectionConversationCount(conversationCount)),
-                ...references.map(
-                  (a) => ListTile(
-                    leading: const Icon(Icons.smart_toy_outlined),
-                    title: Text(a.name),
-                  ),
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(stored.name),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(l.v2DeleteConnectionHelp),
+              if (conversationCount > 0)
+                Text(l.v2ConnectionConversationCount(conversationCount)),
+              ...references.map(
+                (a) => ListTile(
+                  leading: const Icon(Icons.smart_toy_outlined),
+                  title: Text(a.name),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text(l.commonCancel),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text(l.commonDelete),
-            ),
-          ],
         ),
-      );
-      if (confirmed != true) return;
-    }
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(l.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(l.commonDelete),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || confirmed != true) return;
     await act(() async {
       await provider.deleteConnection(stored.id);
       if (mounted) Navigator.pop(context);

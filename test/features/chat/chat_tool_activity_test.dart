@@ -23,6 +23,7 @@ import 'package:servllama/features/chat/widgets/chat_message_sheets.dart';
 import 'package:servllama/features/chat/widgets/chat_tool_activity.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
 import '../../support/mcp_tool_fixture.dart';
+import '../../support/agent_database_fixture.dart';
 
 class _FixtureHttpOverrides extends HttpOverrides {
   @override
@@ -32,6 +33,16 @@ class _FixtureHttpOverrides extends HttpOverrides {
 
 class _Repository extends AgentRepository {
   _Repository(super.db);
+  @override
+  Future<void> insert(ToolInvocation invocation) async {
+    await seedAgentRun(
+      db,
+      invocation.runId,
+      conversationId: invocation.conversationId,
+    );
+    await super.insert(invocation);
+  }
+
   int reads = 0;
   bool failNext = false;
   Completer<List<ToolInvocation>>? delayed;
@@ -101,6 +112,7 @@ void main() {
     scroll = ScrollController();
     token = CancelToken();
     await AssistantRepository(db).saveAssistant(assistant);
+    await seedAgentRun(db, 'run');
   });
   tearDown(() async {
     await session?.close();

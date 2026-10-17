@@ -271,16 +271,9 @@ void main() {
           chatTarget: ChatTarget.remote('custom', 'assistant-only'),
         ),
       );
-      final config = jsonEncode({
-        'assistantId': 'a',
-        'target': const ChatTarget.remote(
-          'custom',
-          'conversation-only',
-        ).toJson(),
-      });
       await db.execute(
-        'INSERT INTO conversations(id,title,created_at,updated_at,message_ids,config) VALUES(?,?,0,0,?,?)',
-        ['conversation', 'Existing', '[]', config],
+        'INSERT INTO conversations(id,title,created_at,updated_at,assistant_id) VALUES(?,?,0,0,?)',
+        ['conversation', 'Existing', 'a'],
       );
       await repository.initializeProviders();
       var loaded = (await repository.connections()).singleWhere(
@@ -290,9 +283,9 @@ void main() {
       expect(loaded.models, ['kept']);
       expect(
         (await db.query(
-          'SELECT config FROM conversations',
-        )).single.read<String>('config'),
-        config,
+          'SELECT assistant_id FROM conversations',
+        )).single.read<String>('assistant_id'),
+        'a',
       );
       loaded = await repository.saveConnection(
         loaded.changed({'models': [], 'enabled': false}),

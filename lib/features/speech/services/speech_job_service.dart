@@ -12,6 +12,7 @@ import 'package:servllama/core/models/model_asset.dart';
 import 'package:servllama/core/repositories/unified_model_repository.dart';
 import 'package:servllama/core/runtime/resource_coordinator.dart';
 import 'package:servllama/core/security/log_redactor.dart';
+import 'package:servllama/core/storage/owned_file_cleanup.dart';
 import 'package:servllama/core/services/downloads_export_service.dart';
 import 'package:servllama/core/services/foreground_task_service.dart';
 import 'package:servllama/core/utils/new_id.dart';
@@ -34,6 +35,7 @@ class SpeechJobService extends ChangeNotifier {
   final ResourceCoordinator resources;
   late Directory root;
   late SpeechRepository repository;
+  late OwnedFileCleanup _files;
   late SpeechModelService models;
   late AudioIoService audio;
   bool ready = false, _draining = false, _disposed = false, _needsWake = false;
@@ -65,7 +67,9 @@ class SpeechJobService extends ChangeNotifier {
       await storage.create(recursive: true);
       root = Directory(await storage.resolveSymbolicLinks());
       repository = SpeechRepository(database ?? await AppDatabase.shared());
+      _files = OwnedFileCleanup(repository.db, root);
       await repository.recover();
+      await _files.retry();
       models = SpeechModelService(
         UnifiedModelRepository(database: repository.db),
         repository,
@@ -261,12 +265,7 @@ class SpeechJobService extends ChangeNotifier {
         createdAt: DateTime.now(),
       );
       await repository.db.transaction(() async {
-        if (await repository.db
-                .query(
-                  "SELECT id FROM speech_jobs WHERE state IN ('queued','waiting','running','cancelling')",
-                )
-                .then((rows) => rows.length) >=
-            8) {
+        if (await repository.activeCount() >= 8) {
           throw StateError('Speech queue is full');
         }
         final current = await models.models.asset(asset.id);
@@ -523,17 +522,14 @@ class SpeechJobService extends ChangeNotifier {
         await audio.stopPlayback();
       }
       final dir = Directory(p.join(root.path, 'speech', 'jobs', id));
-      if (await dir.exists()) {
-        if (p.normalize(await dir.resolveSymbolicLinks()) !=
-            p.normalize(dir.absolute.path)) {
-          throw StateError('Unexpected job storage link');
-        }
-        await dir.delete(recursive: true);
-      }
+      await repository.db.transaction(() async {
+        await _files.enqueue(dir.path, OwnedFileKind.speechJob);
+        await repository.deleteJob(id);
+      });
       jobs.removeWhere((j) => j.id == id);
-      await repository.deleteJob(id);
       _event('speech.job.deleted', j);
       _changed();
+      await _files.retry();
     } finally {
       _deleting.remove(id);
     }
@@ -758,13 +754,15 @@ class SpeechJobService extends ChangeNotifier {
         'Native cleanup is pending; restart before deleting voices',
       );
     }
-    if (await repository.usesVoice(v.id)) {
-      throw StateError('A queued or running job uses this voice');
-    }
     if (audio.playingPath == v.path) await audio.stopPlayback();
-    await repository.deleteVoice(v.id);
     final dir = Directory(p.join(root.path, 'speech', 'voices', v.id));
-    if (await dir.exists()) await dir.delete(recursive: true);
+    await repository.db.transaction(() async {
+      if (await repository.usesVoice(v.id)) {
+        throw StateError('A queued or running job uses this voice');
+      }
+      await _files.enqueue(dir.path, OwnedFileKind.voiceProfile);
+      await repository.deleteVoice(v.id);
+    });
     voices = await repository.voices();
     _logger.event(
       'speech.voice.deleted',
@@ -772,6 +770,7 @@ class SpeechJobService extends ChangeNotifier {
       fields: {'voice': v.id, 'asset': v.assetId},
     );
     _changed();
+    await _files.retry();
   }
 
   static String spokenText(String text) => text

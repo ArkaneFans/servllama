@@ -17,9 +17,7 @@ import 'package:servllama/features/chat/models/chat_message_version_record.dart'
 import 'package:servllama/features/chat/models/chat_model_option.dart';
 import 'package:servllama/features/chat/models/chat_run_config.dart';
 import 'package:servllama/features/chat/models/message_author.dart';
-import 'package:servllama/features/chat/repositories/chat_record_codec.dart';
 import 'package:servllama/features/chat/repositories/chat_session_repository.dart';
-import 'package:servllama/features/chat/repositories/generation_run_repository.dart';
 import 'package:servllama/features/chat/services/chat_protocol_client.dart';
 import 'package:servllama/features/chat/services/llama_chat_api_client.dart';
 
@@ -203,118 +201,31 @@ void main() {
     },
   );
 
-  test(
-    'legacy Run identity is read without rewriting or breaking revision immutability',
-    () async {
-      final runs = GenerationRunRepository(db);
-      final m = ChatMessageRecord(
-        id: 'old',
-        runId: 'old-run',
-        role: ChatRole.assistant,
-        content: 'Old answer',
-        createdAt: DateTime(2026),
-      );
-      final v = ChatMessageVersionRecord(
-        id: 'v-old',
-        messageId: m.id,
-        runId: m.runId,
-        content: m.content,
-        createdAt: m.createdAt,
-      );
-      await runs.begin('old-run', 'c', m.id, config(a).snapshot());
-      await runs.finish('old-run', 'completed');
-      await repository.saveMessage(m);
-      final rawVersion = jsonEncode(encodeVersion(v));
-      await db.execute(
-        'INSERT INTO message_revisions(id,message_id,created_at,payload) VALUES(?,?,?,?)',
-        [v.id, v.messageId, 0, rawVersion],
-      );
-      expect(
-        (await repository.loadMessage(m.id))?.author?.toJson(),
-        authorA.toJson(),
-      );
-      final loaded = (await repository.loadMessageVersion(v.id))!;
-      expect(loaded.author?.toJson(), authorA.toJson());
-      await repository.saveMessageVersion(loaded);
-      await repository.saveMessageVersion(v);
-      expect(
-        (await db.query(
-          'SELECT payload FROM message_revisions',
-        )).single.read<String>('payload'),
-        rawVersion,
-      );
-      await expectLater(
-        repository.saveMessageVersion(
-          ChatMessageVersionRecord(
-            id: v.id,
-            messageId: m.id,
-            runId: m.runId,
-            content: 'Different',
-            createdAt: m.createdAt,
-            author: loaded.author,
-          ),
+  test('committed versions keep identity and are immutable', () async {
+    await runner.sendMessage('Hello');
+    final message = conversation.visibleMessages.last;
+    final version = (await repository.loadMessageVersion(
+      message.versionIds.single,
+    ))!;
+    await repository.saveMessageVersion(version);
+    await expectLater(
+      repository.saveMessageVersion(
+        ChatMessageVersionRecord(
+          id: version.id,
+          messageId: message.id,
+          runId: version.runId,
+          author: const MessageAuthor(assistantId: 'changed', name: 'Changed'),
+          content: version.content,
+          createdAt: version.createdAt,
         ),
-        throwsStateError,
-      );
-      await repository.saveMessage(m.copyWith(id: 'unknown', clearRunId: true));
-      expect((await repository.loadMessage('unknown'))?.author, isNull);
-    },
-  );
-
-  test(
-    'recovery attributes an old partial checkpoint using its Run snapshot',
-    () async {
-      final runs = GenerationRunRepository(db);
-      final m = ChatMessageRecord(
-        id: 'm',
-        runId: 'run',
-        role: ChatRole.assistant,
-        content: '',
-        createdAt: DateTime(2026),
-      );
-      await repository.saveMessage(m);
-      await runs.begin('run', 'c', m.id, {
-        ...config(b).snapshot(),
-        'versionId': 'v',
-      });
-      await runs.checkpoint('run', m.copyWith(content: 'Partial reply'));
-      await runs.recover();
-      await runs.recover();
-      expect((await repository.loadMessage(m.id))?.author?.assistantId, 'b');
-      expect(
-        (await repository.loadMessageVersion('v'))?.author?.assistantId,
-        'b',
-      );
-      expect(await db.query('SELECT id FROM message_revisions'), hasLength(1));
-    },
-  );
-
-  test(
-    'interruption before replacing the original restores its author and content',
-    () async {
-      final runs = GenerationRunRepository(db);
-      final original = ChatMessageRecord(
-        id: 'm',
-        runId: 'old-run',
-        role: ChatRole.assistant,
-        content: 'Original',
-        createdAt: DateTime(2026),
-        author: authorA,
-      );
-      await repository.saveMessage(original);
-      await runs.begin('new-run', 'c', original.id, {
-        ...config(b).snapshot(),
-        'versionId': 'new-v',
-        'fallbackMessage': encodeMessage(original),
-      });
-      await runs.recover();
-      final restored = (await repository.loadMessage(original.id))!;
-      expect(restored.author?.toJson(), authorA.toJson());
-      expect(restored.content, 'Original');
-      expect(restored.runId, 'old-run');
-      expect(await db.query('SELECT id FROM message_revisions'), isEmpty);
-    },
-  );
+      ),
+      throwsStateError,
+    );
+    expect(
+      (await repository.loadMessageVersion(version.id))!.author?.toJson(),
+      authorA.toJson(),
+    );
+  });
 
   test('display attribution and avatar do not change continuation context', () {
     final m = ChatMessageRecord(

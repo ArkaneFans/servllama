@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -11,6 +10,7 @@ import 'package:servllama/features/chat/models/chat_session_record.dart';
 import 'package:servllama/features/chat/models/message_author.dart';
 import 'package:servllama/features/chat/repositories/chat_session_repository.dart';
 import 'package:servllama/features/chat/repositories/generation_run_repository.dart';
+import 'package:servllama/features/chat/repositories/chat_record_store.dart';
 
 void main() {
   late Directory directory;
@@ -59,9 +59,6 @@ void main() {
           imageFilePaths: images?[i] ?? const [],
         ),
     ];
-    for (final v in versions) {
-      await repository.saveMessageVersion(v);
-    }
     message = ChatMessageRecord(
       id: 'm',
       role: ChatRole.assistant,
@@ -77,35 +74,49 @@ void main() {
       updatedAt: date,
       messageIds: const ['before', 'm', 'after'],
     );
-    await repository.commitSession(
-      session,
-      changedMessages: [
-        for (final id in ['before', 'after'])
-          ChatMessageRecord(
-            id: id,
-            role: ChatRole.user,
-            content: id,
-            createdAt: date,
-            sessionId: 'c',
+    await db.transaction(() async {
+      final store = ChatRecordStore(db);
+      await store.saveSession(session);
+      for (final id in runIds.toSet()) {
+        await runs.begin(id, 'c', {});
+      }
+      for (var i = 0; i < session.messageIds.length; i++) {
+        final id = session.messageIds[i];
+        await db.execute(
+          'INSERT INTO messages(id,conversation_id,position,role) VALUES(?,?,?,?)',
+          [id, 'c', i, id == 'm' ? 'assistant' : 'user'],
+        );
+        if (id != 'm') {
+          await store.saveMessage(
+            ChatMessageRecord(
+              id: id,
+              role: ChatRole.user,
+              content: id,
+              createdAt: date,
+              sessionId: 'c',
+            ),
+          );
+        }
+      }
+      for (final v in versions) {
+        await store.saveVersion(v);
+      }
+      await store.saveMessage(message);
+      for (final id in runIds.toSet()) {
+        await runs.finish(id, 'completed');
+        await tools.insert(
+          ToolInvocation(
+            id: '$id:call',
+            runId: id,
+            callId: 'call',
+            conversationId: 'c',
+            name: 'clock',
+            state: 'succeeded',
+            payload: const {'result': 'saved'},
           ),
-        message,
-      ],
-    );
-    for (final id in runIds.toSet()) {
-      await runs.begin(id, 'c', 'm', {});
-      await runs.finish(id, 'completed');
-      await tools.insert(
-        ToolInvocation(
-          id: '$id:call',
-          runId: id,
-          callId: 'call',
-          conversationId: 'c',
-          name: 'clock',
-          state: 'succeeded',
-          payload: const {'result': 'saved'},
-        ),
-      );
-    }
+        );
+      }
+    });
   }
 
   ChatMessageRecord withoutSelectedVersion() {
@@ -174,7 +185,12 @@ void main() {
         );
         await repository.commitMessageDeletion(withoutMessage(), message);
         expect(await repository.loadMessage('m'), isNull);
-        expect(await db.query('SELECT * FROM message_revisions'), isEmpty);
+        expect(
+          await db.query(
+            "SELECT * FROM message_revisions WHERE message_id='m'",
+          ),
+          isEmpty,
+        );
         expect(await db.query('SELECT * FROM generation_runs'), isEmpty);
         expect(await tools.history('c'), isEmpty);
         expect(await runs.latestState('c'), isNull);
@@ -187,19 +203,6 @@ void main() {
       },
     );
   }
-
-  test(
-    'legacy unversioned messages also own their old run and receipts',
-    () async {
-      await seed(selected: 0, runIds: ['legacy']);
-      await db.execute('DELETE FROM message_revisions');
-      message = message.copyWith(clearVersionIds: true);
-      await repository.saveMessage(message);
-      await repository.commitMessageDeletion(withoutMessage(), message);
-      expect(await tools.history('c'), isEmpty);
-      expect(await db.query('SELECT * FROM generation_runs'), isEmpty);
-    },
-  );
 
   test(
     'a run shared by another revision is retained until its last owner is deleted',
@@ -222,9 +225,12 @@ void main() {
     'deleting a message preserves a run still referenced by another message',
     () async {
       await seed();
-      final other = (await repository.loadMessage(
-        'after',
-      ))!.copyWith(runId: 'r0');
+      final original = (await repository.loadMessage('after'))!;
+      final other = original.copyWith(
+        runId: 'r0',
+        versionIds: [...original.versionIds, 'shared-ref'],
+        currentVersionIndex: 1,
+      );
       await repository.saveMessage(other);
       await repository.commitMessageDeletion(withoutMessage(), message);
       expect((await tools.history('c')).single.runId, 'r0');
@@ -301,14 +307,19 @@ void main() {
           message.versionIds,
         );
         expect((await repository.loadMessage('m'))!.runId, message.runId);
-        expect(await db.query('SELECT * FROM message_revisions'), hasLength(3));
+        expect(
+          await db.query(
+            "SELECT * FROM message_revisions WHERE message_id='m'",
+          ),
+          hasLength(3),
+        );
         expect(await db.query('SELECT * FROM generation_runs'), hasLength(3));
         expect(await tools.history('c'), hasLength(3));
         expect(
           (await repository.loadSessions()).single.messageIds,
           session.messageIds,
         );
-        expect(await db.query('SELECT * FROM artifacts'), isEmpty);
+        expect(await db.query('SELECT * FROM pending_file_deletions'), isEmpty);
         expect(await file.readAsString(), 'Keep bytes');
       },
     );
@@ -331,7 +342,7 @@ void main() {
         throwsStateError,
       );
       expect(await repository.loadSessions(), isEmpty);
-      expect(await tools.history('c'), hasLength(3));
+      expect(await tools.history('c'), isEmpty);
     },
   );
 
@@ -356,24 +367,23 @@ void main() {
     );
   }
 
-  test(
-    'deleting unreferenced runs preserves every retained version',
-    () async {
-      await seed();
-      await runs.begin('orphan', 'c', 'deleted-message', {});
-      await runs.finish('orphan', 'completed');
-      await tools.insert(
-        const ToolInvocation(
-          id: 'orphan:call',
-          runId: 'orphan',
-          callId: 'call',
-          conversationId: 'c',
-          name: 'clock',
-          state: 'succeeded',
-          payload: {},
-        ),
-      );
-      await tools.insert(
+  test('deleting unreferenced runs preserves every retained version', () async {
+    await seed();
+    await runs.begin('orphan', 'c', {});
+    await runs.finish('orphan', 'completed');
+    await tools.insert(
+      const ToolInvocation(
+        id: 'orphan:call',
+        runId: 'orphan',
+        callId: 'call',
+        conversationId: 'c',
+        name: 'clock',
+        state: 'succeeded',
+        payload: {},
+      ),
+    );
+    await expectLater(
+      tools.insert(
         const ToolInvocation(
           id: 'missing:call',
           runId: 'missing',
@@ -383,21 +393,15 @@ void main() {
           state: 'succeeded',
           payload: {},
         ),
-      );
-      await runs.recover();
-      await runs.deleteUnreferenced(['orphan', 'missing', 'r0', 'r1', 'r2']);
-      expect(await tools.history('c'), hasLength(3));
-      expect(await db.query('SELECT * FROM generation_runs'), hasLength(3));
-      expect(
-        jsonDecode(
-          (await db.query(
-            "SELECT payload FROM messages WHERE id='m'",
-          )).single.read<String>('payload'),
-        )['runId'],
-        'r2',
-      );
-    },
-  );
+      ),
+      throwsA(anything),
+    );
+    await runs.recover();
+    await runs.deleteUnreferenced(['orphan', 'missing', 'r0', 'r1', 'r2']);
+    expect(await tools.history('c'), hasLength(3));
+    expect(await db.query('SELECT * FROM generation_runs'), hasLength(3));
+    expect((await repository.loadMessage('m'))!.runId, 'r2');
+  });
 
   test(
     'recovery cannot recreate versions from a deleted message checkpoint',
@@ -408,9 +412,7 @@ void main() {
         runId: 'orphan',
         clearVersionIds: true,
       );
-      await runs.begin('orphan', 'c', deleted.id, {
-        'versionId': 'deleted-version',
-      });
+      await runs.begin('orphan', 'c', {'versionId': 'deleted-version'});
       await runs.checkpoint('orphan', deleted);
       await tools.insert(
         const ToolInvocation(

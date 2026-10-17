@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'package:servllama/core/database/app_database.dart';
 import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/features/chat/repositories/generation_run_repository.dart';
+import 'package:servllama/features/chat/repositories/chat_draft_repository.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:servllama/core/models/inference_engine.dart';
@@ -165,6 +166,7 @@ class ChatProvider extends ChangeNotifier {
   ChatSessionRecord _initializeSession(ChatSessionRecord session) =>
       session.copyWith(assistantId: currentAssistantId);
   final Map<String, String> _drafts = {};
+  final Map<String, String> _persistedDrafts = {};
   bool _draftsLoaded = false;
   Future<void>? _draftLoad;
   Future<void> _draftWrites = Future.value();
@@ -210,9 +212,11 @@ class ChatProvider extends ChangeNotifier {
 
   Future<void> _loadDrafts() => _draftLoad ??= () async {
     if (_draftsLoaded) return;
-    final saved = await AppDatabase.current?.metadata('chatDrafts');
-    if (saved != null) {
-      for (final entry in Map<String, String>.from(jsonDecode(saved)).entries) {
+    final db = AppDatabase.current;
+    if (db != null) {
+      final saved = await ChatDraftRepository(db).load();
+      _persistedDrafts.addAll(saved);
+      for (final entry in saved.entries) {
         _drafts.putIfAbsent(entry.key, () => entry.value);
       }
     }
@@ -226,10 +230,18 @@ class ChatProvider extends ChangeNotifier {
     try {
       await _loadDrafts();
       if (_deletingAssistant) return;
-      final payload = jsonEncode(_drafts);
-      final saved = _draftWrites.then(
-        (_) => db.setMetadata('chatDrafts', payload),
-      );
+      final snapshot = Map<String, String>.of(_drafts);
+      final saved = _draftWrites.then((_) async {
+        final changes = <String, String?>{
+          for (final key in {..._persistedDrafts.keys, ...snapshot.keys})
+            if (_persistedDrafts[key] != snapshot[key]) key: snapshot[key],
+        };
+        if (changes.isEmpty) return;
+        await ChatDraftRepository(db).saveChanges(changes);
+        _persistedDrafts
+          ..clear()
+          ..addAll(snapshot);
+      });
       _draftWrites = saved.catchError((Object _) {});
       await saved;
     } catch (e) {

@@ -5,16 +5,345 @@ import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-/// Explicit, versioned SQL keeps the legacy Hive generator independent of Drift.
-/// Domain repositories own serialization; no generic object/EAV business store.
-class AppDatabase extends GeneratedDatabase {
+part 'app_database.g.dart';
+
+@DataClassName('DbAssistants', companion: 'AssistantsCompanion')
+class Assistants extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  IntColumn get revision => integer()();
+  TextColumn get config => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+@DataClassName('DbAiConnections', companion: 'AiConnectionsCompanion')
+class AiConnections extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  IntColumn get revision => integer()();
+  TextColumn get config => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+@DataClassName('DbSkills', companion: 'SkillsCompanion')
+class Skills extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get hash => text()();
+  TextColumn get config => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+@DataClassName('DbMcpServers', companion: 'McpServersCompanion')
+class McpServers extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  IntColumn get revision => integer()();
+  TextColumn get config => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+@TableIndex(
+  name: 'conversations_recent',
+  columns: {
+    IndexedColumn(#updatedAt, orderBy: OrderingMode.desc),
+    #id,
+  },
+)
+@TableIndex(
+  name: 'conversations_assistant',
+  columns: {
+    #assistantId,
+    IndexedColumn(#updatedAt, orderBy: OrderingMode.desc),
+  },
+)
+@DataClassName('DbConversations', companion: 'ConversationsCompanion')
+class Conversations extends Table {
+  TextColumn get id => text()();
+  TextColumn get title => text()();
+  TextColumn get assistantId => text().nullable().references(
+    Assistants,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+@DataClassName('DbMessages', companion: 'MessagesCompanion')
+class Messages extends Table {
+  TextColumn get id => text()();
+  TextColumn get conversationId =>
+      text().references(Conversations, #id, onDelete: KeyAction.cascade)();
+  IntColumn get position => integer()();
+  TextColumn get role =>
+      text()
+      // ignore: recursive_getters
+      .check(role.isIn(['user', 'assistant']))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<String> get customConstraints => const [
+    'UNIQUE (conversation_id, position)',
+  ];
+}
+
+@TableIndex(name: 'revisions_run', columns: {#runId})
+@TableIndex.sql(
+  'CREATE UNIQUE INDEX revisions_selected '
+  'ON message_revisions(message_id) WHERE is_selected = 1',
+)
+@DataClassName('DbMessageRevisions', companion: 'MessageRevisionsCompanion')
+class MessageRevisions extends Table {
+  TextColumn get id => text()();
+  TextColumn get messageId =>
+      text().references(Messages, #id, onDelete: KeyAction.cascade)();
+  IntColumn get position => integer()();
+  TextColumn get runId => text().nullable().references(
+    GenerationRuns,
+    #id,
+    initiallyDeferred: true,
+  )();
+  IntColumn get isDraft => integer()
+      // ignore: recursive_getters
+      .check(isDraft.isIn([0, 1]))
+      .withDefault(const Constant(0))();
+  IntColumn get isSelected => integer()
+      // ignore: recursive_getters
+      .check(isSelected.isIn([0, 1]))
+      .withDefault(const Constant(0))();
+  IntColumn get createdAt => integer()();
+  TextColumn get content => text()();
+  TextColumn get reasoningContent => text().nullable()();
+  TextColumn get modelName => text().nullable()();
+  TextColumn get author => text().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<String> get customConstraints => const ['UNIQUE (message_id, position)'];
+}
+
+@TableIndex(name: 'attachments_path', columns: {#path})
+@DataClassName(
+  'DbRevisionAttachments',
+  companion: 'RevisionAttachmentsCompanion',
+)
+class RevisionAttachments extends Table {
+  TextColumn get revisionId =>
+      text().references(MessageRevisions, #id, onDelete: KeyAction.cascade)();
+  IntColumn get position => integer()();
+  TextColumn get path => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {revisionId, position};
+}
+
+@TableIndex(
+  name: 'runs_conversation',
+  columns: {
+    #conversationId,
+    IndexedColumn(#updatedAt, orderBy: OrderingMode.desc),
+  },
+)
+@TableIndex.sql(
+  'CREATE INDEX runs_active ON generation_runs(state) '
+  "WHERE state IN ('running', 'awaitingApproval', 'cancelling')",
+)
+@DataClassName('DbGenerationRuns', companion: 'GenerationRunsCompanion')
+class GenerationRuns extends Table {
+  TextColumn get id => text()();
+  TextColumn get conversationId =>
+      text().references(Conversations, #id, onDelete: KeyAction.cascade)();
+  TextColumn get state => text()();
+  TextColumn get snapshot => text()();
+  TextColumn get checkpoint => text()();
+  IntColumn get updatedAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+@TableIndex(name: 'invocations_run', columns: {#runId, #createdAt})
+@DataClassName('DbToolInvocations', companion: 'ToolInvocationsCompanion')
+class ToolInvocations extends Table {
+  TextColumn get id => text()();
+  TextColumn get runId =>
+      text().references(GenerationRuns, #id, onDelete: KeyAction.cascade)();
+  TextColumn get callId => text()();
+  TextColumn get name => text()();
+  TextColumn get state => text()();
+  TextColumn get payload => text()();
+  IntColumn get createdAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<String> get customConstraints => const ['UNIQUE (run_id, call_id)'];
+}
+
+@DataClassName('DbChatDrafts', companion: 'ChatDraftsCompanion')
+class ChatDrafts extends Table {
+  TextColumn get key => text()();
+  TextColumn get conversationId => text()
+      .nullable()
+      .references(Conversations, #id, onDelete: KeyAction.cascade)
+      .unique()();
+  TextColumn get assistantId => text()
+      .nullable()
+      .references(Assistants, #id, onDelete: KeyAction.cascade)
+      .unique()();
+  TextColumn get content => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {key};
+
+  @override
+  List<String> get customConstraints => const [
+    'CHECK ((conversation_id IS NULL) != (assistant_id IS NULL))',
+  ];
+}
+
+@DataClassName('DbModelAssets', companion: 'ModelAssetsCompanion')
+class ModelAssets extends Table {
+  TextColumn get id => text()();
+  TextColumn get kind => text()();
+  TextColumn get engine => text()();
+  TextColumn get runtimeId => text()();
+  TextColumn get storageOwner => text()();
+  TextColumn get path => text()();
+  TextColumn get name => text()();
+  TextColumn get revision => text()();
+  TextColumn get state => text()();
+  TextColumn get manifest => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<String> get customConstraints => const ['UNIQUE (engine, path)'];
+}
+
+@TableIndex(
+  name: 'speech_jobs_recent',
+  columns: {
+    IndexedColumn(#createdAt, orderBy: OrderingMode.desc),
+    #id,
+  },
+)
+@TableIndex(name: 'speech_jobs_asset', columns: {#assetId, #state})
+@TableIndex(name: 'speech_jobs_voice', columns: {#voiceId, #state})
+@TableIndex(name: 'speech_jobs_state', columns: {#state})
+@DataClassName('DbSpeechJobs', companion: 'SpeechJobsCompanion')
+class SpeechJobs extends Table {
+  TextColumn get id => text()();
+  TextColumn get state => text()();
+  TextColumn get assetId => text()();
+  TextColumn get voiceId => text().nullable()();
+  IntColumn get createdAt => integer()();
+  TextColumn get payload => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+@TableIndex(name: 'voices_name', columns: {#name, #id})
+@DataClassName('DbVoiceProfiles', companion: 'VoiceProfilesCompanion')
+class VoiceProfiles extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get assetId => text()();
+  TextColumn get payload => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+@TableIndex(
+  name: 'downloads_recent',
+  columns: {
+    IndexedColumn(#createdAt, orderBy: OrderingMode.desc),
+    #id,
+  },
+)
+@DataClassName('DbDownloadTasks', companion: 'DownloadTasksCompanion')
+class DownloadTasks extends Table {
+  TextColumn get id => text()();
+  IntColumn get createdAt => integer()();
+  TextColumn get payload => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+@DataClassName(
+  'DbPendingFileDeletions',
+  companion: 'PendingFileDeletionsCompanion',
+)
+class PendingFileDeletions extends Table {
+  TextColumn get path => text()();
+  TextColumn get kind =>
+      text()
+      // ignore: recursive_getters
+      .check(kind.isIn(['chatAttachment', 'speechJob', 'voiceProfile']))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {path};
+}
+
+@DataClassName('DbAppMetadata', companion: 'AppMetadataCompanion')
+class AppMetadata extends Table {
+  TextColumn get key => text()();
+  TextColumn get value => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {key};
+}
+
+@DriftDatabase(
+  tables: [
+    Assistants,
+    AiConnections,
+    Skills,
+    McpServers,
+    Conversations,
+    Messages,
+    MessageRevisions,
+    RevisionAttachments,
+    GenerationRuns,
+    ToolInvocations,
+    ChatDrafts,
+    ModelAssets,
+    SpeechJobs,
+    VoiceProfiles,
+    DownloadTasks,
+    PendingFileDeletions,
+    AppMetadata,
+  ],
+)
+class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
   factory AppDatabase.at(Directory directory) => AppDatabase(
     LazyDatabase(() async {
       final folder = Directory(p.join(directory.path, 'data'));
       await folder.create(recursive: true);
       return NativeDatabase.createInBackground(
-        File(p.join(folder.path, 'servllama-v2.sqlite')),
+        File(p.join(folder.path, 'servllama.sqlite')),
       );
     }),
   );
@@ -27,25 +356,15 @@ class AppDatabase extends GeneratedDatabase {
   }();
 
   @override
-  int get schemaVersion => 5;
-  @override
-  Iterable<TableInfo<Table, Object?>> get allTables => const [];
-  @override
-  List<DatabaseSchemaEntity> get allSchemaEntities => const [];
+  int get schemaVersion => 1;
   @override
   MigrationStrategy get migration => MigrationStrategy(
-    onCreate: (_) => _createSchema(),
-    onUpgrade: (_, from, to) => _createSchema(),
     beforeOpen: (_) async {
       await customStatement('PRAGMA foreign_keys = ON');
       await customStatement('PRAGMA busy_timeout = 5000');
+      await customStatement('PRAGMA journal_mode = WAL');
     },
   );
-  Future<void> _createSchema() async {
-    for (final statement in _schema) {
-      await customStatement(statement);
-    }
-  }
 
   Future<List<QueryRow>> query(String sql, [List<Object> values = const []]) =>
       customSelect(sql, variables: values.map(_variable).toList()).get();
@@ -73,40 +392,4 @@ class AppDatabase extends GeneratedDatabase {
       [key, value],
     );
   }
-
-  static const _schema = [
-    'CREATE TABLE IF NOT EXISTS download_tasks (id TEXT PRIMARY KEY,created_at INTEGER NOT NULL,payload TEXT NOT NULL)',
-    'CREATE TABLE IF NOT EXISTS speech_jobs (id TEXT PRIMARY KEY,state TEXT NOT NULL,asset_id TEXT NOT NULL,created_at INTEGER NOT NULL,payload TEXT NOT NULL)',
-    'CREATE TABLE IF NOT EXISTS voice_profiles (id TEXT PRIMARY KEY,name TEXT NOT NULL,asset_id TEXT NOT NULL,payload TEXT NOT NULL)',
-    'CREATE TABLE IF NOT EXISTS skills (id TEXT PRIMARY KEY,name TEXT NOT NULL,hash TEXT NOT NULL,config TEXT NOT NULL)',
-    'CREATE TABLE IF NOT EXISTS mcp_servers (id TEXT PRIMARY KEY,name TEXT NOT NULL,revision INTEGER NOT NULL,config TEXT NOT NULL)',
-    'CREATE TABLE IF NOT EXISTS tool_invocations (id TEXT PRIMARY KEY,run_id TEXT NOT NULL,call_id TEXT NOT NULL,conversation_id TEXT NOT NULL,name TEXT NOT NULL,state TEXT NOT NULL,payload TEXT NOT NULL,created_at INTEGER NOT NULL,UNIQUE(run_id,call_id))',
-    'CREATE INDEX IF NOT EXISTS invocations_conversation ON tool_invocations(conversation_id,created_at)',
-
-    'CREATE TABLE IF NOT EXISTS assistants (id TEXT PRIMARY KEY,name TEXT NOT NULL,revision INTEGER NOT NULL,config TEXT NOT NULL)',
-    'CREATE TABLE IF NOT EXISTS ai_connections (id TEXT PRIMARY KEY,name TEXT NOT NULL,revision INTEGER NOT NULL,config TEXT NOT NULL)',
-    'CREATE TABLE IF NOT EXISTS generation_runs (id TEXT PRIMARY KEY,conversation_id TEXT NOT NULL,message_id TEXT NOT NULL,state TEXT NOT NULL,snapshot TEXT NOT NULL,checkpoint TEXT NOT NULL,updated_at INTEGER NOT NULL)',
-    'CREATE INDEX IF NOT EXISTS runs_conversation ON generation_runs(conversation_id,updated_at)',
-
-    'CREATE TABLE IF NOT EXISTS app_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)',
-    'CREATE TABLE IF NOT EXISTS conversations ('
-        'id TEXT PRIMARY KEY, title TEXT NOT NULL, created_at INTEGER NOT NULL, '
-        'updated_at INTEGER NOT NULL, message_ids TEXT NOT NULL, config TEXT NOT NULL DEFAULT \'{}\')',
-    'CREATE TABLE IF NOT EXISTS messages ('
-        'id TEXT PRIMARY KEY, conversation_id TEXT, role TEXT NOT NULL, '
-        'created_at INTEGER NOT NULL, payload TEXT NOT NULL)',
-    'CREATE INDEX IF NOT EXISTS messages_conversation ON messages(conversation_id, created_at)',
-    'CREATE TABLE IF NOT EXISTS message_revisions ('
-        'id TEXT PRIMARY KEY, message_id TEXT NOT NULL, created_at INTEGER NOT NULL, payload TEXT NOT NULL)',
-    'CREATE INDEX IF NOT EXISTS revisions_message ON message_revisions(message_id)',
-    'CREATE TABLE IF NOT EXISTS model_assets ('
-        'id TEXT PRIMARY KEY, kind TEXT NOT NULL, engine TEXT NOT NULL, runtime_id TEXT NOT NULL, '
-        'storage_owner TEXT NOT NULL, path TEXT NOT NULL, name TEXT NOT NULL, '
-        'revision TEXT NOT NULL, state TEXT NOT NULL, manifest TEXT NOT NULL)',
-    'CREATE UNIQUE INDEX IF NOT EXISTS asset_storage ON model_assets(engine,path)',
-    'CREATE TABLE IF NOT EXISTS artifacts ('
-        'id TEXT PRIMARY KEY, path TEXT UNIQUE NOT NULL, mime_type TEXT NOT NULL, '
-        'owner_kind TEXT NOT NULL, owner_id TEXT NOT NULL, hash TEXT NOT NULL, '
-        'size INTEGER NOT NULL, state TEXT NOT NULL DEFAULT \'ready\')',
-  ];
 }

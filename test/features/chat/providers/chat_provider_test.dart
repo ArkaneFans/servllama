@@ -403,19 +403,11 @@ void main() {
         final assistantWrites = repository.savedSingleMessages
             .where((message) => message.role == ChatRole.assistant)
             .toList(growable: false);
-        // Draft is written at stream start, once per delta, and once more
-        // when the stream completes; sibling messages are never rewritten.
-        expect(assistantWrites.map((message) => message.content), <String>[
-          '',
-          '',
-          '你',
-          '你好',
-          '你好',
-        ]);
-        expect(
-          assistantWrites.map((message) => message.reasoningContent),
-          <String>['', '先思考', '先思考', '先思考再补充', '先思考再补充'],
-        );
+        // The final draft is durable; the real checkpoint-writer tests cover
+        // write coalescing independently of this in-memory repository.
+        expect(assistantWrites.first.content, isEmpty);
+        expect(assistantWrites.last.content, '你好');
+        expect(assistantWrites.last.reasoningContent, '先思考再补充');
         expect(
           repository.savedSingleMessages
               .where((message) => message.role == ChatRole.user)
@@ -497,13 +489,12 @@ void main() {
         final messages = provider.visibleMessages;
         expect(messages, hasLength(1));
         expect(messages.single.role, ChatRole.user);
-        // Only the initial empty draft write happened before cleanup, and
-        // the draft record is gone from storage afterwards.
+        // Any persisted draft stays empty and is removed from the final store.
         expect(
           repository.savedSingleMessages
               .where((message) => message.role == ChatRole.assistant)
               .map((message) => message.content),
-          <String>[''],
+          everyElement(isEmpty),
         );
         expect(
           repository.messages.values.map((message) => message.role),
@@ -1281,7 +1272,9 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
     Iterable<ChatMessageRecord> deletedMessages,
   ) async {
     final messageList = deletedMessages.toList(growable: false);
-    await deleteMessageResources(messageList);
+    await deleteMessageVersions(
+      messageList.expand((message) => message.versionIds),
+    );
     for (final message in messageList) {
       messages.remove(message.id);
     }
@@ -1313,22 +1306,6 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
     for (final versionId in versionIds) {
       versions.remove(versionId);
     }
-  }
-
-  @override
-  Future<void> deleteAttachmentFiles(Iterable<String> paths) async {}
-
-  @override
-  Future<void> deleteMessageResources(
-    Iterable<ChatMessageRecord> messages,
-  ) async {
-    final messageList = messages.toList(growable: false);
-    await deleteAttachmentFiles(
-      messageList.expand((message) => message.imageFilePaths),
-    );
-    await deleteMessageVersions(
-      messageList.expand((message) => message.versionIds),
-    );
   }
 
   ChatSessionRecord _migrateSession(ChatSessionRecord session) {

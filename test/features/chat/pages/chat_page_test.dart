@@ -2208,7 +2208,9 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
     Iterable<ChatMessageRecord> deletedMessages,
   ) async {
     final messageList = deletedMessages.toList(growable: false);
-    await deleteMessageResources(messageList);
+    await deleteMessageVersions(
+      messageList.expand((message) => message.versionIds),
+    );
     for (final message in messageList) {
       messages.remove(message.id);
     }
@@ -2239,22 +2241,6 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
     for (final versionId in versionIds) {
       versions.remove(versionId);
     }
-  }
-
-  @override
-  Future<void> deleteAttachmentFiles(Iterable<String> paths) async {}
-
-  @override
-  Future<void> deleteMessageResources(
-    Iterable<ChatMessageRecord> messages,
-  ) async {
-    final messageList = messages.toList(growable: false);
-    await deleteAttachmentFiles(
-      messageList.expand((message) => message.imageFilePaths),
-    );
-    await deleteMessageVersions(
-      messageList.expand((message) => message.versionIds),
-    );
   }
 
   ChatSessionRecord _migrateSession(ChatSessionRecord session) {

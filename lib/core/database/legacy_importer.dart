@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/models/chat_message_version_record.dart';
 import 'package:servllama/features/chat/models/chat_session_record.dart';
-import 'package:servllama/features/chat/repositories/chat_record_codec.dart';
+import 'package:servllama/features/chat/repositories/chat_record_store.dart';
 
 import 'package:servllama/core/database/legacy_migration_progress.dart';
 import 'package:servllama/core/models/model_descriptor.dart';
@@ -151,7 +151,7 @@ class LegacyImporter {
                 'INSERT OR IGNORE INTO download_tasks(id,created_at,payload) VALUES(?,?,?)',
                 [
                   task.id,
-                  task.createdAt.microsecondsSinceEpoch,
+                  task.createdAt.millisecondsSinceEpoch,
                   jsonEncode(task.toJson()),
                 ],
               );
@@ -239,53 +239,103 @@ class LegacyImporter {
         final m = allMessages[id];
         if (m != null) allMessages[id] = m.copyWith(sessionId: s.id);
       }
-      await db.execute(
-        'INSERT OR IGNORE INTO conversations'
-        '(id,title,created_at,updated_at,message_ids) VALUES(?,?,?,?,?)',
-        [
-          s.id,
-          s.title,
-          s.createdAt.millisecondsSinceEpoch,
-          s.updatedAt.millisecondsSinceEpoch,
-          jsonEncode(s.messageIds),
-        ],
-      );
-      step();
     }
-    for (final m in allMessages.values) {
-      await db.execute(
-        'INSERT OR IGNORE INTO messages'
-        '(id,conversation_id,role,created_at,payload) VALUES(?,?,?,?,?)',
-        [
-          m.id,
-          m.sessionId,
-          m.role.name,
-          m.createdAt.millisecondsSinceEpoch,
-          jsonEncode(encodeMessage(m)),
-        ],
+    final store = ChatRecordStore(db);
+    final importedSessions = {for (final s in sessions) s.id: s};
+    // Early 1.x saves could leave a message outside the session ID list. Give
+    // those source messages a visible conversation instead of creating SQL orphans.
+    for (final entry in allMessages.entries.toList()) {
+      final m = entry.value;
+      final sessionId = m.sessionId ?? 'legacy-unfiled';
+      allMessages[m.id] = m.copyWith(sessionId: sessionId);
+      importedSessions.putIfAbsent(
+        sessionId,
+        () => ChatSessionRecord(
+          id: sessionId,
+          title: m.content.trim().isEmpty
+              ? 'ServLlama'
+              : m.content.trim().split('\n').first,
+          createdAt: m.createdAt,
+          updatedAt: m.createdAt,
+        ),
       );
-      step();
+    }
+    final byMessage = <String, Map<String, ChatMessageVersionRecord>>{};
+    for (final v in versions) {
+      (byMessage[v.messageId] ??= {})[v.id] = v;
+    }
+    final bySession = <String, List<ChatMessageRecord>>{};
+    for (final m in allMessages.values) {
+      (bySession[m.sessionId!] ??= []).add(m);
+    }
+    final sourceSessionIds = sessions.map((s) => s.id).toSet();
+    var importedVersions = 0;
+    for (final s in importedSessions.values) {
+      // Assistants did not exist in 1.x; imported conversations remain unassigned.
+      await store.saveSession(
+        ChatSessionRecord(
+          id: s.id,
+          title: s.title,
+          createdAt: s.createdAt,
+          updatedAt: s.updatedAt,
+        ),
+      );
+      if (sourceSessionIds.contains(s.id)) step();
+      final members = bySession[s.id] ?? [];
+      members.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      final ordered = <String>{
+        ...s.messageIds.where((id) => allMessages[id]?.sessionId == s.id),
+        ...members.map((m) => m.id),
+      };
+      var position = 0;
+      for (final id in ordered) {
+        final m = allMessages[id]!;
+        await db.execute(
+          'INSERT INTO messages(id,conversation_id,position,role) VALUES(?,?,?,?)',
+          [m.id, s.id, position++, m.role.name],
+        );
+        final saved = byMessage[m.id] ?? {};
+        final extras = saved.values.toList()
+          ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        final versionIds = <String>{
+          ...m.versionIds.where(saved.containsKey),
+          ...extras.map((v) => v.id),
+        };
+        var versionPosition = 0;
+        for (final versionId in versionIds) {
+          await store.saveVersion(
+            saved[versionId]!,
+            position: versionPosition++,
+          );
+          step();
+          importedVersions++;
+        }
+        step();
+        final selected = m.versionIds.elementAtOrNull(m.currentVersionIndex);
+        if (selected != null && saved.containsKey(selected)) {
+          await store.selectVersion(m.id, selected);
+        } else {
+          await store.saveMessage(
+            m.copyWith(clearVersionIds: true, currentVersionIndex: 0),
+          );
+          importedVersions++;
+        }
+      }
+    }
+    // Check ownership before publishing either completion marker.
+    if ((await db.query('PRAGMA foreign_key_check')).isNotEmpty) {
+      throw StateError('Chat migration verification failed');
     }
     for (final v in versions) {
-      await db.execute(
-        'INSERT OR IGNORE INTO message_revisions'
-        '(id,message_id,created_at,payload) VALUES(?,?,?,?)',
-        [
-          v.id,
-          v.messageId,
-          v.createdAt.millisecondsSinceEpoch,
-          jsonEncode(encodeVersion(v)),
-        ],
-      );
-      step();
+      if (!allMessages.containsKey(v.messageId)) step();
     }
     await db.setMetadata('legacyImportComplete', '1');
     await db.setMetadata(
       'legacyImportCounts',
       jsonEncode({
-        'sessions': sessions.length,
+        'sessions': importedSessions.length,
         'messages': allMessages.length,
-        'versions': versions.length,
+        'versions': importedVersions,
       }),
     );
   }

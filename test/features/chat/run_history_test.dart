@@ -4,6 +4,8 @@ import 'package:servllama/features/assistants/models/assistant.dart';
 import 'package:servllama/features/chat/controllers/chat_runner.dart';
 import 'package:servllama/features/chat/models/ai_turn.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
+import 'package:servllama/features/chat/repositories/chat_record_store.dart';
+import '../../support/agent_database_fixture.dart';
 import 'package:servllama/features/chat/models/chat_run_config.dart';
 import 'package:servllama/features/chat/repositories/generation_run_repository.dart';
 
@@ -20,6 +22,8 @@ void main() {
         role: ChatRole.assistant,
         content: 'Checking.\nAnswer.',
         createdAt: DateTime(2026),
+        sessionId: 'conversation',
+        versionIds: ['v'],
       );
       final trace = [
         const AiTurn(
@@ -41,7 +45,11 @@ void main() {
         ),
         const AiTurn(role: 'assistant', text: 'Answer.'),
       ];
-      await runs.begin('r', 'conversation', 'm', {});
+      await seedAgentRun(db, 'r');
+      await db.execute("UPDATE generation_runs SET snapshot=? WHERE id='r'", [
+        '{"versionId":"v"}',
+      ]);
+      await db.transaction(() => ChatRecordStore(db).saveMessage(message));
       await runs.checkpoint(
         'r',
         message,
@@ -50,7 +58,12 @@ void main() {
         contextKey: 'exact-context',
       );
       expect(await runs.finalAnswer(message), isNull);
-      await runs.finish('r', 'completed');
+      await db.transaction(() async {
+        await db.execute(
+          "UPDATE message_revisions SET is_draft=0 WHERE id='v'",
+        );
+        await runs.finish('r', 'completed');
+      });
       final saved = await runs.history(message);
       final turn = AiTurn.fromJson(saved!['checkpoint']['trace'][0]);
       expect(turn.providerParts.single['thoughtSignature'], 'opaque');

@@ -48,7 +48,10 @@ class ChatRunConfig {
     'assistant': assistant.toJson()
       ..remove('avatar')
       ..remove('chatTarget'),
-    'connection': connection.toJson()..remove('sortOrder'),
+    'connection': connection.toJson()
+      ..remove('sortOrder')
+      ..['models'] = [modelId]
+      ..['modelCapabilities'] = {modelId: capabilities.toJson()},
     'modelId': modelId,
     'local': isLocal,
     if (target != null) 'target': target!.toJson(),

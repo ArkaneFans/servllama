@@ -18,6 +18,7 @@ import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/models/chat_model_option.dart';
 import 'package:servllama/features/chat/models/chat_run_config.dart';
 import 'package:servllama/features/chat/repositories/chat_session_repository.dart';
+import 'package:servllama/features/chat/repositories/generation_run_repository.dart';
 import 'package:servllama/features/chat/services/chat_protocol_client.dart';
 import 'package:servllama/features/chat/services/llama_chat_api_client.dart';
 
@@ -303,7 +304,7 @@ void main() {
       expect(conversation.visibleMessages.last.runId, retained.runId);
       expect(await repository.loadMessageVersion(deletedVersion), isNull);
       expect(await db.query('SELECT * FROM generation_runs'), hasLength(2));
-      expect(await db.query('SELECT * FROM message_revisions'), hasLength(2));
+      expect(await db.query('SELECT * FROM message_revisions'), hasLength(3));
     },
   );
 
@@ -324,6 +325,89 @@ void main() {
         isEmpty,
       );
       expect(await db.query('SELECT id FROM tool_invocations'), hasLength(1));
+    },
+  );
+
+  test(
+    'failed edit does not publish a new version or change the selected body',
+    () async {
+      protocol.callTools = false;
+      await runner.sendMessage('Hello');
+      final before = conversation.visibleMessages.last;
+      await db.execute(
+        "CREATE TRIGGER reject_edit BEFORE UPDATE ON conversations BEGIN SELECT RAISE(ABORT,'fixture'); END",
+      );
+      await expectLater(
+        runner.editMessage(
+          messageId: before.id,
+          newContent: 'Uncommitted edit',
+        ),
+        throwsA(anything),
+      );
+      final saved = (await repository.loadMessage(before.id))!;
+      expect(saved.versionIds, before.versionIds);
+      expect(saved.content, before.content);
+      expect(conversation.visibleMessages.last.content, before.content);
+      expect(
+        await db.query('SELECT id FROM message_revisions WHERE message_id=?', [
+          before.id,
+        ]),
+        hasLength(1),
+      );
+    },
+  );
+
+  test(
+    'failed generation start retains the user message but no Run or assistant draft',
+    () async {
+      protocol.callTools = false;
+      await repository.warmUpMessageStore();
+      await db.execute(
+        "CREATE TRIGGER reject_draft BEFORE INSERT ON messages WHEN NEW.role='assistant' BEGIN SELECT RAISE(ABORT,'fixture'); END",
+      );
+      await expectLater(runner.sendMessage('Keep question'), throwsA(anything));
+      expect(runner.isSending, isFalse);
+      expect(conversation.visibleMessages.single.content, 'Keep question');
+      expect(await db.query('SELECT id FROM generation_runs'), isEmpty);
+      expect(await db.query('SELECT id FROM message_revisions'), hasLength(1));
+    },
+  );
+
+  test(
+    'failed terminal commit is recovered once without duplicating a response',
+    () async {
+      protocol.callTools = false;
+      await repository.warmUpMessageStore();
+      await db.execute(
+        "CREATE TRIGGER reject_finish BEFORE UPDATE OF state ON generation_runs WHEN NEW.state='completed' BEGIN SELECT RAISE(ABORT,'fixture'); END",
+      );
+      await expectLater(runner.sendMessage('Hello'), throwsA(anything));
+      expect(runner.isSending, isFalse);
+      final id = conversation.visibleMessages.last.id;
+      expect((await repository.loadMessage(id))!.content, 'Final answer');
+      expect(
+        (await db.query(
+          'SELECT is_draft FROM message_revisions WHERE message_id=?',
+          [id],
+        )).single.read<int>('is_draft'),
+        1,
+      );
+      await db.execute('DROP TRIGGER reject_finish');
+      await GenerationRunRepository(db).recover();
+      await GenerationRunRepository(db).recover();
+      expect((await repository.loadMessage(id))!.content, 'Final answer');
+      expect(
+        await db.query('SELECT id FROM message_revisions WHERE message_id=?', [
+          id,
+        ]),
+        hasLength(1),
+      );
+      expect(
+        (await db.query(
+          'SELECT state FROM generation_runs',
+        )).single.read<String>('state'),
+        'interrupted',
+      );
     },
   );
 }

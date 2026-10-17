@@ -232,22 +232,19 @@ void main() {
     },
   );
   test(
-    'a deleted historical assistant is not replaced by an incidental settings refresh',
+    'an unassigned imported conversation is not bound by an incidental settings refresh',
     () async {
       await db.execute(
-        'INSERT INTO conversations(id,title,created_at,updated_at,message_ids,config) VALUES(?,?,0,0,?,?)',
-        [
-          'conversation',
-          'Old conversation',
-          '[]',
-          jsonEncode({'assistantId': 'deleted'}),
-        ],
+        'INSERT INTO conversations(id,title,created_at,updated_at) VALUES(?,?,0,0)',
+        ['conversation', 'Old conversation'],
       );
       await provider.select('a');
       await provider.load();
       expect(provider.activeId, 'a');
-      final row = (await db.query('SELECT config FROM conversations')).single;
-      expect(jsonDecode(row.read<String>('config'))['assistantId'], 'deleted');
+      final row = (await db.query(
+        'SELECT assistant_id FROM conversations',
+      )).single;
+      expect(row.readNullable<String>('assistant_id'), isNull);
     },
   );
   test(

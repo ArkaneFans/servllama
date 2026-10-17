@@ -24,7 +24,7 @@ class DownloadTaskRepository {
 
   Future<List<DownloadTaskRecord>> listTasks() async =>
       (await (await database).query(
-            'SELECT payload FROM download_tasks ORDER BY created_at DESC',
+            'SELECT payload FROM download_tasks ORDER BY created_at DESC,id',
           ))
           .map(
             (row) => DownloadTaskRecord.fromJson(
@@ -36,7 +36,7 @@ class DownloadTaskRepository {
   Future<void> save(DownloadTaskRecord task) async {
     // Snapshot mutable progress before the first await.
     final id = task.id;
-    final createdAt = task.createdAt.microsecondsSinceEpoch;
+    final createdAt = task.createdAt.millisecondsSinceEpoch;
     final payload = jsonEncode(task.toJson());
     await (await database).execute(
       'INSERT INTO download_tasks(id,created_at,payload) VALUES(?,?,?) '

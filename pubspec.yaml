@@ -77,7 +77,8 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
   build_runner: ^2.4.13
-  hive_generator: ^2.0.1
+  # Hive adapters are frozen for 1.x import; only the release SQLite schema grows.
+  drift_dev: 2.31.0
   flutter_launcher_icons: ^0.14.4
 
 # For information on the generic Dart part of this file, see the

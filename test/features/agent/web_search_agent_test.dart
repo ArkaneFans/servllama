@@ -16,6 +16,7 @@ import 'package:servllama/features/chat/models/ai_turn.dart';
 import 'package:servllama/features/chat/models/chat_run_config.dart';
 
 import 'web_search_test_support.dart';
+import '../../support/agent_database_fixture.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -48,6 +49,7 @@ void main() {
   Future<void> reopen(String id, {bool tools = true}) async {
     await session.close();
     token = CancelToken();
+    await seedAgentRun(db, id);
     session = await service.open(
       id,
       'conversation',
@@ -86,6 +88,7 @@ void main() {
     );
     await assistants.saveAssistant(assistant);
     token = CancelToken();
+    await seedAgentRun(db, 'run');
     session = await service.open('run', 'conversation', config(), token);
   });
   tearDown(() async {

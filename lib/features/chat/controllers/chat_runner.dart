@@ -16,6 +16,7 @@ import 'package:servllama/features/chat/services/image_attachment_service.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:servllama/features/chat/controllers/chat_conversation_controller.dart';
+import 'package:servllama/features/chat/controllers/chat_checkpoint_writer.dart';
 import 'package:servllama/features/chat/controllers/chat_id_generator.dart';
 import 'package:servllama/features/chat/controllers/chat_model_controller.dart';
 import 'package:servllama/features/chat/controllers/chat_session_list_controller.dart';
@@ -83,6 +84,7 @@ class ChatRunner extends ChangeNotifier {
   final List<AiTurn> _trace = [];
   String? _inputContextKey, _finalAnswer;
   final ChatProtocolClient _protocol;
+  ChatCheckpointWriter? _checkpoints;
   GenerationRunRepository? get _runs => AppDatabase.current == null
       ? null
       : GenerationRunRepository(AppDatabase.current!);
@@ -163,14 +165,16 @@ class ChatRunner extends ChangeNotifier {
 
     await _runExclusive(() async {
       final now = DateTime.now();
+      final messageId = _idGenerator.generate('message');
       final userMessage = ChatMessageRecord(
-        id: _idGenerator.generate('message'),
+        id: messageId,
         role: ChatRole.user,
         content: normalizedText,
         createdAt: now,
         sessionId: session.id,
         modelName: model.displayName,
         imageFilePaths: imageAttachments ?? const <String>[],
+        versionIds: ['$messageId:initial'],
       );
 
       final messages = await _repository.loadAllMessages(session);
@@ -221,12 +225,7 @@ class ChatRunner extends ChangeNotifier {
       return;
     }
 
-    var ids = List<String>.from(message.versionIds);
-    if (ids.isEmpty) {
-      final original = _versionFromMessage(message);
-      await _repository.saveMessageVersion(original);
-      ids.add(original.id);
-    }
+    final ids = List<String>.from(message.versionIds);
     final edited = _versionFromMessage(
       message.copyWith(
         content: normalizedContent,
@@ -235,15 +234,25 @@ class ChatRunner extends ChangeNotifier {
         createdAt: DateTime.now(),
       ),
     );
-    await _repository.saveMessageVersion(edited);
-    ids.add(edited.id);
-    final updatedMessage = message
-        .copyWith(versionIds: ids)
-        .withVersion(edited, ids.length - 1);
-    await _commitSession(
-      session.copyWith(updatedAt: DateTime.now()),
-      changedMessages: <ChatMessageRecord>[updatedMessage],
-    );
+    final updatedSession = session.copyWith(updatedAt: DateTime.now());
+    late ChatMessageRecord updatedMessage;
+    await _atomic(() async {
+      if (ids.isEmpty) {
+        final original = _versionFromMessage(message);
+        await _repository.saveMessageVersion(original);
+        ids.add(original.id);
+      }
+      await _repository.saveMessageVersion(edited);
+      ids.add(edited.id);
+      updatedMessage = message
+          .copyWith(versionIds: ids)
+          .withVersion(edited, ids.length - 1);
+      await _repository.commitSession(
+        updatedSession,
+        changedMessages: [updatedMessage],
+      );
+    });
+    _publishSession(updatedSession);
     _conversation.updateVisibleMessage(updatedMessage, notify: false);
     notifyListeners();
   }
@@ -400,6 +409,7 @@ class ChatRunner extends ChangeNotifier {
         updatedAt: DateTime.now(),
       );
       await _commitSession(updatedSession, fullMessages: retainedMessages);
+      if (_runs != null) await _repository.cleanupFiles();
       await _generateAssistantResponse(
         updatedSession,
         model,
@@ -424,27 +434,29 @@ class ChatRunner extends ChangeNotifier {
     var retainedTargetMessage = targetMessage;
     var versionIds = List<String>.from(targetMessage.versionIds);
     final changedMessages = <ChatMessageRecord>[];
-    if (versionIds.isEmpty) {
-      final originalVersion = _versionFromMessage(targetMessage);
-      await _repository.saveMessageVersion(originalVersion);
-      versionIds = <String>[originalVersion.id];
-      retainedTargetMessage = targetMessage.copyWith(
-        versionIds: versionIds,
-        currentVersionIndex: 0,
+    late ChatSessionRecord fallbackSession;
+    await _atomic(() async {
+      if (versionIds.isEmpty) {
+        final originalVersion = _versionFromMessage(targetMessage);
+        await _repository.saveMessageVersion(originalVersion);
+        versionIds = <String>[originalVersion.id];
+        retainedTargetMessage = targetMessage.copyWith(
+          versionIds: versionIds,
+          currentVersionIndex: 0,
+        );
+        retainedMessages[targetIndex] = retainedTargetMessage;
+        changedMessages.add(retainedTargetMessage);
+      }
+      fallbackSession = session.copyWith(
+        messageIds: _idsOf(retainedMessages),
+        updatedAt: DateTime.now(),
       );
-      retainedMessages[targetIndex] = retainedTargetMessage;
-      changedMessages.add(retainedTargetMessage);
-    }
-
-    final fallbackSession = session.copyWith(
-      messageIds: _idsOf(retainedMessages),
-      updatedAt: DateTime.now(),
-    );
-    await _commitSession(
-      fallbackSession,
-      changedMessages: changedMessages,
-      fullMessages: retainedMessages,
-    );
+      await _repository.commitSession(
+        fallbackSession,
+        changedMessages: changedMessages,
+      );
+    });
+    _publishSession(fallbackSession, fullMessages: retainedMessages);
 
     final now = DateTime.now();
     final nextVersion = ChatMessageVersionRecord(
@@ -584,6 +596,16 @@ class ChatRunner extends ChangeNotifier {
     List<ChatMessageRecord>? fullMessages,
   }) async {
     await _repository.commitSession(session, changedMessages: changedMessages);
+    _publishSession(session, fullMessages: fullMessages);
+  }
+
+  Future<T> _atomic<T>(Future<T> Function() action) =>
+      _runs?.db.transaction(action) ?? action();
+
+  void _publishSession(
+    ChatSessionRecord session, {
+    List<ChatMessageRecord>? fullMessages,
+  }) {
     _sessionList.upsertSession(session, notify: false);
     if (fullMessages != null) {
       _conversation.syncVisibleMessagesFromFullMessages(
@@ -610,6 +632,7 @@ class ChatRunner extends ChangeNotifier {
     List<ChatMessageRecord>? emptyDraftFallbackMessages,
   }) async {
     _activeConfig = await configuration?.call();
+    _checkpoints = ChatCheckpointWriter();
     final assistant = _activeConfig?.assistant;
     final author = assistant == null
         ? null
@@ -633,6 +656,11 @@ class ChatRunner extends ChangeNotifier {
     _stopConversationId = session.id;
     _rephrasing = draftSeed != null && rephraseOnly;
     _rephraseSourceRun = draftSeed?.runId;
+    final completedVersionId = versionId ?? _idGenerator.generate('version');
+    final draftVersionIds = [...?draftSeed?.versionIds];
+    if (!draftVersionIds.contains(completedVersionId)) {
+      draftVersionIds.add(completedVersionId);
+    }
     final draftMessage =
         (draftSeed ??
                 ChatMessageRecord(
@@ -648,10 +676,11 @@ class ChatRunner extends ChangeNotifier {
               runId: _runId,
               author: author,
               clearAuthor: author == null,
+              versionIds: draftVersionIds,
+              currentVersionIndex: draftVersionIds.indexOf(completedVersionId),
             );
     _draftAssistantMessage = draftMessage;
     _activeCancelToken = CancelToken();
-    final completedVersionId = versionId ?? _idGenerator.generate('version');
     var began = false;
     var terminalState = 'completed';
     final timeout = Timer(
@@ -670,25 +699,29 @@ class ChatRunner extends ChangeNotifier {
       updatedAt: DateTime.now(),
     );
     try {
-      await _runs?.begin(_runId!, session.id, draftMessage.id, {
-        ...?_activeConfig?.snapshot(),
-        'modelId': _activeConfig?.modelId ?? model.id,
-        'versionId': completedVersionId,
-        if (draftSeed != null && emptyDraftFallbackMessages != null)
-          'fallbackMessage': encodeMessage(
-            emptyDraftFallbackMessages.firstWhere((m) => m.id == draftSeed.id),
-          ),
+      final fallback = emptyDraftFallbackMessages
+          ?.where((m) => m.id == draftSeed?.id)
+          .firstOrNull;
+      await _atomic(() async {
+        await _runs?.begin(_runId!, session.id, {
+          ...?_activeConfig?.snapshot(),
+          'modelId': _activeConfig?.modelId ?? model.id,
+          'versionId': completedVersionId,
+          if (fallback != null && fallback.versionIds.isNotEmpty)
+            'fallbackVersionId':
+                fallback.versionIds[fallback.currentVersionIndex],
+        });
+        await _repository.commitSession(
+          currentSession,
+          changedMessages: [draftMessage],
+        );
       });
       began = true;
+      _publishSession(currentSession, fullMessages: currentMessages);
       _logger.event(
         'client.run.started',
         channel: LogChannel.client,
         fields: logFields,
-      );
-      await _commitSession(
-        currentSession,
-        changedMessages: <ChatMessageRecord>[draftMessage],
-        fullMessages: currentMessages,
       );
       if (_isDisposed) {
         return;
@@ -724,12 +757,15 @@ class ChatRunner extends ChangeNotifier {
           _draftAssistantMessage!,
           appendIfMissing: draftSeed == null,
         );
-        // Hot path: persist only the draft message (and its version record)
-        // per delta. The session record and sibling messages are unchanged.
-        await _persistDraftDelta(_draftAssistantMessage!, versionId);
+        // Publish every delta immediately; coalesce durable draft checkpoints.
+        await _persistDraftDelta(_draftAssistantMessage!);
       }
     } catch (error) {
       failure = error;
+      if (!began) {
+        terminalState = 'failed';
+        rethrow;
+      }
       if (error is DioException && CancelToken.isCancel(error)) {
         terminalState = 'cancelled';
         // User-initiated cancellation leaves any partial draft intact.
@@ -762,21 +798,18 @@ class ChatRunner extends ChangeNotifier {
             messageIds: _idsOf(currentMessages),
             updatedAt: DateTime.now(),
           );
-          await _commitSession(
-            currentSession,
-            changedMessages: <ChatMessageRecord>[_draftAssistantMessage!],
-            fullMessages: currentMessages,
-          );
         }
       }
     } finally {
       timeout.cancel();
       if (_activeCancelToken?.isCancelled == true) terminalState = 'cancelled';
       try {
-        if (_isDisposed) {
-          _draftAssistantMessage = null;
-          _activeCancelToken = null;
+        if (began && _draftAssistantMessage != null) {
+          await _persistDraftDelta(_draftAssistantMessage!, flush: true);
         } else {
+          await _checkpoints?.flush();
+        }
+        if (began && !_isDisposed) {
           final draft = _draftAssistantMessage;
           final hasDraftContent =
               draft != null && draft.content.trim().isNotEmpty;
@@ -788,74 +821,66 @@ class ChatRunner extends ChangeNotifier {
               !hasDraftContent &&
               !hasDraftReasoning &&
               (await _runs?.hasToolInvocations(_runId!) ?? false);
-          if (draft != null &&
-              !hasDraftContent &&
-              !hasDraftReasoning &&
-              !hasDraftTools) {
-            if (versionId != null) {
-              await _repository.deleteMessageVersions(<String>[versionId]);
-              final fallbackSession = emptyDraftFallbackSession;
-              final fallbackMessages = emptyDraftFallbackMessages;
-              if (fallbackSession != null && fallbackMessages != null) {
-                // The per-delta hot path already wrote the draft over the
-                // target record, so the original must be restored explicitly.
-                await _commitSession(
-                  fallbackSession,
-                  changedMessages: fallbackMessages
-                      .where((message) => message.id == draft.id)
-                      .toList(growable: false),
-                  fullMessages: fallbackMessages,
+          ChatMessageRecord? finalized;
+          await _atomic(() async {
+            if (draft != null &&
+                !hasDraftContent &&
+                !hasDraftReasoning &&
+                !hasDraftTools) {
+              if (versionId != null &&
+                  emptyDraftFallbackSession != null &&
+                  emptyDraftFallbackMessages != null) {
+                currentSession = emptyDraftFallbackSession;
+                currentMessages = emptyDraftFallbackMessages;
+                await _repository.commitSession(
+                  currentSession,
+                  changedMessages: currentMessages
+                      .where((m) => m.id == draft.id)
+                      .toList(),
                 );
-              }
-            } else {
-              final cleanedMessages = _messagesWithoutMessage(
-                currentMessages,
-                draft.id,
-              );
-              await _repository.deleteMessages(<ChatMessageRecord>[draft]);
-              await _commitSession(
-                currentSession.copyWith(
-                  messageIds: _idsOf(cleanedMessages),
+                await _repository.deleteMessageVersions([versionId]);
+              } else {
+                currentMessages = _messagesWithoutMessage(
+                  currentMessages,
+                  draft.id,
+                );
+                currentSession = currentSession.copyWith(
+                  messageIds: _idsOf(currentMessages),
                   updatedAt: DateTime.now(),
-                ),
-                fullMessages: cleanedMessages,
+                );
+                await _repository.deleteMessages([draft]);
+                await _repository.commitSession(currentSession);
+              }
+            } else if (draft != null) {
+              finalized = await _saveDraftVersion(draft, completedVersionId);
+              currentMessages = _messagesWithStreamingDraft(
+                currentMessages,
+                finalized!,
+                appendIfMissing: draftSeed == null,
+              );
+              currentSession = currentSession.copyWith(
+                updatedAt: DateTime.now(),
+              );
+              await _repository.commitSession(
+                currentSession,
+                changedMessages: [finalized!],
               );
             }
-            streamingMessages.remove(draft.id);
-          } else if (draft != null) {
-            final finalized = await _saveDraftVersion(
-              draft,
-              completedVersionId,
+            await _runs?.finish(
+              _runId!,
+              terminalState == 'completed'
+                  ? (_stopReason ?? terminalState)
+                  : terminalState,
             );
-            currentMessages = _messagesWithStreamingDraft(
-              currentMessages,
-              finalized,
-              appendIfMissing: draftSeed == null,
-            );
-            await _commitSession(
-              currentSession.copyWith(updatedAt: DateTime.now()),
-              changedMessages: <ChatMessageRecord>[finalized],
-              fullMessages: currentMessages,
-            );
-            streamingMessages.update(finalized, isStreaming: false);
-            // Drop the streaming entry so the bubble renders from the
-            // persisted record again — otherwise later edits or version
-            // switches would be shadowed by the stale streaming snapshot.
-            streamingMessages.remove(draft.id);
+            await _runs?.deleteUnreferenced([_runId!]);
+          });
+          // Publish only after the body, selection and terminal Run commit.
+          _publishSession(currentSession, fullMessages: currentMessages);
+          if (finalized != null) {
+            streamingMessages.update(finalized!, isStreaming: false);
           }
-
-          _draftAssistantMessage = null;
-          _activeCancelToken = null;
-        }
-        if (began && !_isDisposed) {
-          await _runs?.finish(
-            _runId!,
-            terminalState == 'completed'
-                ? (_stopReason ?? terminalState)
-                : terminalState,
-          );
-          // Empty cancelled drafts/fallbacks do not own a retained version.
-          await _runs?.deleteUnreferenced([_runId!]);
+          if (draft != null) streamingMessages.remove(draft.id);
+          if (_runs != null) await _repository.cleanupFiles();
         }
       } catch (error) {
         terminalState = 'failed';
@@ -868,6 +893,7 @@ class ChatRunner extends ChangeNotifier {
         );
         rethrow;
       } finally {
+        if (!began && !_isDisposed) streamingMessages.remove(draftMessage.id);
         _logger.event(
           'client.run.finished',
           channel: LogChannel.client,
@@ -886,27 +912,32 @@ class ChatRunner extends ChangeNotifier {
         _draftAssistantMessage = null;
         _activeCancelToken = null;
         _activeConfig = null;
+        _checkpoints = null;
         _runId = null;
         _conversationId = null;
       }
     }
   }
 
-  /// Per-delta persistence: writes only the streaming draft message and,
-  /// when regenerating, its version record. Keeps every delta durable
-  /// without rewriting the session record or sibling messages.
+  /// One latest snapshot per interval, drained before tool/terminal boundaries.
   Future<void> _persistDraftDelta(
-    ChatMessageRecord draft,
-    String? versionId,
-  ) async {
+    ChatMessageRecord draft, {
+    bool flush = false,
+  }) async {
     if (_runs != null && _runId != null) {
-      await _runs!.checkpoint(
-        _runId!,
-        draft,
-        trace: _trace.map((t) => t.toJson()).toList(),
-        contextKey: _inputContextKey,
-        finalText: _finalAnswer,
+      final runs = _runs!, runId = _runId!;
+      final trace = _trace.map((t) => t.toJson()).toList();
+      final context = _inputContextKey, answer = _finalAnswer;
+      _checkpoints!.add(
+        () => runs.checkpoint(
+          runId,
+          draft,
+          trace: trace,
+          contextKey: context,
+          finalText: answer,
+        ),
       );
+      if (flush) await _checkpoints!.flush();
     } else {
       await _repository.saveMessage(draft);
     }
@@ -914,9 +945,8 @@ class ChatRunner extends ChangeNotifier {
 
   Future<ChatMessageRecord> _saveDraftVersion(
     ChatMessageRecord draft,
-    String? versionId,
+    String versionId,
   ) async {
-    versionId ??= _idGenerator.generate('version');
     await _repository.saveMessageVersion(
       ChatMessageVersionRecord(
         id: versionId,
@@ -1009,7 +1039,14 @@ class ChatRunner extends ChangeNotifier {
         utf8.encode(
           jsonEncode([
             config.snapshot(),
-            messages.map((m) => encodeMessage(m)..remove('author')).toList(),
+            messages
+                .map(
+                  (m) => encodeMessage(m)
+                    ..remove('author')
+                    ..remove('versionIds')
+                    ..remove('currentVersionIndex'),
+                )
+                .toList(),
           ]),
         ),
       )
@@ -1136,7 +1173,7 @@ class ChatRunner extends ChangeNotifier {
             _finalAnswer = text.toString();
           }
           if (_draftAssistantMessage != null) {
-            await _persistDraftDelta(_draftAssistantMessage!, null);
+            await _persistDraftDelta(_draftAssistantMessage!, flush: true);
           }
           return;
         }
@@ -1150,6 +1187,9 @@ class ChatRunner extends ChangeNotifier {
           return;
         }
         turns.add(assistantTurn);
+        if (_draftAssistantMessage != null) {
+          await _persistDraftDelta(_draftAssistantMessage!, flush: true);
+        }
         for (final call in completed.calls) {
           if (toolSession == null) throw StateError('Tool service unavailable');
           final AiTurn result;
@@ -1169,7 +1209,7 @@ class ChatRunner extends ChangeNotifier {
           turns.add(result);
           _trace.add(result);
           if (_draftAssistantMessage != null) {
-            await _persistDraftDelta(_draftAssistantMessage!, null);
+            await _persistDraftDelta(_draftAssistantMessage!, flush: true);
           }
         }
         yield const ChatStreamDelta(content: '\n\n');

@@ -362,12 +362,21 @@ void main() {
       await tester.pageBack();
       await tester.pumpAndSettle();
 
-      // Custom providers delete from the configuration page bottom.
+      // Custom providers delete from the configuration page bottom, always
+      // behind a confirmation dialog.
       await tester.tap(find.byKey(const ValueKey('provider_cloud')));
       await tester.pumpAndSettle();
       final delete = find.byKey(const Key('provider_delete_button'));
       await revealConfigField(tester, delete);
       await tester.tap(delete);
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsOneWidget);
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(FilledButton),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(find.byType(ConnectionEditor), findsNothing);
       expect(settings.connections.map((c) => c.id), ['preset:openai']);
@@ -416,51 +425,50 @@ void main() {
     expect(settings.connections.map((c) => c.id), ['preset:openai']);
   });
 
-  testWidgets(
-    'manual model additions and removals persist immediately',
-    (tester) async {
-      await tester.pumpWidget(app(editorLauncher()));
-      await openEditor(tester);
-      final add = find.byKey(const Key('provider_add_model'));
-      await reveal(tester, add);
-      await tester.tap(add);
-      await tester.pumpAndSettle();
-      final l = AppLocalizations.of(
-        tester.element(find.byType(AddProviderModelDialog)),
-      )!;
-      await tester.enterText(
-        find.byKey(const Key('provider_manual_model')),
-        ' kept ',
-      );
-      await tester.tap(find.text(l.v2Add));
-      await tester.pump();
-      expect(find.text(l.v2ModelAlreadyAdded), findsOneWidget);
-      await tester.enterText(
-        find.byKey(const Key('provider_manual_model')),
-        ' new-model ',
-      );
-      await tester.tap(find.text(l.v2Add));
-      await tester.pumpAndSettle();
-      // Adding a model saves it without the provider save action.
-      expect(settings.connections.first.models, ['kept', 'new-model']);
-      expect(
-        settings.connections.first.capabilitiesFor('new-model').toJson(),
-        ModelCapabilities.textOnly.toJson(),
-      );
-      final row = find.byKey(const ValueKey('provider_model_new-model'));
-      await reveal(tester, row);
-      await tester.tap(
-        find.descendant(of: row, matching: find.byType(IconButton)),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text(l.v2RemoveModelHelp('new-model')), findsOneWidget);
-      await tester.tap(find.text(l.commonDelete));
-      await tester.pumpAndSettle();
-      // Removal is stored immediately as well.
-      expect(settings.connections.first.models, ['kept']);
-      expect(tester.takeException(), isNull);
-    },
-  );
+  testWidgets('manual model additions and removals persist immediately', (
+    tester,
+  ) async {
+    await tester.pumpWidget(app(editorLauncher()));
+    await openEditor(tester);
+    final add = find.byKey(const Key('provider_add_model'));
+    await reveal(tester, add);
+    await tester.tap(add);
+    await tester.pumpAndSettle();
+    final l = AppLocalizations.of(
+      tester.element(find.byType(AddProviderModelDialog)),
+    )!;
+    await tester.enterText(
+      find.byKey(const Key('provider_manual_model')),
+      ' kept ',
+    );
+    await tester.tap(find.text(l.v2Add));
+    await tester.pump();
+    expect(find.text(l.v2ModelAlreadyAdded), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const Key('provider_manual_model')),
+      ' new-model ',
+    );
+    await tester.tap(find.text(l.v2Add));
+    await tester.pumpAndSettle();
+    // Adding a model saves it without the provider save action.
+    expect(settings.connections.first.models, ['kept', 'new-model']);
+    expect(
+      settings.connections.first.capabilitiesFor('new-model').toJson(),
+      ModelCapabilities.textOnly.toJson(),
+    );
+    final row = find.byKey(const ValueKey('provider_model_new-model'));
+    await reveal(tester, row);
+    await tester.tap(
+      find.descendant(of: row, matching: find.byType(IconButton)),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text(l.v2RemoveModelHelp('new-model')), findsOneWidget);
+    await tester.tap(find.text(l.commonDelete));
+    await tester.pumpAndSettle();
+    // Removal is stored immediately as well.
+    expect(settings.connections.first.models, ['kept']);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'discovery adds only selected candidates; cancel and failure preserve the list',
@@ -800,15 +808,14 @@ void main() {
   testWidgets('editor loads a stored custom api path and saves edits', (
     tester,
   ) async {
-    settings.connections = [_cloud.changed({'apiPath': '/openai/v1/chat'})];
+    settings.connections = [
+      _cloud.changed({'apiPath': '/openai/v1/chat'}),
+    ];
     await tester.pumpWidget(app(editorLauncher()));
     await openEditor(tester);
     final field = find.byKey(const Key('provider_api_path'));
     await revealConfigField(tester, field);
-    expect(
-      tester.widget<TextField>(field).controller!.text,
-      '/openai/v1/chat',
-    );
+    expect(tester.widget<TextField>(field).controller!.text, '/openai/v1/chat');
     await tester.enterText(field, '/v1/chat/completions');
     await tester.pump();
     final save = find.byKey(const Key('provider_save_button'));
@@ -821,7 +828,9 @@ void main() {
   testWidgets('switching away from openai clears the stored api path', (
     tester,
   ) async {
-    settings.connections = [_cloud.changed({'apiPath': '/custom'})];
+    settings.connections = [
+      _cloud.changed({'apiPath': '/custom'}),
+    ];
     await tester.pumpWidget(app(editorLauncher()));
     await openEditor(tester);
     await tester.tap(find.byType(DropdownButtonFormField<AiProtocol>));

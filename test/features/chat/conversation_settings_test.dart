@@ -28,6 +28,7 @@ import 'package:servllama/features/chat/pages/chat_page.dart';
 import 'package:servllama/features/chat/pages/chat_target_picker.dart';
 import 'package:servllama/features/chat/providers/chat_provider.dart';
 import 'package:servllama/features/chat/repositories/chat_session_repository.dart';
+import 'package:servllama/features/chat/repositories/chat_draft_repository.dart';
 import 'package:servllama/features/chat/services/chat_protocol_client.dart';
 import 'package:servllama/features/chat/widgets/chat_session_drawer_section.dart';
 import 'package:servllama/features/chat/widgets/chat_speech_button.dart';
@@ -838,12 +839,10 @@ void main() {
       expect(chat.currentAssistantId, 'a');
       expect(chat.currentModelId, 'two');
       expect(
-        jsonDecode(
-          (await db.query(
-            'SELECT config FROM conversations',
-          )).single.read<String>('config'),
-        ),
-        {'assistantId': 'a'},
+        (await db.query(
+          'SELECT assistant_id FROM conversations',
+        )).single.read<String>('assistant_id'),
+        'a',
       );
     },
   );
@@ -869,7 +868,7 @@ void main() {
       expect(chat.currentDraft, 'B unsent');
       expect(chat.pendingImageAttachments, isEmpty);
       await chat.flushDrafts();
-      final stored = jsonDecode((await db.metadata('chatDrafts'))!);
+      final stored = await ChatDraftRepository(db).load();
       expect(stored['draft:a'], 'A unsent');
       expect(stored[id], 'B unsent');
     },
@@ -878,14 +877,14 @@ void main() {
   test(
     'missing owners and targets stay unresolved until an explicit repair',
     () async {
-      await repository.saveSession(session('orphan', 'removed'));
+      await repository.saveSession(session('orphan', null));
       await chat.load();
       await chat.switchSession('orphan');
       expect(chat.currentAssistant, isNull);
       expect(chat.canSend, isFalse);
       await assistants.select('b');
       await assistants.load();
-      expect(chat.currentAssistantId, 'removed');
+      expect(chat.currentAssistantId, isNull);
       await chat.reassignAssistant('orphan', 'b');
       expect(chat.canSend, isFalse);
       await chat.selectTarget(two);
@@ -1093,7 +1092,7 @@ void main() {
         chat.updateDraft('A late callback must not restore this', key: key);
       }
       await chat.flushDrafts();
-      final saved = jsonDecode((await db.metadata('chatDrafts'))!) as Map;
+      final saved = await ChatDraftRepository(db).load();
       expect(saved.keys, unorderedEquals(['draft:b', 'moved']));
       await chat.selectSession('moved');
       expect(chat.currentAssistantId, 'b');
@@ -1122,12 +1121,12 @@ void main() {
     },
   );
 
-  test('deleting an assistant also removes its adopted legacy draft', () async {
-    await db.setMetadata('chatDrafts', jsonEncode({'draft': 'Legacy A draft'}));
+  test('deleting an assistant also removes its persisted draft', () async {
+    await ChatDraftRepository(db).saveChanges({'draft:a': 'Unsent A draft'});
     await chat.load();
-    expect(chat.currentDraft, 'Legacy A draft');
+    expect(chat.currentDraft, 'Unsent A draft');
     await chat.deleteAssistant('a');
-    expect(jsonDecode((await db.metadata('chatDrafts'))!), isEmpty);
+    expect(await ChatDraftRepository(db).load(), isEmpty);
     expect(chat.currentAssistantId, 'b');
     expect(chat.currentDraft, isEmpty);
   });
@@ -1176,7 +1175,7 @@ void main() {
       expect(chat.visibleMessages, hasLength(2));
       expect(chat.currentDraft, 'Keep draft');
       expect(chat.pendingImageAttachments, ['/fixture/keep.png']);
-      expect(jsonDecode((await db.metadata('chatDrafts'))!)[id], 'Keep draft');
+      expect((await ChatDraftRepository(db).load())[id], 'Keep draft');
       await db.execute('DROP TRIGGER reject_assistant_delete');
       await chat.deleteAssistant('a');
       expect(chat.visibleMessages, isEmpty);
@@ -1352,12 +1351,9 @@ void main() {
   test(
     'cold state restoration keeps session selection data and text drafts',
     () async {
-      await db.setMetadata(
-        'chatDrafts',
-        jsonEncode({'draft': 'Legacy unsent'}),
-      );
+      await ChatDraftRepository(db).saveChanges({'draft:a': 'Unsent'});
       await chat.load();
-      expect(chat.currentDraft, 'Legacy unsent');
+      expect(chat.currentDraft, 'Unsent');
       await chat.selectTarget(two);
       await chat.ensureConversation();
       final id = chat.selectedSession!.id;
@@ -1372,10 +1368,10 @@ void main() {
         await restored.selectSession(id);
         expect(restored.currentAssistantId, 'a');
         expect(restored.currentModelId, 'two');
-        expect(restored.currentDraft, 'Legacy unsent');
+        expect(restored.currentDraft, 'Unsent');
         expect(
-          jsonDecode((await db.metadata('chatDrafts'))!),
-          isNot(contains('draft')),
+          await ChatDraftRepository(db).load(),
+          isNot(contains('draft:a')),
         );
       } finally {
         restored.dispose();
@@ -1389,8 +1385,8 @@ void main() {
     () async {
       Future<void> old(String id, Map<String, dynamic> config) => db
           .execute(
-            'INSERT INTO conversations(id,title,created_at,updated_at,message_ids,config) VALUES(?,?,1,2,?,?)',
-            [id, id, '[]', jsonEncode(config)],
+            'INSERT INTO conversations(id,title,created_at,updated_at,assistant_id) VALUES(?,?,1,2,?)',
+            [id, id, config['assistantId']],
           )
           .then((_) {});
       await old('from-default', {'assistantId': 'a'});
@@ -1398,11 +1394,10 @@ void main() {
       await old('unknown', {});
       await old('configured', {'assistantId': 'b', 'target': two.toJson()});
       await db.execute(
-        'INSERT INTO generation_runs(id,conversation_id,message_id,state,snapshot,checkpoint,updated_at) VALUES(?,?,?,?,?,?,1)',
+        'INSERT INTO generation_runs(id,conversation_id,state,snapshot,checkpoint,updated_at) VALUES(?,?,?,?,?,1)',
         [
           'run',
           'from-run',
-          'message',
           'completed',
           jsonEncode({
             'assistant': {'id': 'removed', 'name': 'Former'},

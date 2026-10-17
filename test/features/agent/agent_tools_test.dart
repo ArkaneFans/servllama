@@ -13,6 +13,7 @@ import 'package:servllama/features/assistants/repositories/assistant_repository.
 import 'package:servllama/features/chat/models/ai_turn.dart';
 import 'package:servllama/features/chat/models/chat_run_config.dart';
 import '../../support/mcp_tool_fixture.dart';
+import '../../support/agent_database_fixture.dart';
 
 void main() {
   late AppDatabase db;
@@ -43,6 +44,7 @@ void main() {
       ),
     );
     token = CancelToken();
+    await seedAgentRun(db, 'run');
     session = await service.open(
       'run',
       'conversation',
@@ -79,6 +81,7 @@ void main() {
 
   Future<void> reopen() async {
     await session.close();
+    await seedAgentRun(db, 'next');
     await AssistantRepository(db).saveAssistant(assistant);
     session = await service.open(
       'next',
@@ -120,7 +123,7 @@ void main() {
         );
       }
       expect(service.pendingCount, 0);
-      expect(await db.query('SELECT * FROM artifacts'), isEmpty);
+      expect(await db.query('SELECT * FROM pending_file_deletions'), isEmpty);
       expect(await Directory('${dir.path}/workspaces').exists(), isFalse);
     },
   );
@@ -172,7 +175,7 @@ void main() {
           expect((await session.invoke(call)).text, result.text);
         }
         expect(fixture.calls, 1);
-        expect(await db.query('SELECT * FROM artifacts'), isEmpty);
+        expect(await db.query('SELECT * FROM pending_file_deletions'), isEmpty);
         expect(await Directory('${dir.path}/workspaces').exists(), isFalse);
         await session.close();
       },
@@ -292,6 +295,7 @@ void main() {
         'skillIds': [skill.id],
       });
       await AssistantRepository(db).saveAssistant(assistant);
+      await seedAgentRun(db, 'selected');
       session = await service.open(
         'selected',
         'conversation',
@@ -416,6 +420,7 @@ void main() {
         modelId: 'm',
         isLocal: false,
       );
+      await seedAgentRun(db, 'skill-run');
       session = await service.open(
         'skill-run',
         'conversation',
@@ -456,6 +461,7 @@ void main() {
       );
       expect(other.isError, isTrue);
       await session.close();
+      await seedAgentRun(db, 'no-tools');
       session = await service.open(
         'no-tools',
         'conversation',
@@ -487,6 +493,7 @@ void main() {
   test(
     'restart classifies executing side effects as unknown and disables approval',
     () async {
+      await seedAgentRun(db, 'old');
       await service.repository.insert(
         const ToolInvocation(
           id: 'old:t',

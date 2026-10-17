@@ -65,16 +65,18 @@ class AgentRepository {
     [s.id, s.name, s.revision, jsonEncode(s.toJson())],
   );
   Future<ToolInvocation?> invocation(String id) async {
-    final rows = await db.query('SELECT * FROM tool_invocations WHERE id=?', [
-      id,
-    ]);
+    final rows = await db.query(
+      'SELECT i.*,g.conversation_id FROM tool_invocations i JOIN generation_runs g ON g.id=i.run_id WHERE i.id=?',
+      [id],
+    );
     return rows.isEmpty ? null : ToolInvocation.fromRow(rows.single);
   }
 
   Future<List<ToolInvocation>> history(
     String conversationId,
   ) async => (await db.query(
-    'SELECT * FROM tool_invocations WHERE conversation_id=? ORDER BY created_at DESC,rowid DESC',
+    'SELECT i.*,g.conversation_id FROM tool_invocations i JOIN generation_runs g ON g.id=i.run_id '
+    'WHERE g.conversation_id=? ORDER BY i.created_at DESC,i.rowid DESC',
     [conversationId],
   )).map(ToolInvocation.fromRow).toList();
 
@@ -82,19 +84,18 @@ class AgentRepository {
     String conversationId,
     String runId,
   ) async => (await db.query(
-    'SELECT * FROM tool_invocations WHERE conversation_id=? AND run_id=? '
-    'ORDER BY created_at,rowid',
+    'SELECT i.*,g.conversation_id FROM tool_invocations i JOIN generation_runs g ON g.id=i.run_id '
+    'WHERE g.conversation_id=? AND i.run_id=? ORDER BY i.created_at,i.rowid',
     [conversationId, runId],
   )).map(ToolInvocation.fromRow).toList(growable: false);
 
   Future<void> insert(ToolInvocation i) async {
     await db.execute(
-      'INSERT INTO tool_invocations(id,run_id,call_id,conversation_id,name,state,payload,created_at) VALUES(?,?,?,?,?,?,?,?)',
+      'INSERT INTO tool_invocations(id,run_id,call_id,name,state,payload,created_at) VALUES(?,?,?,?,?,?,?)',
       [
         i.id,
         i.runId,
         i.callId,
-        i.conversationId,
         i.name,
         i.state,
         jsonEncode(i.payload),
