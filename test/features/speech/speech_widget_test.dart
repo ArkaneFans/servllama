@@ -434,13 +434,23 @@ void main() {
     final l = AppLocalizations.of(tester.element(find.byType(SpeechPage)))!;
     expect(find.text(l.v2Speech), findsOneWidget);
     expect(find.text(l.v2ImportAudio), findsOneWidget);
+    expect(find.textContaining('音频在本机处理'), findsNothing);
+    expect(find.textContaining('请先在模型页下载'), findsNothing);
     expect(tester.takeException(), isNull);
     await tester.tap(find.text(l.v2Tts));
     await tester.pumpAndSettle();
+    expect(find.textContaining('请先在模型页下载'), findsNothing);
     expect(tester.takeException(), isNull);
     await tester.tap(find.text(l.v2Tasks));
     await tester.pumpAndSettle();
-    expect(find.text(l.v2NoSpeechJobs), findsOneWidget);
+    expect(find.text(l.v2NoSpeechJobsEmpty), findsOneWidget);
+    expect(
+      find.ancestor(
+        of: find.text(l.v2NoSpeechJobsEmpty),
+        matching: find.byType(Center),
+      ),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 

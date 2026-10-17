@@ -3482,7 +3482,7 @@ abstract class AppLocalizations {
   /// No description provided for @v2Speech.
   ///
   /// In en, this message translates to:
-  /// **'Speech'**
+  /// **'Voice Workshop'**
   String get v2Speech;
 
   /// No description provided for @v2Asr.
@@ -3520,12 +3520,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reference voices'**
   String get v2Voices;
-
-  /// No description provided for @v2SpeechLocalHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Audio stays on this device. Record or import a file, then view the transcript below.'**
-  String get v2SpeechLocalHelp;
 
   /// No description provided for @v2SpeechAudioInput.
   ///
@@ -3593,12 +3587,6 @@ abstract class AppLocalizations {
   /// **'Start synthesis'**
   String get v2StartTts;
 
-  /// No description provided for @v2InstallSpeechFirst.
-  ///
-  /// In en, this message translates to:
-  /// **'Download or import a compatible speech model first.'**
-  String get v2InstallSpeechFirst;
-
   /// No description provided for @v2SynthesisText.
   ///
   /// In en, this message translates to:
@@ -3640,6 +3628,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No speech tasks yet. Completed, cancelled and interrupted tasks appear here.'**
   String get v2NoSpeechJobs;
+
+  /// No description provided for @v2NoSpeechJobsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No speech tasks yet.'**
+  String get v2NoSpeechJobsEmpty;
 
   /// No description provided for @v2CancelTask.
   ///

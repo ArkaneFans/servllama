@@ -187,10 +187,6 @@ class _SpeechPageState extends State<SpeechPage> {
               controller: _scrolls[AssetKind.asr],
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
               children: [
-                Text(
-                  l.v2SpeechLocalHelp,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
                 SettingsSection.form(
                   title: l.v2Asr,
                   children: [
@@ -224,7 +220,6 @@ class _SpeechPageState extends State<SpeechPage> {
                       : () =>
                             runUiAction(context, () => enqueue(AssetKind.asr)),
                 ),
-                if (asr == null) Text(l.v2InstallSpeechFirst),
                 if (_jobs[AssetKind.asr] != null) result(AssetKind.asr),
               ],
             ),
@@ -322,33 +317,37 @@ class _SpeechPageState extends State<SpeechPage> {
                             () => enqueue(AssetKind.tts),
                           ),
                   ),
-                  if (tts == null) Text(l.v2InstallSpeechFirst),
                   if (_jobs[AssetKind.tts] != null) result(AssetKind.tts),
                 ],
               ),
             if (!widget.forChat)
-              ListView(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-                children: [
-                  if (s.hasWaitingJobs) const SpeechWaitCard(),
-                  if (s.jobs.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Text(l.v2NoSpeechJobs),
-                    ),
-                  ...s.jobs.map(
-                    (job) => SpeechJobTile(
-                      job: job,
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute<void>(
-                          builder: (_) => SpeechJobPage(id: job.id),
+              s.jobs.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          l.v2NoSpeechJobsEmpty,
+                          textAlign: TextAlign.center,
                         ),
                       ),
+                    )
+                  : ListView(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                      children: [
+                        if (s.hasWaitingJobs) const SpeechWaitCard(),
+                        ...s.jobs.map(
+                          (job) => SpeechJobTile(
+                            job: job,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute<void>(
+                                builder: (_) => SpeechJobPage(id: job.id),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
           ],
         ),
       ),

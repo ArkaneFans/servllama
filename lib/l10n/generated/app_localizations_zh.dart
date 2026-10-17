@@ -1838,7 +1838,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2Interrupted => '执行已中断，请明确创建新任务重试。';
 
   @override
-  String get v2Speech => '语音';
+  String get v2Speech => '语音工坊';
 
   @override
   String get v2Asr => '转录';
@@ -1857,9 +1857,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get v2Voices => '参考音色';
-
-  @override
-  String get v2SpeechLocalHelp => '音频在本机处理。录音或导入文件，转录完成后在下方查看文本。';
 
   @override
   String get v2SpeechAudioInput => '录音与音频';
@@ -1895,9 +1892,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2StartTts => '开始合成';
 
   @override
-  String get v2InstallSpeechFirst => '请先在模型页下载或导入相应语音模型。';
-
-  @override
   String get v2SynthesisText => '要合成的文本';
 
   @override
@@ -1917,6 +1911,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get v2NoSpeechJobs => '尚无语音任务。完成、取消和中断的结果都会保留在这里。';
+
+  @override
+  String get v2NoSpeechJobsEmpty => '尚无语音任务';
 
   @override
   String get v2CancelTask => '取消任务';

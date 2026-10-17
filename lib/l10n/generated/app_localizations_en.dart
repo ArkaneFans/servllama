@@ -1941,7 +1941,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Interrupted. Create a new task explicitly to retry.';
 
   @override
-  String get v2Speech => 'Speech';
+  String get v2Speech => 'Voice Workshop';
 
   @override
   String get v2Asr => 'Transcribe';
@@ -1960,10 +1960,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get v2Voices => 'Reference voices';
-
-  @override
-  String get v2SpeechLocalHelp =>
-      'Audio stays on this device. Record or import a file, then view the transcript below.';
 
   @override
   String get v2SpeechAudioInput => 'Recording & audio';
@@ -1999,10 +1995,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2StartTts => 'Start synthesis';
 
   @override
-  String get v2InstallSpeechFirst =>
-      'Download or import a compatible speech model first.';
-
-  @override
   String get v2SynthesisText => 'Text to synthesize';
 
   @override
@@ -2024,6 +2016,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get v2NoSpeechJobs =>
       'No speech tasks yet. Completed, cancelled and interrupted tasks appear here.';
+
+  @override
+  String get v2NoSpeechJobsEmpty => 'No speech tasks yet.';
 
   @override
   String get v2CancelTask => 'Cancel task';
