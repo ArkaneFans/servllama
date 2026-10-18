@@ -4,6 +4,9 @@
   "v2McpSearchHint": "搜索 MCP 服务",
   "v2McpSearchClear": "清除搜索",
   "v2McpNoResults": "没有匹配的 MCP 服务",
+  "v2McpStatus": "状态",
+  "v2McpStatusEnabled": "已启用",
+  "v2McpStatusDisabled": "已禁用",
   "v2McpStatusDisconnected": "未连接",
   "v2McpStatusConnecting": "连接中",
   "v2McpStatusConnected": "已连接",
@@ -17,6 +20,7 @@
     }
   },
   "v2McpConnectionError": "连接错误",
+  "v2McpEnableOnMcpPage": "请先在 MCP 页启用",
   "v2SkillsEmpty": "还没有技能",
   "v2SkillsEmptyHint": "点击右上角 + 导入",
   "v2ManageMcp": "管理 MCP",
@@ -837,6 +841,15 @@
   "v2SkillEnableOnSkillsPage": "请先在技能页启用",
   "v2ScriptsUnsupported": "含脚本参考；本应用只读取静态说明，不执行脚本。",
   "v2Mcp": "MCP",
+  "v2McpDeleteTitle": "删除“{name}”？",
+  "@v2McpDeleteTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "v2McpDeleteCannotUndo": "此操作无法撤销",
   "v2McpHeaders": "自定义请求头",
   "v2McpHeaderName": "请求头名称",
   "v2McpHeaderValue": "请求头值",

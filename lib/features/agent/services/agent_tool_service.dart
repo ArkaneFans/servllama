@@ -382,7 +382,7 @@ class ToolSession {
       ),
     );
     for (final s in await owner.repository.servers()) {
-      if (!config.assistant.mcpServerIds.contains(s.id)) continue;
+      if (!s.enabled || !config.assistant.mcpServerIds.contains(s.id)) continue;
       final connection = await owner.mcp.ensureConnected(s, refreshTools: true);
       final discovered = connection.tools;
       for (final t in discovered) {
@@ -455,7 +455,8 @@ class ToolSession {
     }
     for (final r in _remote.values) {
       if (!servers.any(
-        (s) => s.id == r.server.id && s.revision == r.server.revision,
+        (s) =>
+            s.id == r.server.id && s.revision == r.server.revision && s.enabled,
       )) {
         throw StateError('MCP connection changed');
       }

@@ -100,7 +100,7 @@ class McpConnectionManager extends ChangeNotifier {
       return;
     }
     for (final session in _sessions.values.toList()) {
-      unawaited(_ensureConnected(session));
+      if (session.server.enabled) unawaited(_ensureConnected(session));
     }
   }
 
@@ -120,12 +120,14 @@ class McpConnectionManager extends ChangeNotifier {
       final session = _McpSession(server);
       _sessions[server.id] = session;
       _notify();
-      if (_started) unawaited(_ensureConnected(session));
+      if (_started && server.enabled) unawaited(_ensureConnected(session));
       return;
     }
     final reconnect = _connectionChanged(existing.server, server);
     _updateServer(existing, server);
-    if (reconnect && _started) unawaited(_ensureConnected(existing));
+    if (reconnect && _started && server.enabled) {
+      unawaited(_ensureConnected(existing));
+    }
   }
 
   void remove(String id) {
@@ -138,6 +140,7 @@ class McpConnectionManager extends ChangeNotifier {
     bool refreshTools = false,
   }) async {
     if (_disposed) throw StateError('MCP manager is closed');
+    if (!server.enabled) throw StateError('MCP server is disabled');
     final session = _sessions[server.id];
     if (session == null) {
       upsert(server);
@@ -164,6 +167,23 @@ class McpConnectionManager extends ChangeNotifier {
   void _updateServer(_McpSession session, McpServer server) {
     final reconnect = _connectionChanged(session.server, server);
     session.server = server;
+    if (!server.enabled) {
+      if (reconnect ||
+          session.client != null ||
+          session.connectFuture != null) {
+        session.generation++;
+        session.connectFuture = null;
+        final client = session.client;
+        session.client = null;
+        session.tools = const [];
+        session.state = McpConnectionState(toolCount: server.tools.length);
+        if (client != null) unawaited(client.close());
+      } else {
+        session.state = McpConnectionState(toolCount: server.tools.length);
+      }
+      _notify();
+      return;
+    }
     if (!reconnect) {
       if (session.client == null) {
         session.state = session.state.copyWith(toolCount: server.tools.length);
@@ -182,11 +202,13 @@ class McpConnectionManager extends ChangeNotifier {
   }
 
   bool _connectionChanged(McpServer previous, McpServer next) =>
+      previous.enabled != next.enabled ||
       previous.url != next.url ||
       previous.transport != next.transport ||
       previous.secretRef != next.secretRef;
 
   Future<bool> _ensureConnected(_McpSession session) async {
+    if (!session.server.enabled) return false;
     final active = session.connectFuture;
     if (active != null) {
       await active;
@@ -215,6 +237,7 @@ class McpConnectionManager extends ChangeNotifier {
   }
 
   Future<void> _connect(_McpSession session) async {
+    if (!session.server.enabled) return;
     final generation = session.generation;
     _setState(
       session,
@@ -227,7 +250,7 @@ class McpConnectionManager extends ChangeNotifier {
     McpClient? client;
     try {
       final credentials = await _credentialsFor(session.server);
-      if (!_isCurrent(session, generation)) return;
+      if (!_isCurrent(session, generation) || !session.server.enabled) return;
       client = McpClient(
         session.server,
         headers: credentials.headers,
@@ -268,6 +291,10 @@ class McpConnectionManager extends ChangeNotifier {
   }
 
   Future<void> _refreshSession(_McpSession session) async {
+    if (!session.server.enabled) {
+      _updateServer(session, session.server);
+      return;
+    }
     final connectFuture = session.connectFuture;
     if (connectFuture != null) {
       await connectFuture;

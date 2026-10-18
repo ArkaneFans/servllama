@@ -24,6 +24,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2McpNoResults => '没有匹配的 MCP 服务';
 
   @override
+  String get v2McpStatus => '状态';
+
+  @override
+  String get v2McpStatusEnabled => '已启用';
+
+  @override
+  String get v2McpStatusDisabled => '已禁用';
+
+  @override
   String get v2McpStatusDisconnected => '未连接';
 
   @override
@@ -42,6 +51,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get v2McpConnectionError => '连接错误';
+
+  @override
+  String get v2McpEnableOnMcpPage => '请先在 MCP 页启用';
 
   @override
   String get v2SkillsEmpty => '还没有技能';
@@ -1892,6 +1904,14 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get v2Mcp => 'MCP';
+
+  @override
+  String v2McpDeleteTitle(String name) {
+    return '删除“$name”？';
+  }
+
+  @override
+  String get v2McpDeleteCannotUndo => '此操作无法撤销';
 
   @override
   String get v2McpHeaders => '自定义请求头';

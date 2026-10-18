@@ -856,6 +856,7 @@ void main() {
       expect(find.text('Disconnected'), findsOneWidget);
       expect(find.text('HTTP'), findsOneWidget);
       expect(find.text('0 tools'), findsOneWidget);
+      expect(find.byTooltip('Delete'), findsNothing);
       expect(
         find.textContaining('Streamable HTTP and legacy SSE'),
         findsNothing,
@@ -876,11 +877,16 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(McpEditor), findsOneWidget);
       expect(find.text('Custom request headers'), findsOneWidget);
+      expect(find.byKey(const Key('mcp_enabled_switch')), findsOneWidget);
       expect(
-        find.textContaining('Sent with every MCP request'),
+        find.textContaining('Disabling keeps the configuration'),
         findsNothing,
       );
+      expect(find.textContaining('Sent with every MCP request'), findsNothing);
       expect(find.textContaining('Save to apply'), findsNothing);
+      await tester.tap(find.byKey(const Key('mcp_enabled_switch')));
+      await tester.pump();
+      expect(find.text('Disabled'), findsOneWidget);
       final addHeader = find.byKey(const Key('mcp_add_header'));
       await tester.ensureVisible(addHeader);
       await tester.tap(addHeader);
@@ -939,7 +945,31 @@ void main() {
         () => tools.mcpHeadersFor(saved!),
       );
       expect(savedHeaders, {'X-Test': 'header-value'});
-      await tester.tap(find.byTooltip('Delete'));
+      expect(saved!.enabled, isFalse);
+      expect(find.text('Disabled'), findsOneWidget);
+      expect(find.byTooltip('Delete'), findsNothing);
+
+      await tester.tap(find.text('Renamed MCP'));
+      await tester.pumpAndSettle();
+      expect(find.byType(McpEditor), findsOneWidget);
+      expect(tester.widget<Switch>(find.byType(Switch)).value, isFalse);
+      final delete = find.byKey(const Key('mcp_delete_button'));
+      await tester.scrollUntilVisible(
+        delete,
+        200,
+        scrollable: find
+            .descendant(
+              of: find.byType(ListView),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await tester.ensureVisible(delete);
+      await tester.pumpAndSettle();
+      await tester.tap(delete);
+      await tester.pumpAndSettle();
+      expect(find.text('This action cannot be undone.'), findsOneWidget);
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
       await settleSql(
         tester,
         () => find.text('Renamed MCP').evaluate().isEmpty,

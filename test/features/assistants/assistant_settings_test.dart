@@ -628,6 +628,69 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets(
+    'a bound disabled MCP server keeps its grants but disables tools',
+    (tester) async {
+      const server = McpServer(
+        id: '12345678-paused',
+        name: 'Paused MCP',
+        url: 'https://example.com/mcp',
+        enabled: false,
+        tools: [
+          {'name': 'lookup'},
+        ],
+      );
+      await AgentRepository(db).saveServer(server);
+      final name = AgentToolService.mcpToolName(server.id, 'lookup');
+      final original = a.changed({
+        'tools': [name],
+        'mcpServerIds': [server.id],
+      });
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        app(
+          Scaffold(
+            body: SingleChildScrollView(
+              child: AssistantToolsEditor(assistant: original),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final l = AppLocalizations.of(
+        tester.element(find.byType(AssistantToolsEditor)),
+      )!;
+      await tester.tap(find.widgetWithText(Tab, l.v2Mcp));
+      await tester.pumpAndSettle();
+
+      final serverTile = find.byKey(
+        const ValueKey('assistant_mcp_12345678-paused'),
+      );
+      expect(serverTile, findsOneWidget);
+      expect(find.text(l.v2McpEnableOnMcpPage), findsOneWidget);
+      final title = tester.widget<Text>(
+        find.descendant(of: serverTile, matching: find.text(server.name)),
+      );
+      expect(
+        title.style?.color,
+        Theme.of(
+          tester.element(serverTile),
+        ).colorScheme.onSurface.withValues(alpha: .48),
+      );
+
+      await tester.tap(serverTile);
+      await tester.pumpAndSettle();
+      final tool = tester.widget<CheckboxListTile>(
+        find.byKey(const ValueKey('assistant_mcp_tool_12345678-paused_lookup')),
+      );
+      expect(tool.value, isTrue);
+      expect(tool.onChanged, isNull);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'saving an open editor does not restore deleted skill or MCP grants',

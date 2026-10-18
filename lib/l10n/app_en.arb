@@ -4,6 +4,9 @@
   "v2McpSearchHint": "Search MCP servers",
   "v2McpSearchClear": "Clear search",
   "v2McpNoResults": "No matching MCP servers",
+  "v2McpStatus": "Status",
+  "v2McpStatusEnabled": "Enabled",
+  "v2McpStatusDisabled": "Disabled",
   "v2McpStatusDisconnected": "Disconnected",
   "v2McpStatusConnecting": "Connecting",
   "v2McpStatusConnected": "Connected",
@@ -17,6 +20,7 @@
     }
   },
   "v2McpConnectionError": "Connection error",
+  "v2McpEnableOnMcpPage": "Enable it on the MCP page first",
   "v2SkillsEmpty": "No skills yet",
   "v2SkillsEmptyHint": "Tap + in the upper-right corner to import one",
   "v2ManageMcp": "Manage MCP",
@@ -1050,6 +1054,15 @@
   "v2SkillEnableOnSkillsPage": "Enable it on the Skills page first",
   "v2ScriptsUnsupported": "Contains script references. Only static instructions are used; scripts are not executed.",
   "v2Mcp": "MCP",
+  "v2McpDeleteTitle": "Delete \"{name}\"?",
+  "@v2McpDeleteTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "v2McpDeleteCannotUndo": "This action cannot be undone.",
   "v2McpHeaders": "Custom request headers",
   "v2McpHeaderName": "Header name",
   "v2McpHeaderValue": "Header value",

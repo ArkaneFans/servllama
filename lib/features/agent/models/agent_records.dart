@@ -59,12 +59,14 @@ class McpServer {
     required this.id,
     required this.name,
     required this.url,
+    this.enabled = true,
     this.transport = McpTransport.streamableHttp,
     this.secretRef,
     this.revision = 1,
     this.tools = const [],
   });
   final String id, name, url;
+  final bool enabled;
   final McpTransport transport;
   final String? secretRef;
   final int revision;
@@ -89,6 +91,7 @@ class McpServer {
     'id': id,
     'name': name,
     'url': url,
+    'enabled': enabled,
     'transport': transport.name,
     'secretRef': secretRef,
     'revision': revision,
@@ -98,6 +101,7 @@ class McpServer {
     id: j['id'],
     name: j['name'],
     url: j['url'],
+    enabled: j['enabled'] as bool? ?? true,
     transport: McpTransport.values.byName(j['transport'] ?? 'streamableHttp'),
     secretRef: j['secretRef'],
     revision: j['revision'] ?? 1,

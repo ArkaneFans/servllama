@@ -24,6 +24,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2McpNoResults => 'No matching MCP servers';
 
   @override
+  String get v2McpStatus => 'Status';
+
+  @override
+  String get v2McpStatusEnabled => 'Enabled';
+
+  @override
+  String get v2McpStatusDisabled => 'Disabled';
+
+  @override
   String get v2McpStatusDisconnected => 'Disconnected';
 
   @override
@@ -48,6 +57,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get v2McpConnectionError => 'Connection error';
+
+  @override
+  String get v2McpEnableOnMcpPage => 'Enable it on the MCP page first';
 
   @override
   String get v2SkillsEmpty => 'No skills yet';
@@ -1999,6 +2011,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get v2Mcp => 'MCP';
+
+  @override
+  String v2McpDeleteTitle(String name) {
+    return 'Delete \"$name\"?';
+  }
+
+  @override
+  String get v2McpDeleteCannotUndo => 'This action cannot be undone.';
 
   @override
   String get v2McpHeaders => 'Custom request headers';

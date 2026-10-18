@@ -128,6 +128,24 @@ abstract class AppLocalizations {
   /// **'No matching MCP servers'**
   String get v2McpNoResults;
 
+  /// No description provided for @v2McpStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get v2McpStatus;
+
+  /// No description provided for @v2McpStatusEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get v2McpStatusEnabled;
+
+  /// No description provided for @v2McpStatusDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled'**
+  String get v2McpStatusDisabled;
+
   /// No description provided for @v2McpStatusDisconnected.
   ///
   /// In en, this message translates to:
@@ -163,6 +181,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Connection error'**
   String get v2McpConnectionError;
+
+  /// No description provided for @v2McpEnableOnMcpPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable it on the MCP page first'**
+  String get v2McpEnableOnMcpPage;
 
   /// No description provided for @v2SkillsEmpty.
   ///
@@ -3580,6 +3604,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'MCP'**
   String get v2Mcp;
+
+  /// No description provided for @v2McpDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete \"{name}\"?'**
+  String v2McpDeleteTitle(String name);
+
+  /// No description provided for @v2McpDeleteCannotUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'This action cannot be undone.'**
+  String get v2McpDeleteCannotUndo;
 
   /// No description provided for @v2McpHeaders.
   ///

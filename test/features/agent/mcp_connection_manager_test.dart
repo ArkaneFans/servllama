@@ -90,4 +90,54 @@ void main() {
     expect(state.status, McpConnectionStatus.failed);
     expect(state.error, isNotEmpty);
   });
+
+  test('disabled servers stay offline until enabled again', () async {
+    final fixture = await McpToolFixture.start({
+      'content': [
+        {'type': 'text', 'text': 'ok'},
+      ],
+    });
+    addTearDown(fixture.close);
+    final base = fixture.config;
+    final disabled = McpServer(
+      id: base.id,
+      name: base.name,
+      url: base.url,
+      enabled: false,
+      tools: base.tools,
+    );
+    await service.repository.saveServer(disabled);
+
+    await service.mcp.start();
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+
+    expect(fixture.initializes, 0);
+    expect(
+      service.mcp.stateFor(disabled.id).status,
+      McpConnectionStatus.disconnected,
+    );
+    await expectLater(service.mcp.ensureConnected(disabled), throwsStateError);
+
+    final enabled = McpServer(
+      id: base.id,
+      name: base.name,
+      url: base.url,
+      tools: base.tools,
+    );
+    service.mcp.upsert(enabled);
+    await waitForStatus(enabled.id, McpConnectionStatus.connected);
+    expect(fixture.initializes, 1);
+
+    service.mcp.upsert(disabled);
+    expect(
+      service.mcp.stateFor(disabled.id).status,
+      McpConnectionStatus.disconnected,
+    );
+    await service.mcp.refreshAll();
+    expect(
+      service.mcp.stateFor(disabled.id).status,
+      McpConnectionStatus.disconnected,
+    );
+    expect(fixture.initializes, 1);
+  });
 }

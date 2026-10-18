@@ -295,10 +295,25 @@ class AssistantToolsEditorState extends State<AssistantToolsEditor>
                 padding: const EdgeInsets.symmetric(vertical: 24),
                 child: Text(l.v2McpEmpty, textAlign: TextAlign.center),
               ),
-            ...availableServers.map(
-              (s) => ExpansionTile(
+            ...availableServers.map((s) {
+              final muted = Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: .48);
+              return ExpansionTile(
+                key: ValueKey('assistant_mcp_${s.id}'),
                 tilePadding: EdgeInsets.zero,
-                title: Text(s.name),
+                title: Text(
+                  s.name,
+                  style: s.enabled ? null : TextStyle(color: muted),
+                ),
+                subtitle: s.enabled
+                    ? null
+                    : Text(
+                        l.v2McpEnableOnMcpPage,
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(color: muted),
+                      ),
                 children: [
                   ...s.tools.map((t) {
                     final key = AgentToolService.mcpToolName(
@@ -306,28 +321,31 @@ class AssistantToolsEditorState extends State<AssistantToolsEditor>
                       t['name'] as String,
                     );
                     return CheckboxListTile(
+                      key: ValueKey('assistant_mcp_tool_${s.id}_${t['name']}'),
                       title: Text(t['name'] as String),
                       value: grants.contains(key),
-                      onChanged: (v) {
-                        toggle(grants, key, v!);
-                        if (v) {
-                          servers.add(s.id);
-                        } else if (!s.tools.any(
-                          (t) => grants.contains(
-                            AgentToolService.mcpToolName(
-                              s.id,
-                              t['name'] as String,
-                            ),
-                          ),
-                        )) {
-                          servers.remove(s.id);
-                        }
-                      },
+                      onChanged: s.enabled
+                          ? (v) {
+                              toggle(grants, key, v!);
+                              if (v) {
+                                servers.add(s.id);
+                              } else if (!s.tools.any(
+                                (t) => grants.contains(
+                                  AgentToolService.mcpToolName(
+                                    s.id,
+                                    t['name'] as String,
+                                  ),
+                                ),
+                              )) {
+                                servers.remove(s.id);
+                              }
+                            }
+                          : null,
                     );
                   }),
                 ],
-              ),
-            ),
+              );
+            }),
           ],
         ],
       ),

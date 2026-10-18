@@ -183,6 +183,40 @@ void main() {
   }
 
   test(
+    'disabled MCP servers are not advertised to a bound assistant',
+    () async {
+      final fixture = await McpToolFixture.start({
+        'content': [
+          {'type': 'text', 'text': 'unused'},
+        ],
+      });
+      addTearDown(fixture.close);
+      final base = fixture.config;
+      final server = McpServer(
+        id: base.id,
+        name: base.name,
+        url: base.url,
+        enabled: false,
+        tools: base.tools,
+      );
+      await service.repository.saveServer(server);
+      final name = AgentToolService.mcpToolName(server.id, 'echo');
+      assistant = assistant.changed({
+        'tools': [name],
+        'mcpServerIds': [server.id],
+      });
+
+      await reopen();
+
+      expect(
+        session.definitions.map((tool) => tool.name),
+        isNot(contains(name)),
+      );
+      expect(fixture.initializes, 0);
+    },
+  );
+
+  test(
     'double approval and repeated call ID reuse only the saved answer',
     () async {
       const call = AiToolCall(

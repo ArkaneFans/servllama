@@ -13,6 +13,7 @@ import 'package:servllama/features/agent/services/agent_tool_service.dart';
 import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/widgets/async_action.dart';
 import 'package:servllama/shared/widgets/engine_badge.dart';
+import 'package:servllama/shared/widgets/switch_setting_tile.dart';
 
 class McpServersPage extends StatefulWidget {
   const McpServersPage({super.key});
@@ -164,13 +165,6 @@ class _McpServersPageState extends State<McpServersPage> {
                           server: a,
                           state: s.mcp.stateFor(a.id),
                           onEdit: () => edit(a),
-                          onDelete: () => runUiAction(context, () async {
-                            try {
-                              await s.deleteMcp(a);
-                            } finally {
-                              await reload();
-                            }
-                          }),
                           onErrorTap: (error) => _showConnectionError(a, error),
                         ),
                       ),
@@ -231,19 +225,16 @@ class _McpServerCard extends StatelessWidget {
     required this.server,
     required this.state,
     required this.onEdit,
-    required this.onDelete,
     required this.onErrorTap,
   });
 
   final McpServer server;
   final McpConnectionState state;
   final VoidCallback onEdit;
-  final VoidCallback onDelete;
   final ValueChanged<String> onErrorTap;
 
   @override
   Widget build(BuildContext context) {
-    final l = context.l10n;
     return Card(
       child: ListTile(
         leading: const McpIcon(),
@@ -254,11 +245,7 @@ class _McpServerCard extends StatelessWidget {
           onErrorTap: onErrorTap,
         ),
         onTap: onEdit,
-        trailing: IconButton(
-          tooltip: l.commonDelete,
-          icon: const Icon(Icons.delete_outline),
-          onPressed: onDelete,
-        ),
+        trailing: const Icon(Icons.chevron_right_rounded),
       ),
     );
   }
@@ -279,18 +266,26 @@ class _McpServerSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = context.l10n;
     final theme = Theme.of(context);
-    final (statusLabel, tone) = switch (state.status) {
-      McpConnectionStatus.disconnected => (
-        l.v2McpStatusDisconnected,
-        StatusTone.idle,
-      ),
-      McpConnectionStatus.connecting => (
-        l.v2McpStatusConnecting,
-        StatusTone.warning,
-      ),
-      McpConnectionStatus.connected => (l.v2McpStatusConnected, StatusTone.ok),
-      McpConnectionStatus.failed => (l.v2McpStatusFailed, StatusTone.danger),
-    };
+    final (statusLabel, tone) = server.enabled
+        ? switch (state.status) {
+            McpConnectionStatus.disconnected => (
+              l.v2McpStatusDisconnected,
+              StatusTone.idle,
+            ),
+            McpConnectionStatus.connecting => (
+              l.v2McpStatusConnecting,
+              StatusTone.warning,
+            ),
+            McpConnectionStatus.connected => (
+              l.v2McpStatusConnected,
+              StatusTone.ok,
+            ),
+            McpConnectionStatus.failed => (
+              l.v2McpStatusFailed,
+              StatusTone.danger,
+            ),
+          }
+        : (l.v2McpStatusDisabled, StatusTone.idle);
     final error = state.error;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -308,7 +303,7 @@ class _McpServerSummary extends StatelessWidget {
             _MetaTag(label: l.v2McpToolCount(state.toolCount)),
           ],
         ),
-        if (state.hasError && error != null) ...[
+        if (server.enabled && state.hasError && error != null) ...[
           const SizedBox(height: 8),
           Semantics(
             button: true,
@@ -395,6 +390,7 @@ class _McpEditorState extends State<McpEditor> {
   late final name = TextEditingController(text: original.name),
       url = TextEditingController(text: original.url);
   final headers = <_McpHeaderDraft>[];
+  late bool enabled = original.enabled;
   late McpTransport transport = original.transport;
   late List<Map<String, dynamic>> tools = original.tools;
   bool busy = false, headersLoaded = false, headersLoadFailed = false;
@@ -402,6 +398,7 @@ class _McpEditorState extends State<McpEditor> {
     ...original.toJson(),
     'name': name.text.trim(),
     'url': url.text.trim(),
+    'enabled': enabled,
     'transport': transport.name,
     'revision': original.revision + 1,
     'tools': tools,
@@ -490,6 +487,37 @@ class _McpEditorState extends State<McpEditor> {
     if (mounted) setState(() => busy = false);
   }
 
+  Future<void> _delete() async {
+    final l = context.l10n;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l.v2McpDeleteTitle(original.name)),
+        content: Text(l.v2McpDeleteCannotUndo),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(l.commonCancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
+              foregroundColor: Theme.of(dialogContext).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(l.commonDelete),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final service = context.read<AgentToolService>();
+    await act(() async {
+      await service.deleteMcp(original);
+      if (mounted) Navigator.pop(context);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = context.read<AgentToolService>();
@@ -501,6 +529,17 @@ class _McpEditorState extends State<McpEditor> {
       body: FormListView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
         children: [
+          SettingsSection(
+            title: l.v2McpStatus,
+            child: SwitchSettingTile(
+              key: const Key('mcp_enabled_switch'),
+              title: enabled ? l.v2McpStatusEnabled : l.v2McpStatusDisabled,
+              value: enabled,
+              onChanged: busy
+                  ? null
+                  : (value) => setState(() => enabled = value),
+            ),
+          ),
           SettingsSection.form(
             title: l.v2ProviderConnection,
             children: [
@@ -605,6 +644,16 @@ class _McpEditorState extends State<McpEditor> {
             icon: const Icon(Icons.save_outlined, size: 20),
             label: Text(l.commonSave),
           ),
+          if (widget.server != null)
+            OutlinedButton.icon(
+              key: const Key('mcp_delete_button'),
+              onPressed: busy ? null : _delete,
+              icon: const Icon(Icons.delete_outline, size: 20),
+              label: Text(l.commonDelete),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+              ),
+            ),
         ],
       ),
     );
