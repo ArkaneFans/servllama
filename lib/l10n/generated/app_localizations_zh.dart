@@ -1894,23 +1894,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2Mcp => 'MCP';
 
   @override
-  String get v2McpToken => '静态 Bearer Token';
+  String get v2McpHeaders => '自定义请求头';
 
   @override
-  String get v2McpHeaders => '自定义 HTTP 请求头（JSON）';
+  String get v2McpHeaderName => '请求头名称';
 
   @override
-  String get v2McpHeadersHelp =>
-      '值为字符串的 JSON 对象，例如 X-API-Key 请求头。安全保存；留空保留原值。协议请求头由应用管理。';
+  String get v2McpHeaderValue => '请求头值';
 
   @override
-  String get v2ClearMcpToken => '清除已保存的 Bearer Token';
+  String get v2AddHeader => '添加请求头';
 
   @override
-  String get v2ClearMcpHeaders => '清除已保存的自定义请求头';
-
-  @override
-  String get v2ShowHideCredential => '显示 / 隐藏凭据';
+  String get v2RemoveHeader => '删除请求头';
 
   @override
   String get v2DiscoverTools => '连接并发现工具';
@@ -3030,9 +3026,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get v2InstructionsHint => '描述助手的角色、回复风格和要求…';
-
-  @override
-  String get v2Credentials => '访问凭据';
 
   @override
   String get v2ModelImagesUnavailable => '当前模型未启用图片输入，可在供应商的模型设置中调整。';

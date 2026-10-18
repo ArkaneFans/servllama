@@ -2001,23 +2001,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2Mcp => 'MCP';
 
   @override
-  String get v2McpToken => 'Static bearer token';
+  String get v2McpHeaders => 'Custom request headers';
 
   @override
-  String get v2McpHeaders => 'Custom HTTP headers (JSON)';
+  String get v2McpHeaderName => 'Header name';
 
   @override
-  String get v2McpHeadersHelp =>
-      'JSON string values, for example an X-API-Key header. Stored securely; leave blank to keep existing headers. Protocol headers are managed by the app.';
+  String get v2McpHeaderValue => 'Header value';
 
   @override
-  String get v2ClearMcpToken => 'Remove saved bearer token';
+  String get v2AddHeader => 'Add header';
 
   @override
-  String get v2ClearMcpHeaders => 'Remove saved custom headers';
-
-  @override
-  String get v2ShowHideCredential => 'Show / hide credential';
+  String get v2RemoveHeader => 'Remove header';
 
   @override
   String get v2DiscoverTools => 'Connect and discover tools';
@@ -3216,9 +3212,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get v2InstructionsHint =>
       'Describe the assistant’s role, response style and requirements…';
-
-  @override
-  String get v2Credentials => 'Credentials';
 
   @override
   String get v2ModelImagesUnavailable =>

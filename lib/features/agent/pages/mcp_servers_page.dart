@@ -394,15 +394,10 @@ class _McpEditorState extends State<McpEditor> {
       widget.server ?? McpServer(id: newId(), name: '', url: '');
   late final name = TextEditingController(text: original.name),
       url = TextEditingController(text: original.url);
-  final keyInput = TextEditingController(),
-      headerInput = TextEditingController();
-  bool clearKey = false, clearHeaders = false, showHeaders = false;
-  Map<String, String>? get draftHeaders => headerInput.text.trim().isEmpty
-      ? null
-      : McpCredentials.parseHeaders(headerInput.text);
+  final headers = <_McpHeaderDraft>[];
   late McpTransport transport = original.transport;
   late List<Map<String, dynamic>> tools = original.tools;
-  bool busy = false;
+  bool busy = false, headersLoaded = false, headersLoadFailed = false;
   McpServer get draft => McpServer.fromJson({
     ...original.toJson(),
     'name': name.text.trim(),
@@ -411,13 +406,82 @@ class _McpEditorState extends State<McpEditor> {
     'revision': original.revision + 1,
     'tools': tools,
   });
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHeaders();
+  }
+
   @override
   void dispose() {
     name.dispose();
     url.dispose();
-    keyInput.dispose();
-    headerInput.dispose();
+    for (final header in headers) {
+      header.dispose();
+    }
     super.dispose();
+  }
+
+  Future<void> _loadHeaders() async {
+    try {
+      final stored = await context.read<AgentToolService>().mcpHeadersFor(
+        original,
+      );
+      if (!mounted) return;
+      setState(() {
+        headers
+          ..clear()
+          ..addAll(
+            stored.entries.map(
+              (entry) => _McpHeaderDraft(entry.key, entry.value),
+            ),
+          );
+        headersLoaded = true;
+        headersLoadFailed = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        headersLoaded = true;
+        headersLoadFailed = true;
+      });
+    }
+  }
+
+  void _retryHeaders() {
+    setState(() {
+      headersLoaded = false;
+      headersLoadFailed = false;
+    });
+    _loadHeaders();
+  }
+
+  Map<String, String> _headerValues() {
+    final result = <String, String>{};
+    for (final header in headers) {
+      final key = header.keyName.text.trim();
+      final value = header.value.text.trim();
+      if (key.isEmpty && value.isEmpty) continue;
+      if (key.isEmpty) {
+        throw const FormatException('HTTP header name cannot be empty');
+      }
+      if (result.keys.any(
+        (existing) => existing.toLowerCase() == key.toLowerCase(),
+      )) {
+        throw const FormatException('Duplicate HTTP header name');
+      }
+      result[key] = value;
+    }
+    return result;
+  }
+
+  void _addHeader() {
+    setState(() => headers.add(_McpHeaderDraft()));
+  }
+
+  void _removeHeader(int index) {
+    setState(() => headers.removeAt(index).dispose());
   }
 
   Future<void> act(Future<void> Function() f) async {
@@ -430,27 +494,10 @@ class _McpEditorState extends State<McpEditor> {
   Widget build(BuildContext context) {
     final s = context.read<AgentToolService>();
     final l = context.l10n;
+    final canEditHeaders = headersLoaded && !headersLoadFailed;
+    final canSubmit = canEditHeaders && !busy;
     return AppScaffold(
-      appBar: AppBar(
-        title: Text(l.v2Mcp),
-        actions: [
-          TextButton(
-            onPressed: busy
-                ? null
-                : () => act(() async {
-                    await s.saveMcp(
-                      draft,
-                      newKey: keyInput.text,
-                      headers: draftHeaders,
-                      clearKey: clearKey,
-                      clearHeaders: clearHeaders,
-                    );
-                    if (context.mounted) Navigator.pop(context);
-                  }),
-            child: Text(l.commonSave),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: Text(l.v2Mcp)),
       body: FormListView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
         children: [
@@ -489,74 +536,52 @@ class _McpEditorState extends State<McpEditor> {
             ],
           ),
           SettingsSection.form(
-            title: l.v2Credentials,
+            title: l.v2McpHeaders,
             children: [
-              TextField(
-                controller: keyInput,
-                obscureText: true,
-                autocorrect: false,
-                enableSuggestions: false,
-                decoration: InputDecoration(
-                  labelText: l.v2McpToken,
-                  helperText: l.v2KeyHelp,
+              if (!headersLoaded) const LinearProgressIndicator(),
+              if (headersLoadFailed) ...[
+                Text(
+                  l.v2OperationFailed,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
-              ),
-              if (original.secretRef != null)
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(l.v2ClearMcpToken),
-                  value: clearKey,
-                  onChanged: (v) => setState(() {
-                    clearKey = v ?? false;
-                  }),
-                ),
-              TextField(
-                controller: headerInput,
-                obscureText: !showHeaders,
-                autocorrect: false,
-                enableSuggestions: false,
-                decoration: InputDecoration(
-                  labelText: l.v2McpHeaders,
-                  helperText: l.v2McpHeadersHelp,
-                  helperMaxLines: 4,
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      showHeaders ? Icons.visibility_off : Icons.visibility,
-                    ),
-                    tooltip: l.v2ShowHideCredential,
-                    onPressed: () => setState(() {
-                      showHeaders = !showHeaders;
-                    }),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: _retryHeaders,
+                    child: Text(l.v2ToolRetryLoad),
                   ),
                 ),
-              ),
-              if (original.secretRef != null)
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(l.v2ClearMcpHeaders),
-                  value: clearHeaders,
-                  onChanged: (v) => setState(() {
-                    clearHeaders = v ?? false;
-                  }),
+              ],
+              if (canEditHeaders) ...[
+                for (var i = 0; i < headers.length; i++)
+                  _McpHeaderRow(
+                    index: i,
+                    header: headers[i],
+                    enabled: !busy,
+                    onDelete: () => _removeHeader(i),
+                  ),
+                OutlinedButton.icon(
+                  key: const Key('mcp_add_header'),
+                  onPressed: busy ? null : _addHeader,
+                  icon: const Icon(Icons.add, size: 20),
+                  label: Text(l.v2AddHeader),
                 ),
+              ],
             ],
           ),
           SettingsSection.form(
             title: l.v2ModelTools,
             children: [
               OutlinedButton(
-                onPressed: busy
-                    ? null
-                    : () => act(() async {
+                onPressed: canSubmit
+                    ? () => act(() async {
                         final discovered = await s.testMcp(
                           draft,
-                          keyInput.text,
-                          headers: draftHeaders,
-                          clearKey: clearKey,
-                          clearHeaders: clearHeaders,
+                          headers: _headerValues(),
                         );
                         if (mounted) setState(() => tools = discovered);
-                      }),
+                      })
+                    : null,
                 child: Text(l.v2DiscoverTools),
               ),
               if (busy) const LinearProgressIndicator(),
@@ -569,9 +594,85 @@ class _McpEditorState extends State<McpEditor> {
               ),
             ],
           ),
-          Text(l.v2DraftHelp, style: Theme.of(context).textTheme.bodySmall),
+          FilledButton.icon(
+            key: const Key('mcp_save_button'),
+            onPressed: canSubmit
+                ? () => act(() async {
+                    await s.saveMcp(draft, headers: _headerValues());
+                    if (context.mounted) Navigator.pop(context);
+                  })
+                : null,
+            icon: const Icon(Icons.save_outlined, size: 20),
+            label: Text(l.commonSave),
+          ),
         ],
       ),
+    );
+  }
+}
+
+class _McpHeaderDraft {
+  _McpHeaderDraft([String key = '', String value = ''])
+    : keyName = TextEditingController(text: key),
+      value = TextEditingController(text: value);
+
+  final TextEditingController keyName;
+  final TextEditingController value;
+
+  void dispose() {
+    keyName.dispose();
+    value.dispose();
+  }
+}
+
+class _McpHeaderRow extends StatelessWidget {
+  const _McpHeaderRow({
+    required this.index,
+    required this.header,
+    required this.enabled,
+    required this.onDelete,
+  });
+
+  final int index;
+  final _McpHeaderDraft header;
+  final bool enabled;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            children: [
+              TextField(
+                key: ValueKey('mcp_header_name_$index'),
+                controller: header.keyName,
+                enabled: enabled,
+                autocorrect: false,
+                enableSuggestions: false,
+                textInputAction: TextInputAction.next,
+                decoration: InputDecoration(labelText: l.v2McpHeaderName),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: ValueKey('mcp_header_value_$index'),
+                controller: header.value,
+                enabled: enabled,
+                autocorrect: false,
+                enableSuggestions: false,
+                decoration: InputDecoration(labelText: l.v2McpHeaderValue),
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          tooltip: l.v2RemoveHeader,
+          onPressed: enabled ? onDelete : null,
+          icon: const Icon(Icons.delete_outline),
+        ),
+      ],
     );
   }
 }

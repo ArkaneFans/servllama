@@ -64,45 +64,30 @@ class AgentToolService extends ChangeNotifier {
     return McpCredentials.fromStored(raw ?? '');
   }
 
-  Future<McpCredentials> _credentialDraft(
-    McpServer server,
-    String key, {
-    Map<String, String>? headers,
-    bool clearKey = false,
-    bool clearHeaders = false,
-  }) async {
-    final previous = await credentialsFor(server, allowMissing: true);
-    final result = McpCredentials(
-      token: key.isNotEmpty ? key : (clearKey ? '' : previous.token),
-      headers: headers ?? (clearHeaders ? const {} : previous.headers),
-    );
-    result.validate();
-    return result;
+  /// Returns the editable request headers for a stored server.
+  Future<Map<String, String>> mcpHeadersFor(McpServer server) async {
+    final stored = await credentialsFor(server, allowMissing: true);
+    return {...stored.headers};
   }
 
   Future<void> saveMcp(
     McpServer draft, {
-    String newKey = '',
-    Map<String, String>? headers,
-    bool clearKey = false,
-    bool clearHeaders = false,
+    required Map<String, String> headers,
   }) async {
     draft.validate();
     final previous = (await repository.servers())
         .where((s) => s.id == draft.id)
         .firstOrNull;
+    final credentials = McpCredentials(headers: headers)..validate();
+    final previousCredentials = previous == null
+        ? McpCredentials()
+        : await credentialsFor(previous, allowMissing: true);
     String? ref = previous?.secretRef;
-    if (newKey.isNotEmpty || headers != null || clearKey || clearHeaders) {
-      final credentials = await _credentialDraft(
-        previous ?? draft,
-        newKey,
-        headers: headers,
-        clearKey: clearKey,
-        clearHeaders: clearHeaders,
-      );
-      ref = credentials.token.isEmpty && credentials.headers.isEmpty
-          ? null
-          : 'mcp:${draft.id}:${newId()}';
+    final unchanged =
+        mapEquals(previousCredentials.headers, credentials.headers) &&
+        (ref != null) == credentials.headers.isNotEmpty;
+    if (!unchanged) {
+      ref = credentials.headers.isEmpty ? null : 'mcp:${draft.id}:${newId()}';
       if (ref != null) {
         await SecretStore.instance.write(ref, credentials.encode());
       }
@@ -134,22 +119,12 @@ class AgentToolService extends ChangeNotifier {
   }
 
   Future<List<Map<String, dynamic>>> testMcp(
-    McpServer draft,
-    String key, {
-    Map<String, String>? headers,
-    bool clearKey = false,
-    bool clearHeaders = false,
+    McpServer draft, {
+    required Map<String, String> headers,
   }) async {
-    final credentials = await _credentialDraft(
-      draft,
-      key,
-      headers: headers,
-      clearKey: clearKey,
-      clearHeaders: clearHeaders,
-    );
+    final credentials = McpCredentials(headers: headers)..validate();
     final client = McpClient(
       draft,
-      credentials.token,
       headers: credentials.headers,
       logger: _logger,
     );

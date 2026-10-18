@@ -3581,41 +3581,35 @@ abstract class AppLocalizations {
   /// **'MCP'**
   String get v2Mcp;
 
-  /// No description provided for @v2McpToken.
-  ///
-  /// In en, this message translates to:
-  /// **'Static bearer token'**
-  String get v2McpToken;
-
   /// No description provided for @v2McpHeaders.
   ///
   /// In en, this message translates to:
-  /// **'Custom HTTP headers (JSON)'**
+  /// **'Custom request headers'**
   String get v2McpHeaders;
 
-  /// No description provided for @v2McpHeadersHelp.
+  /// No description provided for @v2McpHeaderName.
   ///
   /// In en, this message translates to:
-  /// **'JSON string values, for example an X-API-Key header. Stored securely; leave blank to keep existing headers. Protocol headers are managed by the app.'**
-  String get v2McpHeadersHelp;
+  /// **'Header name'**
+  String get v2McpHeaderName;
 
-  /// No description provided for @v2ClearMcpToken.
+  /// No description provided for @v2McpHeaderValue.
   ///
   /// In en, this message translates to:
-  /// **'Remove saved bearer token'**
-  String get v2ClearMcpToken;
+  /// **'Header value'**
+  String get v2McpHeaderValue;
 
-  /// No description provided for @v2ClearMcpHeaders.
+  /// No description provided for @v2AddHeader.
   ///
   /// In en, this message translates to:
-  /// **'Remove saved custom headers'**
-  String get v2ClearMcpHeaders;
+  /// **'Add header'**
+  String get v2AddHeader;
 
-  /// No description provided for @v2ShowHideCredential.
+  /// No description provided for @v2RemoveHeader.
   ///
   /// In en, this message translates to:
-  /// **'Show / hide credential'**
-  String get v2ShowHideCredential;
+  /// **'Remove header'**
+  String get v2RemoveHeader;
 
   /// No description provided for @v2DiscoverTools.
   ///
@@ -5764,12 +5758,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Describe the assistant’s role, response style and requirements…'**
   String get v2InstructionsHint;
-
-  /// No description provided for @v2Credentials.
-  ///
-  /// In en, this message translates to:
-  /// **'Credentials'**
-  String get v2Credentials;
 
   /// No description provided for @v2ModelImagesUnavailable.
   ///

@@ -3,39 +3,29 @@ import 'package:drift/drift.dart';
 
 enum McpTransport { streamableHttp, sse }
 
-/// The complete credential is one secure-storage value, never server config.
+/// Request headers are stored as one secure-storage value, never server config.
 class McpCredentials {
-  McpCredentials({this.token = '', Map<String, String> headers = const {}})
+  McpCredentials({Map<String, String> headers = const {}})
     : headers = Map.unmodifiable(headers);
-  final String token;
+
   final Map<String, String> headers;
-  static const _prefix = 'servllama-mcp-v1:';
+
+  static const _prefix = 'servllama-mcp-headers:v1:';
+
   factory McpCredentials.fromStored(String value) {
-    if (!value.startsWith(_prefix)) return McpCredentials(token: value);
-    final json = jsonDecode(value.substring(_prefix.length)) as Map;
-    return McpCredentials(
-      token: json['token'] as String? ?? '',
-      headers: Map<String, String>.from(json['headers'] as Map? ?? {}),
-    );
-  }
-  String encode() => _prefix + jsonEncode({'token': token, 'headers': headers});
-  static Map<String, String> parseHeaders(String value) {
-    final parsed = jsonDecode(value);
-    if (parsed is! Map ||
-        parsed.keys.any((k) => k is! String) ||
-        parsed.values.any((v) => v is! String)) {
-      throw const FormatException(
-        'HTTP headers must be a JSON object of strings',
-      );
+    if (value.isEmpty) return McpCredentials();
+    if (!value.startsWith(_prefix)) {
+      throw const FormatException('Invalid MCP headers');
     }
-    return Map<String, String>.from(parsed);
+    final json = jsonDecode(value.substring(_prefix.length)) as Map;
+    return McpCredentials(headers: Map<String, String>.from(json));
   }
 
+  String encode() => _prefix + jsonEncode(headers);
+
   void validate() {
-    if (token.length > 8192 ||
-        token.contains(RegExp(r'[\r\n]')) ||
-        headers.length > 16) {
-      throw const FormatException('Invalid MCP credentials');
+    if (headers.length > 16) {
+      throw const FormatException('Invalid MCP headers');
     }
     final names = <String>{};
     var size = 0;
@@ -55,8 +45,7 @@ class McpCredentials {
             'transfer-encoding',
             'mcp-session-id',
             'mcp-protocol-version',
-          }.contains(name) ||
-          (name == 'authorization' && token.isNotEmpty)) {
+          }.contains(name)) {
         throw const FormatException(
           'Invalid, duplicate or protocol-owned MCP header',
         );

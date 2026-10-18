@@ -243,42 +243,36 @@ void main() {
     },
   );
   test(
-    'MCP bearer and custom headers stay in secure storage and clear independently',
+    'MCP custom headers stay in secure storage and can be replaced',
     () async {
       const draft = McpServer(
         id: '12345678-0000-0000-0000-000000000000',
         name: 'secure headers',
         url: 'https://example.com/mcp',
       );
-      await service.saveMcp(
-        draft,
-        newKey: 'bearer-fixture',
-        headers: {'X-API-Key': 'header-fixture'},
-      );
+      const firstHeaders = {
+        'Authorization': 'Bearer header-token',
+        'X-API-Key': 'header-fixture',
+      };
+      await service.saveMcp(draft, headers: firstHeaders);
       var saved = (await service.repository.servers()).single;
       var credentials = await service.credentialsFor(saved);
-      expect(credentials.token, 'bearer-fixture');
-      expect(credentials.headers, {'X-API-Key': 'header-fixture'});
+      expect(credentials.headers, firstHeaders);
       final config = (await db.query(
         'SELECT config FROM mcp_servers',
       )).single.read<String>('config');
-      expect(config, isNot(contains('bearer-fixture')));
+      expect(config, isNot(contains('header-token')));
       expect(config, isNot(contains('header-fixture')));
-      await service.saveMcp(saved);
-      expect(
-        (await service.credentialsFor(
-          (await service.repository.servers()).single,
-        )).headers,
-        credentials.headers,
-      );
       final firstRef = saved.secretRef!;
-      await service.saveMcp(saved, clearKey: true);
+      await service.saveMcp(saved, headers: firstHeaders);
+      saved = (await service.repository.servers()).single;
+      expect(saved.secretRef, firstRef);
+      await service.saveMcp(saved, headers: {'X-API-Key': 'rotated'});
       saved = (await service.repository.servers()).single;
       credentials = await service.credentialsFor(saved);
-      expect(credentials.token, isEmpty);
-      expect(credentials.headers['X-API-Key'], 'header-fixture');
+      expect(credentials.headers, {'X-API-Key': 'rotated'});
       expect(await SecretStore.instance.read(firstRef), isNull);
-      await service.saveMcp(saved, clearHeaders: true);
+      await service.saveMcp(saved, headers: const {});
       expect((await service.repository.servers()).single.secretRef, isNull);
     },
   );

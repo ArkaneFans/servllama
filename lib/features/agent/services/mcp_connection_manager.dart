@@ -230,7 +230,6 @@ class McpConnectionManager extends ChangeNotifier {
       if (!_isCurrent(session, generation)) return;
       client = McpClient(
         session.server,
-        credentials.token,
         headers: credentials.headers,
         logger: _logger,
         onToolsChanged: () {

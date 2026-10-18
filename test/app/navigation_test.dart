@@ -875,8 +875,56 @@ void main() {
       await tester.tap(find.text(server.name));
       await tester.pumpAndSettle();
       expect(find.byType(McpEditor), findsOneWidget);
+      expect(find.text('Custom request headers'), findsOneWidget);
+      expect(
+        find.textContaining('Sent with every MCP request'),
+        findsNothing,
+      );
+      expect(find.textContaining('Save to apply'), findsNothing);
+      final addHeader = find.byKey(const Key('mcp_add_header'));
+      await tester.ensureVisible(addHeader);
+      await tester.tap(addHeader);
+      await tester.pump();
+      expect(
+        tester.getSize(find.byKey(const Key('mcp_header_name_0'))).width,
+        tester.getSize(find.byKey(const Key('mcp_header_value_0'))).width,
+      );
+      await tester.enterText(
+        find.byKey(const Key('mcp_header_name_0')),
+        'X-Test',
+      );
+      await tester.enterText(
+        find.byKey(const Key('mcp_header_value_0')),
+        'header-value',
+      );
+      await tester.tap(find.byTooltip('Remove header'));
+      await tester.pump();
+      expect(find.byKey(const Key('mcp_header_name_0')), findsNothing);
+      await tester.tap(addHeader);
+      await tester.pump();
+      await tester.enterText(
+        find.byKey(const Key('mcp_header_name_0')),
+        'X-Test',
+      );
+      await tester.enterText(
+        find.byKey(const Key('mcp_header_value_0')),
+        'header-value',
+      );
       await tester.enterText(find.byType(TextField).first, 'Renamed MCP');
-      await tester.tap(find.widgetWithText(TextButton, 'Save'));
+      final save = find.byKey(const Key('mcp_save_button'));
+      await tester.scrollUntilVisible(
+        save,
+        200,
+        scrollable: find
+            .descendant(
+              of: find.byType(ListView),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await tester.ensureVisible(save);
+      await tester.pumpAndSettle();
+      await tester.tap(save);
       await settleSql(
         tester,
         () =>
@@ -884,6 +932,13 @@ void main() {
             find.text('Renamed MCP').evaluate().isNotEmpty,
       );
       expect(find.byType(McpEditor), findsNothing);
+      final saved = await tester.runAsync(
+        () async => (await tools.repository.servers()).single,
+      );
+      final savedHeaders = await tester.runAsync(
+        () => tools.mcpHeadersFor(saved!),
+      );
+      expect(savedHeaders, {'X-Test': 'header-value'});
       await tester.tap(find.byTooltip('Delete'));
       await settleSql(
         tester,

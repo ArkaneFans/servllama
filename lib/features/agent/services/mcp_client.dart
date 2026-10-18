@@ -11,8 +11,7 @@ import 'package:servllama/features/agent/models/agent_records.dart';
 /// connection test. No subprocesses, automatic retries, or implicit replays.
 class McpClient {
   McpClient(
-    this.server,
-    String key, {
+    this.server, {
     Dio? dio,
     AppLogger? logger,
     this.runId,
@@ -20,7 +19,7 @@ class McpClient {
     this.onConnectionLost,
     Map<String, String> headers = const {},
   }) : _logger = logger ?? AppLogger.instance,
-       credentials = McpCredentials(token: key, headers: headers),
+       credentials = McpCredentials(headers: headers),
        dio =
            dio ??
            Dio(
@@ -41,7 +40,6 @@ class McpClient {
     'transport': server.transport.name,
   };
   final McpCredentials credentials;
-  String get key => credentials.token;
   final Dio dio;
   final void Function()? onToolsChanged;
   final void Function(Object error)? onConnectionLost;
@@ -61,14 +59,12 @@ class McpClient {
     ...credentials.headers,
     'Content-Type': 'application/json',
     'Accept': 'application/json, text/event-stream',
-    if (key.isNotEmpty) 'Authorization': 'Bearer $key',
     if (_sessionId != null) 'Mcp-Session-Id': _sessionId!,
     'MCP-Protocol-Version': _version,
   };
   void _validate() {
     server.validate();
     credentials.validate();
-    LogRedactor.remember(key);
     for (final value in credentials.headers.values) {
       LogRedactor.remember(value);
     }

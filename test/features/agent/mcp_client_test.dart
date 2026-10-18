@@ -97,8 +97,10 @@ void main() {
             url: 'http://127.0.0.1:${server.port}/mcp',
             transport: transport,
           ),
-          'secret',
-          headers: const {'X-API-Key': 'custom-header-fixture'},
+          headers: const {
+            'Authorization': 'Bearer secret',
+            'X-API-Key': 'custom-header-fixture',
+          },
           logger: logger,
           runId: 'test-run',
         );
@@ -143,21 +145,22 @@ void main() {
     );
   }
   test(
-    'MCP credential validation rejects reserved, duplicate and injected headers',
+    'MCP header storage round-trips and validation rejects unsafe headers',
     () {
-      expect(McpCredentials.fromStored('legacy-token').token, 'legacy-token');
+      const storedHeaders = {'Authorization': 'Bearer token', 'X-Key': 'value'};
+      final stored = McpCredentials(headers: storedHeaders);
+      expect(McpCredentials.fromStored(stored.encode()).headers, storedHeaders);
       expect(
-        () => McpCredentials.parseHeaders('{"X-Key":42}'),
+        () => McpCredentials.fromStored('legacy-token'),
         throwsFormatException,
       );
       for (final headers in <Map<String, String>>[
         {'Content-Type': 'text/plain'},
         {'X-Key': 'one', 'x-key': 'two'},
         {'X-Key': 'value\r\nOther: injected'},
-        {'Authorization': 'another token'},
       ]) {
         expect(
-          () => McpCredentials(token: 'token', headers: headers).validate(),
+          () => McpCredentials(headers: headers).validate(),
           throwsFormatException,
         );
       }
