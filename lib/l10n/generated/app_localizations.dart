@@ -110,6 +110,42 @@ abstract class AppLocalizations {
   /// **'Tap + in the upper-right corner to add one'**
   String get v2McpEmptyHint;
 
+  /// No description provided for @v2McpStatusDisconnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnected'**
+  String get v2McpStatusDisconnected;
+
+  /// No description provided for @v2McpStatusConnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting'**
+  String get v2McpStatusConnecting;
+
+  /// No description provided for @v2McpStatusConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get v2McpStatusConnected;
+
+  /// No description provided for @v2McpStatusFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get v2McpStatusFailed;
+
+  /// No description provided for @v2McpToolCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 tool} other{{count} tools}}'**
+  String v2McpToolCount(num count);
+
+  /// No description provided for @v2McpConnectionError.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection error'**
+  String get v2McpConnectionError;
+
   /// No description provided for @v2SkillsEmpty.
   ///
   /// In en, this message translates to:
@@ -187,6 +223,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Done'**
   String get commonDone;
+
+  /// No description provided for @commonClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get commonClose;
 
   /// No description provided for @commonDelete.
   ///

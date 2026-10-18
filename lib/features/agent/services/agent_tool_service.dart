@@ -13,6 +13,7 @@ import 'package:servllama/core/security/secret_store.dart';
 import 'package:servllama/features/agent/models/agent_records.dart';
 import 'package:servllama/features/agent/models/web_search.dart';
 import 'package:servllama/features/agent/repositories/agent_repository.dart';
+import 'package:servllama/features/agent/services/mcp_connection_manager.dart';
 import 'package:servllama/features/agent/services/mcp_client.dart';
 import 'package:servllama/features/agent/services/skill_service.dart';
 import 'package:servllama/features/agent/services/tool_schema.dart';
@@ -29,7 +30,13 @@ class AgentToolService extends ChangeNotifier {
     WebSearchService? webSearch,
   }) : _logger = logger ?? AppLogger.instance,
        skills = SkillService(repository, root, logger: logger),
-       webSearch = webSearch ?? WebSearchService(logger: logger);
+       webSearch = webSearch ?? WebSearchService(logger: logger) {
+    mcp = McpConnectionManager(
+      repository: repository,
+      credentialsFor: credentialsFor,
+      logger: _logger,
+    )..addListener(_changed);
+  }
   final AppLogger _logger;
   static AgentToolService? current;
   static Future<AgentToolService> create() async {
@@ -39,6 +46,7 @@ class AgentToolService extends ChangeNotifier {
     );
     await s.repository.recover();
     current = s;
+    unawaited(s.mcp.start());
     return s;
   }
 
@@ -99,20 +107,20 @@ class AgentToolService extends ChangeNotifier {
         await SecretStore.instance.write(ref, credentials.encode());
       }
     }
+    final saved = McpServer.fromJson({
+      ...draft.toJson(),
+      'secretRef': ref,
+      'revision': (previous?.revision ?? 0) + 1,
+    });
     try {
-      await repository.saveServer(
-        McpServer.fromJson({
-          ...draft.toJson(),
-          'secretRef': ref,
-          'revision': (previous?.revision ?? 0) + 1,
-        }),
-      );
+      await repository.saveServer(saved);
     } catch (_) {
       if (ref != null && ref != previous?.secretRef) {
         await SecretStore.instance.delete(ref);
       }
       rethrow;
     }
+    mcp.upsert(saved);
     await revalidate();
     notifyListeners();
     if (previous?.secretRef != null && previous!.secretRef != ref) {
@@ -160,6 +168,7 @@ class AgentToolService extends ChangeNotifier {
         server.id,
       ]);
     });
+    mcp.remove(server.id);
     await revalidate();
     notifyListeners();
     if (server.secretRef != null) {
@@ -224,6 +233,7 @@ class AgentToolService extends ChangeNotifier {
   final AgentRepository repository;
   final SkillService skills;
   final WebSearchService webSearch;
+  late final McpConnectionManager mcp;
   final Map<String, Completer<({bool allowed, String answer})>> _approvals = {};
   List<ToolInvocation> _activeInvocations = const [];
   List<ToolInvocation> get activeInvocations => _activeInvocations;
@@ -333,6 +343,8 @@ class AgentToolService extends ChangeNotifier {
 
   @override
   void dispose() {
+    mcp.removeListener(_changed);
+    mcp.dispose();
     webSearch.dispose();
     super.dispose();
   }
@@ -357,9 +369,16 @@ class ToolSession {
   >
   _remote = {};
   final List<SkillRecord> _skills = [];
-  final Set<McpClient> _clients = {};
+  bool _listeningForMcpChanges = false;
   String skillInstructions = '';
   bool _closed = false;
+
+  void _onMcpToolsChanged(String serverId) {
+    if (config.assistant.mcpServerIds.contains(serverId)) {
+      token.cancel('MCP tool catalog changed');
+    }
+  }
+
   Future<void> _initialize() async {
     final current = {
       for (final skill in await owner.repository.skills()) skill.id: skill,
@@ -378,6 +397,8 @@ class ToolSession {
       throw StateError('Selected skills exceed context allowance');
     }
     if (!config.capabilities.supportsTools) return;
+    owner.mcp.addToolChangeListener(_onMcpToolsChanged);
+    _listeningForMcpChanges = true;
     definitions.addAll(
       _builtins.where(
         (t) =>
@@ -387,18 +408,8 @@ class ToolSession {
     );
     for (final s in await owner.repository.servers()) {
       if (!config.assistant.mcpServerIds.contains(s.id)) continue;
-      final credentials = await owner.credentialsFor(s);
-      final client = McpClient(
-        s,
-        credentials.token,
-        headers: credentials.headers,
-        logger: owner._logger,
-        runId: runId,
-        onToolsChanged: () => token.cancel('MCP tool catalog changed'),
-      );
-      _clients.add(client);
-      await client.connect();
-      final discovered = await client.listTools();
+      final connection = await owner.mcp.ensureConnected(s, refreshTools: true);
+      final discovered = connection.tools;
       for (final t in discovered) {
         final original = s.tools
             .where((v) => v['name'] == t['name'])
@@ -412,7 +423,7 @@ class ToolSession {
             'MCP tool schema changed; refresh and save its permissions',
           );
         }
-        _remote[name] = (client: client, server: s, tool: t);
+        _remote[name] = (client: connection.client, server: s, tool: t);
         definitions.add(
           AiTool(
             name,
@@ -719,8 +730,9 @@ class ToolSession {
   Future<void> close() async {
     if (_closed) return;
     _closed = true;
-    for (final client in _clients) {
-      await client.close();
+    if (_listeningForMcpChanges) {
+      owner.mcp.removeToolChangeListener(_onMcpToolsChanged);
+      _listeningForMcpChanges = false;
     }
     owner._approvals.clear();
     owner._logger.event(

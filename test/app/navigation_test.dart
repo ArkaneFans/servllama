@@ -1,4 +1,5 @@
 import 'package:servllama/features/settings/pages/download_settings_page.dart';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/rendering.dart';
 import 'package:servllama/features/design_preview/ui_primitives_page.dart';
@@ -851,6 +852,10 @@ void main() {
         tester,
         () => find.text(server.name).evaluate().isNotEmpty,
       );
+      expect(find.text(server.url), findsNothing);
+      expect(find.text('Disconnected'), findsOneWidget);
+      expect(find.text('HTTP'), findsOneWidget);
+      expect(find.text('0 tools'), findsOneWidget);
       expect(
         find.textContaining('Streamable HTTP and legacy SSE'),
         findsNothing,
@@ -881,6 +886,45 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
+
+  testWidgets('MCP cards show connection errors and open bounded details', (
+    tester,
+  ) async {
+    late final McpServer server;
+    await tester.runAsync(() async {
+      final probe = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final port = probe.port;
+      await probe.close();
+      server = McpServer(
+        id: '12345678-0000-0000-0000-000000000003',
+        name: 'Unavailable MCP',
+        url: 'http://127.0.0.1:$port/mcp',
+      );
+      await tools.repository.saveServer(server);
+      await tools.mcp.refreshAll();
+    });
+    screen(tester, const Size(360, 800));
+    await tester.pumpWidget(app(home: const McpServersPage()));
+    await settleSql(tester, () => find.text(server.name).evaluate().isNotEmpty);
+    expect(tester.takeException(), isNull);
+    expect(find.text(server.url), findsNothing);
+    expect(find.text('Failed'), findsOneWidget);
+    expect(find.text('HTTP'), findsOneWidget);
+    expect(find.text('0 tools'), findsOneWidget);
+    await tester.tap(
+      find.byKey(
+        const ValueKey('mcp_error_12345678-0000-0000-0000-000000000003'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('Connection error'), findsOneWidget);
+    expect(find.byType(SelectableText), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, 'Close'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   testWidgets(
     'model tabs preserve search and keep language downloads reachable',

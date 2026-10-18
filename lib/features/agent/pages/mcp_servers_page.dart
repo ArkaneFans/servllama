@@ -3,13 +3,16 @@ import 'package:servllama/shared/widgets/form_list_view.dart';
 import 'package:servllama/shared/widgets/app_scaffold.dart';
 import 'package:servllama/shared/widgets/mcp_icon.dart';
 import 'package:flutter/material.dart';
+import 'package:servllama/app/app_palette.dart';
 import 'package:servllama/features/assistants/providers/assistant_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/core/utils/new_id.dart';
 import 'package:servllama/features/agent/models/agent_records.dart';
+import 'package:servllama/features/agent/models/mcp_connection.dart';
 import 'package:servllama/features/agent/services/agent_tool_service.dart';
 import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/widgets/async_action.dart';
+import 'package:servllama/shared/widgets/engine_badge.dart';
 
 class McpServersPage extends StatefulWidget {
   const McpServersPage({super.key});
@@ -18,8 +21,6 @@ class McpServersPage extends StatefulWidget {
 }
 
 class _McpServersPageState extends State<McpServersPage> {
-  List<McpServer> servers = [];
-  bool loaded = false;
   @override
   void initState() {
     super.initState();
@@ -28,22 +29,23 @@ class _McpServersPageState extends State<McpServersPage> {
     });
   }
 
-  Future<void> reload() async {
+  Future<void> reload({bool refreshConnections = false}) async {
     if (!mounted) return;
     final service = context.read<AgentToolService>();
     final assistants = context.read<AssistantProvider>();
-    try {
-      final records = await service.repository.servers();
-      await assistants.load();
-      if (mounted) setState(() => servers = records);
-    } finally {
-      if (mounted) setState(() => loaded = true);
+    if (refreshConnections) {
+      await service.mcp.refreshAll();
+    } else {
+      await service.mcp.load();
     }
+    await assistants.load();
   }
 
   @override
   Widget build(BuildContext context) {
-    final s = context.read<AgentToolService>();
+    final s = context.watch<AgentToolService>();
+    final servers = s.mcp.servers;
+    final loaded = s.mcp.loaded;
     final l = context.l10n;
     return AppScaffold(
       appBar: AppBar(
@@ -59,7 +61,8 @@ class _McpServersPageState extends State<McpServersPage> {
       body: SafeArea(
         top: false,
         child: RefreshIndicator(
-          onRefresh: () => runUiAction(context, reload),
+          onRefresh: () =>
+              runUiAction(context, () => reload(refreshConnections: true)),
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
@@ -104,28 +107,18 @@ class _McpServersPageState extends State<McpServersPage> {
                   sliver: SliverList.list(
                     children: [
                       ...servers.map(
-                        (a) => Card(
-                          child: ListTile(
-                            leading: const McpIcon(),
-                            title: Text(a.name),
-                            subtitle: Text(
-                              a.url,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            onTap: () => edit(a),
-                            trailing: IconButton(
-                              tooltip: l.commonDelete,
-                              icon: const Icon(Icons.delete_outline),
-                              onPressed: () => runUiAction(context, () async {
-                                try {
-                                  await s.deleteMcp(a);
-                                } finally {
-                                  await reload();
-                                }
-                              }),
-                            ),
-                          ),
+                        (a) => _McpServerCard(
+                          server: a,
+                          state: s.mcp.stateFor(a.id),
+                          onEdit: () => edit(a),
+                          onDelete: () => runUiAction(context, () async {
+                            try {
+                              await s.deleteMcp(a);
+                            } finally {
+                              await reload();
+                            }
+                          }),
+                          onErrorTap: (error) => _showConnectionError(a, error),
                         ),
                       ),
                     ],
@@ -144,6 +137,195 @@ class _McpServersPageState extends State<McpServersPage> {
       MaterialPageRoute<void>(builder: (_) => McpEditor(server: server)),
     );
     if (mounted) await runUiAction(context, reload);
+  }
+
+  Future<void> _showConnectionError(McpServer server, String error) {
+    final l = context.l10n;
+    return showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l.v2McpConnectionError),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  server.name,
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 10),
+                SelectableText(error),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(l.commonClose),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _McpServerCard extends StatelessWidget {
+  const _McpServerCard({
+    required this.server,
+    required this.state,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onErrorTap,
+  });
+
+  final McpServer server;
+  final McpConnectionState state;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  final ValueChanged<String> onErrorTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    return Card(
+      child: ListTile(
+        leading: const McpIcon(),
+        title: Text(server.name),
+        subtitle: _McpServerSummary(
+          server: server,
+          state: state,
+          onErrorTap: onErrorTap,
+        ),
+        onTap: onEdit,
+        trailing: IconButton(
+          tooltip: l.commonDelete,
+          icon: const Icon(Icons.delete_outline),
+          onPressed: onDelete,
+        ),
+      ),
+    );
+  }
+}
+
+class _McpServerSummary extends StatelessWidget {
+  const _McpServerSummary({
+    required this.server,
+    required this.state,
+    required this.onErrorTap,
+  });
+
+  final McpServer server;
+  final McpConnectionState state;
+  final ValueChanged<String> onErrorTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    final theme = Theme.of(context);
+    final (statusLabel, tone) = switch (state.status) {
+      McpConnectionStatus.disconnected => (
+        l.v2McpStatusDisconnected,
+        StatusTone.idle,
+      ),
+      McpConnectionStatus.connecting => (
+        l.v2McpStatusConnecting,
+        StatusTone.warning,
+      ),
+      McpConnectionStatus.connected => (l.v2McpStatusConnected, StatusTone.ok),
+      McpConnectionStatus.failed => (l.v2McpStatusFailed, StatusTone.danger),
+    };
+    final error = state.error;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            StatusPill(label: statusLabel, tone: tone, compact: true),
+            _MetaTag(
+              label: server.transport == McpTransport.sse ? 'SSE' : 'HTTP',
+            ),
+            _MetaTag(label: l.v2McpToolCount(state.toolCount)),
+          ],
+        ),
+        if (state.hasError && error != null) ...[
+          const SizedBox(height: 8),
+          Semantics(
+            button: true,
+            label: l.v2McpConnectionError,
+            child: InkWell(
+              key: ValueKey('mcp_error_${server.id}'),
+              borderRadius: BorderRadius.circular(10),
+              onTap: () => onErrorTap(error),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(10, 7, 8, 7),
+                decoration: BoxDecoration(
+                  color: theme.palette.dangerMark.withAlpha(
+                    theme.brightness == Brightness.light ? 18 : 30,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        error,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.palette.dangerText,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 18,
+                      color: theme.palette.dangerText,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _MetaTag extends StatelessWidget {
+  const _MetaTag({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
   }
 }
 

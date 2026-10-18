@@ -15,6 +15,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2McpEmptyHint => 'Tap + in the upper-right corner to add one';
 
   @override
+  String get v2McpStatusDisconnected => 'Disconnected';
+
+  @override
+  String get v2McpStatusConnecting => 'Connecting';
+
+  @override
+  String get v2McpStatusConnected => 'Connected';
+
+  @override
+  String get v2McpStatusFailed => 'Failed';
+
+  @override
+  String v2McpToolCount(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count tools',
+      one: '1 tool',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get v2McpConnectionError => 'Connection error';
+
+  @override
   String get v2SkillsEmpty => 'No skills yet';
 
   @override
@@ -53,6 +79,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get commonDone => 'Done';
+
+  @override
+  String get commonClose => 'Close';
 
   @override
   String get commonDelete => 'Delete';

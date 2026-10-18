@@ -15,6 +15,26 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2McpEmptyHint => '点击右上角 + 添加';
 
   @override
+  String get v2McpStatusDisconnected => '未连接';
+
+  @override
+  String get v2McpStatusConnecting => '连接中';
+
+  @override
+  String get v2McpStatusConnected => '已连接';
+
+  @override
+  String get v2McpStatusFailed => '连接失败';
+
+  @override
+  String v2McpToolCount(num count) {
+    return '$count 个工具';
+  }
+
+  @override
+  String get v2McpConnectionError => '连接错误';
+
+  @override
   String get v2SkillsEmpty => '还没有技能';
 
   @override
@@ -52,6 +72,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get commonDone => '完成';
+
+  @override
+  String get commonClose => '关闭';
 
   @override
   String get commonDelete => '删除';

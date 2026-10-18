@@ -1,6 +1,19 @@
 {
   "v2McpEmpty": "还没有 MCP 服务",
   "v2McpEmptyHint": "点击右上角 + 添加",
+  "v2McpStatusDisconnected": "未连接",
+  "v2McpStatusConnecting": "连接中",
+  "v2McpStatusConnected": "已连接",
+  "v2McpStatusFailed": "连接失败",
+  "v2McpToolCount": "{count} 个工具",
+  "@v2McpToolCount": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "v2McpConnectionError": "连接错误",
   "v2SkillsEmpty": "还没有技能",
   "v2SkillsEmptyHint": "点击右上角 + 导入",
   "v2ManageMcp": "管理 MCP",
@@ -15,6 +28,7 @@
   "commonCancel": "取消",
   "commonSave": "保存",
   "commonDone": "完成",
+  "commonClose": "关闭",
   "commonDelete": "删除",
   "commonEnable": "开启",
   "commonDisable": "关闭",

@@ -35,8 +35,11 @@ class EngineBadge extends StatelessWidget {
           SizedBox(width: compact ? 5 : 6),
           Text(
             engine.displayName,
-            style: (compact ? theme.textTheme.labelSmall : theme.textTheme.labelMedium)
-                ?.copyWith(color: color, fontWeight: FontWeight.w700),
+            style:
+                (compact
+                        ? theme.textTheme.labelSmall
+                        : theme.textTheme.labelMedium)
+                    ?.copyWith(color: color, fontWeight: FontWeight.w700),
           ),
         ],
       ),
@@ -91,10 +94,16 @@ enum StatusTone { ok, warning, danger, idle }
 /// Status pill: dot + label. Never colour-only, so it stays readable for
 /// users who cannot separate the hues.
 class StatusPill extends StatelessWidget {
-  const StatusPill({super.key, required this.label, required this.tone});
+  const StatusPill({
+    super.key,
+    required this.label,
+    required this.tone,
+    this.compact = false,
+  });
 
   final String label;
   final StatusTone tone;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -108,7 +117,10 @@ class StatusPill extends StatelessWidget {
     };
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 8 : 12,
+        vertical: compact ? 3 : 7,
+      ),
       decoration: BoxDecoration(
         color: mark.withAlpha(theme.brightness == Brightness.light ? 26 : 44),
         borderRadius: BorderRadius.circular(999),
@@ -117,18 +129,31 @@ class StatusPill extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 8,
-            height: 8,
+            width: compact ? 6 : 8,
+            height: compact ? 6 : 8,
             decoration: BoxDecoration(color: mark, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: theme.textTheme.labelLarge?.copyWith(
-              color: text,
-              fontWeight: FontWeight.w700,
+          SizedBox(width: compact ? 5 : 8),
+          if (compact)
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: text,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            )
+          else
+            Text(
+              label,
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: text,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -157,10 +182,7 @@ class NoticeBanner extends StatelessWidget {
       StatusTone.ok => (palette.okMark, palette.okText),
       StatusTone.warning => (palette.warningMark, palette.warningText),
       StatusTone.danger => (palette.dangerMark, palette.dangerText),
-      StatusTone.idle => (
-        palette.idleMark,
-        theme.colorScheme.onSurfaceVariant,
-      ),
+      StatusTone.idle => (palette.idleMark, theme.colorScheme.onSurfaceVariant),
     };
 
     return Container(

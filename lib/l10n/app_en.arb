@@ -1,6 +1,19 @@
 {
   "v2McpEmpty": "No MCP servers yet",
   "v2McpEmptyHint": "Tap + in the upper-right corner to add one",
+  "v2McpStatusDisconnected": "Disconnected",
+  "v2McpStatusConnecting": "Connecting",
+  "v2McpStatusConnected": "Connected",
+  "v2McpStatusFailed": "Failed",
+  "v2McpToolCount": "{count, plural, =1{1 tool} other{{count} tools}}",
+  "@v2McpToolCount": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "v2McpConnectionError": "Connection error",
   "v2SkillsEmpty": "No skills yet",
   "v2SkillsEmptyHint": "Tap + in the upper-right corner to import one",
   "v2ManageMcp": "Manage MCP",
@@ -15,6 +28,7 @@
   "commonCancel": "Cancel",
   "commonSave": "Save",
   "commonDone": "Done",
+  "commonClose": "Close",
   "commonDelete": "Delete",
   "commonEnable": "Enable",
   "commonDisable": "Disable",

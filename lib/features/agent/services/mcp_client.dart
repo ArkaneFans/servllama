@@ -7,8 +7,8 @@ import 'package:servllama/core/network/server_sent_events.dart';
 import 'package:servllama/core/security/log_redactor.dart';
 import 'package:servllama/features/agent/models/agent_records.dart';
 
-/// Remote MCP transports only. A session belongs to one run or connection test.
-/// No subprocesses, automatic retries, or implicit replays after session loss.
+/// Remote MCP transports only. Sessions may be app-scoped or temporary for a
+/// connection test. No subprocesses, automatic retries, or implicit replays.
 class McpClient {
   McpClient(
     this.server,
@@ -17,6 +17,7 @@ class McpClient {
     AppLogger? logger,
     this.runId,
     this.onToolsChanged,
+    this.onConnectionLost,
     Map<String, String> headers = const {},
   }) : _logger = logger ?? AppLogger.instance,
        credentials = McpCredentials(token: key, headers: headers),
@@ -43,6 +44,7 @@ class McpClient {
   String get key => credentials.token;
   final Dio dio;
   final void Function()? onToolsChanged;
+  final void Function(Object error)? onConnectionLost;
   final CancelToken _lifetime = CancelToken();
   final Map<int, Completer<Map<String, dynamic>>> _pending = {};
   StreamSubscription<ServerEvent>? _subscription;
@@ -51,6 +53,9 @@ class McpClient {
   String _version = '2025-03-26';
   int _sequence = 0;
   bool _closed = false;
+  bool _transportLost = false;
+  bool _lossReported = false;
+  bool get isConnected => !_closed && !_transportLost;
   Uri get uri => Uri.parse(server.url);
   Map<String, String> get _headers => {
     ...credentials.headers,
@@ -189,6 +194,11 @@ class McpClient {
 
   void _failPending(Object e, StackTrace s) {
     if (!_closed) {
+      _transportLost = true;
+      if (!_lossReported) {
+        _lossReported = true;
+        onConnectionLost?.call(e);
+      }
       _logger.event(
         'agent.mcp.stream_failed',
         channel: LogChannel.agent,
@@ -414,6 +424,11 @@ class McpClient {
   Future<void> close() async {
     if (_closed) return;
     _closed = true;
+    _logger.event(
+      'agent.mcp.closed',
+      channel: LogChannel.agent,
+      fields: _logFields,
+    );
     _lifetime.cancel('closed');
     await _subscription?.cancel();
     if (_sessionId != null && server.transport == McpTransport.streamableHttp) {
@@ -433,10 +448,5 @@ class McpClient {
     _failPending(StateError('MCP session closed'), StackTrace.current);
     _pending.clear();
     dio.close(force: true);
-    _logger.event(
-      'agent.mcp.closed',
-      channel: LogChannel.agent,
-      fields: _logFields,
-    );
   }
 }

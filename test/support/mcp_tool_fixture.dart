@@ -12,6 +12,8 @@ class McpToolFixture {
   final HttpServer server;
   final Map<String, dynamic> result;
   int calls = 0;
+  int initializes = 0;
+  int toolListCalls = 0;
   static const tool = {
     'name': 'echo',
     'description': 'Return the fixture result',
@@ -50,6 +52,8 @@ class McpToolFixture {
       await request.response.close();
       return;
     }
+    if (message['method'] == 'initialize') initializes++;
+    if (message['method'] == 'tools/list') toolListCalls++;
     if (message['method'] == 'tools/call') calls++;
     final response = switch (message['method']) {
       'initialize' => {
