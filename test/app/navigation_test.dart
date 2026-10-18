@@ -709,6 +709,57 @@ void main() {
     },
   );
 
+  testWidgets('skills add sheet validates and imports pasted markdown', (
+    tester,
+  ) async {
+    screen(tester, const Size(360, 800));
+    await tester.pumpWidget(app(home: const SkillsPage()));
+    await settleSql(
+      tester,
+      () => find.text('No skills yet').evaluate().isNotEmpty,
+    );
+
+    await tester.tap(find.byKey(const Key('skills_add_button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Paste Markdown'), findsOneWidget);
+    expect(find.text('Import from file'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('skills_import_paste')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('skills_paste_field')), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('skills_paste_field')),
+      '---\nname: [invalid]\n---\nBody',
+    );
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('skills_paste_submit')));
+    await tester.tap(find.byKey(const Key('skills_paste_submit')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Invalid SKILL.md content. Check the text and metadata.'),
+      findsOneWidget,
+    );
+
+    await tester.enterText(
+      find.byKey(const Key('skills_paste_field')),
+      '---\nname: Pasted fixture\ndescription: Imported from clipboard\n'
+      '---\nRead these instructions.',
+    );
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('skills_paste_submit')));
+    await tester.tap(find.byKey(const Key('skills_paste_submit')));
+    await settleSql(
+      tester,
+      () => find.text('Pasted fixture').evaluate().isNotEmpty,
+    );
+    expect(find.text('Pasted fixture'), findsOneWidget);
+    expect(find.byKey(const Key('skills_paste_field')), findsNothing);
+    expect(find.text('No skills yet'), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets(
     'separate skill and MCP pages refresh their own catalog and permissions',
     (tester) async {
@@ -747,6 +798,17 @@ void main() {
         tester,
         () => find.text(skill.name).evaluate().isNotEmpty,
       );
+      expect(
+        find.descendant(
+          of: find.ancestor(
+            of: find.text(skill.name),
+            matching: find.byType(Card),
+          ),
+          matching: find.byIcon(Icons.extension_outlined),
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Import static packages'), findsNothing);
       expect(find.text(server.name), findsNothing);
       await tester.tap(find.byTooltip('Delete'));
       await settleSql(tester, () => find.text(skill.name).evaluate().isEmpty);
@@ -764,6 +826,10 @@ void main() {
       await settleSql(
         tester,
         () => find.text(server.name).evaluate().isNotEmpty,
+      );
+      expect(
+        find.textContaining('Streamable HTTP and legacy SSE'),
+        findsNothing,
       );
       expect(find.text(skill.name), findsNothing);
       await tester.tap(find.text(server.name));

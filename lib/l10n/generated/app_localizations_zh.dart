@@ -1735,19 +1735,37 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2Skills => '技能';
 
   @override
-  String get v2SkillsHelp => '导入含 SKILL.md 的静态技能包，在助手权限中明确选择后使用。';
+  String get v2ImportSkill => '导入技能（ZIP / Markdown）';
 
   @override
-  String get v2ImportSkill => '导入技能（ZIP / Markdown）';
+  String get v2SkillImportPaste => '粘贴 Markdown';
+
+  @override
+  String get v2SkillImportFile => '从文件导入';
+
+  @override
+  String get v2SkillImportPasteTitle => '粘贴 Markdown';
+
+  @override
+  String get v2SkillMarkdownLabel => 'SKILL.md';
+
+  @override
+  String get v2SkillImportMarkdownHint => '粘贴包含 SKILL.md 内容的 Markdown';
+
+  @override
+  String get v2SkillImportConfirm => '导入';
+
+  @override
+  String get v2SkillImportInvalid => 'SKILL.md 格式无效，请检查内容和元数据。';
+
+  @override
+  String get v2PastedSkillName => '粘贴的技能';
 
   @override
   String get v2ScriptsUnsupported => '含脚本参考；本应用只读取静态说明，不执行脚本。';
 
   @override
   String get v2Mcp => 'MCP';
-
-  @override
-  String get v2McpHelp => '支持 Streamable HTTP 与旧版 SSE。每个助手单独选择工具，远端调用逐次审批。';
 
   @override
   String get v2McpToken => '静态 Bearer Token';

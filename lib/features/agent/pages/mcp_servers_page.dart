@@ -103,8 +103,6 @@ class _McpServersPageState extends State<McpServersPage> {
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
                   sliver: SliverList.list(
                     children: [
-                      Text(l.v2McpHelp),
-                      const SizedBox(height: 12),
                       ...servers.map(
                         (a) => Card(
                           child: ListTile(

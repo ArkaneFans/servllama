@@ -172,9 +172,22 @@ class AgentToolService extends ChangeNotifier {
     );
   }
 
-  Future<void> importSkill() async {
-    await skills.pickAndImport();
+  Future<SkillRecord?> importSkillFromFile() async {
+    final skill = await skills.pickAndImport();
+    if (skill != null) notifyListeners();
+    return skill;
+  }
+
+  Future<SkillRecord> importSkillFromText(
+    String markdown, {
+    required String fallbackName,
+  }) async {
+    final skill = await skills.importMarkdown(
+      markdown,
+      fallbackName: fallbackName,
+    );
     notifyListeners();
+    return skill;
   }
 
   Future<void> deleteSkill(SkillRecord s) async {

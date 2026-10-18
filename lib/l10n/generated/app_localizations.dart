@@ -3275,17 +3275,59 @@ abstract class AppLocalizations {
   /// **'Skills'**
   String get v2Skills;
 
-  /// No description provided for @v2SkillsHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Import static packages containing SKILL.md, then select them in assistant permissions.'**
-  String get v2SkillsHelp;
-
   /// No description provided for @v2ImportSkill.
   ///
   /// In en, this message translates to:
   /// **'Import skill (ZIP / Markdown)'**
   String get v2ImportSkill;
+
+  /// No description provided for @v2SkillImportPaste.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste Markdown'**
+  String get v2SkillImportPaste;
+
+  /// No description provided for @v2SkillImportFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from file'**
+  String get v2SkillImportFile;
+
+  /// No description provided for @v2SkillImportPasteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste Markdown'**
+  String get v2SkillImportPasteTitle;
+
+  /// No description provided for @v2SkillMarkdownLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'SKILL.md'**
+  String get v2SkillMarkdownLabel;
+
+  /// No description provided for @v2SkillImportMarkdownHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste SKILL.md content'**
+  String get v2SkillImportMarkdownHint;
+
+  /// No description provided for @v2SkillImportConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Import'**
+  String get v2SkillImportConfirm;
+
+  /// No description provided for @v2SkillImportInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid SKILL.md content. Check the text and metadata.'**
+  String get v2SkillImportInvalid;
+
+  /// No description provided for @v2PastedSkillName.
+  ///
+  /// In en, this message translates to:
+  /// **'Pasted skill'**
+  String get v2PastedSkillName;
 
   /// No description provided for @v2ScriptsUnsupported.
   ///
@@ -3298,12 +3340,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'MCP'**
   String get v2Mcp;
-
-  /// No description provided for @v2McpHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Streamable HTTP and legacy SSE. Select tools per assistant; approve each remote call.'**
-  String get v2McpHelp;
 
   /// No description provided for @v2McpToken.
   ///

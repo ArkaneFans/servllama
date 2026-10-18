@@ -27,11 +27,28 @@ class SkillService {
     return path == null ? null : importPackage(File(path));
   }
 
-  Future<SkillRecord> importPackage(File source) async {
+  Future<SkillRecord> importMarkdown(
+    String markdown, {
+    required String fallbackName,
+  }) => _trackImport(() async {
+    if (markdown.trim().isEmpty) {
+      throw const FormatException('Skill text is empty');
+    }
+    return _importEntries({
+      'SKILL.md': utf8.encode(markdown),
+    }, fallbackName: fallbackName);
+  });
+
+  Future<SkillRecord> importPackage(File source) =>
+      _trackImport(() => _importPackage(source));
+
+  Future<SkillRecord> _trackImport(
+    Future<SkillRecord> Function() operation,
+  ) async {
     final watch = Stopwatch()..start();
     _logger.event('agent.skill.import_started', channel: LogChannel.agent);
     try {
-      final skill = await _importPackage(source);
+      final skill = await operation();
       _logger.event(
         'agent.skill.import_completed',
         channel: LogChannel.agent,
@@ -95,6 +112,16 @@ class SkillService {
         entries[name] = buffer.getBytes();
       }
     }
+    return _importEntries(
+      entries,
+      fallbackName: p.basenameWithoutExtension(source.path),
+    );
+  }
+
+  Future<SkillRecord> _importEntries(
+    Map<String, List<int>> entries, {
+    required String fallbackName,
+  }) async {
     final roots = entries.keys
         .where((v) => p.basename(v) == 'SKILL.md')
         .toList();
@@ -137,7 +164,7 @@ class SkillService {
       }
       final record = SkillRecord(
         id: id,
-        name: name as String? ?? p.basenameWithoutExtension(source.path),
+        name: name as String? ?? fallbackName,
         path: folder.path,
         hash: await fingerprint(folder),
         description: description as String? ?? '',

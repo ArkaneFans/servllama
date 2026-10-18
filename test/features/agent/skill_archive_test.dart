@@ -74,6 +74,21 @@ void main() {
       }
     },
   );
+  test('pasted markdown is stored as SKILL.md with a fallback name', () async {
+    const markdown = '# Pasted instructions\n\nKeep this text unchanged.';
+    final skill = await skills.importMarkdown(
+      markdown,
+      fallbackName: 'Pasted skill',
+    );
+    expect(skill.name, 'Pasted skill');
+    expect(await skills.read(skill), markdown);
+  });
+  test('empty pasted markdown is rejected', () async {
+    await expectLater(
+      skills.importMarkdown(' \n ', fallbackName: 'Pasted skill'),
+      throwsFormatException,
+    );
+  });
   for (final path in ['../SKILL.md', 'folder/../../SKILL.md', 'C:/SKILL.md']) {
     test('skill archive rejects unsafe path: $path', () async {
       await expectLater(

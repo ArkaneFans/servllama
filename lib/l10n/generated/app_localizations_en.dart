@@ -1831,11 +1831,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2Skills => 'Skills';
 
   @override
-  String get v2SkillsHelp =>
-      'Import static packages containing SKILL.md, then select them in assistant permissions.';
+  String get v2ImportSkill => 'Import skill (ZIP / Markdown)';
 
   @override
-  String get v2ImportSkill => 'Import skill (ZIP / Markdown)';
+  String get v2SkillImportPaste => 'Paste Markdown';
+
+  @override
+  String get v2SkillImportFile => 'Import from file';
+
+  @override
+  String get v2SkillImportPasteTitle => 'Paste Markdown';
+
+  @override
+  String get v2SkillMarkdownLabel => 'SKILL.md';
+
+  @override
+  String get v2SkillImportMarkdownHint => 'Paste SKILL.md content';
+
+  @override
+  String get v2SkillImportConfirm => 'Import';
+
+  @override
+  String get v2SkillImportInvalid =>
+      'Invalid SKILL.md content. Check the text and metadata.';
+
+  @override
+  String get v2PastedSkillName => 'Pasted skill';
 
   @override
   String get v2ScriptsUnsupported =>
@@ -1843,10 +1864,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get v2Mcp => 'MCP';
-
-  @override
-  String get v2McpHelp =>
-      'Streamable HTTP and legacy SSE. Select tools per assistant; approve each remote call.';
 
   @override
   String get v2McpToken => 'Static bearer token';
