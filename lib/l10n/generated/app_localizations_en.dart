@@ -9,10 +9,17 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get v2McpEmpty => 'No MCP servers yet. Tap + to add one.';
+  String get v2McpEmpty => 'No MCP servers yet';
 
   @override
-  String get v2SkillsEmpty => 'No skills yet. Tap + to import one.';
+  String get v2McpEmptyHint => 'Tap + in the upper-right corner to add one';
+
+  @override
+  String get v2SkillsEmpty => 'No skills yet';
+
+  @override
+  String get v2SkillsEmptyHint =>
+      'Tap + in the upper-right corner to import one';
 
   @override
   String get v2ManageMcp => 'Manage MCP';

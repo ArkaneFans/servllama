@@ -1,6 +1,8 @@
 {
-  "v2McpEmpty": "还没有 MCP 服务，点击 + 添加",
-  "v2SkillsEmpty": "还没有技能，点击 + 导入",
+  "v2McpEmpty": "还没有 MCP 服务",
+  "v2McpEmptyHint": "点击右上角 + 添加",
+  "v2SkillsEmpty": "还没有技能",
+  "v2SkillsEmptyHint": "点击右上角 + 导入",
   "v2ManageMcp": "管理 MCP",
   "v2ManageSkills": "管理技能",
   "v2LocalTools": "本地工具",

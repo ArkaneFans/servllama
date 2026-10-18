@@ -9,11 +9,13 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:servllama/core/models/engine_runtime_state.dart';
 import 'package:servllama/core/models/inference_engine.dart';
+import 'package:servllama/core/models/library_model.dart';
 import 'package:servllama/core/models/model_descriptor.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/providers/engine_runtime_provider.dart';
 import 'package:servllama/core/providers/model_management_provider.dart';
 import 'package:servllama/core/repositories/local_model_repository.dart';
+import 'package:servllama/core/repositories/unified_model_repository.dart';
 import 'package:servllama/core/services/engines/llama_cpp_engine_adapter.dart';
 
 import '../../../support/stub_engine_adapter.dart';
@@ -23,6 +25,9 @@ import 'package:servllama/core/services/server_launch_settings_loader.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
 import 'package:servllama/features/server/pages/server_page.dart';
 import 'package:servllama/features/server/widgets/runtime_hero_card.dart';
+import 'package:servllama/shared/theme/app_visual_theme.dart';
+import 'package:servllama/shared/widgets/ai_identity_icon.dart';
+import 'package:servllama/shared/widgets/engine_badge.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -111,6 +116,107 @@ void main() {
       // service is actually reachable.
       expect(clipboardText, isNull);
       expect(find.text('API Base URL 已复制'), findsNothing);
+    });
+
+    testWidgets('model picker uses model identity and rounded selection', (
+      tester,
+    ) async {
+      final serverService = _ControllableLlamaServerService();
+      final serverProvider = EngineRuntimeProvider(
+        llamaCppAdapter: LlamaCppEngineAdapter(
+          deviceProbeService: LlamaCppDeviceProbeService(
+            resultOverride: () => const LlamaCppDeviceProbeResult(),
+          ),
+          serverService: serverService,
+          settingsLoader: _FixedServerLaunchSettingsLoader(
+            const ServerLaunchSettings(),
+          ),
+          modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
+        ),
+        mnnAdapter: StubEngineAdapter(),
+        settingsLoader: _FixedServerLaunchSettingsLoader(
+          const ServerLaunchSettings(),
+        ),
+        kvStorage: KvStorage(),
+      );
+      addTearDown(() {
+        serverProvider.dispose();
+        serverService.dispose();
+      });
+
+      await serverProvider.selectModel('Qwen3.5-2B-Q4_0');
+      final library = ModelManagementProvider(
+        repository: _FixedModelStoragePaths('C:\\app\\models'),
+        unifiedRepository: _FixedUnifiedModelRepository(<LibraryModel>[
+          LibraryModel(
+            id: 'gguf:qwen',
+            runtimeId: 'Qwen3.5-2B-Q4_0',
+            engine: InferenceEngine.llamaCpp,
+            name: 'Qwen3.5-2B-Q4_0',
+            sizeBytes: 1213000000,
+            importedAt: _importedAt,
+            storagePath: r'C:\app\models\Qwen3.5-2B-Q4_0\model.gguf',
+          ),
+          LibraryModel(
+            id: 'gguf:alpha',
+            runtimeId: 'alpha',
+            engine: InferenceEngine.llamaCpp,
+            name: 'alpha',
+            sizeBytes: 1024,
+            importedAt: _importedAt,
+            storagePath: r'C:\app\models\alpha\model.gguf',
+          ),
+        ]),
+      );
+      await library.load();
+      addTearDown(library.dispose);
+
+      await tester.pumpWidget(
+        _TestApp(serverProvider: serverProvider, library: library),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('server_page_model_row')));
+      await tester.pumpAndSettle();
+
+      final selectedRow = find.byKey(
+        const Key('server_model_picker_row_Qwen3.5-2B-Q4_0'),
+      );
+      expect(selectedRow, findsOneWidget);
+      expect(
+        find.descendant(of: selectedRow, matching: find.byType(AiIdentityIcon)),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('server_model_picker_selected_Qwen3.5-2B-Q4_0')),
+        findsOneWidget,
+      );
+      expect(find.byType(ModelFormatBadge), findsNothing);
+
+      final selectedContainer = tester.widget<AnimatedContainer>(selectedRow);
+      final decoration = selectedContainer.decoration! as BoxDecoration;
+      expect(
+        decoration.borderRadius,
+        BorderRadius.circular(AppVisualTheme.fieldRadius),
+      );
+      expect(
+        decoration.color,
+        Theme.of(tester.element(selectedRow)).colorScheme.primaryContainer,
+      );
+      expect(decoration.border, isNull);
+
+      final unselectedRow = find.byKey(
+        const Key('server_model_picker_row_alpha'),
+      );
+      final unselectedContainer = tester.widget<AnimatedContainer>(
+        unselectedRow,
+      );
+      final unselectedDecoration =
+          unselectedContainer.decoration! as BoxDecoration;
+      expect(
+        unselectedDecoration.color,
+        Theme.of(tester.element(unselectedRow)).colorScheme.surface,
+      );
     });
 
     testWidgets('shows last error when server startup fails', (tester) async {
@@ -452,9 +558,10 @@ void main() {
 }
 
 class _TestApp extends StatelessWidget {
-  const _TestApp({required this.serverProvider});
+  const _TestApp({required this.serverProvider, this.library});
 
   final EngineRuntimeProvider serverProvider;
+  final ModelManagementProvider? library;
 
   @override
   Widget build(BuildContext context) {
@@ -466,9 +573,12 @@ class _TestApp extends StatelessWidget {
         // The page reads the unified library to name the selected model and
         // count entries in the menu; load() swallows its own I/O errors, so an
         // unseeded provider just yields an empty library here.
-        ChangeNotifierProvider<ModelManagementProvider>(
-          create: (_) => ModelManagementProvider(),
-        ),
+        if (library != null)
+          ChangeNotifierProvider<ModelManagementProvider>.value(value: library!)
+        else
+          ChangeNotifierProvider<ModelManagementProvider>(
+            create: (_) => ModelManagementProvider(),
+          ),
       ],
       child: const MaterialApp(home: ServerPage()),
     );
@@ -562,3 +672,16 @@ class _FixedModelStoragePaths extends LocalModelRepository {
       ),
   ];
 }
+
+class _FixedUnifiedModelRepository extends UnifiedModelRepository {
+  _FixedUnifiedModelRepository(this.models)
+    : super(localModelRepository: _FixedModelStoragePaths('C:\\app\\models'));
+
+  final List<LibraryModel> models;
+
+  @override
+  Future<List<LibraryModel>> listModels() async =>
+      List<LibraryModel>.unmodifiable(models);
+}
+
+final _importedAt = DateTime(2026);

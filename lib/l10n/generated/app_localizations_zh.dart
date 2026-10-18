@@ -9,10 +9,16 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
-  String get v2McpEmpty => '还没有 MCP 服务，点击 + 添加';
+  String get v2McpEmpty => '还没有 MCP 服务';
 
   @override
-  String get v2SkillsEmpty => '还没有技能，点击 + 导入';
+  String get v2McpEmptyHint => '点击右上角 + 添加';
+
+  @override
+  String get v2SkillsEmpty => '还没有技能';
+
+  @override
+  String get v2SkillsEmptyHint => '点击右上角 + 导入';
 
   @override
   String get v2ManageMcp => '管理 MCP';

@@ -101,14 +101,26 @@ abstract class AppLocalizations {
   /// No description provided for @v2McpEmpty.
   ///
   /// In en, this message translates to:
-  /// **'No MCP servers yet. Tap + to add one.'**
+  /// **'No MCP servers yet'**
   String get v2McpEmpty;
+
+  /// No description provided for @v2McpEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap + in the upper-right corner to add one'**
+  String get v2McpEmptyHint;
 
   /// No description provided for @v2SkillsEmpty.
   ///
   /// In en, this message translates to:
-  /// **'No skills yet. Tap + to import one.'**
+  /// **'No skills yet'**
   String get v2SkillsEmpty;
+
+  /// No description provided for @v2SkillsEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap + in the upper-right corner to import one'**
+  String get v2SkillsEmptyHint;
 
   /// No description provided for @v2ManageMcp.
   ///

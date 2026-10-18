@@ -11,15 +11,24 @@ import 'package:flutter/material.dart';
 class SettingsMenuTile extends StatefulWidget {
   const SettingsMenuTile({
     super.key,
-    required this.icon,
+    this.icon,
+    this.leading,
     required this.title,
     this.value,
     this.onTap,
     this.trailing,
     this.enabled = true,
-  });
+  }) : assert(
+         icon != null || leading != null,
+         'SettingsMenuTile needs an icon or a leading widget.',
+       );
 
-  final IconData icon;
+  final IconData? icon;
+
+  /// Custom leading artwork, such as a brand icon. Takes precedence over
+  /// [icon] when both are provided.
+  final Widget? leading;
+
   final String title;
   final String? value;
 
@@ -74,11 +83,13 @@ class _SettingsMenuTileState extends State<SettingsMenuTile> {
             children: [
               SizedBox(
                 width: 24,
-                child: Icon(
-                  widget.icon,
-                  size: 22,
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                child:
+                    widget.leading ??
+                    Icon(
+                      widget.icon,
+                      size: 22,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
               ),
               const SizedBox(width: 14),
               Expanded(

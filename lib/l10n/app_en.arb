@@ -1,6 +1,8 @@
 {
-  "v2McpEmpty": "No MCP servers yet. Tap + to add one.",
-  "v2SkillsEmpty": "No skills yet. Tap + to import one.",
+  "v2McpEmpty": "No MCP servers yet",
+  "v2McpEmptyHint": "Tap + in the upper-right corner to add one",
+  "v2SkillsEmpty": "No skills yet",
+  "v2SkillsEmptyHint": "Tap + in the upper-right corner to import one",
   "v2ManageMcp": "Manage MCP",
   "v2ManageSkills": "Manage skills",
   "v2LocalTools": "Local tools",

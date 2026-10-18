@@ -22,6 +22,7 @@ import 'package:servllama/features/settings/pages/download_settings_page.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
 import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/widgets/settings_menu_tile.dart';
+import 'package:servllama/shared/widgets/mcp_icon.dart';
 import 'package:servllama/shared/widgets/settings_section.dart';
 import 'package:servllama/shared/widgets/settings_tile_list.dart';
 
@@ -110,7 +111,7 @@ class SettingsPage extends StatelessWidget {
                           ),
                           SettingsMenuTile(
                             key: const Key('settings_mcp_tile'),
-                            icon: Icons.hub_outlined,
+                            leading: const McpIcon(size: 22),
                             title: l10n.v2Mcp,
                             onTap: () => _push(context, const McpServersPage()),
                           ),

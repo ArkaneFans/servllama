@@ -1,6 +1,7 @@
 import 'package:servllama/shared/widgets/settings_section.dart';
 import 'package:servllama/shared/widgets/form_list_view.dart';
 import 'package:servllama/shared/widgets/app_scaffold.dart';
+import 'package:servllama/shared/widgets/mcp_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:servllama/features/assistants/providers/assistant_provider.dart';
 import 'package:provider/provider.dart';
@@ -72,8 +73,7 @@ class _McpServersPageState extends State<McpServersPage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.hub_outlined,
+                        McpIcon(
                           size: 40,
                           color: Theme.of(context).colorScheme.outline,
                         ),
@@ -85,7 +85,7 @@ class _McpServersPageState extends State<McpServersPage> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          l.v2McpHelp,
+                          l.v2McpEmptyHint,
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(
@@ -108,7 +108,7 @@ class _McpServersPageState extends State<McpServersPage> {
                       ...servers.map(
                         (a) => Card(
                           child: ListTile(
-                            leading: const Icon(Icons.hub_outlined),
+                            leading: const McpIcon(),
                             title: Text(a.name),
                             subtitle: Text(
                               a.url,

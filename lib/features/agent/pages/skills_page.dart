@@ -73,7 +73,7 @@ class _SkillsPageState extends State<SkillsPage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          Icons.description_outlined,
+                          Icons.extension_outlined,
                           size: 40,
                           color: Theme.of(context).colorScheme.outline,
                         ),
@@ -85,7 +85,7 @@ class _SkillsPageState extends State<SkillsPage> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          l.v2SkillsHelp,
+                          l.v2SkillsEmptyHint,
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(

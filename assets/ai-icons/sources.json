@@ -111,6 +111,11 @@
       "sha256": "0bdb95375d7c6e90a1850e91cd36770da2bc98fa33ec2d783f4a8fed027da85f",
       "upstreamSha256": "74a7292aeb0220445d14c5d397d75760e2e8c6ed6a9e5fe4f3023471bf62a9ff",
       "modification": "Use currentColor for the white K glyph for light/dark contrast; preserve the blue brand accent."
+    },
+    {
+      "file": "mcp.svg",
+      "source": "package/icons/mcp.svg",
+      "sha256": "8670df38c9558de3cdd98d8b39ee6cbaf1c929377cffc5952e9b02f9bf9429b3"
     }
   ]
 }

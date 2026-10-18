@@ -19,6 +19,8 @@ import 'package:servllama/features/server/widgets/engine_selector.dart';
 import 'package:servllama/features/server/widgets/runtime_hero_card.dart';
 import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/l10n/runtime_labels.dart';
+import 'package:servllama/shared/theme/app_visual_theme.dart';
+import 'package:servllama/shared/widgets/ai_identity_icon.dart';
 import 'package:servllama/shared/widgets/engine_badge.dart';
 
 /// Runtime control center: pick an engine, pick a model, start or stop. The
@@ -282,22 +284,9 @@ class _ModelPickerSheet extends StatelessWidget {
                   itemBuilder: (_, index) {
                     final model = models[index];
                     final isSelected = model.runtimeId == selectedRuntimeId;
-                    return ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: ModelFormatBadge(engine: model.engine, size: 40),
-                      title: Text(
-                        model.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      subtitle: Text(FormatUtils.bytes(model.sizeBytes)),
-                      selected: isSelected,
-                      trailing: isSelected
-                          ? Icon(
-                              Icons.check_circle_rounded,
-                              color: theme.palette.okMark,
-                            )
-                          : null,
+                    return _ModelPickerRow(
+                      model: model,
+                      isSelected: isSelected,
                       onTap: () => Navigator.of(
                         context,
                       ).pop(_ModelPick(model.runtimeId)),
@@ -306,6 +295,93 @@ class _ModelPickerSheet extends StatelessWidget {
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ModelPickerRow extends StatelessWidget {
+  const _ModelPickerRow({
+    required this.model,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final LibraryModel model;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final radius = BorderRadius.circular(AppVisualTheme.fieldRadius);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Semantics(
+        button: true,
+        selected: isSelected,
+        child: AnimatedContainer(
+          key: Key('server_model_picker_row_${model.runtimeId}'),
+          duration: const Duration(milliseconds: 140),
+          curve: Curves.easeOutCubic,
+          decoration: BoxDecoration(
+            color: isSelected
+                ? colorScheme.primaryContainer
+                : colorScheme.surface,
+            borderRadius: radius,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: radius,
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                child: Row(
+                  children: [
+                    AiIdentityIcon(model: model.name, local: true, size: 40),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            model.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            FormatUtils.bytes(model.sizeBytes),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (isSelected) ...[
+                      const SizedBox(width: 10),
+                      Icon(
+                        Icons.check_circle_rounded,
+                        key: Key(
+                          'server_model_picker_selected_${model.runtimeId}',
+                        ),
+                        color: theme.palette.okMark,
+                        size: 22,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );

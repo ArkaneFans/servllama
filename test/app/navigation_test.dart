@@ -675,10 +675,21 @@ void main() {
             find.byTooltip('Import skill (ZIP / Markdown)'),
             findsOneWidget,
           );
+          expect(find.byIcon(Icons.extension_outlined), findsOneWidget);
+          expect(find.text('No skills yet'), findsOneWidget);
+          expect(
+            find.text('Tap + in the upper-right corner to import one'),
+            findsOneWidget,
+          );
           expect(find.byType(McpServersPage), findsNothing);
           expect(find.byTooltip('Add'), findsNothing);
         } else if (route.value == McpServersPage) {
           expect(find.byTooltip('Add'), findsOneWidget);
+          expect(find.text('No MCP servers yet'), findsOneWidget);
+          expect(
+            find.text('Tap + in the upper-right corner to add one'),
+            findsOneWidget,
+          );
           expect(find.byType(SkillsPage), findsNothing);
           expect(find.byTooltip('Import skill (ZIP / Markdown)'), findsNothing);
         }
