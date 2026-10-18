@@ -204,19 +204,82 @@ class AssistantToolsEditorState extends State<AssistantToolsEditor>
               l.v2SkillsGrantHelp,
               style: Theme.of(context).textTheme.bodySmall,
             ),
+            if (availableSkills.isNotEmpty)
+              Align(
+                alignment: Alignment.centerRight,
+                child: Wrap(
+                  spacing: 4,
+                  children: [
+                    TextButton(
+                      onPressed: () => setState(() {
+                        skills.addAll(
+                          availableSkills
+                              .where(
+                                (skill) =>
+                                    skill.enabled && skill.hasValidMetadata,
+                              )
+                              .map((skill) => skill.id),
+                        );
+                      }),
+                      child: Text(l.v2SkillSelectAllEnabled),
+                    ),
+                    TextButton(
+                      onPressed: skills.isEmpty
+                          ? null
+                          : () => setState(skills.clear),
+                      child: Text(l.v2SkillClearSelection),
+                    ),
+                  ],
+                ),
+              ),
             if (loaded && availableSkills.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 24),
                 child: Text(l.v2SkillsEmpty, textAlign: TextAlign.center),
               ),
-            ...availableSkills.map(
-              (s) => CheckboxListTile(
+            ...availableSkills.map((s) {
+              final usable = s.enabled && s.hasValidMetadata;
+              final muted = Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: .48);
+              return CheckboxListTile(
+                key: ValueKey('assistant_skill_${s.id}'),
                 contentPadding: EdgeInsets.zero,
-                title: Text(s.name),
+                title: Text(
+                  s.name,
+                  style: usable ? null : TextStyle(color: muted),
+                ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      s.description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: usable
+                          ? null
+                          : Theme.of(
+                              context,
+                            ).textTheme.bodySmall?.copyWith(color: muted),
+                    ),
+                    if (!usable)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          s.hasValidMetadata
+                              ? l.v2SkillEnableOnSkillsPage
+                              : l.v2SkillMetadataIncomplete,
+                          style: Theme.of(
+                            context,
+                          ).textTheme.bodySmall?.copyWith(color: muted),
+                        ),
+                      ),
+                  ],
+                ),
                 value: skills.contains(s.id),
-                onChanged: (v) => toggle(skills, s.id, v!),
-              ),
-            ),
+                onChanged: usable ? (v) => toggle(skills, s.id, v!) : null,
+              );
+            }),
           ],
           if (tab == 2) ...[
             Align(

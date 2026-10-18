@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:servllama/features/assistants/providers/assistant_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/features/agent/models/agent_records.dart';
+import 'package:servllama/features/agent/pages/skill_detail_page.dart';
 import 'package:servllama/features/agent/services/agent_tool_service.dart';
+import 'package:servllama/features/agent/widgets/skill_errors.dart';
 import 'package:servllama/l10n/l10n.dart';
+import 'package:servllama/l10n/generated/app_localizations.dart';
 import 'package:servllama/core/security/log_redactor.dart';
 import 'package:servllama/shared/widgets/async_action.dart';
 
@@ -17,6 +20,7 @@ class SkillsPage extends StatefulWidget {
 }
 
 class _SkillsPageState extends State<SkillsPage> {
+  final search = TextEditingController();
   List<SkillRecord> skills = [];
   bool loaded = false;
   @override
@@ -32,12 +36,18 @@ class _SkillsPageState extends State<SkillsPage> {
     final service = context.read<AgentToolService>();
     final assistants = context.read<AssistantProvider>();
     try {
-      final records = await service.repository.skills();
+      final records = await service.loadSkills();
       await assistants.load();
       if (mounted) setState(() => skills = records);
     } finally {
       if (mounted) setState(() => loaded = true);
     }
+  }
+
+  @override
+  void dispose() {
+    search.dispose();
+    super.dispose();
   }
 
   Future<void> _showAddMenu() async {
@@ -88,7 +98,6 @@ class _SkillsPageState extends State<SkillsPage> {
   }
 
   Future<void> _showPasteImport() async {
-    final l = context.l10n;
     final service = context.read<AgentToolService>();
     final imported = await showModalBottomSheet<bool>(
       context: context,
@@ -104,10 +113,8 @@ class _SkillsPageState extends State<SkillsPage> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
           child: _PasteSkillSheet(
-            onImport: (markdown) => service.importSkillFromText(
-              markdown,
-              fallbackName: l.v2PastedSkillName,
-            ),
+            onImport: service.importSkillFromText,
+            errorMessage: skillFormatErrorMessage,
           ),
         ),
       ),
@@ -115,10 +122,35 @@ class _SkillsPageState extends State<SkillsPage> {
     if (imported == true && mounted) await runUiAction(context, reload);
   }
 
+  Future<void> _open(SkillRecord skill) async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(builder: (_) => SkillDetailPage(skillId: skill.id)),
+    );
+    if (mounted) await runUiAction(context, reload);
+  }
+
+  Future<void> _setEnabled(SkillRecord skill, bool enabled) async {
+    final service = context.read<AgentToolService>();
+    await runUiAction(context, () async {
+      await service.setSkillEnabled(skill, enabled);
+      await reload();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final s = context.read<AgentToolService>();
     final l = context.l10n;
+    final query = search.text.trim().toLowerCase();
+    final visible = query.isEmpty
+        ? skills
+        : skills
+              .where(
+                (skill) =>
+                    skill.name.toLowerCase().contains(query) ||
+                    skill.description.toLowerCase().contains(query),
+              )
+              .toList();
     return AppScaffold(
       appBar: AppBar(
         title: Text(l.v2Skills),
@@ -176,34 +208,50 @@ class _SkillsPageState extends State<SkillsPage> {
                 ),
               if (skills.isNotEmpty)
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+                  sliver: SliverToBoxAdapter(
+                    child: TextField(
+                      key: const Key('skills_search'),
+                      controller: search,
+                      onChanged: (_) => setState(() {}),
+                      decoration: InputDecoration(
+                        hintText: l.v2SkillSearchHint,
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: search.text.isEmpty
+                            ? null
+                            : IconButton(
+                                tooltip: l.v2SkillSearchClear,
+                                icon: const Icon(Icons.close),
+                                onPressed: () => setState(search.clear),
+                              ),
+                      ),
+                    ),
+                  ),
+                ),
+              if (skills.isNotEmpty && visible.isEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(32, 48, 32, 32),
+                    child: Text(
+                      l.v2SkillNoResults,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ),
+              if (visible.isNotEmpty)
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
                   sliver: SliverList.list(
                     children: [
-                      ...skills.map(
-                        (a) => Card(
-                          child: ListTile(
-                            leading: const Icon(Icons.extension_outlined),
-                            title: Text(a.name),
-                            subtitle: Text(
-                              a.description +
-                                  (a.hasScripts
-                                      ? '\n${l.v2ScriptsUnsupported}'
-                                      : ''),
-                            ),
-                            trailing: IconButton(
-                              tooltip: l.commonDelete,
-                              icon: const Icon(Icons.delete_outline),
-                              onPressed: () => runUiAction(context, () async {
-                                try {
-                                  await s.deleteSkill(a);
-                                } finally {
-                                  await reload();
-                                }
-                              }),
-                            ),
-                          ),
+                      for (final skill in visible)
+                        _SkillTile(
+                          skill: skill,
+                          onTap: () => _open(skill),
+                          onEnabled: (enabled) => _setEnabled(skill, enabled),
                         ),
-                      ),
                     ],
                   ),
                 ),
@@ -215,10 +263,70 @@ class _SkillsPageState extends State<SkillsPage> {
   }
 }
 
+class _SkillTile extends StatelessWidget {
+  const _SkillTile({
+    required this.skill,
+    required this.onTap,
+    required this.onEnabled,
+  });
+
+  final SkillRecord skill;
+  final VoidCallback onTap;
+  final ValueChanged<bool> onEnabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    final valid = skill.hasValidMetadata;
+    return Card(
+      child: ListTile(
+        key: ValueKey('skill_${skill.id}'),
+        leading: const Icon(Icons.extension_outlined),
+        title: Text(skill.name),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              skill.description,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (!valid)
+              Padding(
+                padding: const EdgeInsets.only(top: 3),
+                child: Text(
+                  l.v2SkillMetadataIncomplete,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+              ),
+            if (skill.hasScripts)
+              Padding(
+                padding: const EdgeInsets.only(top: 3),
+                child: Text(
+                  l.v2ScriptsUnsupported,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+          ],
+        ),
+        trailing: Switch.adaptive(
+          key: ValueKey('skill_enabled_${skill.id}'),
+          value: skill.enabled,
+          onChanged: valid ? onEnabled : null,
+        ),
+        onTap: onTap,
+      ),
+    );
+  }
+}
+
 class _PasteSkillSheet extends StatefulWidget {
-  const _PasteSkillSheet({required this.onImport});
+  const _PasteSkillSheet({required this.onImport, required this.errorMessage});
 
   final Future<SkillRecord> Function(String markdown) onImport;
+  final String Function(AppLocalizations l, Object error) errorMessage;
 
   @override
   State<_PasteSkillSheet> createState() => _PasteSkillSheetState();
@@ -253,7 +361,7 @@ class _PasteSkillSheetState extends State<_PasteSkillSheet> {
       setState(() {
         _busy = false;
         _error = error is FormatException
-            ? l.v2SkillImportInvalid
+            ? widget.errorMessage(l, error)
             : '${l.v2OperationFailed}\n${LogRedactor.redact(error.toString())}';
       });
     }

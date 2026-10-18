@@ -16,6 +16,7 @@ import 'package:servllama/features/assistants/widgets/identity_avatar.dart';
 import 'package:servllama/features/agent/models/agent_records.dart';
 import 'package:servllama/features/agent/repositories/agent_repository.dart';
 import 'package:servllama/features/agent/services/agent_tool_service.dart';
+import 'package:servllama/features/agent/widgets/assistant_tools_editor.dart';
 import 'package:servllama/features/chat/models/chat_run_config.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
 
@@ -569,6 +570,61 @@ void main() {
       expect(saved.maxTokens, 4096);
       expect(saved.maxTurns, 3);
       expect(saved.maxToolCalls, 5);
+      expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets(
+    'a bound disabled skill stays selected with a disabled explanation',
+    (tester) async {
+      const skill = SkillRecord(
+        id: 'paused-skill',
+        name: 'Paused skill',
+        path: '/fixture',
+        hash: 'hash',
+        description: 'Static instructions',
+        enabled: false,
+      );
+      await AgentRepository(db).saveSkill(skill);
+      final original = a.changed({
+        'skillIds': [skill.id],
+      });
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        app(
+          Scaffold(
+            body: SingleChildScrollView(
+              child: AssistantToolsEditor(assistant: original),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final l = AppLocalizations.of(
+        tester.element(find.byType(AssistantToolsEditor)),
+      )!;
+      await tester.tap(find.widgetWithText(Tab, l.v2Skills));
+      await tester.pumpAndSettle();
+
+      final tileFinder = find.byKey(
+        const ValueKey('assistant_skill_paused-skill'),
+      );
+      expect(tileFinder, findsOneWidget);
+      final tile = tester.widget<CheckboxListTile>(tileFinder);
+      expect(tile.value, isTrue);
+      expect(tile.onChanged, isNull);
+      expect(find.text(l.v2SkillEnableOnSkillsPage), findsOneWidget);
+      final title = tester.widget<Text>(
+        find.descendant(of: tileFinder, matching: find.text(skill.name)),
+      );
+      expect(
+        title.style?.color,
+        Theme.of(
+          tester.element(tileFinder),
+        ).colorScheme.onSurface.withValues(alpha: .48),
+      );
       expect(tester.takeException(), isNull);
     },
   );

@@ -1759,7 +1759,101 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2SkillImportInvalid => 'SKILL.md 格式无效，请检查内容和元数据。';
 
   @override
-  String get v2PastedSkillName => '粘贴的技能';
+  String get v2SkillNameRequired => 'SKILL.md 必须包含 name 或 Markdown 标题。';
+
+  @override
+  String get v2SkillDescriptionRequired => 'SKILL.md 的元数据必须包含 description。';
+
+  @override
+  String get v2SkillMetadataInvalid => 'name 和 description 必须是简短文本。';
+
+  @override
+  String get v2SkillSearchHint => '搜索技能';
+
+  @override
+  String get v2SkillSearchClear => '清除搜索';
+
+  @override
+  String get v2SkillNoResults => '没有匹配的技能';
+
+  @override
+  String get v2SkillMetadataIncomplete => '技能元数据不完整';
+
+  @override
+  String get v2SkillStatus => '状态';
+
+  @override
+  String get v2SkillEnabled => '已启用';
+
+  @override
+  String get v2SkillDisabled => '已停用';
+
+  @override
+  String get v2SkillDescription => '描述';
+
+  @override
+  String get v2SkillMetadata => '信息';
+
+  @override
+  String get v2SkillScripts => '脚本';
+
+  @override
+  String get v2SkillDetailBodyEmpty => 'SKILL.md 没有正文内容。';
+
+  @override
+  String get v2SkillResources => '资源文件';
+
+  @override
+  String get v2SkillNoResources => '无附加资源。';
+
+  @override
+  String get v2SkillMoreActions => '更多操作';
+
+  @override
+  String get v2SkillEdit => '编辑';
+
+  @override
+  String get v2SkillExport => '导出 ZIP';
+
+  @override
+  String get v2SkillDelete => '删除技能';
+
+  @override
+  String v2SkillDeleteTitle(String name) {
+    return '删除“$name”？';
+  }
+
+  @override
+  String get v2SkillDeleteCannotUndo => '此操作无法撤销';
+
+  @override
+  String v2SkillExported(String path) {
+    return '已导出到 $path';
+  }
+
+  @override
+  String get v2SkillLoadFailed => '无法加载技能。';
+
+  @override
+  String get v2SkillFileReadFailed => '无法读取此文件。';
+
+  @override
+  String get v2SkillDiscardChanges => '放弃修改？';
+
+  @override
+  String get v2SkillDiscardChangesHelp => '未保存的内容将不会保留。';
+
+  @override
+  String get v2SkillDiscard => '放弃';
+
+  @override
+  String get v2SkillSelectAllEnabled => '全选已启用';
+
+  @override
+  String get v2SkillClearSelection => '清空';
+
+  @override
+  String get v2SkillEnableOnSkillsPage => '请先在技能页启用';
 
   @override
   String get v2ScriptsUnsupported => '含脚本参考；本应用只读取静态说明，不执行脚本。';

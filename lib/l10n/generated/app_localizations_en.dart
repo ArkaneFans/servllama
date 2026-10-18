@@ -1856,7 +1856,104 @@ class AppLocalizationsEn extends AppLocalizations {
       'Invalid SKILL.md content. Check the text and metadata.';
 
   @override
-  String get v2PastedSkillName => 'Pasted skill';
+  String get v2SkillNameRequired =>
+      'SKILL.md must include a name or a Markdown heading.';
+
+  @override
+  String get v2SkillDescriptionRequired =>
+      'SKILL.md metadata must include a description.';
+
+  @override
+  String get v2SkillMetadataInvalid =>
+      'Name and description must be short text.';
+
+  @override
+  String get v2SkillSearchHint => 'Search skills';
+
+  @override
+  String get v2SkillSearchClear => 'Clear search';
+
+  @override
+  String get v2SkillNoResults => 'No matching skills';
+
+  @override
+  String get v2SkillMetadataIncomplete => 'Skill metadata is incomplete';
+
+  @override
+  String get v2SkillStatus => 'Status';
+
+  @override
+  String get v2SkillEnabled => 'Enabled';
+
+  @override
+  String get v2SkillDisabled => 'Disabled';
+
+  @override
+  String get v2SkillDescription => 'Description';
+
+  @override
+  String get v2SkillMetadata => 'Details';
+
+  @override
+  String get v2SkillScripts => 'Scripts';
+
+  @override
+  String get v2SkillDetailBodyEmpty => 'SKILL.md has no body content.';
+
+  @override
+  String get v2SkillResources => 'Resource files';
+
+  @override
+  String get v2SkillNoResources => 'No additional resources.';
+
+  @override
+  String get v2SkillMoreActions => 'More actions';
+
+  @override
+  String get v2SkillEdit => 'Edit';
+
+  @override
+  String get v2SkillExport => 'Export ZIP';
+
+  @override
+  String get v2SkillDelete => 'Delete skill';
+
+  @override
+  String v2SkillDeleteTitle(String name) {
+    return 'Delete \"$name\"?';
+  }
+
+  @override
+  String get v2SkillDeleteCannotUndo => 'This action cannot be undone.';
+
+  @override
+  String v2SkillExported(String path) {
+    return 'Exported to $path';
+  }
+
+  @override
+  String get v2SkillLoadFailed => 'Unable to load this skill.';
+
+  @override
+  String get v2SkillFileReadFailed => 'Unable to read this file.';
+
+  @override
+  String get v2SkillDiscardChanges => 'Discard changes?';
+
+  @override
+  String get v2SkillDiscardChangesHelp => 'Unsaved changes will be lost.';
+
+  @override
+  String get v2SkillDiscard => 'Discard';
+
+  @override
+  String get v2SkillSelectAllEnabled => 'Select all enabled';
+
+  @override
+  String get v2SkillClearSelection => 'Clear';
+
+  @override
+  String get v2SkillEnableOnSkillsPage => 'Enable it on the Skills page first';
 
   @override
   String get v2ScriptsUnsupported =>

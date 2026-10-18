@@ -3323,11 +3323,191 @@ abstract class AppLocalizations {
   /// **'Invalid SKILL.md content. Check the text and metadata.'**
   String get v2SkillImportInvalid;
 
-  /// No description provided for @v2PastedSkillName.
+  /// No description provided for @v2SkillNameRequired.
   ///
   /// In en, this message translates to:
-  /// **'Pasted skill'**
-  String get v2PastedSkillName;
+  /// **'SKILL.md must include a name or a Markdown heading.'**
+  String get v2SkillNameRequired;
+
+  /// No description provided for @v2SkillDescriptionRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'SKILL.md metadata must include a description.'**
+  String get v2SkillDescriptionRequired;
+
+  /// No description provided for @v2SkillMetadataInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Name and description must be short text.'**
+  String get v2SkillMetadataInvalid;
+
+  /// No description provided for @v2SkillSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search skills'**
+  String get v2SkillSearchHint;
+
+  /// No description provided for @v2SkillSearchClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear search'**
+  String get v2SkillSearchClear;
+
+  /// No description provided for @v2SkillNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching skills'**
+  String get v2SkillNoResults;
+
+  /// No description provided for @v2SkillMetadataIncomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Skill metadata is incomplete'**
+  String get v2SkillMetadataIncomplete;
+
+  /// No description provided for @v2SkillStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get v2SkillStatus;
+
+  /// No description provided for @v2SkillEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get v2SkillEnabled;
+
+  /// No description provided for @v2SkillDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled'**
+  String get v2SkillDisabled;
+
+  /// No description provided for @v2SkillDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get v2SkillDescription;
+
+  /// No description provided for @v2SkillMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get v2SkillMetadata;
+
+  /// No description provided for @v2SkillScripts.
+  ///
+  /// In en, this message translates to:
+  /// **'Scripts'**
+  String get v2SkillScripts;
+
+  /// No description provided for @v2SkillDetailBodyEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'SKILL.md has no body content.'**
+  String get v2SkillDetailBodyEmpty;
+
+  /// No description provided for @v2SkillResources.
+  ///
+  /// In en, this message translates to:
+  /// **'Resource files'**
+  String get v2SkillResources;
+
+  /// No description provided for @v2SkillNoResources.
+  ///
+  /// In en, this message translates to:
+  /// **'No additional resources.'**
+  String get v2SkillNoResources;
+
+  /// No description provided for @v2SkillMoreActions.
+  ///
+  /// In en, this message translates to:
+  /// **'More actions'**
+  String get v2SkillMoreActions;
+
+  /// No description provided for @v2SkillEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get v2SkillEdit;
+
+  /// No description provided for @v2SkillExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export ZIP'**
+  String get v2SkillExport;
+
+  /// No description provided for @v2SkillDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete skill'**
+  String get v2SkillDelete;
+
+  /// No description provided for @v2SkillDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete \"{name}\"?'**
+  String v2SkillDeleteTitle(String name);
+
+  /// No description provided for @v2SkillDeleteCannotUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'This action cannot be undone.'**
+  String get v2SkillDeleteCannotUndo;
+
+  /// No description provided for @v2SkillExported.
+  ///
+  /// In en, this message translates to:
+  /// **'Exported to {path}'**
+  String v2SkillExported(String path);
+
+  /// No description provided for @v2SkillLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to load this skill.'**
+  String get v2SkillLoadFailed;
+
+  /// No description provided for @v2SkillFileReadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to read this file.'**
+  String get v2SkillFileReadFailed;
+
+  /// No description provided for @v2SkillDiscardChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard changes?'**
+  String get v2SkillDiscardChanges;
+
+  /// No description provided for @v2SkillDiscardChangesHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsaved changes will be lost.'**
+  String get v2SkillDiscardChangesHelp;
+
+  /// No description provided for @v2SkillDiscard.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get v2SkillDiscard;
+
+  /// No description provided for @v2SkillSelectAllEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Select all enabled'**
+  String get v2SkillSelectAllEnabled;
+
+  /// No description provided for @v2SkillClearSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get v2SkillClearSelection;
+
+  /// No description provided for @v2SkillEnableOnSkillsPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable it on the Skills page first'**
+  String get v2SkillEnableOnSkillsPage;
 
   /// No description provided for @v2ScriptsUnsupported.
   ///

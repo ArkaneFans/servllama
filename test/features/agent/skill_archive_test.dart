@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/core/database/app_database.dart';
 import 'package:servllama/core/logging/app_logger.dart';
+import 'package:servllama/features/agent/models/agent_records.dart';
 import 'package:servllama/features/agent/repositories/agent_repository.dart';
 import 'package:servllama/features/agent/services/skill_service.dart';
 
@@ -74,19 +76,116 @@ void main() {
       }
     },
   );
-  test('pasted markdown is stored as SKILL.md with a fallback name', () async {
-    const markdown = '# Pasted instructions\n\nKeep this text unchanged.';
-    final skill = await skills.importMarkdown(
-      markdown,
-      fallbackName: 'Pasted skill',
-    );
-    expect(skill.name, 'Pasted skill');
+  test('pasted markdown uses its heading and requires a description', () async {
+    const markdown =
+        '---\ndescription: Pasted fixture\n---\n'
+        '# Pasted instructions\n\nKeep this text unchanged.';
+    final skill = await skills.importMarkdown(markdown);
+    expect(skill.name, 'Pasted instructions');
+    expect(skill.description, 'Pasted fixture');
+    expect(skill.source, SkillSource.paste);
     expect(await skills.read(skill), markdown);
   });
   test('empty pasted markdown is rejected', () async {
+    await expectLater(skills.importMarkdown(' \n '), throwsFormatException);
+  });
+  test('skill metadata requires both name and description', () async {
     await expectLater(
-      skills.importMarkdown(' \n ', fallbackName: 'Pasted skill'),
-      throwsFormatException,
+      skills.importMarkdown('---\nname: Missing description\n---\nbody'),
+      throwsA(
+        isA<SkillFormatException>().having(
+          (error) => error.error,
+          'error',
+          SkillFormatError.missingDescription,
+        ),
+      ),
+    );
+    await expectLater(
+      skills.importMarkdown('---\ndescription: Missing name\n---\nbody'),
+      throwsA(
+        isA<SkillFormatException>().having(
+          (error) => error.error,
+          'error',
+          SkillFormatError.missingName,
+        ),
+      ),
+    );
+  });
+  test('legacy records default to enabled and expose incomplete metadata', () {
+    final record = SkillRecord.fromJson({
+      'id': 'legacy',
+      'name': 'Legacy skill',
+      'path': '${root.path}/skills/legacy',
+      'hash': 'legacy',
+      'description': '',
+    });
+    expect(record.enabled, isTrue);
+    expect(record.source, SkillSource.unknown);
+    expect(record.installedAt, isNull);
+    expect(record.hasValidMetadata, isFalse);
+  });
+  test('disabled state and edited metadata persist together', () async {
+    final skill = await skills.importMarkdown(
+      '---\nname: Before\ndescription: Before edit\n---\n# Before\nbody',
+    );
+    final disabled = await skills.setEnabled(skill, false);
+    expect(disabled.enabled, isFalse);
+    expect((await skills.list()).single.enabled, isFalse);
+
+    final updated = await skills.updateMarkdown(
+      disabled,
+      '---\nname: After\ndescription: After edit\n---\n# After\nnew body',
+    );
+    expect(updated.name, 'After');
+    expect(updated.description, 'After edit');
+    expect(updated.hash, isNot(skill.hash));
+    expect(updated.enabled, isFalse);
+    expect(updated.installedAt, skill.installedAt);
+    expect(updated.updatedAt, isNotNull);
+    expect(await skills.read(updated), contains('new body'));
+    expect((await skills.list()).single.toJson(), updated.toJson());
+  });
+  test('failed markdown save restores the previous file and record', () async {
+    const original =
+        '---\nname: Original\ndescription: Original text\n---\nbody';
+    final skill = await skills.importMarkdown(original);
+    await db.execute(
+      "CREATE TRIGGER reject_skill_update BEFORE UPDATE ON skills "
+      "BEGIN SELECT RAISE(ABORT,'fixture'); END",
+    );
+
+    await expectLater(
+      skills.updateMarkdown(
+        skill,
+        '---\nname: Changed\ndescription: Changed text\n---\nnew body',
+      ),
+      throwsA(anything),
+    );
+    expect(await skills.read(skill), original);
+    expect((await skills.list()).single.toJson(), skill.toJson());
+  });
+  test('exported ZIP contains the complete static skill package', () async {
+    final skill = await skills.importPackage(
+      await zip([
+        ArchiveFile.string(
+          'exported/SKILL.md',
+          '---\nname: Exported\ndescription: Export fixture\n---\nbody',
+        ),
+        ArchiveFile.string('exported/references/guide.md', 'facts'),
+      ]),
+    );
+    final output = await skills.exportZip(
+      skill,
+      Directory('${root.path}/exports'),
+    );
+    final archive = ZipDecoder().decodeBytes(await output.readAsBytes());
+    expect(
+      archive.files.map((file) => file.name),
+      containsAll(['SKILL.md', 'references/guide.md']),
+    );
+    expect(
+      utf8.decode(archive.findFile('references/guide.md')!.content),
+      'facts',
     );
   });
   for (final path in ['../SKILL.md', 'folder/../../SKILL.md', 'C:/SKILL.md']) {

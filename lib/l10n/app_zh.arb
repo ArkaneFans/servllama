@@ -773,7 +773,51 @@
   "v2SkillImportMarkdownHint": "粘贴包含 SKILL.md 内容的 Markdown",
   "v2SkillImportConfirm": "导入",
   "v2SkillImportInvalid": "SKILL.md 格式无效，请检查内容和元数据。",
-  "v2PastedSkillName": "粘贴的技能",
+  "v2SkillNameRequired": "SKILL.md 必须包含 name 或 Markdown 标题。",
+  "v2SkillDescriptionRequired": "SKILL.md 的元数据必须包含 description。",
+  "v2SkillMetadataInvalid": "name 和 description 必须是简短文本。",
+  "v2SkillSearchHint": "搜索技能",
+  "v2SkillSearchClear": "清除搜索",
+  "v2SkillNoResults": "没有匹配的技能",
+  "v2SkillMetadataIncomplete": "技能元数据不完整",
+  "v2SkillStatus": "状态",
+  "v2SkillEnabled": "已启用",
+  "v2SkillDisabled": "已停用",
+  "v2SkillDescription": "描述",
+  "v2SkillMetadata": "信息",
+  "v2SkillScripts": "脚本",
+  "v2SkillDetailBodyEmpty": "SKILL.md 没有正文内容。",
+  "v2SkillResources": "资源文件",
+  "v2SkillNoResources": "无附加资源。",
+  "v2SkillMoreActions": "更多操作",
+  "v2SkillEdit": "编辑",
+  "v2SkillExport": "导出 ZIP",
+  "v2SkillDelete": "删除技能",
+  "v2SkillDeleteTitle": "删除“{name}”？",
+  "@v2SkillDeleteTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "v2SkillDeleteCannotUndo": "此操作无法撤销",
+  "v2SkillExported": "已导出到 {path}",
+  "@v2SkillExported": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "v2SkillLoadFailed": "无法加载技能。",
+  "v2SkillFileReadFailed": "无法读取此文件。",
+  "v2SkillDiscardChanges": "放弃修改？",
+  "v2SkillDiscardChangesHelp": "未保存的内容将不会保留。",
+  "v2SkillDiscard": "放弃",
+  "v2SkillSelectAllEnabled": "全选已启用",
+  "v2SkillClearSelection": "清空",
+  "v2SkillEnableOnSkillsPage": "请先在技能页启用",
   "v2ScriptsUnsupported": "含脚本参考；本应用只读取静态说明，不执行脚本。",
   "v2Mcp": "MCP",
   "v2McpToken": "静态 Bearer Token",

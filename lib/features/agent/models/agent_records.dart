@@ -118,6 +118,16 @@ class McpServer {
   );
 }
 
+enum SkillSource { unknown, paste, file }
+
+enum SkillFormatError { missingName, missingDescription, invalidMetadata }
+
+class SkillFormatException extends FormatException {
+  const SkillFormatException(this.error, String message) : super(message);
+
+  final SkillFormatError error;
+}
+
 class SkillRecord {
   const SkillRecord({
     required this.id,
@@ -126,9 +136,43 @@ class SkillRecord {
     required this.hash,
     required this.description,
     this.hasScripts = false,
+    this.enabled = true,
+    this.source = SkillSource.unknown,
+    this.installedAt,
+    this.updatedAt,
   });
   final String id, name, path, hash, description;
   final bool hasScripts;
+  final bool enabled;
+  final SkillSource source;
+  final DateTime? installedAt, updatedAt;
+
+  bool get hasValidMetadata =>
+      name.trim().isNotEmpty && description.trim().isNotEmpty;
+
+  SkillRecord copyWith({
+    String? name,
+    String? path,
+    String? hash,
+    String? description,
+    bool? hasScripts,
+    bool? enabled,
+    SkillSource? source,
+    DateTime? installedAt,
+    DateTime? updatedAt,
+  }) => SkillRecord(
+    id: id,
+    name: name ?? this.name,
+    path: path ?? this.path,
+    hash: hash ?? this.hash,
+    description: description ?? this.description,
+    hasScripts: hasScripts ?? this.hasScripts,
+    enabled: enabled ?? this.enabled,
+    source: source ?? this.source,
+    installedAt: installedAt ?? this.installedAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
@@ -136,6 +180,10 @@ class SkillRecord {
     'hash': hash,
     'description': description,
     'hasScripts': hasScripts,
+    'enabled': enabled,
+    'source': source.name,
+    'installedAt': installedAt?.toIso8601String(),
+    'updatedAt': updatedAt?.toIso8601String(),
   };
   factory SkillRecord.fromJson(Map<String, dynamic> j) => SkillRecord(
     id: j['id'],
@@ -144,7 +192,42 @@ class SkillRecord {
     hash: j['hash'],
     description: j['description'],
     hasScripts: j['hasScripts'] ?? false,
+    enabled: j['enabled'] as bool? ?? true,
+    source: _skillSource(j['source']),
+    installedAt: _skillDate(j['installedAt']),
+    updatedAt: _skillDate(j['updatedAt']),
   );
+
+  static SkillSource _skillSource(Object? value) {
+    for (final source in SkillSource.values) {
+      if (source.name == value) return source;
+    }
+    return SkillSource.unknown;
+  }
+
+  static DateTime? _skillDate(Object? value) =>
+      value is String ? DateTime.tryParse(value) : null;
+}
+
+class SkillFileEntry {
+  const SkillFileEntry({
+    required this.relativePath,
+    required this.size,
+    required this.isText,
+  });
+
+  final String relativePath;
+  final int size;
+  final bool isText;
+}
+
+class SkillDetails {
+  const SkillDetails({required this.record, required this.files});
+
+  final SkillRecord record;
+  final List<SkillFileEntry> files;
+
+  int get totalBytes => files.fold(0, (total, file) => total + file.size);
 }
 
 class ToolInvocation {

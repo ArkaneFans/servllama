@@ -21,6 +21,7 @@ import 'package:servllama/core/repositories/unified_model_repository.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
 import 'package:servllama/features/agent/models/agent_records.dart';
 import 'package:servllama/features/agent/pages/mcp_servers_page.dart';
+import 'package:servllama/features/agent/pages/skill_detail_page.dart';
 import 'package:servllama/features/agent/pages/skills_page.dart';
 import 'package:servllama/features/agent/repositories/agent_repository.dart';
 import 'package:servllama/features/agent/services/agent_tool_service.dart';
@@ -730,14 +731,14 @@ void main() {
 
     await tester.enterText(
       find.byKey(const Key('skills_paste_field')),
-      '---\nname: [invalid]\n---\nBody',
+      '---\nname: Invalid fixture\n---\nBody',
     );
     await tester.pump();
     await tester.ensureVisible(find.byKey(const Key('skills_paste_submit')));
     await tester.tap(find.byKey(const Key('skills_paste_submit')));
     await tester.pumpAndSettle();
     expect(
-      find.text('Invalid SKILL.md content. Check the text and metadata.'),
+      find.text('SKILL.md metadata must include a description.'),
       findsOneWidget,
     );
 
@@ -768,15 +769,12 @@ void main() {
         name: 'Fixture MCP',
         url: 'https://example.com/mcp',
       );
-      final skill = SkillRecord(
-        id: 'fixture-skill',
-        name: 'Fixture skill',
-        path: '${speech.directory.path}/skills/fixture-skill',
-        hash: 'fixture',
-        description: 'Static skill fixture',
-      );
+      late final SkillRecord skill;
       await tester.runAsync(() async {
-        await tools.repository.saveSkill(skill);
+        skill = await tools.skills.importMarkdown(
+          '---\nname: Fixture skill\ndescription: Static skill fixture\n---\n'
+          'Fixture body',
+        );
         await tools.repository.saveServer(server);
         await assistants.save(
           assistants.assistants.firstWhere((a) => a.id == 'daily').changed({
@@ -798,6 +796,15 @@ void main() {
         tester,
         () => find.text(skill.name).evaluate().isNotEmpty,
       );
+      final search = find.byKey(const Key('skills_search'));
+      expect(search, findsOneWidget);
+      await tester.enterText(search, 'missing skill');
+      await tester.pump();
+      expect(find.text('No matching skills'), findsOneWidget);
+      expect(find.text(skill.name), findsNothing);
+      await tester.enterText(search, 'static skill fixture');
+      await tester.pump();
+      expect(find.text(skill.name), findsOneWidget);
       expect(
         find.descendant(
           of: find.ancestor(
@@ -810,8 +817,25 @@ void main() {
       );
       expect(find.textContaining('Import static packages'), findsNothing);
       expect(find.text(server.name), findsNothing);
-      await tester.tap(find.byTooltip('Delete'));
-      await settleSql(tester, () => find.text(skill.name).evaluate().isEmpty);
+      await tester.tap(find.byKey(ValueKey('skill_${skill.id}')));
+      await settleSql(
+        tester,
+        () =>
+            find.byType(SkillDetailPage).evaluate().isNotEmpty &&
+            find.byTooltip('More actions').evaluate().isNotEmpty,
+      );
+      await tester.tap(find.byTooltip('More actions'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete skill'));
+      await tester.pumpAndSettle();
+      expect(find.text('This action cannot be undone.'), findsOneWidget);
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+      await settleSql(
+        tester,
+        () =>
+            find.byType(SkillDetailPage).evaluate().isEmpty &&
+            find.text(skill.name).evaluate().isEmpty,
+      );
       expect(
         assistants.assistants.firstWhere((a) => a.id == 'daily').skillIds,
         isEmpty,

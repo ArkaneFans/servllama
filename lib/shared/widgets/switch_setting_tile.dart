@@ -12,7 +12,7 @@ class SwitchSettingTile extends StatelessWidget {
   final String title;
   final String? subtitle;
   final bool value;
-  final ValueChanged<bool> onChanged;
+  final ValueChanged<bool>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +21,7 @@ class SwitchSettingTile extends StatelessWidget {
 
     return InkWell(
       borderRadius: BorderRadius.circular(18),
-      onTap: () => onChanged(!value),
+      onTap: onChanged == null ? null : () => onChanged!(!value),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Row(
@@ -50,10 +50,7 @@ class SwitchSettingTile extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            Switch.adaptive(
-              value: value,
-              onChanged: onChanged,
-            ),
+            Switch.adaptive(value: value, onChanged: onChanged),
           ],
         ),
       ),

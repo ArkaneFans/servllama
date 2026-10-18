@@ -178,17 +178,38 @@ class AgentToolService extends ChangeNotifier {
     return skill;
   }
 
-  Future<SkillRecord> importSkillFromText(
-    String markdown, {
-    required String fallbackName,
-  }) async {
-    final skill = await skills.importMarkdown(
-      markdown,
-      fallbackName: fallbackName,
-    );
+  Future<SkillRecord> importSkillFromText(String markdown) async {
+    final skill = await skills.importMarkdown(markdown);
     notifyListeners();
     return skill;
   }
+
+  Future<List<SkillRecord>> loadSkills() => skills.list();
+
+  Future<SkillDetails> loadSkillDetails(SkillRecord skill) =>
+      skills.details(skill);
+
+  Future<String> readSkillText(
+    SkillRecord skill, {
+    String relativePath = 'SKILL.md',
+  }) => skills.read(skill, relativePath: relativePath);
+
+  Future<SkillRecord> updateSkill(SkillRecord skill, String markdown) async {
+    final updated = await skills.updateMarkdown(skill, markdown);
+    await revalidate();
+    notifyListeners();
+    return updated;
+  }
+
+  Future<SkillRecord> setSkillEnabled(SkillRecord skill, bool enabled) async {
+    final updated = await skills.setEnabled(skill, enabled);
+    await revalidate();
+    notifyListeners();
+    return updated;
+  }
+
+  Future<File> exportSkill(SkillRecord skill, Directory outDir) =>
+      skills.exportZip(skill, outDir);
 
   Future<void> deleteSkill(SkillRecord s) async {
     try {
@@ -340,17 +361,18 @@ class ToolSession {
   String skillInstructions = '';
   bool _closed = false;
   Future<void> _initialize() async {
-    for (final s in await owner.repository.skills()) {
-      if (config.assistant.skillIds.contains(s.id)) {
-        _skills.add(s);
-        final text = await owner.skills.read(s);
-        skillInstructions += config.capabilities.supportsTools
-            ? '\nSelected skill: ${s.name}; id=${s.id}. ${s.description}\nUse read_skill to read its SKILL.md and referenced text when needed.\n'
-            : '\nSelected skill: ${s.name}\n$text\n';
-      }
-    }
-    if (_skills.length != config.assistant.skillIds.length) {
-      throw StateError('Selected skill missing');
+    final current = {
+      for (final skill in await owner.repository.skills()) skill.id: skill,
+    };
+    for (final id in config.assistant.skillIds) {
+      final skill = current[id];
+      if (skill == null) throw StateError('Selected skill missing');
+      if (!skill.enabled || !skill.hasValidMetadata) continue;
+      _skills.add(skill);
+      final text = await owner.skills.read(skill);
+      skillInstructions += config.capabilities.supportsTools
+          ? '\nSelected skill: ${skill.name}; id=${skill.id}. ${skill.description}\nUse read_skill to read its SKILL.md and referenced text when needed.\n'
+          : '\nSelected skill: ${skill.name}\n$text\n';
     }
     if (skillInstructions.length > 65536) {
       throw StateError('Selected skills exceed context allowance');
@@ -435,7 +457,13 @@ class ToolSession {
     final servers = await owner.repository.servers();
     final currentSkills = await owner.repository.skills();
     for (final skill in _skills) {
-      if (!currentSkills.any((s) => s.id == skill.id && s.hash == skill.hash)) {
+      if (!currentSkills.any(
+        (s) =>
+            s.id == skill.id &&
+            s.hash == skill.hash &&
+            s.enabled &&
+            s.hasValidMetadata,
+      )) {
         throw StateError('Selected skill changed or was removed');
       }
     }

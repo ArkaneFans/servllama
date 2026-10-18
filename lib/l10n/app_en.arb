@@ -986,7 +986,51 @@
   "v2SkillImportMarkdownHint": "Paste SKILL.md content",
   "v2SkillImportConfirm": "Import",
   "v2SkillImportInvalid": "Invalid SKILL.md content. Check the text and metadata.",
-  "v2PastedSkillName": "Pasted skill",
+  "v2SkillNameRequired": "SKILL.md must include a name or a Markdown heading.",
+  "v2SkillDescriptionRequired": "SKILL.md metadata must include a description.",
+  "v2SkillMetadataInvalid": "Name and description must be short text.",
+  "v2SkillSearchHint": "Search skills",
+  "v2SkillSearchClear": "Clear search",
+  "v2SkillNoResults": "No matching skills",
+  "v2SkillMetadataIncomplete": "Skill metadata is incomplete",
+  "v2SkillStatus": "Status",
+  "v2SkillEnabled": "Enabled",
+  "v2SkillDisabled": "Disabled",
+  "v2SkillDescription": "Description",
+  "v2SkillMetadata": "Details",
+  "v2SkillScripts": "Scripts",
+  "v2SkillDetailBodyEmpty": "SKILL.md has no body content.",
+  "v2SkillResources": "Resource files",
+  "v2SkillNoResources": "No additional resources.",
+  "v2SkillMoreActions": "More actions",
+  "v2SkillEdit": "Edit",
+  "v2SkillExport": "Export ZIP",
+  "v2SkillDelete": "Delete skill",
+  "v2SkillDeleteTitle": "Delete \"{name}\"?",
+  "@v2SkillDeleteTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "v2SkillDeleteCannotUndo": "This action cannot be undone.",
+  "v2SkillExported": "Exported to {path}",
+  "@v2SkillExported": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "v2SkillLoadFailed": "Unable to load this skill.",
+  "v2SkillFileReadFailed": "Unable to read this file.",
+  "v2SkillDiscardChanges": "Discard changes?",
+  "v2SkillDiscardChangesHelp": "Unsaved changes will be lost.",
+  "v2SkillDiscard": "Discard",
+  "v2SkillSelectAllEnabled": "Select all enabled",
+  "v2SkillClearSelection": "Clear",
+  "v2SkillEnableOnSkillsPage": "Enable it on the Skills page first",
   "v2ScriptsUnsupported": "Contains script references. Only static instructions are used; scripts are not executed.",
   "v2Mcp": "MCP",
   "v2McpToken": "Static bearer token",

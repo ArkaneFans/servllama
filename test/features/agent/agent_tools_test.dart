@@ -472,6 +472,72 @@ void main() {
       expect(session.skillInstructions, contains('PRIVATE BODY'));
     },
   );
+  test('a bound disabled skill is skipped until it is enabled again', () async {
+    await session.close();
+    final source = File('${dir.path}/disabled-skill.md');
+    await source.writeAsString(
+      '---\nname: paused guide\ndescription: paused description\n---\n'
+      'PAUSED BODY',
+    );
+    final skill = await service.skills.importPackage(source);
+    await service.setSkillEnabled(skill, false);
+    assistant = assistant.changed({
+      'skillIds': [skill.id],
+    });
+    await AssistantRepository(db).saveAssistant(assistant);
+    ChatRunConfig config() => ChatRunConfig(
+      assistant: assistant,
+      connection: AiConnection(
+        id: 'c',
+        name: 'test',
+        protocol: AiProtocol.openai,
+        baseUrl: 'https://example.com/v1',
+        models: ['m'],
+        modelCapabilities: {'m': ModelCapabilities(supportsTools: true)},
+      ),
+      key: '',
+      modelId: 'm',
+      isLocal: false,
+    );
+
+    await seedAgentRun(db, 'disabled-skill');
+    session = await service.open(
+      'disabled-skill',
+      'conversation',
+      config(),
+      CancelToken(),
+    );
+    expect(session.skillInstructions, isNot(contains('paused description')));
+    expect(session.definitions.any((t) => t.name == 'read_skill'), isFalse);
+    final skipped = await session.invoke(
+      AiToolCall(
+        id: 'skipped',
+        name: 'read_skill',
+        arguments: {'id': skill.id},
+      ),
+    );
+    expect(skipped.isError, isTrue);
+    expect((await AssistantRepository(db).assistants()).single.skillIds, [
+      skill.id,
+    ]);
+
+    await session.close();
+    await service.setSkillEnabled(skill, true);
+    await seedAgentRun(db, 'enabled-skill');
+    session = await service.open(
+      'enabled-skill',
+      'conversation',
+      config(),
+      CancelToken(),
+    );
+    expect(session.skillInstructions, contains('paused description'));
+    expect(session.definitions.any((t) => t.name == 'read_skill'), isTrue);
+    final body = await session.invoke(
+      AiToolCall(id: 'body', name: 'read_skill', arguments: {'id': skill.id}),
+    );
+    expect(body.isError, isFalse);
+    expect(body.text, contains('PAUSED BODY'));
+  });
   test('revocation cancels a pending user question', () async {
     final running = session.invoke(
       const AiToolCall(
