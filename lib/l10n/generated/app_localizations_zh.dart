@@ -15,6 +15,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2McpEmptyHint => '点击右上角 + 添加';
 
   @override
+  String get v2McpSearchHint => '搜索 MCP 服务';
+
+  @override
+  String get v2McpSearchClear => '清除搜索';
+
+  @override
+  String get v2McpNoResults => '没有匹配的 MCP 服务';
+
+  @override
   String get v2McpStatusDisconnected => '未连接';
 
   @override

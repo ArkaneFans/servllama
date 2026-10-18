@@ -1,6 +1,9 @@
 {
   "v2McpEmpty": "No MCP servers yet",
   "v2McpEmptyHint": "Tap + in the upper-right corner to add one",
+  "v2McpSearchHint": "Search MCP servers",
+  "v2McpSearchClear": "Clear search",
+  "v2McpNoResults": "No matching MCP servers",
   "v2McpStatusDisconnected": "Disconnected",
   "v2McpStatusConnecting": "Connecting",
   "v2McpStatusConnected": "Connected",

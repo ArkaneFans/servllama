@@ -15,6 +15,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2McpEmptyHint => 'Tap + in the upper-right corner to add one';
 
   @override
+  String get v2McpSearchHint => 'Search MCP servers';
+
+  @override
+  String get v2McpSearchClear => 'Clear search';
+
+  @override
+  String get v2McpNoResults => 'No matching MCP servers';
+
+  @override
   String get v2McpStatusDisconnected => 'Disconnected';
 
   @override

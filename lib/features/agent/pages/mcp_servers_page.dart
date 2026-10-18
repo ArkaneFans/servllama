@@ -21,12 +21,20 @@ class McpServersPage extends StatefulWidget {
 }
 
 class _McpServersPageState extends State<McpServersPage> {
+  final search = TextEditingController();
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) runUiAction(context, reload);
     });
+  }
+
+  @override
+  void dispose() {
+    search.dispose();
+    super.dispose();
   }
 
   Future<void> reload({bool refreshConnections = false}) async {
@@ -47,6 +55,16 @@ class _McpServersPageState extends State<McpServersPage> {
     final servers = s.mcp.servers;
     final loaded = s.mcp.loaded;
     final l = context.l10n;
+    final query = search.text.trim().toLowerCase();
+    final visible = query.isEmpty
+        ? servers
+        : servers
+              .where(
+                (server) =>
+                    server.name.toLowerCase().contains(query) ||
+                    server.url.toLowerCase().contains(query),
+              )
+              .toList();
     return AppScaffold(
       appBar: AppBar(
         title: Text(l.v2Mcp),
@@ -101,12 +119,47 @@ class _McpServersPageState extends State<McpServersPage> {
                     ),
                   ),
                 ),
-              if (servers.isNotEmpty)
+              if (loaded && servers.isNotEmpty)
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+                  sliver: SliverToBoxAdapter(
+                    child: TextField(
+                      key: const Key('mcp_search'),
+                      controller: search,
+                      onChanged: (_) => setState(() {}),
+                      decoration: InputDecoration(
+                        hintText: l.v2McpSearchHint,
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: search.text.isEmpty
+                            ? null
+                            : IconButton(
+                                tooltip: l.v2McpSearchClear,
+                                icon: const Icon(Icons.close),
+                                onPressed: () => setState(search.clear),
+                              ),
+                      ),
+                    ),
+                  ),
+                ),
+              if (loaded && servers.isNotEmpty && visible.isEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(32, 48, 32, 32),
+                    child: Text(
+                      l.v2McpNoResults,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ),
+              if (visible.isNotEmpty)
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
                   sliver: SliverList.list(
                     children: [
-                      ...servers.map(
+                      ...visible.map(
                         (a) => _McpServerCard(
                           server: a,
                           state: s.mcp.stateFor(a.id),

@@ -110,6 +110,24 @@ abstract class AppLocalizations {
   /// **'Tap + in the upper-right corner to add one'**
   String get v2McpEmptyHint;
 
+  /// No description provided for @v2McpSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search MCP servers'**
+  String get v2McpSearchHint;
+
+  /// No description provided for @v2McpSearchClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear search'**
+  String get v2McpSearchClear;
+
+  /// No description provided for @v2McpNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching MCP servers'**
+  String get v2McpNoResults;
+
   /// No description provided for @v2McpStatusDisconnected.
   ///
   /// In en, this message translates to:

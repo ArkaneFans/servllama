@@ -1,6 +1,9 @@
 {
   "v2McpEmpty": "还没有 MCP 服务",
   "v2McpEmptyHint": "点击右上角 + 添加",
+  "v2McpSearchHint": "搜索 MCP 服务",
+  "v2McpSearchClear": "清除搜索",
+  "v2McpNoResults": "没有匹配的 MCP 服务",
   "v2McpStatusDisconnected": "未连接",
   "v2McpStatusConnecting": "连接中",
   "v2McpStatusConnected": "已连接",

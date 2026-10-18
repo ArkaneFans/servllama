@@ -861,6 +861,17 @@ void main() {
         findsNothing,
       );
       expect(find.text(skill.name), findsNothing);
+      final mcpSearch = find.byKey(const Key('mcp_search'));
+      expect(mcpSearch, findsOneWidget);
+      await tester.enterText(mcpSearch, 'missing MCP');
+      await tester.pump();
+      expect(find.text('No matching MCP servers'), findsOneWidget);
+      expect(find.text(server.name), findsNothing);
+      await tester.enterText(mcpSearch, 'example.com');
+      await tester.pump();
+      expect(find.text(server.name), findsOneWidget);
+      await tester.tap(find.byTooltip('Clear search'));
+      await tester.pump();
       await tester.tap(find.text(server.name));
       await tester.pumpAndSettle();
       expect(find.byType(McpEditor), findsOneWidget);
