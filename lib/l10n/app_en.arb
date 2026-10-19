@@ -26,7 +26,10 @@
   "v2ManageMcp": "Manage MCP",
   "v2ManageSkills": "Manage skills",
   "v2LocalTools": "Local tools",
-  "v2AssistantManagement": "Assistant management",
+  "v2AssistantManagement": "Assistants",
+  "v2AssistantSearchHint": "Search assistants",
+  "v2AssistantSearchClear": "Clear search",
+  "v2AssistantNoResults": "No matching assistants",
   "@@locale": "en",
   "appTitle": "ServLlama",
   "commonAuto": "Auto",
@@ -1390,7 +1393,7 @@
       }
     }
   },
-  "drawerAssistantSettings": "Assistant settings",
+  "drawerAssistantSettings": "Assistants",
   "settingsUser": "User settings",
   "settingsSectionServices": "Services & diagnostics",
   "settingsSectionDeveloper": "Developer tools",

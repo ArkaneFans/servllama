@@ -14,13 +14,33 @@ import 'package:servllama/features/chat/pages/chat_target_picker.dart';
 import 'package:servllama/features/chat/providers/chat_provider.dart';
 import 'package:servllama/shared/widgets/async_action.dart';
 
-class AssistantsPage extends StatelessWidget {
+class AssistantsPage extends StatefulWidget {
   const AssistantsPage({super.key});
+
+  @override
+  State<AssistantsPage> createState() => _AssistantsPageState();
+}
+
+class _AssistantsPageState extends State<AssistantsPage> {
+  final search = TextEditingController();
+
+  @override
+  void dispose() {
+    search.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.watch<AssistantProvider>();
     final chat = context.watch<ChatProvider?>();
     final l = context.l10n;
+    final query = search.text.trim().toLowerCase();
+    final visible = query.isEmpty
+        ? p.assistants
+        : p.assistants
+              .where((a) => a.name.toLowerCase().contains(query))
+              .toList();
     return AppScaffold(
       appBar: AppBar(
         title: Text(l.v2AssistantManagement),
@@ -43,7 +63,38 @@ class AssistantsPage extends StatelessWidget {
                 subtitle: Text(p.error!),
               ),
             if (!p.loaded) const LinearProgressIndicator(),
-            ...p.assistants.map(
+            if (p.assistants.isNotEmpty) ...[
+              TextField(
+                key: const Key('assistant_search'),
+                controller: search,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  hintText: l.v2AssistantSearchHint,
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: search.text.isEmpty
+                      ? null
+                      : IconButton(
+                          key: const Key('assistant_search_clear'),
+                          tooltip: l.v2AssistantSearchClear,
+                          icon: const Icon(Icons.close),
+                          onPressed: () => setState(search.clear),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (p.assistants.isNotEmpty && visible.isEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 36, 12, 36),
+                child: Text(
+                  l.v2AssistantNoResults,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ...visible.map(
               (a) => Card(
                 child: ListTile(
                   leading: IdentityAvatar(

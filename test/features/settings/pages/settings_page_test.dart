@@ -67,7 +67,7 @@ void main() {
       expect(find.text('跟随系统'), findsNWidgets(2));
       expect(find.text('应用语言'), findsOneWidget);
       expect(find.text('聊天超时时间'), findsOneWidget);
-      expect(find.text('助手管理'), findsOneWidget);
+      expect(find.text('助手'), findsOneWidget);
       expect(find.text('技能'), findsOneWidget);
       expect(find.text('MCP'), findsOneWidget);
       expect(find.text('技能与 MCP'), findsNothing);

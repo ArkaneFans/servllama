@@ -71,7 +71,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2LocalTools => '本地工具';
 
   @override
-  String get v2AssistantManagement => '助手管理';
+  String get v2AssistantManagement => '助手';
+
+  @override
+  String get v2AssistantSearchHint => '搜索助手';
+
+  @override
+  String get v2AssistantSearchClear => '清除搜索';
+
+  @override
+  String get v2AssistantNoResults => '没有匹配的助手';
 
   @override
   String get appTitle => 'ServLlama';
@@ -2590,7 +2599,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2LocalModelUnloaded => '未加载';
 
   @override
-  String get drawerAssistantSettings => '助手设置';
+  String get drawerAssistantSettings => '助手';
 
   @override
   String get settingsUser => '用户设置';

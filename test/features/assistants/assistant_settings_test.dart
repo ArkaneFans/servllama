@@ -331,6 +331,38 @@ void main() {
     },
   );
 
+  testWidgets('assistant search filters by name and can be cleared', (
+    tester,
+  ) async {
+    await tester.pumpWidget(app(const AssistantsPage()));
+    await tester.pumpAndSettle();
+    final l = AppLocalizations.of(tester.element(find.byType(AssistantsPage)))!;
+    final search = find.byKey(const Key('assistant_search'));
+    Finder assistantRow(String name) => find.byWidgetPredicate(
+      (widget) =>
+          widget is ListTile &&
+          widget.title is Text &&
+          (widget.title as Text).data == name,
+    );
+    expect(search, findsOneWidget);
+
+    await tester.enterText(search, 'missing');
+    await tester.pump();
+    expect(find.text(l.v2AssistantNoResults), findsOneWidget);
+    expect(assistantRow(a.name), findsNothing);
+    expect(assistantRow(b.name), findsNothing);
+
+    await tester.enterText(search, 'a');
+    await tester.pump();
+    expect(assistantRow(a.name), findsOneWidget);
+    expect(assistantRow(b.name), findsNothing);
+
+    await tester.tap(find.byKey(const Key('assistant_search_clear')));
+    await tester.pump();
+    expect(assistantRow(a.name), findsOneWidget);
+    expect(assistantRow(b.name), findsOneWidget);
+  });
+
   testWidgets('profile saves blank names without storing the localized hint', (
     tester,
   ) async {

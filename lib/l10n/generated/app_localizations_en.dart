@@ -78,7 +78,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2LocalTools => 'Local tools';
 
   @override
-  String get v2AssistantManagement => 'Assistant management';
+  String get v2AssistantManagement => 'Assistants';
+
+  @override
+  String get v2AssistantSearchHint => 'Search assistants';
+
+  @override
+  String get v2AssistantSearchClear => 'Clear search';
+
+  @override
+  String get v2AssistantNoResults => 'No matching assistants';
 
   @override
   String get appTitle => 'ServLlama';
@@ -2745,7 +2754,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2LocalModelUnloaded => 'Not loaded';
 
   @override
-  String get drawerAssistantSettings => 'Assistant settings';
+  String get drawerAssistantSettings => 'Assistants';
 
   @override
   String get settingsUser => 'User settings';

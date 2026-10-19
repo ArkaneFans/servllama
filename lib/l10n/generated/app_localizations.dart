@@ -221,8 +221,26 @@ abstract class AppLocalizations {
   /// No description provided for @v2AssistantManagement.
   ///
   /// In en, this message translates to:
-  /// **'Assistant management'**
+  /// **'Assistants'**
   String get v2AssistantManagement;
+
+  /// No description provided for @v2AssistantSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search assistants'**
+  String get v2AssistantSearchHint;
+
+  /// No description provided for @v2AssistantSearchClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear search'**
+  String get v2AssistantSearchClear;
+
+  /// No description provided for @v2AssistantNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching assistants'**
+  String get v2AssistantNoResults;
 
   /// No description provided for @appTitle.
   ///
@@ -4898,7 +4916,7 @@ abstract class AppLocalizations {
   /// No description provided for @drawerAssistantSettings.
   ///
   /// In en, this message translates to:
-  /// **'Assistant settings'**
+  /// **'Assistants'**
   String get drawerAssistantSettings;
 
   /// No description provided for @settingsUser.

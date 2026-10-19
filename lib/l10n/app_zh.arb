@@ -26,7 +26,10 @@
   "v2ManageMcp": "管理 MCP",
   "v2ManageSkills": "管理技能",
   "v2LocalTools": "本地工具",
-  "v2AssistantManagement": "助手管理",
+  "v2AssistantManagement": "助手",
+  "v2AssistantSearchHint": "搜索助手",
+  "v2AssistantSearchClear": "清除搜索",
+  "v2AssistantNoResults": "没有匹配的助手",
   "@@locale": "zh",
   "appTitle": "ServLlama",
   "commonAuto": "自动",
@@ -1160,7 +1163,7 @@
       }
     }
   },
-  "drawerAssistantSettings": "助手设置",
+  "drawerAssistantSettings": "助手",
   "settingsUser": "用户设置",
   "settingsSectionServices": "服务与诊断",
   "settingsSectionDeveloper": "开发工具",
