@@ -12,8 +12,13 @@ import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/widgets/async_action.dart';
 
 class AssistantToolsEditor extends StatefulWidget {
-  const AssistantToolsEditor({super.key, required this.assistant});
+  const AssistantToolsEditor({
+    super.key,
+    required this.assistant,
+    this.onChanged,
+  });
   final Assistant assistant;
+  final ValueChanged<Map<String, dynamic>>? onChanged;
   @override
   State<AssistantToolsEditor> createState() => AssistantToolsEditorState();
 }
@@ -46,6 +51,9 @@ class AssistantToolsEditorState extends State<AssistantToolsEditor>
     final a = await repository.skills();
     final b = await repository.servers();
     if (!mounted) return;
+    final previousGrants = {...grants};
+    final previousSkills = {...skills};
+    final previousServers = {...servers};
     setState(() {
       availableSkills = a;
       availableServers = b;
@@ -78,19 +86,37 @@ class AssistantToolsEditorState extends State<AssistantToolsEditor>
         );
       loaded = true;
     });
+    if (!_sameSet(previousGrants, grants) ||
+        !_sameSet(previousSkills, skills) ||
+        !_sameSet(previousServers, servers)) {
+      widget.onChanged?.call(_changes());
+    }
   }
 
-  Future<Map<String, dynamic>> changes() async {
-    await _refreshCatalogs();
-    return {
-      'tools': grants.toList(),
-      'skillIds': skills.toList(),
-      'mcpServerIds': servers.toList(),
-      'webSearch': WebSearchOptions(
-        provider: searchProvider,
-        maxResults: searchLimit,
-      ).toJson(),
-    };
+  Map<String, dynamic> _changes() => {
+    'tools': grants.toList(),
+    'skillIds': skills.toList(),
+    'mcpServerIds': servers.toList(),
+    'webSearch': WebSearchOptions(
+      provider: searchProvider,
+      maxResults: searchLimit,
+    ).toJson(),
+  };
+
+  static bool _sameSet(Set<String> a, Set<String> b) =>
+      a.length == b.length && a.containsAll(b);
+
+  void _update(VoidCallback change) {
+    setState(change);
+    widget.onChanged?.call(_changes());
+  }
+
+  void _toggle(Set<String> target, String id, bool enabled) {
+    if (enabled) {
+      target.add(id);
+    } else {
+      target.remove(id);
+    }
   }
 
   Future<void> manage(Widget page) async {
@@ -101,13 +127,8 @@ class AssistantToolsEditorState extends State<AssistantToolsEditor>
     if (mounted) await runUiAction(context, _refreshCatalogs);
   }
 
-  void toggle(Set<String> target, String id, bool enabled) => setState(() {
-    if (enabled) {
-      target.add(id);
-    } else {
-      target.remove(id);
-    }
-  });
+  void toggle(Set<String> target, String id, bool enabled) =>
+      _update(() => _toggle(target, id, enabled));
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -175,7 +196,7 @@ class AssistantToolsEditorState extends State<AssistantToolsEditor>
                     child: Text(l.v2SearchDuckDuckGo),
                   ),
                 ],
-                onChanged: (value) => setState(() => searchProvider = value!),
+                onChanged: (value) => _update(() => searchProvider = value!),
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<int>(
@@ -186,7 +207,7 @@ class AssistantToolsEditorState extends State<AssistantToolsEditor>
                   for (var i = 1; i <= 10; i++)
                     DropdownMenuItem(value: i, child: Text('$i')),
                 ],
-                onChanged: (value) => setState(() => searchLimit = value!),
+                onChanged: (value) => _update(() => searchLimit = value!),
               ),
               const SizedBox(height: 12),
             ],
@@ -211,7 +232,7 @@ class AssistantToolsEditorState extends State<AssistantToolsEditor>
                   spacing: 4,
                   children: [
                     TextButton(
-                      onPressed: () => setState(() {
+                      onPressed: () => _update(() {
                         skills.addAll(
                           availableSkills
                               .where(
@@ -226,7 +247,7 @@ class AssistantToolsEditorState extends State<AssistantToolsEditor>
                     TextButton(
                       onPressed: skills.isEmpty
                           ? null
-                          : () => setState(skills.clear),
+                          : () => _update(skills.clear),
                       child: Text(l.v2SkillClearSelection),
                     ),
                   ],
@@ -325,8 +346,8 @@ class AssistantToolsEditorState extends State<AssistantToolsEditor>
                       title: Text(t['name'] as String),
                       value: grants.contains(key),
                       onChanged: s.enabled
-                          ? (v) {
-                              toggle(grants, key, v!);
+                          ? (v) => _update(() {
+                              _toggle(grants, key, v!);
                               if (v) {
                                 servers.add(s.id);
                               } else if (!s.tools.any(
@@ -339,7 +360,7 @@ class AssistantToolsEditorState extends State<AssistantToolsEditor>
                               )) {
                                 servers.remove(s.id);
                               }
-                            }
+                            })
                           : null,
                     );
                   }),

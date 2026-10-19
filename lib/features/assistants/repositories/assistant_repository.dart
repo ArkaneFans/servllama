@@ -86,6 +86,22 @@ class AssistantRepository {
     );
   }
 
+  Future<Assistant> updateAssistant(String id, Map<String, dynamic> changes) =>
+      db.transaction(() async {
+        final current = (await assistants())
+            .where((a) => a.id == id)
+            .firstOrNull;
+        if (current == null) throw StateError('Assistant unavailable');
+        final next = current.changed({
+          ...changes,
+          'id': current.id,
+          'revision': current.revision + 1,
+        });
+        await validateTarget(next.chatTarget);
+        await saveAssistant(next);
+        return next;
+      });
+
   Future<void> validateTarget(ChatTarget? target) async {
     if (target == null) return;
     if (!target.isConfigured) throw StateError('Choose a model');

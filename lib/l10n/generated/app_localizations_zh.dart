@@ -74,6 +74,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2AssistantManagement => '助手';
 
   @override
+  String get v2AssistantAddTitle => '新建助手';
+
+  @override
+  String get v2AssistantNameRequired => '请输入助手名称';
+
+  @override
   String get v2AssistantSearchHint => '搜索助手';
 
   @override
@@ -3058,9 +3064,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get v2ModelImagesUnavailable => '当前模型未启用图片输入，可在供应商的模型设置中调整。';
-
-  @override
-  String get v2AssistantModelChanged => '此助手的模型选择已变更，请重新打开设置后再修改。';
 
   @override
   String get chatGreetingMorning => '早上好';

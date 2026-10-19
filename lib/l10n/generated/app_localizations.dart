@@ -224,6 +224,18 @@ abstract class AppLocalizations {
   /// **'Assistants'**
   String get v2AssistantManagement;
 
+  /// No description provided for @v2AssistantAddTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New assistant'**
+  String get v2AssistantAddTitle;
+
+  /// No description provided for @v2AssistantNameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an assistant name'**
+  String get v2AssistantNameRequired;
+
   /// No description provided for @v2AssistantSearchHint.
   ///
   /// In en, this message translates to:
@@ -5818,12 +5830,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This model has image input disabled. Check its capabilities in provider settings.'**
   String get v2ModelImagesUnavailable;
-
-  /// No description provided for @v2AssistantModelChanged.
-  ///
-  /// In en, this message translates to:
-  /// **'This assistant’s model selection changed. Reopen its settings before editing it.'**
-  String get v2AssistantModelChanged;
 
   /// No description provided for @chatGreetingMorning.
   ///

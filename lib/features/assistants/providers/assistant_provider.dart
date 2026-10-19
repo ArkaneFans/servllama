@@ -28,6 +28,7 @@ class AssistantProvider extends ChangeNotifier {
   UserProfile profile = const UserProfile();
   String? activeId, error;
   bool loaded = false;
+  Future<void> _assistantUpdateQueue = Future.value();
   Assistant? get active =>
       assistants.where((a) => a.id == activeId).firstOrNull;
   Future<AssistantRepository> get repository async =>
@@ -96,6 +97,18 @@ class AssistantProvider extends ChangeNotifier {
     assistants = await (await repository).assistants();
     await AgentToolService.current?.revalidate();
     notifyListeners();
+  }
+
+  Future<Assistant> updateAssistant(String id, Map<String, dynamic> changes) {
+    final result = _assistantUpdateQueue.then((_) async {
+      final updated = await (await repository).updateAssistant(id, changes);
+      assistants = await (await repository).assistants();
+      await AgentToolService.current?.revalidate();
+      notifyListeners();
+      return updated;
+    });
+    _assistantUpdateQueue = result.then<void>((_) {}, onError: (_, _) {});
+    return result;
   }
 
   ChatTarget? resolveTarget(ChatTarget? target) {

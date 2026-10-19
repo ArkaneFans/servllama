@@ -298,6 +298,18 @@ void main() {
       ),
     ),
   );
+  const textSaveWait = Duration(milliseconds: 450);
+  Future<void> waitFor(WidgetTester tester, bool Function() completed) async {
+    for (var attempt = 0; attempt < 100 && !completed(); attempt++) {
+      await tester.pump(const Duration(milliseconds: 20));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+    }
+    expect(completed(), isTrue, reason: 'The assistant change did not finish');
+    await tester.pumpAndSettle();
+  }
+
   Future<void> saveEditor(WidgetTester tester, AppLocalizations l) async {
     await tester.tap(find.text(l.commonSave));
     await tester.pumpAndSettle();
@@ -438,7 +450,54 @@ void main() {
   );
 
   testWidgets(
-    'assistant name and emoji save together and later cancellation discards both',
+    'creating an assistant asks only for a name and then opens its editor',
+    (tester) async {
+      await tester.pumpWidget(app(const AssistantsPage()));
+      await tester.pumpAndSettle();
+      final l = AppLocalizations.of(
+        tester.element(find.byType(AssistantsPage)),
+      )!;
+
+      await tester.tap(find.byKey(const Key('assistant_add')));
+      await tester.pumpAndSettle();
+      expect(find.text(l.v2AssistantAddTitle), findsOneWidget);
+      expect(find.byKey(const Key('assistant_add_name')), findsOneWidget);
+      expect(find.byKey(const Key('assistant_instructions')), findsNothing);
+      expect(find.byType(AssistantEditor), findsNothing);
+
+      await tester.tap(find.byKey(const Key('assistant_add_button')));
+      await tester.pump();
+      expect(find.text(l.v2AssistantNameRequired), findsOneWidget);
+      expect(provider.assistants, hasLength(2));
+
+      await tester.enterText(
+        find.byKey(const Key('assistant_add_name')),
+        'Reading assistant',
+      );
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('assistant_add_button')));
+      await waitFor(
+        tester,
+        () => find.byType(AssistantEditor).evaluate().isNotEmpty,
+      );
+
+      final created = provider.assistants.singleWhere(
+        (item) => item.name == 'Reading assistant',
+      );
+      expect(created.id, isNotEmpty);
+      expect(
+        (await repository.assistants())
+            .singleWhere((item) => item.id == created.id)
+            .name,
+        'Reading assistant',
+      );
+      expect(find.widgetWithText(AppBar, 'Reading assistant'), findsOneWidget);
+      expect(find.text(l.commonSave), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'assistant text, avatar and tool edits persist without a Save action',
     (tester) async {
       await tester.pumpWidget(launcher(const AssistantEditor(assistant: a)));
       await tester.tap(find.text('Open editor'));
@@ -446,61 +505,41 @@ void main() {
       final l = AppLocalizations.of(
         tester.element(find.byType(AssistantEditor)),
       )!;
-      await tester.enterText(find.byType(TextField).first, 'Book assistant');
+      expect(find.text(l.commonSave), findsNothing);
+
+      await tester.enterText(
+        find.byKey(const Key('assistant_name')),
+        'Book assistant',
+      );
+      await tester.enterText(
+        find.byKey(const Key('assistant_instructions')),
+        'Recommend books.',
+      );
+      await tester.pump(textSaveWait);
+      await waitFor(
+        tester,
+        () =>
+            provider.assistants.singleWhere((item) => item.id == 'a').name ==
+                'Book assistant' &&
+            provider.assistants
+                    .singleWhere((item) => item.id == 'a')
+                    .instructions ==
+                'Recommend books.',
+      );
+
       await tester.tap(find.byKey(const Key('avatar_menu')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('avatar_pick_emoji')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('📚'));
       await tester.pumpAndSettle();
-      await saveEditor(tester, l);
-      final saved = provider.assistants.singleWhere((item) => item.id == 'a');
-      expect(saved.name, 'Book assistant');
-      expect(saved.avatar, '📚');
-      await tester.pumpWidget(launcher(AssistantEditor(assistant: saved)));
-      await tester.tap(find.text('Open editor'));
-      await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField).first, 'Unsaved name');
-      await tester.tap(find.byKey(const Key('avatar_menu')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text(l.v2AvatarReset));
-      await tester.pumpAndSettle();
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      expect(
-        (await repository.assistants())
-            .singleWhere((item) => item.id == 'a')
-            .toJson(),
-        saved.toJson(),
+      await waitFor(
+        tester,
+        () =>
+            provider.assistants.singleWhere((item) => item.id == 'a').avatar ==
+            '📚',
       );
-    },
-  );
-  testWidgets(
-    'assistant form cancellation discards name and local tool grants',
-    (tester) async {
-      await tester.pumpWidget(
-        app(
-          Builder(
-            builder: (context) => Scaffold(
-              body: TextButton(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (_) => const AssistantEditor(assistant: a),
-                  ),
-                ),
-                child: const Text('Open editor'),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.tap(find.text('Open editor'));
-      await tester.pumpAndSettle();
-      final l = AppLocalizations.of(
-        tester.element(find.byType(AssistantEditor)),
-      )!;
-      await tester.enterText(find.byType(TextField).first, 'Unsaved name');
+
       await tester.scrollUntilVisible(
         find.widgetWithText(CheckboxListTile, l.v2ToolClock),
         150,
@@ -508,19 +547,85 @@ void main() {
       );
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(CheckboxListTile, l.v2ToolClock));
-      await tester.pumpAndSettle();
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      final saved = (await repository.assistants()).firstWhere(
+      await waitFor(
+        tester,
+        () => provider.assistants
+            .singleWhere((item) => item.id == 'a')
+            .tools
+            .contains('clock'),
+      );
+
+      final saved = (await repository.assistants()).singleWhere(
         (item) => item.id == 'a',
       );
-      expect(saved.name, 'A');
-      expect(saved.tools, isEmpty);
+      expect(saved.name, 'Book assistant');
+      expect(saved.instructions, 'Recommend books.');
+      expect(saved.avatar, '📚');
+      expect(saved.tools, contains('clock'));
+    },
+  );
+
+  testWidgets('leaving the editor flushes pending name and instructions', (
+    tester,
+  ) async {
+    await tester.pumpWidget(launcher(const AssistantEditor(assistant: a)));
+    await tester.tap(find.text('Open editor'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('assistant_name')),
+      'Flushed assistant',
+    );
+    await tester.enterText(
+      find.byKey(const Key('assistant_instructions')),
+      'Flushed instructions',
+    );
+
+    await tester.pageBack();
+    await waitFor(
+      tester,
+      () => find.byType(AssistantEditor).evaluate().isEmpty,
+    );
+    final saved = (await repository.assistants()).singleWhere(
+      (item) => item.id == 'a',
+    );
+    expect(saved.name, 'Flushed assistant');
+    expect(saved.instructions, 'Flushed instructions');
+  });
+
+  testWidgets(
+    'an empty assistant name is rejected and blocks leaving the editor',
+    (tester) async {
+      await tester.pumpWidget(launcher(const AssistantEditor(assistant: a)));
+      await tester.tap(find.text('Open editor'));
+      await tester.pumpAndSettle();
+      final l = AppLocalizations.of(
+        tester.element(find.byType(AssistantEditor)),
+      )!;
+      await tester.enterText(find.byKey(const Key('assistant_name')), '   ');
+      await tester.pageBack();
+      await waitFor(
+        tester,
+        () => find.text(l.v2AssistantNameRequired).evaluate().isNotEmpty,
+      );
+      expect(find.byType(AssistantEditor), findsOneWidget);
+      expect(
+        (await repository.assistants())
+            .singleWhere((item) => item.id == 'a')
+            .name,
+        'A',
+      );
+
+      await tester.enterText(find.byKey(const Key('assistant_name')), 'A');
+      await tester.pageBack();
+      await waitFor(
+        tester,
+        () => find.byType(AssistantEditor).evaluate().isEmpty,
+      );
     },
   );
 
   testWidgets(
-    'tool tabs share one draft and save after scrolling back to the avatar',
+    'tool tab changes persist immediately and preserve unrelated settings',
     (tester) async {
       const skill = SkillRecord(
         id: 'skill',
@@ -576,15 +681,28 @@ void main() {
       await tapVisible(find.widgetWithText(Tab, l.v2Mcp));
       await tapVisible(find.text(server.name));
       await tapVisible(find.widgetWithText(CheckboxListTile, 'lookup'));
-      final beforeSave = (await repository.assistants()).firstWhere(
-        (a) => a.id == original.id,
-      );
-      expect(beforeSave.tools, isEmpty);
-      expect(beforeSave.skillIds, isEmpty);
+      await waitFor(tester, () {
+        final current = provider.assistants.singleWhere(
+          (a) => a.id == original.id,
+        );
+        return current.tools.contains('clock') &&
+            current.tools.contains(
+              AgentToolService.mcpToolName(server.id, 'lookup'),
+            ) &&
+            current.skillIds.contains(skill.id) &&
+            current.mcpServerIds.contains(server.id);
+      });
       await tester.drag(find.byType(Scrollable).first, const Offset(0, 1800));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField).first, 'Edited assistant');
-      await saveEditor(tester, l);
+      await tester.enterText(
+        find.byKey(const Key('assistant_name')),
+        'Edited assistant',
+      );
+      await tester.pageBack();
+      await waitFor(
+        tester,
+        () => find.byType(AssistantEditor).evaluate().isEmpty,
+      );
       final saved = (await repository.assistants()).firstWhere(
         (a) => a.id == original.id,
       );
@@ -725,7 +843,7 @@ void main() {
   );
 
   testWidgets(
-    'saving an open editor does not restore deleted skill or MCP grants',
+    'stale skill and MCP grants are pruned and persisted when editing',
     (tester) async {
       const skill = SkillRecord(
         id: 'skill',
@@ -751,25 +869,20 @@ void main() {
         'mcpServerIds': [server.id],
       });
       await provider.save(original);
+      await db.execute('DELETE FROM skills');
+      await db.execute('DELETE FROM mcp_servers');
       await tester.pumpWidget(launcher(AssistantEditor(assistant: original)));
       await tester.tap(find.text('Open editor'));
       await tester.pumpAndSettle();
-      final l = AppLocalizations.of(
-        tester.element(find.byType(AssistantEditor)),
-      )!;
-      await tester.scrollUntilVisible(
-        find.byType(TabBar),
-        160,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
-      await db.execute('DELETE FROM skills');
-      await db.execute('DELETE FROM mcp_servers');
-      await catalog.removeAssistantBindings(
-        skillId: skill.id,
-        serverId: server.id,
-      );
-      await saveEditor(tester, l);
+      await waitFor(tester, () {
+        final current = provider.assistants.singleWhere(
+          (a) => a.id == original.id,
+        );
+        return current.tools.length == 1 &&
+            current.tools.single == 'clock' &&
+            current.skillIds.isEmpty &&
+            current.mcpServerIds.isEmpty;
+      });
       final saved = (await repository.assistants()).firstWhere(
         (a) => a.id == original.id,
       );

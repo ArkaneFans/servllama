@@ -316,7 +316,7 @@ void main() {
   );
 
   testWidgets(
-    'saving unrelated assistant edits preserves a newer chat selection',
+    'persisting unrelated assistant edits preserves a newer chat selection',
     (tester) async {
       AppDatabase.current = null;
       await tester.runAsync(chat.load);
@@ -324,15 +324,20 @@ void main() {
       await tester.pumpAndSettle();
       await tester.runAsync(() => assistants.setChatTarget('a', two));
       await tester.pumpAndSettle();
-      final l = AppLocalizations.of(
-        tester.element(find.byType(AssistantEditor)),
-      )!;
+      await tester.enterText(
+        find.byKey(const Key('assistant_instructions')),
+        'Updated instructions',
+      );
+      await tester.pump(const Duration(milliseconds: 450));
       await changeOnScreen(
         tester,
-        () => tester.tap(find.text(l.commonSave)),
-        () => assistants.assistants.first.revision == 3,
+        () async {},
+        () =>
+            assistants.assistants.first.instructions == 'Updated instructions',
       );
       expect(assistants.assistants.first.chatTarget, two);
+      expect(assistants.assistants.first.instructions, 'Updated instructions');
+      expect(assistants.assistants.first.revision, 3);
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
@@ -387,88 +392,86 @@ void main() {
     },
   );
 
-  testWidgets(
-    'assistant model picker and clear action remain drafts until saved',
-    (tester) async {
-      // Persistence of debounced drafts is covered by the real-clock tests below.
-      AppDatabase.current = null;
-      try {
-        await tester.runAsync(() async {
-          await repository.saveSession(session('existing', 'a'));
-          await chat.load();
-          await chat.selectSession('existing');
-        });
-        await tester.pumpWidget(
-          app(
-            Builder(
-              builder: (context) => AppScaffold(
-                body: TextButton(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute<void>(
-                      builder: (_) => AssistantEditor(
-                        assistant: assistants.assistants.first,
-                      ),
-                    ),
+  testWidgets('assistant model picker and clear action save immediately', (
+    tester,
+  ) async {
+    // Persistence of debounced drafts is covered by the real-clock tests below.
+    AppDatabase.current = null;
+    try {
+      await tester.runAsync(() async {
+        await repository.saveSession(session('existing', 'a'));
+        await chat.load();
+        await chat.selectSession('existing');
+      });
+      await tester.pumpWidget(
+        app(
+          Builder(
+            builder: (context) => AppScaffold(
+              body: TextButton(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) =>
+                        AssistantEditor(assistant: assistants.assistants.first),
                   ),
-                  child: const Text('Editor'),
                 ),
+                child: const Text('Editor'),
               ),
             ),
           ),
-        );
-        Future<void> openEditor() async {
-          await tester.tap(find.text('Editor'));
-          await tester.pumpAndSettle();
-          final l = AppLocalizations.of(
-            tester.element(find.byType(AssistantEditor)),
-          )!;
-          await tester.scrollUntilVisible(
-            find.text(l.v2AssistantDefaultModel),
-            200,
-            scrollable: find
-                .descendant(
-                  of: find.byType(ListView),
-                  matching: find.byType(Scrollable),
-                )
-                .first,
-          );
-        }
-
-        await openEditor();
+        ),
+      );
+      Future<void> openEditor() async {
+        await tester.tap(find.text('Editor'));
+        await tester.pumpAndSettle();
         final l = AppLocalizations.of(
           tester.element(find.byType(AssistantEditor)),
         )!;
-        await tester.tap(find.text(l.v2AssistantDefaultModel));
-        await tester.pumpAndSettle();
-        await tester.enterText(
-          find.byKey(const Key('chat_target_search')),
-          'two',
+        await tester.scrollUntilVisible(
+          find.text(l.v2AssistantDefaultModel),
+          200,
+          scrollable: find
+              .descendant(
+                of: find.byType(ListView),
+                matching: find.byType(Scrollable),
+              )
+              .first,
         );
-        await tester.pump();
-        await tester.tap(find.byKey(const Key('chat_target_remote_c_two')));
-        await tester.pumpAndSettle();
-        expect(assistants.assistants.first.chatTarget?.modelId, 'one');
-        await tester.pageBack();
-        await tester.pumpAndSettle();
-        expect(assistants.assistants.first.chatTarget?.modelId, 'one');
-        await openEditor();
-        await tester.tap(find.byTooltip(l.v2ClearDefaultModel));
-        await tester.pumpAndSettle();
-        expect(assistants.assistants.first.chatTarget?.modelId, 'one');
-        await changeOnScreen(
-          tester,
-          () => tester.tap(find.text(l.commonSave)),
-          () => assistants.assistants.first.chatTarget == null,
-        );
-        expect(assistants.assistants.first.chatTarget, isNull);
-        expect(chat.currentModelId, isNull);
-        expect(tester.takeException(), isNull);
-      } finally {
-        await tester.pumpWidget(const SizedBox.shrink());
       }
-    },
-  );
+
+      await openEditor();
+      final l = AppLocalizations.of(
+        tester.element(find.byType(AssistantEditor)),
+      )!;
+      await tester.tap(find.text(l.v2AssistantDefaultModel));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('chat_target_search')),
+        'two',
+      );
+      await tester.pump();
+      await changeOnScreen(
+        tester,
+        () => tester.tap(find.byKey(const Key('chat_target_remote_c_two'))),
+        () => assistants.assistants.first.chatTarget?.modelId == 'two',
+      );
+      expect(assistants.assistants.first.chatTarget?.modelId, 'two');
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(assistants.assistants.first.chatTarget?.modelId, 'two');
+      await openEditor();
+      await changeOnScreen(
+        tester,
+        () => tester.tap(find.byTooltip(l.v2ClearDefaultModel)),
+        () => assistants.assistants.first.chatTarget == null,
+      );
+      expect(assistants.assistants.first.chatTarget, isNull);
+      expect(chat.currentModelId, isNull);
+      expect(tester.takeException(), isNull);
+    } finally {
+      await tester.pumpWidget(const SizedBox.shrink());
+    }
+  });
 
   testWidgets(
     'explicit server shortcut stops the local service without changing the chat target',

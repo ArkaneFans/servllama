@@ -81,6 +81,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2AssistantManagement => 'Assistants';
 
   @override
+  String get v2AssistantAddTitle => 'New assistant';
+
+  @override
+  String get v2AssistantNameRequired => 'Enter an assistant name';
+
+  @override
   String get v2AssistantSearchHint => 'Search assistants';
 
   @override
@@ -3245,10 +3251,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get v2ModelImagesUnavailable =>
       'This model has image input disabled. Check its capabilities in provider settings.';
-
-  @override
-  String get v2AssistantModelChanged =>
-      'This assistant’s model selection changed. Reopen its settings before editing it.';
 
   @override
   String get chatGreetingMorning => 'Good morning';

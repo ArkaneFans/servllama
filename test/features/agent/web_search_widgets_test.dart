@@ -30,9 +30,20 @@ Widget app(Widget child) => MaterialApp(
   home: Scaffold(body: child),
 );
 
+Future<void> waitFor(WidgetTester tester, bool Function() completed) async {
+  for (var attempt = 0; attempt < 100 && !completed(); attempt++) {
+    await tester.pump();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 10)),
+    );
+  }
+  expect(completed(), isTrue, reason: 'The settings change did not finish');
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets(
-    'assistant search settings save without losing the tool grant on refresh',
+    'assistant search settings persist without losing the tool grant',
     (tester) async {
       final db = AppDatabase.memory();
       final dir = Directory.systemTemp.createTempSync('web-search-ui');
@@ -88,9 +99,12 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('webSearchProvider')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('DuckDuckGo').last);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('保存'));
-      await tester.pumpAndSettle();
+      await waitFor(
+        tester,
+        () =>
+            provider.assistants.single.webSearch.provider ==
+            WebSearchProvider.duckduckgo,
+      );
       final saved = (await repository.assistants()).single;
       expect(saved.tools, contains('web_search'));
       expect(saved.webSearch.provider, WebSearchProvider.duckduckgo);
