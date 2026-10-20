@@ -62,12 +62,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2SkillsEmptyHint => '点击右上角 + 导入';
 
   @override
-  String get v2ManageMcp => '管理 MCP';
-
-  @override
-  String get v2ManageSkills => '管理技能';
-
-  @override
   String get v2LocalTools => '本地工具';
 
   @override
@@ -1947,9 +1941,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2DiscoverTools => '连接并发现工具';
 
   @override
-  String get v2PermissionsHelp => '权限在每次运行开始时确定。撤销权限会停止受影响的运行；新增权限在下次生效。';
-
-  @override
   String get v2ToolClock => '当前时间';
 
   @override
@@ -2307,9 +2298,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2IncompleteAnswer => '这条回答尚未完整生成，请完成回答后再朗读。';
 
   @override
-  String get v2SkillsGrantHelp => '所选技能可以读取自身的说明和资源。其他工具仍需单独授权。';
-
-  @override
   String get v2DiscardRecording => '删除最近录音';
 
   @override
@@ -2363,10 +2351,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get v2ToolSearch => '网络搜索';
-
-  @override
-  String get v2SearchGrantHelp =>
-      '允许此助手向所选供应商发送搜索词，无需逐次审批。Bing 和 DuckDuckGo 均无需 API 密钥。切换供应商会停止正在使用此权限的运行。';
 
   @override
   String get v2SearchProvider => '搜索供应商';
@@ -2424,10 +2408,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get v2ClearDefaultModel => '清除模型选择';
-
-  @override
-  String get v2AssistantDefaultModelHelp =>
-      '此助手的所有会话共用此模型。在聊天中切换模型也会更新此设置，历史消息保持不变。';
 
   @override
   String get v2UnassignedAssistant => '助手未指定或已删除';

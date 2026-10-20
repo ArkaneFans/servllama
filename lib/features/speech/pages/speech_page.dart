@@ -10,7 +10,6 @@ import 'package:servllama/features/speech/models/speech_models.dart';
 import 'package:servllama/features/speech/services/speech_job_service.dart';
 import 'package:servllama/app/model_library_page.dart';
 import 'package:servllama/features/speech/pages/speech_job_page.dart';
-import 'package:servllama/features/speech/pages/voice_profiles_page.dart';
 import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/widgets/async_action.dart';
 import 'package:servllama/features/speech/widgets/audio_input_panel.dart';
@@ -159,16 +158,6 @@ class _SpeechPageState extends State<SpeechPage> {
                 context,
                 MaterialPageRoute<void>(
                   builder: (_) => const ModelLibraryPage(initialTab: 1),
-                ),
-              ),
-            ),
-            IconButton(
-              tooltip: l.v2Voices,
-              icon: const Icon(Icons.record_voice_over_outlined),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute<void>(
-                  builder: (_) => const VoiceProfilesPage(),
                 ),
               ),
             ),

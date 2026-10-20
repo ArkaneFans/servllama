@@ -1,6 +1,4 @@
 import 'package:servllama/features/agent/repositories/agent_repository.dart';
-import 'package:servllama/features/agent/pages/skills_page.dart';
-import 'package:servllama/features/agent/pages/mcp_servers_page.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/features/agent/models/agent_records.dart';
@@ -119,14 +117,6 @@ class AssistantToolsEditorState extends State<AssistantToolsEditor>
     }
   }
 
-  Future<void> manage(Widget page) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute<void>(builder: (_) => page),
-    );
-    if (mounted) await runUiAction(context, _refreshCatalogs);
-  }
-
   void toggle(Set<String> target, String id, bool enabled) =>
       _update(() => _toggle(target, id, enabled));
   @override
@@ -162,11 +152,6 @@ class AssistantToolsEditorState extends State<AssistantToolsEditor>
           const SizedBox(height: 16),
           if (!loaded) const LinearProgressIndicator(),
           if (tab == 0) ...[
-            Text(
-              l.v2PermissionsHelp,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 8),
             ...locals.entries.map(
               (e) => CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
@@ -176,10 +161,6 @@ class AssistantToolsEditorState extends State<AssistantToolsEditor>
               ),
             ),
             if (grants.contains('web_search')) ...[
-              Text(
-                l.v2SearchGrantHelp,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
               const SizedBox(height: 12),
               DropdownButtonFormField<WebSearchProvider>(
                 key: const ValueKey('webSearchProvider'),
@@ -213,18 +194,6 @@ class AssistantToolsEditorState extends State<AssistantToolsEditor>
             ],
           ],
           if (tab == 1) ...[
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: () => manage(const SkillsPage()),
-                icon: const Icon(Icons.add),
-                label: Text(l.v2ManageSkills),
-              ),
-            ),
-            Text(
-              l.v2SkillsGrantHelp,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
             if (availableSkills.isNotEmpty)
               Align(
                 alignment: Alignment.centerRight,
@@ -303,14 +272,6 @@ class AssistantToolsEditorState extends State<AssistantToolsEditor>
             }),
           ],
           if (tab == 2) ...[
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: () => manage(const McpServersPage()),
-                icon: const Icon(Icons.add),
-                label: Text(l.v2ManageMcp),
-              ),
-            ),
             if (loaded && availableServers.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 24),

@@ -200,18 +200,6 @@ abstract class AppLocalizations {
   /// **'Tap + in the upper-right corner to import one'**
   String get v2SkillsEmptyHint;
 
-  /// No description provided for @v2ManageMcp.
-  ///
-  /// In en, this message translates to:
-  /// **'Manage MCP'**
-  String get v2ManageMcp;
-
-  /// No description provided for @v2ManageSkills.
-  ///
-  /// In en, this message translates to:
-  /// **'Manage skills'**
-  String get v2ManageSkills;
-
   /// No description provided for @v2LocalTools.
   ///
   /// In en, this message translates to:
@@ -3683,12 +3671,6 @@ abstract class AppLocalizations {
   /// **'Connect and discover tools'**
   String get v2DiscoverTools;
 
-  /// No description provided for @v2PermissionsHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Permissions are captured when a run starts. Revocation stops affected runs; additions apply next time.'**
-  String get v2PermissionsHelp;
-
   /// No description provided for @v2ToolClock.
   ///
   /// In en, this message translates to:
@@ -4373,12 +4355,6 @@ abstract class AppLocalizations {
   /// **'This answer is incomplete. Finish generating it before reading it aloud.'**
   String get v2IncompleteAnswer;
 
-  /// No description provided for @v2SkillsGrantHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Selected skills can read their own instructions and resources. Other tools still need separate authorization.'**
-  String get v2SkillsGrantHelp;
-
   /// No description provided for @v2DiscardRecording.
   ///
   /// In en, this message translates to:
@@ -4480,12 +4456,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Web search'**
   String get v2ToolSearch;
-
-  /// No description provided for @v2SearchGrantHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Allow this assistant to send search queries to the selected provider without asking each time. Bing and DuckDuckGo need no API key. Changing providers stops an active run that uses this permission.'**
-  String get v2SearchGrantHelp;
 
   /// No description provided for @v2SearchProvider.
   ///
@@ -4600,12 +4570,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Clear model selection'**
   String get v2ClearDefaultModel;
-
-  /// No description provided for @v2AssistantDefaultModelHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'All conversations with this assistant share this model. Changing the model in chat updates this setting; historical messages stay unchanged.'**
-  String get v2AssistantDefaultModelHelp;
 
   /// No description provided for @v2UnassignedAssistant.
   ///

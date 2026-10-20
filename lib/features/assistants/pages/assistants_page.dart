@@ -513,10 +513,6 @@ class _AssistantEditorState extends State<AssistantEditor> {
                           icon: const Icon(Icons.clear),
                         ),
                 ),
-                Text(
-                  l.v2AssistantDefaultModelHelp,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
               ],
             ),
 

@@ -69,12 +69,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Tap + in the upper-right corner to import one';
 
   @override
-  String get v2ManageMcp => 'Manage MCP';
-
-  @override
-  String get v2ManageSkills => 'Manage skills';
-
-  @override
   String get v2LocalTools => 'Local tools';
 
   @override
@@ -2054,10 +2048,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2DiscoverTools => 'Connect and discover tools';
 
   @override
-  String get v2PermissionsHelp =>
-      'Permissions are captured when a run starts. Revocation stops affected runs; additions apply next time.';
-
-  @override
   String get v2ToolClock => 'Current time';
 
   @override
@@ -2436,10 +2426,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'This answer is incomplete. Finish generating it before reading it aloud.';
 
   @override
-  String get v2SkillsGrantHelp =>
-      'Selected skills can read their own instructions and resources. Other tools still need separate authorization.';
-
-  @override
   String get v2DiscardRecording => 'Discard the recent recording';
 
   @override
@@ -2494,10 +2480,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get v2ToolSearch => 'Web search';
-
-  @override
-  String get v2SearchGrantHelp =>
-      'Allow this assistant to send search queries to the selected provider without asking each time. Bing and DuckDuckGo need no API key. Changing providers stops an active run that uses this permission.';
 
   @override
   String get v2SearchProvider => 'Search provider';
@@ -2564,10 +2546,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get v2ClearDefaultModel => 'Clear model selection';
-
-  @override
-  String get v2AssistantDefaultModelHelp =>
-      'All conversations with this assistant share this model. Changing the model in chat updates this setting; historical messages stay unchanged.';
 
   @override
   String get v2UnassignedAssistant => 'Assistant not assigned or removed';

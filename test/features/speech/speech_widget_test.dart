@@ -102,6 +102,20 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
   }
 
+  testWidgets('speech page temporarily hides reference voices entry', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    await tester.pumpWidget(app(const SpeechPage()));
+    await tester.pumpAndSettle();
+    final l = AppLocalizations.of(tester.element(find.byType(SpeechPage)))!;
+
+    expect(find.byTooltip(l.v2SpeechModels), findsOneWidget);
+    expect(find.byTooltip(l.v2Voices), findsNothing);
+    expect(find.byType(VoiceProfilesPage), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'TTS stays inline, prevents duplicates and preserves frozen text across tabs',
     (tester) async {
