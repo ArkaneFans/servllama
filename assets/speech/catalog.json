@@ -1,0 +1,150 @@
+[
+  {
+    "schemaVersion": 1,
+    "recipe": "sherpaWhisper",
+    "name": "Whisper tiny · sherpa-onnx",
+    "revision": "65176e2deb88badc814a94058666cadccc29b61c",
+    "sourceUrl": "https://huggingface.co/csukuangfj/sherpa-onnx-whisper-tiny",
+    "license": "Whisper upstream: MIT; the conversion repository does not declare a separate license.",
+    "config": {
+      "encoder": "tiny-encoder.int8.onnx",
+      "decoder": "tiny-decoder.int8.onnx",
+      "tokens": "tiny-tokens.txt"
+    },
+    "files": [
+      {
+        "path": "tiny-encoder.int8.onnx",
+        "bytes": 12937772,
+        "sha256": "d24fb083ae3b1041fc24e97971d60e280c9342201fbb67b0ab428a8b4a51a434",
+        "url": "https://huggingface.co/csukuangfj/sherpa-onnx-whisper-tiny/resolve/65176e2deb88badc814a94058666cadccc29b61c/tiny-encoder.int8.onnx"
+      },
+      {
+        "path": "tiny-decoder.int8.onnx",
+        "bytes": 89855401,
+        "sha256": "d2fece8dd42771f1df975c6c0445770d0c292bf7547c2cae04a6c0cc57540925",
+        "url": "https://huggingface.co/csukuangfj/sherpa-onnx-whisper-tiny/resolve/65176e2deb88badc814a94058666cadccc29b61c/tiny-decoder.int8.onnx"
+      },
+      {
+        "path": "tiny-tokens.txt",
+        "bytes": 816730,
+        "sha256": "b34b360dbb493e781e479794586d661700670d65564001f23024971d1f2fa126",
+        "url": "https://huggingface.co/csukuangfj/sherpa-onnx-whisper-tiny/resolve/65176e2deb88badc814a94058666cadccc29b61c/tiny-tokens.txt"
+      }
+    ]
+  },
+  {
+    "schemaVersion": 1,
+    "recipe": "sherpaVits",
+    "name": "AISHELL3 · sherpa-onnx",
+    "revision": "e3e808eaab2385b812286c6707323362251bba65",
+    "sourceUrl": "https://huggingface.co/csukuangfj/vits-zh-aishell3",
+    "license": "Not declared in the converted model card; original model and AISHELL-3 data terms require review.",
+    "config": {
+      "model": "vits-aishell3.int8.onnx",
+      "tokens": "tokens.txt",
+      "lexicon": "lexicon.txt",
+      "rules": [
+        "phone.fst",
+        "date.fst",
+        "number.fst",
+        "new_heteronym.fst"
+      ]
+    },
+    "files": [
+      {
+        "path": "vits-aishell3.int8.onnx",
+        "bytes": 39870124,
+        "sha256": "5ef667dbbe0795688da93d779828cf38e6ad8ef8e82aa7dc5804873a50556057",
+        "url": "https://huggingface.co/csukuangfj/vits-zh-aishell3/resolve/e3e808eaab2385b812286c6707323362251bba65/vits-aishell3.int8.onnx"
+      },
+      {
+        "path": "tokens.txt",
+        "bytes": 1671,
+        "sha256": "50b45a7b7de1752fd3c7b4755661c285f1547f59186eca2281089a81307ad953",
+        "url": "https://huggingface.co/csukuangfj/vits-zh-aishell3/resolve/e3e808eaab2385b812286c6707323362251bba65/tokens.txt"
+      },
+      {
+        "path": "lexicon.txt",
+        "bytes": 2042943,
+        "sha256": "ab2e61d357551e7b24ddd965d924aca784c20165ff58c150794e539c6b5e9e35",
+        "url": "https://huggingface.co/csukuangfj/vits-zh-aishell3/resolve/e3e808eaab2385b812286c6707323362251bba65/lexicon.txt"
+      },
+      {
+        "path": "phone.fst",
+        "bytes": 88630,
+        "sha256": "1ac2b6fa56b1442320c4de7db08353bab8963a2b57f365eebcdd3a2d3562f8d7",
+        "url": "https://huggingface.co/csukuangfj/vits-zh-aishell3/resolve/e3e808eaab2385b812286c6707323362251bba65/phone.fst"
+      },
+      {
+        "path": "date.fst",
+        "bytes": 59154,
+        "sha256": "eb8aa079ae3cb81d8f4404992f39d61a0cb990947512b5b8d1e54d1f6980e718",
+        "url": "https://huggingface.co/csukuangfj/vits-zh-aishell3/resolve/e3e808eaab2385b812286c6707323362251bba65/date.fst"
+      },
+      {
+        "path": "number.fst",
+        "bytes": 64482,
+        "sha256": "743f402181fcfebf76cc2f0546b71fa26476e626fbe4e460fb7b4c3a7a8bd5bd",
+        "url": "https://huggingface.co/csukuangfj/vits-zh-aishell3/resolve/e3e808eaab2385b812286c6707323362251bba65/number.fst"
+      },
+      {
+        "path": "new_heteronym.fst",
+        "bytes": 21974,
+        "sha256": "ca14b2127e27baa571664e4bb791e143e7425f56a6bc29db08d74f97e6aa4e29",
+        "url": "https://huggingface.co/csukuangfj/vits-zh-aishell3/resolve/e3e808eaab2385b812286c6707323362251bba65/new_heteronym.fst"
+      }
+    ]
+  },
+  {
+    "schemaVersion": 1,
+    "recipe": "crispWhisper",
+    "name": "Whisper base · CrispASR",
+    "revision": "5359861c739e955e79d9a303bcbc70fb988958b1",
+    "sourceUrl": "https://huggingface.co/ggerganov/whisper.cpp",
+    "license": "MIT (model repository card).",
+    "config": {
+      "model": "ggml-base.bin"
+    },
+    "files": [
+      {
+        "path": "ggml-base.bin",
+        "bytes": 147951465,
+        "sha256": "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe",
+        "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base.bin"
+      }
+    ]
+  },
+  {
+    "schemaVersion": 1,
+    "recipe": "crispQwenTts",
+    "name": "Qwen3-TTS 0.6B Base · CrispASR",
+    "revision": "94072f5c394b4dc4d98e97cc874800dde6ecacda",
+    "sourceUrl": "https://huggingface.co/cstr/qwen3-tts-0.6b-base-GGUF",
+    "license": "Apache-2.0 (model, codec and default-voice repository cards).",
+    "config": {
+      "model": "qwen3-tts-12hz-0.6b-base-q8_0.gguf",
+      "codec": "qwen3-tts-tokenizer-12hz.gguf",
+      "voice": "qwen3-tts-voice-default.gguf"
+    },
+    "files": [
+      {
+        "path": "qwen3-tts-12hz-0.6b-base-q8_0.gguf",
+        "bytes": 985716544,
+        "sha256": "6162637048fff8ca7f7a16bebc8a62ea8181f4aec4f160894955dee5b87c1961",
+        "url": "https://huggingface.co/cstr/qwen3-tts-0.6b-base-GGUF/resolve/94072f5c394b4dc4d98e97cc874800dde6ecacda/qwen3-tts-12hz-0.6b-base-q8_0.gguf"
+      },
+      {
+        "path": "qwen3-tts-tokenizer-12hz.gguf",
+        "bytes": 358453280,
+        "sha256": "70dc95dbfdd9aa5d9d406236ff771d061bf17b0cda02a72513953355606e719b",
+        "url": "https://huggingface.co/cstr/qwen3-tts-tokenizer-12hz-GGUF/resolve/344e279551177654762e5c7d39e217834325f222/qwen3-tts-tokenizer-12hz.gguf"
+      },
+      {
+        "path": "qwen3-tts-voice-default.gguf",
+        "bytes": 11104,
+        "sha256": "031c1b7f397b5f11db237dd39671042f994f1dd6b55369b64e4e72bc723efb28",
+        "url": "https://huggingface.co/cstr/qwen3-tts-voices-GGUF/resolve/6ee1102f782cab1f17842983044ac51cf57884d8/qwen3-tts-voice-default.gguf"
+      }
+    ]
+  }
+]

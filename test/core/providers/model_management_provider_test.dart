@@ -16,10 +16,49 @@ import 'package:servllama/core/services/app_l10n_service.dart';
 import 'package:servllama/core/services/gguf_file_picker.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   group('ModelManagementProvider', () {
     setUp(() {
       AppL10nService.instance.setLocale(const Locale('en'));
     });
+
+    test(
+      'MNN picker cancellation is silent, unlocks import and preserves errors',
+      () async {
+        const channel = MethodChannel('com.arkanefans.mnn_engine/methods');
+        var code = 'import_cancelled';
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (call) async {
+              if (call.method == 'importModelDirectoryWithResult') {
+                throw PlatformException(code: code, message: 'fixture');
+              }
+              return null;
+            });
+        addTearDown(
+          () => TestDefaultBinaryMessengerBinding
+              .instance
+              .defaultBinaryMessenger
+              .setMockMethodCallHandler(channel, null),
+        );
+        final logger = AppLogger();
+        final provider = ModelManagementProvider(
+          repository: FakeLocalModelRepository(),
+          unifiedRepository: _StrictUnifiedRepository(),
+          logger: logger,
+        );
+        addTearDown(provider.dispose);
+        addTearDown(logger.dispose);
+        expect(await provider.importMnnModelDirectory(), isNull);
+        expect(provider.isImporting, isFalse);
+        expect(
+          logger.entriesFor(LogChannel.model).where((e) => e.isError),
+          isEmpty,
+        );
+        code = 'invalid_model';
+        expect(await provider.importMnnModelDirectory(), contains('fixture'));
+        expect(provider.isImporting, isFalse);
+      },
+    );
 
     test('load reads initial model list', () async {
       final repository = FakeLocalModelRepository(

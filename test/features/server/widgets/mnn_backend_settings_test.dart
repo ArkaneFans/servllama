@@ -1,3 +1,4 @@
+import 'package:servllama/shared/widgets/app_scaffold.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mnn_engine/mnn_engine.dart';
@@ -49,7 +50,7 @@ void main() {
             ChangeNotifierProvider<EngineRuntimeProvider>.value(value: runtime),
             ChangeNotifierProvider<ServerConfigProvider>.value(value: provider),
           ],
-          child: Scaffold(
+          child: AppScaffold(
             body: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(

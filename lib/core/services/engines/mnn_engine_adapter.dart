@@ -20,14 +20,9 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
   }) : _engine = mnnEngine ?? MnnEngine.instance,
        _settingsLoader = settingsLoader ?? ServerLaunchSettingsLoader(),
        _logger = logger ?? AppLogger.instance {
-    _eventSubscription = _engine.events.listen((event) {
-      final running = event.snapshot.serverState == 'running';
-      _activeModel = event.snapshot.activeModel;
-      if (running != _lastRunningState) {
-        _lastRunningState = running;
-        _runningStateController.add(running);
-      }
-    });
+    _eventSubscription = _engine.events.listen(
+      (event) => _applySnapshot(event.snapshot),
+    );
     _logSubscription = _engine.logs.listen(_recordLog);
   }
 
@@ -42,6 +37,10 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
   bool _initialized = false;
   bool _lastRunningState = false;
   bool _cancelRequested = false;
+  bool _nativeBusy = false;
+  bool _cleanupRequired = false;
+  int _lastRevision = -1;
+  Future<void>? _releaseOperation;
   bool _logsEnabled = true;
   ServerLogLevel _minimumLogLevel = ServerLogLevel.info;
   int _lastLogSequence = -1;
@@ -54,6 +53,13 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
   bool get isRunning => _lastRunningState;
 
   @override
+  bool get hasResources =>
+      _lastRunningState ||
+      _activeModel != null ||
+      _nativeBusy ||
+      _cleanupRequired;
+
+  @override
   Stream<bool> get runningStateStream => _runningStateController.stream;
 
   @override
@@ -62,22 +68,36 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
       return;
     }
     try {
-      final settings = await _settingsLoader.load();
+      final settings = await _settingsLoader.loadForRuntime();
       _logsEnabled = settings.logEnabled;
       _minimumLogLevel = settings.logLevel;
       await _engine.initialize();
       for (final entry in await _engine.getLogSnapshot()) {
         _recordLog(entry);
       }
-      final snapshot = await _engine.getSnapshot();
-      _lastRunningState = snapshot.serverState == 'running';
-      _activeModel = snapshot.activeModel;
+      _applySnapshot(await _engine.getSnapshot());
       _initialized = true;
     } on MnnEngineException catch (error) {
       throw EngineAdapterException(
         EngineRuntimeErrorKind.engineUnavailable,
         detail: error.message,
       );
+    }
+  }
+
+  void _applySnapshot(MnnRuntimeSnapshot snapshot) {
+    if (snapshot.revision <= _lastRevision) return;
+    _lastRevision = snapshot.revision;
+    final wasRunning = isRunning;
+    final hadResources = hasResources;
+    _lastRunningState = snapshot.serverState == 'running';
+    _activeModel = snapshot.activeModel;
+    _nativeBusy =
+        snapshot.generationState != 'idle' ||
+        snapshot.modelState == 'loading' ||
+        snapshot.modelState == 'unloading';
+    if (wasRunning != isRunning || hadResources != hasResources) {
+      _runningStateController.add(isRunning);
     }
   }
 
@@ -95,7 +115,9 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
     required RuntimePhaseCallback onPhase,
   }) async {
     await prepare();
-    final settings = await _settingsLoader.load();
+    _throwIfCancelled();
+    final settings = await _settingsLoader.loadForRuntime();
+    _throwIfCancelled();
     _logsEnabled = settings.logEnabled;
     _minimumLogLevel = settings.logLevel;
     final bindMode = settings.host == '0.0.0.0'
@@ -147,28 +169,8 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
   }
 
   @override
-  Future<void> stop({required RuntimePhaseCallback onPhase}) async {
-    onPhase(RuntimePhase.stoppingServer);
-    try {
-      await _engine.stopServer();
-    } on MnnEngineException catch (error) {
-      throw EngineAdapterException(
-        EngineRuntimeErrorKind.serverStopFailed,
-        detail: error.message,
-      );
-    }
-    _lastRunningState = false;
-    onPhase(RuntimePhase.unloadingModel);
-    try {
-      await _engine.unloadModel();
-    } on MnnEngineException catch (error) {
-      throw EngineAdapterException(
-        EngineRuntimeErrorKind.serverStopFailed,
-        detail: error.message,
-      );
-    }
-    _activeModel = null;
-  }
+  Future<void> stop({required RuntimePhaseCallback onPhase}) =>
+      _releaseRuntime(onPhase: onPhase);
 
   @override
   Future<EngineStartResult> activateModel(
@@ -176,31 +178,14 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
     required RuntimePhaseCallback onPhase,
   }) async {
     _cancelRequested = false;
-    // MNN cannot hot-swap: the server has to come down before the resident
-    // model can be released.
-    if (_lastRunningState) {
-      onPhase(RuntimePhase.stoppingServer);
-      await _engine.stopServer();
-      _lastRunningState = false;
-    }
-
-    onPhase(RuntimePhase.unloadingModel);
-    try {
-      await _engine.unloadModel();
-    } on MnnEngineException catch (_) {
-      // Nothing resident is not an error for a swap.
-    }
-    _activeModel = null;
-
+    await _releaseRuntime(onPhase: onPhase);
+    _throwIfCancelled();
     return _startInternal(modelId: modelId, onPhase: onPhase);
   }
 
   @override
   Future<void> cancel({required RuntimePhaseCallback onPhase}) async {
     _cancelRequested = true;
-    try {
-      await _engine.cancelGeneration();
-    } on MnnEngineException catch (_) {}
     await _releaseRuntime(onPhase: onPhase);
   }
 
@@ -213,20 +198,31 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
     }
   }
 
-  Future<void> _releaseRuntime({RuntimePhaseCallback? onPhase}) async {
+  Future<void> _releaseRuntime({RuntimePhaseCallback? onPhase}) =>
+      _releaseOperation ??= _stopAndUnload(onPhase).whenComplete(() {
+        _releaseOperation = null;
+      });
+
+  Future<void> _stopAndUnload(RuntimePhaseCallback? onPhase) async {
     try {
       onPhase?.call(RuntimePhase.stoppingServer);
+      // The plugin closes admission, cancels and joins native work. Only then
+      // may unloadModel release the in-process model's memory.
       await _engine.stopServer();
-    } on MnnEngineException catch (_) {
-    } finally {
       _lastRunningState = false;
-    }
-    try {
       onPhase?.call(RuntimePhase.unloadingModel);
       await _engine.unloadModel();
-    } on MnnEngineException catch (_) {
-    } finally {
       _activeModel = null;
+      _nativeBusy = false;
+      _cleanupRequired = false;
+    } catch (error) {
+      // Never convert a failed cleanup into a successful stop. Retain the
+      // lease until a later explicit stop confirms release.
+      _cleanupRequired = true;
+      throw EngineAdapterException(
+        EngineRuntimeErrorKind.serverStopFailed,
+        detail: error is MnnEngineException ? error.message : error.toString(),
+      );
     }
   }
 
@@ -295,8 +291,10 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
       return current;
     }
     try {
+      _nativeBusy = true;
       final model = await _engine.loadModel(modelId, options: options);
       _activeModel = model;
+      _nativeBusy = false;
       return model;
     } on MnnEngineException catch (error) {
       throw EngineAdapterException(switch (error.code) {

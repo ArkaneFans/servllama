@@ -13,6 +13,7 @@ class ChatSessionRecord {
     List<ChatMessageRecord>? legacyMessages,
     required this.createdAt,
     required this.updatedAt,
+    this.assistantId,
   }) : messageIds =
            messageIds ??
            messages.map((message) => message.id).toList(growable: false),
@@ -34,6 +35,8 @@ class ChatSessionRecord {
   final DateTime updatedAt;
 
   final List<ChatMessageRecord> legacyMessages;
+  // SQLite only. Hive remains a frozen legacy import source.
+  final String? assistantId;
 
   ChatSessionRecord copyWith({
     String? id,
@@ -42,6 +45,7 @@ class ChatSessionRecord {
     List<ChatMessageRecord>? legacyMessages,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? assistantId,
   }) {
     return ChatSessionRecord(
       id: id ?? this.id,
@@ -50,6 +54,7 @@ class ChatSessionRecord {
       legacyMessages: legacyMessages ?? this.legacyMessages,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      assistantId: assistantId ?? this.assistantId,
     );
   }
 }

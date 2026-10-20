@@ -2,9 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
+import 'package:provider/provider.dart';
+import 'package:servllama/features/agent/services/agent_tool_service.dart';
+import 'package:servllama/features/assistants/providers/assistant_provider.dart';
+import 'package:servllama/features/assistants/widgets/identity_avatar.dart';
 import 'package:servllama/features/chat/controllers/streaming_chat_message_notifier.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/widgets/chat_image_widgets.dart';
+import 'package:servllama/features/chat/widgets/chat_tool_activity.dart';
 import 'package:servllama/l10n/l10n.dart';
 
 class ChatMessageList extends StatelessWidget {
@@ -143,23 +148,43 @@ class _MessageBubbleState extends State<_MessageBubble> {
     final foregroundColor = colorScheme.onSurface;
     final reasoningContent = message.reasoningContent?.trim() ?? '';
     final hasReasoningContent = reasoningContent.isNotEmpty;
+    final hasToolRun =
+        !isUser && message.runId != null && message.sessionId != null;
+    final hasActiveTools =
+        hasToolRun &&
+        context.select<AgentToolService?, bool>(
+          (s) =>
+              s?.activeRunId == message.runId &&
+              s?.activeConversationId == message.sessionId &&
+              (s?.activeInvocations.isNotEmpty ?? false),
+        );
     final hasVisibleContent =
-        message.content.isNotEmpty || (isDraft && !hasReasoningContent);
-    final showFooter = hasVisibleContent || hasReasoningContent || isDraft;
+        message.content.isNotEmpty ||
+        (isDraft && !hasReasoningContent && !hasActiveTools);
+    final showFooter =
+        hasVisibleContent ||
+        hasReasoningContent ||
+        hasToolRun ||
+        isDraft ||
+        message.imageFilePaths.isNotEmpty;
     final reasoningBackgroundColor = colorScheme.primaryContainer.withAlpha(
       110,
     );
     final userBubbleDecoration = BoxDecoration(
-      color: colorScheme.secondaryContainer.withAlpha(92),
-      borderRadius: BorderRadius.circular(22),
+      color: colorScheme.primaryContainer,
+      borderRadius: BorderRadius.circular(18),
     );
     final footerColor = colorScheme.onSurfaceVariant;
     final canShowMessageActions = widget.canManageMessages && !isDraft;
     final showQuickActions = !isDraft;
 
     Widget buildFooter({required bool includeModelName}) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
+      return Wrap(
+        key: Key('chat_message_footer_${message.id}'),
+        spacing: 8,
+        runSpacing: 4,
+        alignment: isUser ? WrapAlignment.end : WrapAlignment.start,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           Text(
             _formatTime(message.createdAt),
@@ -168,20 +193,13 @@ class _MessageBubbleState extends State<_MessageBubble> {
           if (includeModelName &&
               message.modelName != null &&
               message.modelName!.isNotEmpty)
-            Flexible(
-              child: Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: Text(
-                  message.modelName!,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: footerColor,
-                  ),
-                ),
-              ),
+            Text(
+              message.modelName!,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(color: footerColor),
             ),
           if (isDraft) ...[
-            const SizedBox(width: 8),
             SizedBox(
               width: 12,
               height: 12,
@@ -246,6 +264,12 @@ class _MessageBubbleState extends State<_MessageBubble> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (hasToolRun)
+            ChatToolActivity(
+              key: ValueKey((message.sessionId, message.runId)),
+              conversationId: message.sessionId!,
+              runId: message.runId!,
+            ),
           if (contentWidget != null) contentWidget,
           if (showFooter) ...[
             if (contentWidget != null) const SizedBox(height: 10),
@@ -259,7 +283,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.82,
+          maxWidth: MediaQuery.of(context).size.width * (isUser ? 0.82 : 1),
         ),
         margin: const EdgeInsets.only(bottom: 14),
         child: Column(
@@ -267,6 +291,8 @@ class _MessageBubbleState extends State<_MessageBubble> {
               ? CrossAxisAlignment.end
               : CrossAxisAlignment.start,
           children: [
+            _MessageIdentity(message: message),
+            const SizedBox(height: 8),
             if (isUser) ...[
               userBubbleBody,
               if (showFooter) ...[
@@ -315,7 +341,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
                                   l10n.chatReasoningProcess,
                                   style: theme.textTheme.bodySmall?.copyWith(
                                     color: foregroundColor.withAlpha(210),
-                                    fontWeight: FontWeight.w700,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ),
@@ -381,6 +407,49 @@ class _MessageBubbleState extends State<_MessageBubble> {
   }
 }
 
+class _MessageIdentity extends StatelessWidget {
+  const _MessageIdentity({required this.message});
+  final ChatMessageRecord message;
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.watch<AssistantProvider?>();
+    final isUser = message.role == ChatRole.user;
+    final assistant = provider?.assistants
+        .where((a) => a.id == message.author?.assistantId)
+        .firstOrNull;
+    final rawName = isUser
+        ? provider?.profile.name
+        : assistant?.name ?? message.author?.name;
+    final name = rawName?.trim().isNotEmpty == true
+        ? rawName!.trim()
+        : isUser
+        ? context.l10n.v2ChatUserName
+        : context.l10n.v2ChatAssistantName;
+    final avatar = IdentityAvatar(
+      value: (isUser ? provider?.profile.avatar : assistant?.avatar) ?? '',
+      name: name,
+    );
+    return Row(
+      key: Key('chat_message_identity_${message.id}'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (!isUser) ...[avatar, const SizedBox(width: 8)],
+        Flexible(
+          child: Text(
+            name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: isUser ? TextAlign.end : TextAlign.start,
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+        ),
+        if (isUser) ...[const SizedBox(width: 8), avatar],
+      ],
+    );
+  }
+}
+
 class _MessageQuickActions extends StatelessWidget {
   const _MessageQuickActions({
     required this.messageId,
@@ -440,7 +509,7 @@ class _MessageQuickActions extends StatelessWidget {
           icon: Icons.more_horiz_rounded,
           onPressed: canUseActions ? onShowActions : null,
         ),
-        if (!isUser && versionCount > 1)
+        if (versionCount > 1)
           _MessageVersionSwitcher(
             messageId: messageId,
             currentVersionIndex: currentVersionIndex,
@@ -573,12 +642,15 @@ class _MessageActionIconButton extends StatelessWidget {
           : () {
               unawaited(onPressed!.call());
             },
-      visualDensity: VisualDensity.compact,
+      visualDensity: VisualDensity.standard,
+      style: const ButtonStyle(tapTargetSize: MaterialTapTargetSize.shrinkWrap),
       iconSize: 20,
       color: colorScheme.onSurfaceVariant,
       disabledColor: colorScheme.onSurfaceVariant.withAlpha(90),
       splashRadius: 18,
-      constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+      padding: EdgeInsets.zero,
+      alignment: Alignment.centerLeft,
+      constraints: const BoxConstraints.tightFor(width: 40, height: 40),
       icon: Icon(icon),
     );
   }

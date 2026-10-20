@@ -1,4 +1,8 @@
+import 'package:servllama/shared/widgets/app_message.dart';
+import 'package:servllama/shared/widgets/app_scaffold.dart';
+import 'package:servllama/shared/widgets/ai_identity_icon.dart';
 import 'package:flutter/material.dart';
+import 'package:servllama/features/downloads/pages/model_discovery_page.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/core/models/inference_engine.dart';
 import 'package:servllama/core/models/library_model.dart';
@@ -10,7 +14,6 @@ import 'package:servllama/core/utils/format_utils.dart';
 import 'package:servllama/features/downloads/models/download_task_view.dart';
 import 'package:servllama/features/downloads/models/model_hub.dart';
 import 'package:servllama/features/downloads/pages/downloads_page.dart';
-import 'package:servllama/features/downloads/pages/model_discovery_page.dart';
 import 'package:servllama/features/downloads/providers/download_provider.dart';
 import 'package:servllama/features/downloads/widgets/download_task_card.dart';
 import 'package:servllama/features/downloads/widgets/download_wifi_only_gate.dart';
@@ -19,7 +22,8 @@ import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/widgets/engine_badge.dart';
 
 class ModelManagementPage extends StatelessWidget {
-  const ModelManagementPage({super.key, this.provider});
+  const ModelManagementPage({super.key, this.provider, this.embedded = false});
+  final bool embedded;
 
   final ModelManagementProvider? provider;
 
@@ -29,26 +33,31 @@ class ModelManagementPage extends StatelessWidget {
     if (existingProvider != null) {
       return ChangeNotifierProvider<ModelManagementProvider>.value(
         value: existingProvider,
-        child: const _ModelManagementView(),
+        child: _ModelManagementView(embedded: embedded),
       );
     }
 
     // Production keeps one app-scoped provider so downloads can refresh the
     // same model snapshot used by the library, server page, and chat page.
-    return const _ModelManagementView();
+    return _ModelManagementView(embedded: embedded);
   }
 }
 
 class _ModelManagementView extends StatefulWidget {
-  const _ModelManagementView();
+  const _ModelManagementView({this.embedded = false});
+  final bool embedded;
 
   @override
   State<_ModelManagementView> createState() => _ModelManagementViewState();
 }
 
-class _ModelManagementViewState extends State<_ModelManagementView> {
+class _ModelManagementViewState extends State<_ModelManagementView>
+    with AutomaticKeepAliveClientMixin {
   final TextEditingController _searchController = TextEditingController();
   _LibraryFilter _formatFilter = _LibraryFilter.all;
+
+  @override
+  bool get wantKeepAlive => widget.embedded;
 
   @override
   void initState() {
@@ -79,13 +88,6 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
     }
 
     switch (choice) {
-      case _AddModelChoice.download:
-        await Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => const ModelDiscoveryPage()),
-        );
-        if (context.mounted) {
-          await context.read<ModelManagementProvider>().load();
-        }
       case _AddModelChoice.ggufFile:
         await _runImport(
           context,
@@ -108,9 +110,7 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
     if (!context.mounted || message == null || message.isEmpty) {
       return;
     }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    AppMessage.show(context, message);
   }
 
   void _showModelSettings(BuildContext context, ModelDescriptor descriptor) {
@@ -176,9 +176,7 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
     if (!context.mounted || message.isEmpty) {
       return;
     }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    AppMessage.show(context, message);
   }
 
   ModelDescriptor? _descriptorFor(
@@ -199,6 +197,7 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Consumer2<ModelManagementProvider, DownloadProvider>(
       builder: (context, provider, downloads, _) {
         final theme = Theme.of(context);
@@ -232,26 +231,38 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
             )
             .length;
 
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(l10n.modelLibraryTitle),
-            actions: [
-              IconButton(
-                key: const Key('model_management_downloads_button'),
-                tooltip: l10n.downloadsTitle,
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const DownloadsPage(),
-                  ),
+        return AppScaffold(
+          appBar: widget.embedded
+              ? null
+              : AppBar(
+                  title: Text(l10n.modelLibraryTitle),
+                  actions: [
+                    IconButton(
+                      icon: const Icon(Icons.explore_outlined),
+                      tooltip: l10n.discoverTitle,
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (_) => const ModelDiscoveryPage(),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      key: const Key('model_management_downloads_button'),
+                      tooltip: l10n.downloadsTitle,
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const DownloadsPage(),
+                        ),
+                      ),
+                      icon: Badge(
+                        isLabelVisible: downloads.activeTaskCount > 0,
+                        label: Text('${downloads.activeTaskCount}'),
+                        child: const Icon(Icons.download_rounded),
+                      ),
+                    ),
+                  ],
                 ),
-                icon: Badge(
-                  isLabelVisible: downloads.activeTaskCount > 0,
-                  label: Text('${downloads.activeTaskCount}'),
-                  child: const Icon(Icons.download_rounded),
-                ),
-              ),
-            ],
-          ),
           floatingActionButton: FloatingActionButton.extended(
             key: const Key('model_management_import_fab'),
             onPressed: provider.isImporting
@@ -270,7 +281,7 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
             label: Text(
               provider.isImporting
                   ? l10n.modelManagementImporting
-                  : l10n.modelLibraryAddTitle,
+                  : l10n.localModelImport,
             ),
             backgroundColor: isLight
                 ? colorScheme.primaryContainer
@@ -498,85 +509,66 @@ class _ModelManagementViewState extends State<_ModelManagementView> {
 
 enum _LibraryFilter { all, llamaCpp, mnn, vision, tools }
 
-enum _AddModelChoice { download, ggufFile, mnnDirectory }
+enum _AddModelChoice { ggufFile, mnnDirectory }
 
-class _AddModelSheet extends StatelessWidget {
+class _AddModelSheet extends StatefulWidget {
   const _AddModelSheet();
+  @override
+  State<_AddModelSheet> createState() => _AddModelSheetState();
+}
 
+class _AddModelSheetState extends State<_AddModelSheet> {
+  _AddModelChoice choice = _AddModelChoice.ggufFile;
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final l10n = context.l10n;
-
+    final l = context.l10n;
+    final gguf = choice == _AddModelChoice.ggufFile;
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              l10n.modelLibraryAddTitle,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
+              l.localModelImport,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 16),
+            SegmentedButton<_AddModelChoice>(
+              segments: const [
+                ButtonSegment(
+                  value: _AddModelChoice.ggufFile,
+                  label: Text('llama.cpp'),
+                ),
+                ButtonSegment(
+                  value: _AddModelChoice.mnnDirectory,
+                  label: Text('MNN'),
+                ),
+              ],
+              selected: {choice},
+              onSelectionChanged: (v) => setState(() => choice = v.single),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: Icon(
+                gguf
+                    ? Icons.insert_drive_file_outlined
+                    : Icons.folder_open_rounded,
               ),
+              title: Text(gguf ? l.modelAddGguf : l.modelAddMnnDir),
+              subtitle: Text(gguf ? l.modelAddGgufDesc : l.modelAddMnnDirDesc),
             ),
-            const SizedBox(height: 12),
-            _AddOption(
-              icon: Icons.cloud_download_outlined,
-              title: l10n.modelAddDownload,
-              subtitle: l10n.modelAddDownloadDesc,
-              onTap: () => Navigator.of(context).pop(_AddModelChoice.download),
-            ),
-            _AddOption(
-              icon: Icons.insert_drive_file_outlined,
-              title: l10n.modelAddGguf,
-              subtitle: l10n.modelAddGgufDesc,
-              onTap: () => Navigator.of(context).pop(_AddModelChoice.ggufFile),
-            ),
-            _AddOption(
-              icon: Icons.folder_open_rounded,
-              title: l10n.modelAddMnnDir,
-              subtitle: l10n.modelAddMnnDirDesc,
-              onTap: () =>
-                  Navigator.of(context).pop(_AddModelChoice.mnnDirectory),
+            Text(l.localModelImportHelp),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(context, choice),
+              icon: const Icon(Icons.file_open_outlined),
+              label: Text(l.localModelChooseImport),
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _AddOption extends StatelessWidget {
-  const _AddOption({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(icon, size: 24, color: theme.colorScheme.onSurfaceVariant),
-      title: Text(
-        title,
-        style: theme.textTheme.titleSmall?.copyWith(
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-      subtitle: Text(subtitle),
-      trailing: const Icon(Icons.chevron_right_rounded),
-      onTap: onTap,
     );
   }
 }
@@ -630,6 +622,10 @@ class _LibrarySearchField extends StatelessWidget {
                   isDense: true,
                   isCollapsed: true,
                   border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  filled: false,
                   hintText: l10n.modelLibrarySearchHint,
                   hintStyle: theme.textTheme.bodyMedium?.copyWith(
                     color: colorScheme.onSurfaceVariant,
@@ -786,7 +782,7 @@ class _SectionLabel extends StatelessWidget {
         text,
         style: theme.textTheme.titleSmall?.copyWith(
           color: theme.colorScheme.onSurfaceVariant,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );
@@ -816,14 +812,13 @@ class _LibraryModelCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isLight = theme.brightness == Brightness.light;
     final l10n = context.l10n;
 
     return Material(
       key: Key('model_library_card_${model.id}'),
-      color: isLight ? Colors.white : colorScheme.surfaceContainerLow,
+      color: colorScheme.surfaceContainerLowest,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(18),
         side: BorderSide(
           color: isActive
               ? colorScheme.primary
@@ -837,7 +832,7 @@ class _LibraryModelCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                ModelFormatBadge(engine: model.engine),
+                AiIdentityIcon(model: model.name, local: true),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -848,7 +843,7 @@ class _LibraryModelCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -860,7 +855,7 @@ class _LibraryModelCard extends StatelessWidget {
                           color: isActive
                               ? colorScheme.primary
                               : colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -979,7 +974,7 @@ class _EmptyState extends StatelessWidget {
               title,
               textAlign: TextAlign.center,
               style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
               ),
             ),
             if (description != null) ...[
@@ -1034,16 +1029,14 @@ class _MnnModelSettingsSheetState extends State<_MnnModelSettingsSheet> {
       return;
     }
 
-    FocusScope.of(context).unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
     final message = await context
         .read<ModelManagementProvider>()
         .renameLibraryModel(model, nextName);
     if (!context.mounted || message == null || message.isEmpty) {
       return;
     }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    AppMessage.show(context, message);
   }
 
   LibraryModel _currentModel(ModelManagementProvider provider) {
@@ -1115,7 +1108,7 @@ class _MnnModelSettingsSheetState extends State<_MnnModelSettingsSheet> {
                       child: Text(
                         model.name,
                         style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -1127,7 +1120,7 @@ class _MnnModelSettingsSheetState extends State<_MnnModelSettingsSheet> {
                 Text(
                   l10n.modelSettingsNameLabel,
                   style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                     color: colorScheme.onSurface.withAlpha(220),
                   ),
                 ),

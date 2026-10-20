@@ -1,3 +1,4 @@
+import 'package:servllama/shared/widgets/ai_identity_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:servllama/app/app_palette.dart';
 import 'package:servllama/core/models/inference_engine.dart';
@@ -170,8 +171,12 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Inset the section label left of the model rows below: rows align their
+    // leading icon + title at the sheet's 20 dp gutter, while the label sits a
+    // step further left (8 dp) to mark the grouping without competing with the
+    // cards — the hierarchy kelivo and rikkahub use for provider headings.
     return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 14, 0, 6),
+      padding: const EdgeInsets.fromLTRB(8, 14, 0, 6),
       child: Text(
         text,
         style: theme.textTheme.labelLarge?.copyWith(
@@ -204,7 +209,7 @@ class _ModelRow extends StatelessWidget {
     return ListTile(
       key: Key('chat_model_sheet_row_${model.runtimeId}'),
       contentPadding: EdgeInsets.zero,
-      leading: ModelFormatBadge(engine: model.engine, size: 40),
+      leading: AiIdentityIcon(model: model.name, local: true),
       title: Text(model.name, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(FormatUtils.bytes(model.sizeBytes)),
       selected: isActive,
@@ -240,7 +245,7 @@ class _DownloadingRow extends StatelessWidget {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       enabled: false,
-      leading: ModelFormatBadge(engine: task.engine, size: 40),
+      leading: AiIdentityIcon(model: task.modelName, local: true),
       title: Text(task.modelName, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Padding(
         padding: const EdgeInsets.only(top: 6),

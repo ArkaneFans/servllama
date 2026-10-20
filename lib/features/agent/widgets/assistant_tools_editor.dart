@@ -1,0 +1,336 @@
+import 'package:servllama/features/agent/repositories/agent_repository.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:servllama/features/agent/models/agent_records.dart';
+import 'package:servllama/features/agent/models/web_search.dart';
+import 'package:servllama/features/agent/services/agent_tool_service.dart';
+import 'package:servllama/features/assistants/models/assistant.dart';
+import 'package:servllama/features/assistants/providers/assistant_provider.dart';
+import 'package:servllama/l10n/l10n.dart';
+import 'package:servllama/shared/widgets/async_action.dart';
+
+class AssistantToolsEditor extends StatefulWidget {
+  const AssistantToolsEditor({
+    super.key,
+    required this.assistant,
+    this.onChanged,
+  });
+  final Assistant assistant;
+  final ValueChanged<Map<String, dynamic>>? onChanged;
+  @override
+  State<AssistantToolsEditor> createState() => AssistantToolsEditorState();
+}
+
+class AssistantToolsEditorState extends State<AssistantToolsEditor>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+  int tab = 0;
+  late final grants = widget.assistant.tools.toSet(),
+      skills = widget.assistant.skillIds.toSet(),
+      servers = widget.assistant.mcpServerIds.toSet();
+  List<SkillRecord> availableSkills = [];
+  late WebSearchProvider searchProvider = widget.assistant.webSearch.provider;
+  late int searchLimit = widget.assistant.webSearch.maxResults;
+  List<McpServer> availableServers = [];
+  bool loaded = false;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) runUiAction(context, _refreshCatalogs);
+    });
+  }
+
+  Future<void> _refreshCatalogs() async {
+    final repository = AgentRepository(
+      (await context.read<AssistantProvider>().repository).db,
+    );
+    final a = await repository.skills();
+    final b = await repository.servers();
+    if (!mounted) return;
+    final previousGrants = {...grants};
+    final previousSkills = {...skills};
+    final previousServers = {...servers};
+    setState(() {
+      availableSkills = a;
+      availableServers = b;
+      skills.retainWhere(a.map((s) => s.id).toSet().contains);
+      final knownTools = {
+        'clock',
+        'ask_user',
+        'read_skill',
+        'web_search',
+        for (final server in b)
+          for (final tool in server.tools)
+            AgentToolService.mcpToolName(server.id, tool['name'] as String),
+      };
+      grants.retainWhere(knownTools.contains);
+      servers
+        ..clear()
+        ..addAll(
+          b
+              .where(
+                (server) => server.tools.any(
+                  (tool) => grants.contains(
+                    AgentToolService.mcpToolName(
+                      server.id,
+                      tool['name'] as String,
+                    ),
+                  ),
+                ),
+              )
+              .map((server) => server.id),
+        );
+      loaded = true;
+    });
+    if (!_sameSet(previousGrants, grants) ||
+        !_sameSet(previousSkills, skills) ||
+        !_sameSet(previousServers, servers)) {
+      widget.onChanged?.call(_changes());
+    }
+  }
+
+  Map<String, dynamic> _changes() => {
+    'tools': grants.toList(),
+    'skillIds': skills.toList(),
+    'mcpServerIds': servers.toList(),
+    'webSearch': WebSearchOptions(
+      provider: searchProvider,
+      maxResults: searchLimit,
+    ).toJson(),
+  };
+
+  static bool _sameSet(Set<String> a, Set<String> b) =>
+      a.length == b.length && a.containsAll(b);
+
+  void _update(VoidCallback change) {
+    setState(change);
+    widget.onChanged?.call(_changes());
+  }
+
+  void _toggle(Set<String> target, String id, bool enabled) {
+    if (enabled) {
+      target.add(id);
+    } else {
+      target.remove(id);
+    }
+  }
+
+  void toggle(Set<String> target, String id, bool enabled) =>
+      _update(() => _toggle(target, id, enabled));
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final l = context.l10n;
+    final scrollTabs = MediaQuery.textScalerOf(context).scale(14) > 18;
+    final locals = {
+      'clock': l.v2ToolClock,
+      'ask_user': l.v2ToolAsk,
+      'web_search': l.v2ToolSearch,
+    };
+    return DefaultTabController(
+      length: 3,
+      initialIndex: tab,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TabBar(
+            isScrollable: scrollTabs,
+            tabAlignment: scrollTabs ? TabAlignment.start : TabAlignment.fill,
+            onTap: (value) {
+              if (value == tab) return;
+              FocusManager.instance.primaryFocus?.unfocus();
+              setState(() => tab = value);
+            },
+            tabs: [
+              Tab(text: l.v2LocalTools),
+              Tab(text: l.v2Skills),
+              Tab(text: l.v2Mcp),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (!loaded) const LinearProgressIndicator(),
+          if (tab == 0) ...[
+            ...locals.entries.map(
+              (e) => CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(e.value),
+                value: grants.contains(e.key),
+                onChanged: (v) => toggle(grants, e.key, v!),
+              ),
+            ),
+            if (grants.contains('web_search')) ...[
+              const SizedBox(height: 12),
+              DropdownButtonFormField<WebSearchProvider>(
+                key: const ValueKey('webSearchProvider'),
+                initialValue: searchProvider,
+                isExpanded: true,
+                decoration: InputDecoration(labelText: l.v2SearchProvider),
+                items: [
+                  DropdownMenuItem(
+                    value: WebSearchProvider.bing,
+                    child: Text(l.v2SearchBing),
+                  ),
+                  DropdownMenuItem(
+                    value: WebSearchProvider.duckduckgo,
+                    child: Text(l.v2SearchDuckDuckGo),
+                  ),
+                ],
+                onChanged: (value) => _update(() => searchProvider = value!),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<int>(
+                key: const ValueKey('webSearchLimit'),
+                initialValue: searchLimit,
+                decoration: InputDecoration(labelText: l.v2SearchMaxResults),
+                items: [
+                  for (var i = 1; i <= 10; i++)
+                    DropdownMenuItem(value: i, child: Text('$i')),
+                ],
+                onChanged: (value) => _update(() => searchLimit = value!),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ],
+          if (tab == 1) ...[
+            if (availableSkills.isNotEmpty)
+              Align(
+                alignment: Alignment.centerRight,
+                child: Wrap(
+                  spacing: 4,
+                  children: [
+                    TextButton(
+                      onPressed: () => _update(() {
+                        skills.addAll(
+                          availableSkills
+                              .where(
+                                (skill) =>
+                                    skill.enabled && skill.hasValidMetadata,
+                              )
+                              .map((skill) => skill.id),
+                        );
+                      }),
+                      child: Text(l.v2SkillSelectAllEnabled),
+                    ),
+                    TextButton(
+                      onPressed: skills.isEmpty
+                          ? null
+                          : () => _update(skills.clear),
+                      child: Text(l.v2SkillClearSelection),
+                    ),
+                  ],
+                ),
+              ),
+            if (loaded && availableSkills.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Text(l.v2SkillsEmpty, textAlign: TextAlign.center),
+              ),
+            ...availableSkills.map((s) {
+              final usable = s.enabled && s.hasValidMetadata;
+              final muted = Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: .48);
+              return CheckboxListTile(
+                key: ValueKey('assistant_skill_${s.id}'),
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  s.name,
+                  style: usable ? null : TextStyle(color: muted),
+                ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      s.description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: usable
+                          ? null
+                          : Theme.of(
+                              context,
+                            ).textTheme.bodySmall?.copyWith(color: muted),
+                    ),
+                    if (!usable)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          s.hasValidMetadata
+                              ? l.v2SkillEnableOnSkillsPage
+                              : l.v2SkillMetadataIncomplete,
+                          style: Theme.of(
+                            context,
+                          ).textTheme.bodySmall?.copyWith(color: muted),
+                        ),
+                      ),
+                  ],
+                ),
+                value: skills.contains(s.id),
+                onChanged: usable ? (v) => toggle(skills, s.id, v!) : null,
+              );
+            }),
+          ],
+          if (tab == 2) ...[
+            if (loaded && availableServers.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Text(l.v2McpEmpty, textAlign: TextAlign.center),
+              ),
+            ...availableServers.map((s) {
+              final muted = Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: .48);
+              return ExpansionTile(
+                key: ValueKey('assistant_mcp_${s.id}'),
+                tilePadding: EdgeInsets.zero,
+                title: Text(
+                  s.name,
+                  style: s.enabled ? null : TextStyle(color: muted),
+                ),
+                subtitle: s.enabled
+                    ? null
+                    : Text(
+                        l.v2McpEnableOnMcpPage,
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(color: muted),
+                      ),
+                children: [
+                  ...s.tools.map((t) {
+                    final key = AgentToolService.mcpToolName(
+                      s.id,
+                      t['name'] as String,
+                    );
+                    return CheckboxListTile(
+                      key: ValueKey('assistant_mcp_tool_${s.id}_${t['name']}'),
+                      title: Text(t['name'] as String),
+                      value: grants.contains(key),
+                      onChanged: s.enabled
+                          ? (v) => _update(() {
+                              _toggle(grants, key, v!);
+                              if (v) {
+                                servers.add(s.id);
+                              } else if (!s.tools.any(
+                                (t) => grants.contains(
+                                  AgentToolService.mcpToolName(
+                                    s.id,
+                                    t['name'] as String,
+                                  ),
+                                ),
+                              )) {
+                                servers.remove(s.id);
+                              }
+                            })
+                          : null,
+                    );
+                  }),
+                ],
+              );
+            }),
+          ],
+        ],
+      ),
+    );
+  }
+}

@@ -1,8 +1,11 @@
+import 'package:servllama/shared/widgets/app_scaffold.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/features/chat/models/chat_session_record.dart';
+import 'package:servllama/features/assistants/providers/assistant_provider.dart';
+import 'package:servllama/shared/widgets/async_action.dart';
 import 'package:servllama/features/chat/providers/chat_provider.dart';
 import 'package:servllama/features/chat/widgets/chat_session_actions.dart';
 import 'package:servllama/features/chat/widgets/chat_session_search_field.dart';
@@ -29,7 +32,7 @@ class ChatHistoryPage extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final l10n = context.l10n;
 
-    return Scaffold(
+    return AppScaffold(
       appBar: AppBar(title: Text(l10n.chatHistoryTitle)),
       body: SafeArea(
         top: false,
@@ -44,6 +47,8 @@ class ChatHistoryPage extends StatelessWidget {
                 autofocus: false,
               ),
               const SizedBox(height: 12),
+              if (context.watch<AssistantProvider?>() != null)
+                Text(l10n.v2AllAssistantHistory),
               Expanded(
                 child: Consumer<ChatProvider>(
                   builder: (context, provider, _) {
@@ -135,6 +140,10 @@ class _HistorySessionCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = context.l10n;
+    final assistants = context.watch<AssistantProvider?>();
+    final author = assistants?.assistants
+        .where((a) => a.id == session.assistantId)
+        .firstOrNull;
 
     return Material(
       color: Colors.transparent,
@@ -153,14 +162,26 @@ class _HistorySessionCard extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(
-                  child: Text(
-                    session.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: colorScheme.onSurface,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        session.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: colorScheme.onSurface,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if (assistants != null)
+                        Text(
+                          author?.name ?? l10n.v2UnassignedAssistant,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                    ],
                   ),
                 ),
                 PopupMenuButton<_HistorySessionMenuAction>(
@@ -168,6 +189,16 @@ class _HistorySessionCard extends StatelessWidget {
                   tooltip: l10n.chatMoreActions,
                   onSelected: (action) {
                     switch (action) {
+                      case _HistorySessionMenuAction.assistant:
+                        runUiAction(
+                          context,
+                          () => ChatSessionActions.changeAssistant(
+                            provider: context.read<ChatProvider>(),
+                            presentationContext: context,
+                            session: session,
+                          ),
+                        );
+                        break;
                       case _HistorySessionMenuAction.rename:
                         onRename?.call();
                         break;
@@ -177,6 +208,12 @@ class _HistorySessionCard extends StatelessWidget {
                     }
                   },
                   itemBuilder: (context) => [
+                    if (assistants != null)
+                      PopupMenuItem(
+                        value: _HistorySessionMenuAction.assistant,
+                        enabled: context.read<ChatProvider>().canManageSessions,
+                        child: Text(l10n.v2ChangeConversationAssistant),
+                      ),
                     PopupMenuItem(
                       value: _HistorySessionMenuAction.rename,
                       child: Text(l10n.commonRename),
@@ -200,4 +237,4 @@ class _HistorySessionCard extends StatelessWidget {
   }
 }
 
-enum _HistorySessionMenuAction { rename, delete }
+enum _HistorySessionMenuAction { rename, assistant, delete }

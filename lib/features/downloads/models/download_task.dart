@@ -30,6 +30,25 @@ class DownloadFileRecord {
 
   @HiveField(5)
   bool completed;
+
+  Map<String, dynamic> toJson() => {
+    'remotePath': remotePath,
+    'fileName': fileName,
+    'totalBytes': totalBytes,
+    'receivedBytes': receivedBytes,
+    'sha256': sha256,
+    'completed': completed,
+  };
+
+  factory DownloadFileRecord.fromJson(Map<String, dynamic> json) =>
+      DownloadFileRecord(
+        remotePath: json['remotePath'] as String,
+        fileName: json['fileName'] as String,
+        totalBytes: json['totalBytes'] as int,
+        receivedBytes: json['receivedBytes'] as int,
+        sha256: json['sha256'] as String?,
+        completed: json['completed'] as bool,
+      );
 }
 
 @HiveType(typeId: 6)
@@ -107,4 +126,47 @@ class DownloadTaskRecord {
   /// instead of creating a new library entry.
   @HiveField(14)
   String? targetModelId;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'engineValue': engineValue,
+    'sourceValue': sourceValue,
+    'repoId': repoId,
+    'revision': revision,
+    'modelName': modelName,
+    'requestedModelName': requestedModelName,
+    'files': files.map((file) => file.toJson()).toList(),
+    'statusValue': statusValue,
+    'createdAt': createdAt.toIso8601String(),
+    'stagingDirPath': stagingDirPath,
+    'quantLabel': quantLabel,
+    'errorDetail': errorDetail,
+    'pausedByNetwork': pausedByNetwork,
+    'targetModelId': targetModelId,
+  };
+
+  factory DownloadTaskRecord.fromJson(Map<String, dynamic> json) =>
+      DownloadTaskRecord(
+        id: json['id'] as String,
+        engineValue: json['engineValue'] as String,
+        sourceValue: json['sourceValue'] as String,
+        repoId: json['repoId'] as String,
+        revision: json['revision'] as String,
+        modelName: json['modelName'] as String,
+        requestedModelName: json['requestedModelName'] as String,
+        files: (json['files'] as List)
+            .map(
+              (file) => DownloadFileRecord.fromJson(
+                Map<String, dynamic>.from(file as Map),
+              ),
+            )
+            .toList(),
+        statusValue: json['statusValue'] as String,
+        createdAt: DateTime.parse(json['createdAt'] as String),
+        stagingDirPath: json['stagingDirPath'] as String,
+        quantLabel: json['quantLabel'] as String?,
+        errorDetail: json['errorDetail'] as String?,
+        pausedByNetwork: json['pausedByNetwork'] as bool,
+        targetModelId: json['targetModelId'] as String?,
+      );
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// A single setting row that matches the app's standard settings tile:
-/// a 24px icon box, a `titleMedium` w700 title, an optional trailing value
+/// a 24px icon box, a `bodyLarge` w500 title, an optional trailing value
 /// and chevron (when [onTap] is set), or an arbitrary [trailing] widget
 /// (e.g. a switch) when no chevron is wanted.
 ///
@@ -11,15 +11,24 @@ import 'package:flutter/material.dart';
 class SettingsMenuTile extends StatefulWidget {
   const SettingsMenuTile({
     super.key,
-    required this.icon,
+    this.icon,
+    this.leading,
     required this.title,
     this.value,
     this.onTap,
     this.trailing,
     this.enabled = true,
-  });
+  }) : assert(
+         icon != null || leading != null,
+         'SettingsMenuTile needs an icon or a leading widget.',
+       );
 
-  final IconData icon;
+  final IconData? icon;
+
+  /// Custom leading artwork, such as a brand icon. Takes precedence over
+  /// [icon] when both are provided.
+  final Widget? leading;
+
   final String title;
   final String? value;
 
@@ -74,18 +83,21 @@ class _SettingsMenuTileState extends State<SettingsMenuTile> {
             children: [
               SizedBox(
                 width: 24,
-                child: Icon(
-                  widget.icon,
-                  size: 22,
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                child:
+                    widget.leading ??
+                    Icon(
+                      widget.icon,
+                      size: 22,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
               ),
               const SizedBox(width: 14),
               Expanded(
+                flex: 2,
                 child: Text(
                   widget.title,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
@@ -94,14 +106,16 @@ class _SettingsMenuTileState extends State<SettingsMenuTile> {
                 widget.trailing!,
               ] else if (widget.value != null) ...[
                 const SizedBox(width: 12),
-                Text(
-                  widget.value!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.end,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
+                Expanded(
+                  child: Text(
+                    widget.value!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ],

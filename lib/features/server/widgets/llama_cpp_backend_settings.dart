@@ -141,17 +141,27 @@ class _LlamaCppBackendSettingsState extends State<LlamaCppBackendSettings> {
       LlamaCppBackend.hexagon => probeKnown && probe.hexagonAvailable,
     };
     final selected = provider.llamaCppBackend == backend;
-    return ListTile(
-      key: Key('llama_cpp_backend_${backend.name}'),
-      contentPadding: EdgeInsets.zero,
-      enabled: selectable,
-      selected: selected,
-      leading: Icon(
-        selected ? Icons.radio_button_checked : Icons.radio_button_off,
+    return Semantics(
+      checked: selected,
+      inMutuallyExclusiveGroup: true,
+      child: ListTile(
+        key: Key('llama_cpp_backend_${backend.name}'),
+        contentPadding: EdgeInsets.zero,
+        enabled: selectable,
+        leading: Icon(switch (backend) {
+          LlamaCppBackend.cpu => Icons.memory_outlined,
+          LlamaCppBackend.opencl => Icons.developer_board_outlined,
+          LlamaCppBackend.hexagon => Icons.bolt_outlined,
+        }),
+        trailing: Icon(
+          selected ? Icons.radio_button_checked : Icons.radio_button_off,
+        ),
+        title: Text(_name(l10n, backend)),
+        subtitle: Text(_description(l10n, backend, selectable, probeKnown)),
+        onTap: selectable
+            ? () => provider.updateLlamaCppBackend(backend)
+            : null,
       ),
-      title: Text(_name(l10n, backend)),
-      subtitle: Text(_description(l10n, backend, selectable, probeKnown)),
-      onTap: selectable ? () => provider.updateLlamaCppBackend(backend) : null,
     );
   }
 

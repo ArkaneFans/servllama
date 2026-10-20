@@ -3,8 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:servllama/features/chat/models/chat_session_record.dart';
 import 'package:servllama/features/chat/providers/chat_provider.dart';
 import 'package:servllama/l10n/l10n.dart';
+import 'package:servllama/features/assistants/providers/assistant_provider.dart';
 
-enum ChatSessionAction { rename, delete }
+enum ChatSessionAction { rename, assistant, delete }
 
 class ChatSessionActions {
   const ChatSessionActions._();
@@ -38,6 +39,13 @@ class ChatSessionActions {
                 onTap: () =>
                     Navigator.of(context).pop(ChatSessionAction.rename),
               ),
+              if (provider.hasAssistantContext)
+                ListTile(
+                  leading: const Icon(Icons.manage_accounts_outlined),
+                  title: Text(l10n.v2ChangeConversationAssistant),
+                  onTap: () =>
+                      Navigator.of(context).pop(ChatSessionAction.assistant),
+                ),
               ListTile(
                 leading: const Icon(Icons.delete_outline),
                 title: Text(l10n.commonDelete),
@@ -55,6 +63,12 @@ class ChatSessionActions {
     }
 
     switch (action) {
+      case ChatSessionAction.assistant:
+        await changeAssistant(
+          provider: provider,
+          presentationContext: presentationContext,
+          session: session,
+        );
       case ChatSessionAction.rename:
         await renameSession(
           provider: provider,
@@ -68,6 +82,67 @@ class ChatSessionActions {
           session: session,
         );
     }
+  }
+
+  static Future<void> changeAssistant({
+    required ChatProvider provider,
+    required BuildContext presentationContext,
+    required ChatSessionRecord session,
+  }) async {
+    final assistants = presentationContext.read<AssistantProvider>().assistants;
+    String? selected = assistants.any((a) => a.id == session.assistantId)
+        ? session.assistantId
+        : null;
+    final result = await showDialog<String>(
+      context: presentationContext,
+      builder: (context) => StatefulBuilder(
+        builder: (context, update) {
+          final l = context.l10n;
+          return AlertDialog(
+            title: Text(l.v2ChangeConversationAssistant),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(l.v2ChangeConversationAssistantHelp),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: selected,
+                    isExpanded: true,
+                    decoration: InputDecoration(labelText: l.v2FirstAssistants),
+                    items: assistants
+                        .map(
+                          (a) => DropdownMenuItem(
+                            value: a.id,
+                            child: Text(
+                              a.name,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (id) => update(() => selected = id),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(l.commonCancel),
+              ),
+              FilledButton(
+                onPressed: selected == null || selected == session.assistantId
+                    ? null
+                    : () => Navigator.pop(context, selected),
+                child: Text(l.commonSave),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (result != null) await provider.reassignAssistant(session.id, result);
   }
 
   static Future<void> renameSession({

@@ -1,4 +1,6 @@
 import java.util.Properties
+import java.security.MessageDigest
+import groovy.json.JsonSlurper
 
 // Load release keystore values from android/key.properties when available.
 val keystoreProperties = Properties()
@@ -17,7 +19,7 @@ plugins {
 android {
     namespace = "com.arkanefans.servllama"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -34,14 +36,9 @@ android {
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 28
-        //noinspection ExpiredTargetSdkVersion
-        targetSdk = 28
+        targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        ndk {
-            // llama-server binaries in jniLibs are arm64-only.
-            abiFilters += "arm64-v8a"
-        }
     }
 
     packaging {
@@ -49,6 +46,8 @@ android {
             // llama-server is executed as a child process, so the libraries
             // must exist as real files in nativeLibraryDir.
             useLegacyPackaging = true
+            // DSP kernels are Hexagon ELFs; the Android NDK must not strip them.
+            keepDebugSymbols += "**/libggml-htp-*.so"
         }
         resources {
             excludes += setOf(
@@ -74,6 +73,12 @@ android {
     }
 
     buildTypes {
+        configureEach {
+            // Flutter 3.35 sets build-type ABI defaults, which override the
+            // defaultConfig filter. All ServLlama engines require arm64.
+            ndk.abiFilters.clear()
+            ndk.abiFilters += "arm64-v8a"
+        }
         release {
             // Falls back to debug signing until android/key.properties is configured.
             signingConfig = if (keystorePropertiesFile.exists()) {
@@ -88,3 +93,30 @@ android {
 flutter {
     source = "../.."
 }
+
+val verifySpeechNative by tasks.registering {
+    val manifest = rootProject.file("../native/speech/android-arm64-v8a.json")
+    val library = file("src/main/jniLibs/arm64-v8a/libservllama_crispasr.so")
+    inputs.files(manifest, library)
+    doLast {
+        check(library.isFile && manifest.isFile) {
+            "Build the pinned CrispASR library with tool/build_speech_native.ps1 before packaging."
+        }
+        val metadata = JsonSlurper().parse(manifest) as Map<*, *>
+        val expected = metadata["library"] as Map<*, *>
+        val digest = MessageDigest.getInstance("SHA-256")
+        library.inputStream().use { stream ->
+            val buffer = ByteArray(1024 * 1024)
+            while (true) {
+                val count = stream.read(buffer)
+                if (count < 0) break
+                digest.update(buffer, 0, count)
+            }
+        }
+        val actual = digest.digest().joinToString("") { "%02x".format(it.toInt() and 0xff) }
+        check(actual == expected["sha256"]) {
+            "CrispASR binary and build manifest disagree. Rebuild the pinned speech bundle."
+        }
+    }
+}
+tasks.named("preBuild").configure { dependsOn(verifySpeechNative) }

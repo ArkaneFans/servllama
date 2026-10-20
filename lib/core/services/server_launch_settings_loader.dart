@@ -8,6 +8,8 @@ class ServerLaunchSettingsLoader {
     : _kvStorage = kvStorage ?? KvStorage.instance;
 
   final KvStorage _kvStorage;
+  ServerLaunchSettings? runtimeOverride;
+  Future<ServerLaunchSettings> loadForRuntime() async => runtimeOverride ?? await load();
 
   Future<ServerLaunchSettings> load() async {
     final savedMnnBackend = await _kvStorage.getString(

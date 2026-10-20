@@ -103,9 +103,9 @@ class _SliderNumberSettingState extends State<SliderNumberSetting> {
             Expanded(
               child: SliderTheme(
                 data: SliderTheme.of(context).copyWith(
-                  trackHeight: 4,
+                  trackHeight: 6,
                   thumbShape: const RoundSliderThumbShape(
-                    enabledThumbRadius: 7,
+                    enabledThumbRadius: 10,
                   ),
                   overlayShape: const RoundSliderOverlayShape(
                     overlayRadius: 16,
@@ -144,7 +144,7 @@ class _SliderNumberSettingState extends State<SliderNumberSetting> {
             ),
             const SizedBox(width: 10),
             SizedBox(
-              width: 76,
+              width: 108,
               child: TextField(
                 controller: _controller,
                 focusNode: _focusNode,
@@ -173,7 +173,7 @@ class _SliderNumberSettingState extends State<SliderNumberSetting> {
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 8,
-                    vertical: 10,
+                    vertical: 14,
                   ),
                 ),
               ),

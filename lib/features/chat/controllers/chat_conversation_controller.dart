@@ -80,6 +80,14 @@ class ChatConversationController extends ChangeNotifier {
     clearSelection(notify: notify);
   }
 
+  void forgetSessions(Set<String> ids, {bool notify = true}) {
+    for (final id in ids) {
+      _initialMessageCache.remove(id);
+      _preloadLoads.remove(id);
+    }
+    if (ids.contains(_selectedSessionId)) clearSelection(notify: notify);
+  }
+
   bool beginSessionSelection(
     String sessionId, {
     bool keepVisibleMessages = true,
@@ -172,7 +180,8 @@ class ChatConversationController extends ChangeNotifier {
         continue;
       }
       _preloadQueue = _preloadQueue.then((_) async {
-        if (_cachedInitialMessages(session) != null ||
+        if (_sessionList.findSession(session.id) == null ||
+            _cachedInitialMessages(session) != null ||
             _activeInitialMessageLoad(session) != null) {
           return;
         }
@@ -294,9 +303,7 @@ class ChatConversationController extends ChangeNotifier {
   /// Call after the session record (new updatedAt) has been upserted so the
   /// refreshed cache signature matches the stored session.
   void updateVisibleMessage(ChatMessageRecord message, {bool notify = true}) {
-    final index = _visibleMessages.indexWhere(
-      (item) => item.id == message.id,
-    );
+    final index = _visibleMessages.indexWhere((item) => item.id == message.id);
     if (index < 0) {
       return;
     }
@@ -314,9 +321,7 @@ class ChatConversationController extends ChangeNotifier {
     if (!_visibleMessages.any((item) => item.id == messageId)) {
       return;
     }
-    _setVisibleMessages(
-      _visibleMessages.where((item) => item.id != messageId),
-    );
+    _setVisibleMessages(_visibleMessages.where((item) => item.id != messageId));
     _refreshSelectedSessionCacheFromVisibleMessages();
     if (notify) {
       notifyListeners();
@@ -434,6 +439,7 @@ class ChatConversationController extends ChangeNotifier {
     _InitialMessageCacheSignature signature,
     List<ChatMessageRecord> messages,
   ) {
+    if (_sessionList.findSession(sessionId) == null) return;
     _initialMessageCache.remove(sessionId);
     _initialMessageCache[sessionId] = _InitialMessageCacheEntry(
       signature: signature,

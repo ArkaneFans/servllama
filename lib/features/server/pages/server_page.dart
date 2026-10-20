@@ -1,3 +1,5 @@
+import 'package:servllama/shared/widgets/app_message.dart';
+import 'package:servllama/shared/widgets/app_scaffold.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -10,13 +12,15 @@ import 'package:servllama/core/providers/engine_runtime_provider.dart';
 import 'package:servllama/core/providers/model_management_provider.dart';
 import 'package:servllama/core/utils/format_utils.dart';
 import 'package:servllama/features/downloads/pages/model_discovery_page.dart';
-import 'package:servllama/features/server/pages/model_management_page.dart';
+import 'package:servllama/app/model_library_page.dart';
 import 'package:servllama/features/server/pages/server_config_page.dart';
-import 'package:servllama/features/server/pages/server_logs_page.dart';
+import 'package:servllama/features/logs/pages/app_logs_page.dart';
 import 'package:servllama/features/server/widgets/engine_selector.dart';
 import 'package:servllama/features/server/widgets/runtime_hero_card.dart';
 import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/l10n/runtime_labels.dart';
+import 'package:servllama/shared/theme/app_visual_theme.dart';
+import 'package:servllama/shared/widgets/ai_identity_icon.dart';
 import 'package:servllama/shared/widgets/engine_badge.dart';
 
 /// Runtime control center: pick an engine, pick a model, start or stop. The
@@ -79,7 +83,7 @@ class _ServerPageState extends State<ServerPage> {
     final state = runtime.state;
     _syncUptimeTicker();
 
-    return Scaffold(
+    return AppScaffold(
       appBar: AppBar(title: Text(l10n.serverTitle)),
       body: SafeArea(
         top: false,
@@ -102,6 +106,7 @@ class _ServerPageState extends State<ServerPage> {
                 runtime.selectedModelId,
               ),
               canStart: runtime.canStart,
+              canStop: runtime.canStop,
               onSelectModel: () => _openModelPicker(context, runtime, library),
               onToggle: runtime.toggle,
               onCopyUrl: () => _copyBaseUrl(context, runtime.displayUrl),
@@ -138,13 +143,13 @@ class _ServerPageState extends State<ServerPage> {
                 _MenuItemData(
                   icon: Icons.receipt_long_rounded,
                   title: l10n.serverMenuLogs,
-                  onTap: () => _push(context, const ServerLogsPage()),
+                  onTap: () => _push(context, const AppLogsPage()),
                 ),
                 _MenuItemData(
                   icon: Icons.inventory_2_outlined,
                   title: l10n.serverMenuModels,
                   trailing: '${library.libraryModels.length}',
-                  onTap: () => _push(context, const ModelManagementPage()),
+                  onTap: () => _push(context, const ModelLibraryPage()),
                 ),
                 _MenuItemData(
                   icon: Icons.travel_explore_rounded,
@@ -207,9 +212,7 @@ class _ServerPageState extends State<ServerPage> {
     if (!context.mounted) {
       return;
     }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(context.l10n.serverBaseUrlCopied)));
+    AppMessage.show(context, context.l10n.serverBaseUrlCopied);
   }
 
   static Future<void> _push(BuildContext context, Widget page) async {
@@ -281,22 +284,9 @@ class _ModelPickerSheet extends StatelessWidget {
                   itemBuilder: (_, index) {
                     final model = models[index];
                     final isSelected = model.runtimeId == selectedRuntimeId;
-                    return ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: ModelFormatBadge(engine: model.engine, size: 40),
-                      title: Text(
-                        model.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      subtitle: Text(FormatUtils.bytes(model.sizeBytes)),
-                      selected: isSelected,
-                      trailing: isSelected
-                          ? Icon(
-                              Icons.check_circle_rounded,
-                              color: theme.palette.okMark,
-                            )
-                          : null,
+                    return _ModelPickerRow(
+                      model: model,
+                      isSelected: isSelected,
                       onTap: () => Navigator.of(
                         context,
                       ).pop(_ModelPick(model.runtimeId)),
@@ -305,6 +295,93 @@ class _ModelPickerSheet extends StatelessWidget {
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ModelPickerRow extends StatelessWidget {
+  const _ModelPickerRow({
+    required this.model,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final LibraryModel model;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final radius = BorderRadius.circular(AppVisualTheme.fieldRadius);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Semantics(
+        button: true,
+        selected: isSelected,
+        child: AnimatedContainer(
+          key: Key('server_model_picker_row_${model.runtimeId}'),
+          duration: const Duration(milliseconds: 140),
+          curve: Curves.easeOutCubic,
+          decoration: BoxDecoration(
+            color: isSelected
+                ? colorScheme.primaryContainer
+                : colorScheme.surface,
+            borderRadius: radius,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: radius,
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                child: Row(
+                  children: [
+                    AiIdentityIcon(model: model.name, local: true, size: 40),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            model.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            FormatUtils.bytes(model.sizeBytes),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (isSelected) ...[
+                      const SizedBox(width: 10),
+                      Icon(
+                        Icons.check_circle_rounded,
+                        key: Key(
+                          'server_model_picker_selected_${model.runtimeId}',
+                        ),
+                        color: theme.palette.okMark,
+                        size: 22,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -320,14 +397,12 @@ class _MenuGroupCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isLight = theme.brightness == Brightness.light;
 
     return DecoratedBox(
       key: const Key('server_page_menu_group'),
       decoration: BoxDecoration(
-        color: isLight ? Colors.white : colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: colorScheme.outlineVariant.withAlpha(110)),
+        color: colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
         children: [

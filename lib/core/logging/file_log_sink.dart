@@ -58,9 +58,7 @@ class FileLogSink implements LogSink {
     }
     final batch = '${_pending.join('\n')}\n';
     _pending = <String>[];
-    _writeQueue = _writeQueue
-        .then((_) => _append(batch))
-        .catchError((_) {});
+    _writeQueue = _writeQueue.then((_) => _append(batch)).catchError((_) {});
     return _writeQueue;
   }
 
@@ -93,7 +91,7 @@ class FileLogSink implements LogSink {
     _timer?.cancel();
     _timer = null;
     _pending = <String>[];
-    _writeQueue = _writeQueue.then((_) async {
+    final clearing = _writeQueue.then((_) async {
       for (var i = retainedFiles - 1; i >= 1; i--) {
         final f = File('${_logFile.path}.$i');
         if (await f.exists()) {
@@ -103,8 +101,9 @@ class FileLogSink implements LogSink {
       if (await _logFile.exists()) {
         await _logFile.delete();
       }
-    }).catchError((_) {});
-    return _writeQueue;
+    });
+    _writeQueue = clearing.catchError((_) {});
+    return clearing;
   }
 
   Future<void> _append(String data) async {

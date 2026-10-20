@@ -5,6 +5,52 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/shared/widgets/push_sidebar.dart';
 
 void main() {
+  for (final width in [700.0, 1000.0]) {
+    testWidgets('sidebar clears main and search focus at width $width', (
+      tester,
+    ) async {
+      final controller = PushSidebarController();
+      final mainFocus = FocusNode(), searchFocus = FocusNode();
+      addTearDown(mainFocus.dispose);
+      addTearDown(searchFocus.dispose);
+      await tester.pumpWidget(
+        _TestHost(
+          width: width,
+          child: Material(
+            child: PushSidebar(
+              controller: controller,
+              drawerWidth: 240,
+              largeScreenInitiallyOpen: false,
+              drawer: Align(
+                alignment: Alignment.topCenter,
+                child: TextField(
+                  key: const Key('search'),
+                  focusNode: searchFocus,
+                ),
+              ),
+              child: TextField(key: const Key('main'), focusNode: mainFocus),
+            ),
+          ),
+        ),
+      );
+      await tester.showKeyboard(find.byKey(const Key('main')));
+      expect(mainFocus.hasFocus, isTrue);
+      unawaited(controller.open());
+      await tester.pumpAndSettle();
+      expect(mainFocus.hasFocus, isFalse);
+      expect(tester.testTextInput.isVisible, isFalse);
+      await tester.showKeyboard(find.byKey(const Key('search')));
+      unawaited(controller.close());
+      await tester.pumpAndSettle();
+      expect(searchFocus.hasFocus, isFalse);
+      expect(tester.testTextInput.isVisible, isFalse);
+      unawaited(controller.open());
+      await tester.pumpAndSettle();
+      expect(searchFocus.hasFocus, isFalse);
+      expect(tester.testTextInput.isVisible, isFalse);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
   group('PushSidebar', () {
     testWidgets(
       'opens mobile sidebar, pushes content, and closes on scrim tap',

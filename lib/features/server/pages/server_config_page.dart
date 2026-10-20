@@ -1,3 +1,4 @@
+import 'package:servllama/shared/widgets/app_scaffold.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:servllama/core/models/inference_engine.dart';
@@ -74,7 +75,7 @@ class _ServerConfigViewState extends State<_ServerConfigView> {
             .select<EngineRuntimeProvider, InferenceEngine>(
               (runtime) => runtime.activeEngine,
             );
-        return Scaffold(
+        return AppScaffold(
           appBar: AppBar(title: Text(l10n.serverConfigTitle)),
           body: !provider.hasCompletedInitialLoad
               ? const Center(child: CircularProgressIndicator())

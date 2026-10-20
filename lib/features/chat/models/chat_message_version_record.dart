@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import 'package:servllama/features/chat/models/message_author.dart';
 
 part 'chat_message_version_record.g.dart';
 
@@ -10,6 +11,8 @@ class ChatMessageVersionRecord {
     required this.content,
     required this.createdAt,
     this.modelName,
+    this.runId,
+    this.author,
     this.reasoningContent,
     this.imageFilePaths = const [],
   });
@@ -28,6 +31,9 @@ class ChatMessageVersionRecord {
 
   @HiveField(4)
   final String? modelName;
+
+  final String? runId;
+  final MessageAuthor? author;
 
   @HiveField(5)
   final String? reasoningContent;

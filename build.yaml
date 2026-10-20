@@ -1,0 +1,11 @@
+targets:
+  $default:
+    builders:
+      drift_dev:
+        generate_for:
+          - lib/core/database/app_database.dart
+        options:
+          generate_manager: false
+      source_gen:combining_builder:
+        generate_for:
+          - lib/core/database/app_database.dart

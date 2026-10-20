@@ -51,6 +51,7 @@ class ForegroundTaskService {
   final Map<String, ({String title, String text})> _owners =
       <String, ({String title, String text})>{};
   bool _initialized = false;
+  Future<bool>? _operations;
 
   /// 初始化前台任务配置。
   /// 必须在使用前调用一次。
@@ -108,24 +109,7 @@ class ForegroundTaskService {
     required String notificationText,
   }) async {
     _owners[owner] = (title: notificationTitle, text: notificationText);
-    try {
-      if (await FlutterForegroundTask.isRunningService) {
-        await _publishCurrentNotification();
-        return true;
-      }
-      final current = _currentNotification;
-      final result = await FlutterForegroundTask.startService(
-        serviceId: _serviceId,
-        notificationTitle: current.title,
-        notificationText: current.text,
-        notificationInitialRoute: '/',
-        callback: foregroundTaskCallback,
-      );
-      return result is ServiceRequestSuccess;
-    } catch (e) {
-      _owners.remove(owner);
-      return false;
-    }
+    return _synchronize();
   }
 
   /// 更新通知内容。
@@ -143,7 +127,7 @@ class ForegroundTaskService {
       return;
     }
     _owners[owner] = (title: title, text: text);
-    await _publishCurrentNotification();
+    await _synchronize();
   }
 
   /// 停止前台服务。
@@ -152,20 +136,7 @@ class ForegroundTaskService {
 
   Future<bool> release(String owner) async {
     _owners.remove(owner);
-    if (_owners.isNotEmpty) {
-      try {
-        await _publishCurrentNotification();
-        return true;
-      } catch (_) {
-        return false;
-      }
-    }
-    try {
-      final result = await FlutterForegroundTask.stopService();
-      return result is ServiceRequestSuccess;
-    } catch (e) {
-      return false;
-    }
+    return _synchronize();
   }
 
   ({String title, String text}) get _currentNotification {
@@ -174,15 +145,44 @@ class ForegroundTaskService {
         _owners.values.last;
   }
 
-  Future<void> _publishCurrentNotification() async {
-    if (_owners.isEmpty || !await FlutterForegroundTask.isRunningService) {
-      return;
-    }
-    final current = _currentNotification;
-    await FlutterForegroundTask.updateService(
-      notificationTitle: current.title,
-      notificationText: current.text,
-    );
+  /// Serialize platform transitions for all notification owners.
+  Future<bool> _synchronize() {
+    late final Future<bool> operation;
+    operation = (_operations ?? Future<bool>.value(true))
+        .then((_) async {
+          try {
+            final running = await FlutterForegroundTask.isRunningService;
+            if (_owners.isEmpty) {
+              if (!running) return true;
+              return await FlutterForegroundTask.stopService()
+                  is ServiceRequestSuccess;
+            }
+            final current = _currentNotification;
+            if (running) {
+              return await FlutterForegroundTask.updateService(
+                    notificationTitle: current.title,
+                    notificationText: current.text,
+                  )
+                  is ServiceRequestSuccess;
+            }
+            return await FlutterForegroundTask.startService(
+                  serviceId: _serviceId,
+                  serviceTypes: const [ForegroundServiceTypes.specialUse],
+                  notificationTitle: current.title,
+                  notificationText: current.text,
+                  notificationInitialRoute: '/',
+                  callback: foregroundTaskCallback,
+                )
+                is ServiceRequestSuccess;
+          } catch (_) {
+            return false;
+          }
+        })
+        .whenComplete(() {
+          if (identical(_operations, operation)) _operations = null;
+        });
+    _operations = operation;
+    return operation;
   }
 
   void dispose() {

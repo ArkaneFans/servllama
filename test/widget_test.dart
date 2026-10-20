@@ -1,8 +1,11 @@
+import 'package:servllama/core/services/llama_cpp_device_probe_service.dart';
+import 'package:servllama/core/models/llama_cpp_backend.dart';
 import 'dart:async';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:servllama/features/assistants/providers/assistant_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/app/providers/app_locale_provider.dart';
@@ -61,6 +64,9 @@ void main() {
     final serverService = _FakeLlamaServerService();
     final serverProvider = EngineRuntimeProvider(
       llamaCppAdapter: LlamaCppEngineAdapter(
+        deviceProbeService: LlamaCppDeviceProbeService(
+          resultOverride: () => const LlamaCppDeviceProbeResult(),
+        ),
         serverService: serverService,
         settingsLoader: _FixedServerLaunchSettingsLoader(
           const ServerLaunchSettings(),
@@ -93,8 +99,8 @@ void main() {
     expect(find.text('首页'), findsNothing);
     expect(find.text('原型'), findsNothing);
     expect(find.text('聊天'), findsNothing);
-    expect(find.text('服务器'), findsOneWidget);
-    expect(find.text('设置'), findsOneWidget);
+    expect(find.byTooltip('服务器'), findsOneWidget);
+    expect(find.byTooltip('设置'), findsOneWidget);
     expect(find.byKey(const Key('drawer_search_box')), findsOneWidget);
     expect(find.byKey(const Key('drawer_history_button')), findsOneWidget);
     expect(find.byKey(const Key('drawer_server_action')), findsOneWidget);
@@ -172,6 +178,9 @@ void main() {
     final serverService = _FakeLlamaServerService();
     final serverProvider = EngineRuntimeProvider(
       llamaCppAdapter: LlamaCppEngineAdapter(
+        deviceProbeService: LlamaCppDeviceProbeService(
+          resultOverride: () => const LlamaCppDeviceProbeResult(),
+        ),
         serverService: serverService,
         settingsLoader: _FixedServerLaunchSettingsLoader(
           const ServerLaunchSettings(),
@@ -202,7 +211,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('暂无对话'), findsOneWidget);
-    expect(find.text('设置'), findsOneWidget);
+    expect(find.byTooltip('设置'), findsOneWidget);
     expect(find.byKey(const Key('drawer_settings_action')), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('drawer_server_action')));
@@ -237,6 +246,9 @@ void main() {
     final serverService = _FakeLlamaServerService();
     final serverProvider = EngineRuntimeProvider(
       llamaCppAdapter: LlamaCppEngineAdapter(
+        deviceProbeService: LlamaCppDeviceProbeService(
+          resultOverride: () => const LlamaCppDeviceProbeResult(),
+        ),
         serverService: serverService,
         settingsLoader: _FixedServerLaunchSettingsLoader(
           const ServerLaunchSettings(),
@@ -285,6 +297,9 @@ void main() {
     final serverService = _FakeLlamaServerService();
     final serverProvider = EngineRuntimeProvider(
       llamaCppAdapter: LlamaCppEngineAdapter(
+        deviceProbeService: LlamaCppDeviceProbeService(
+          resultOverride: () => const LlamaCppDeviceProbeResult(),
+        ),
         serverService: serverService,
         settingsLoader: _FixedServerLaunchSettingsLoader(
           const ServerLaunchSettings(),
@@ -337,6 +352,9 @@ void main() {
     final serverService = _FakeLlamaServerService();
     final serverProvider = EngineRuntimeProvider(
       llamaCppAdapter: LlamaCppEngineAdapter(
+        deviceProbeService: LlamaCppDeviceProbeService(
+          resultOverride: () => const LlamaCppDeviceProbeResult(),
+        ),
         serverService: serverService,
         settingsLoader: _FixedServerLaunchSettingsLoader(
           const ServerLaunchSettings(),
@@ -371,7 +389,10 @@ void main() {
       findsOneWidget,
     );
     expect(find.byKey(const Key('drawer_search_box')), findsNothing);
-    expect(find.text('服务器'), findsNothing);
+    expect(
+      find.byKey(const Key('drawer_server_action')).hitTestable(),
+      findsNothing,
+    );
     expect(find.text('设置'), findsNothing);
   });
 }
@@ -386,6 +407,7 @@ class _TestApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => AssistantProvider()),
         ChangeNotifierProvider<AppThemeModeProvider>(
           create: (_) => AppThemeModeProvider(),
         ),
@@ -442,6 +464,17 @@ class _FakeChatSessionRepository extends ChatSessionRepository {
     final loadedSessions = sessions.map(_migrateSession).toList();
     sessions = List<ChatSessionRecord>.from(loadedSessions);
     return loadedSessions;
+  }
+
+  @override
+  Future<void> commitSession(
+    ChatSessionRecord session, {
+    List<ChatMessageRecord> changedMessages = const [],
+  }) async {
+    for (final message in changedMessages) {
+      await saveMessage(message);
+    }
+    await saveSession(session);
   }
 
   @override

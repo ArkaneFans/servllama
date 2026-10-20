@@ -47,8 +47,13 @@ abstract class InferenceEngineAdapter {
   /// True when this engine's server process/service is currently serving.
   bool get isRunning;
 
-  /// Emits whenever the engine's running state changes outside of an
+  /// Includes a resident/loading model or cleanup that has not been confirmed.
+  /// A stopped HTTP listener does not imply that native resources are released.
+  bool get hasResources;
+
+  /// Emits on serving or residency changes, including changes outside an
   /// orchestrated call (process crash, service killed by the system).
+  /// The bool describes serving; consult [hasResources] before releasing a lease.
   Stream<bool> get runningStateStream;
 
   /// One-time initialization. Safe to call repeatedly.

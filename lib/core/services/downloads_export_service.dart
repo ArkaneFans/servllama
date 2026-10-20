@@ -32,29 +32,42 @@ class DownloadsExportService {
     final tempFile = File('${tempDir.path}${Platform.pathSeparator}$fileName');
     await tempFile.writeAsString(content, flush: true);
     try {
-      if (_platform == TargetPlatform.android) {
-        final path = await _channel.invokeMethod<String>('saveToDownloads', {
-          'sourcePath': tempFile.path,
-          'fileName': fileName,
-          'mimeType': 'text/plain',
-        });
-        if (path == null || path.isEmpty) {
-          throw StateError('Downloads directory is unavailable');
-        }
-        return path;
-      }
-      final downloads =
-          await (_downloadsDirectory?.call() ?? getDownloadsDirectory());
-      final targetDir = downloads ?? await getApplicationDocumentsDirectory();
-      final target = File(
-        '${targetDir.path}${Platform.pathSeparator}$fileName',
+      return await saveFile(
+        source: tempFile,
+        fileName: fileName,
+        mimeType: 'text/plain',
       );
-      await tempFile.copy(target.path);
-      return target.path;
     } finally {
       if (await tempFile.exists()) {
         await tempFile.delete();
       }
     }
+  }
+
+  Future<String> saveFile({
+    required File source,
+    required String fileName,
+    required String mimeType,
+  }) async {
+    if (!await source.exists()) {
+      throw FileSystemException('Source file not found', source.path);
+    }
+    if (_platform == TargetPlatform.android) {
+      final path = await _channel.invokeMethod<String>('saveToDownloads', {
+        'sourcePath': source.path,
+        'fileName': fileName,
+        'mimeType': mimeType,
+      });
+      if (path == null || path.isEmpty) {
+        throw StateError('Downloads directory is unavailable');
+      }
+      return path;
+    }
+    final downloads =
+        await (_downloadsDirectory?.call() ?? getDownloadsDirectory());
+    final targetDir = downloads ?? await getApplicationDocumentsDirectory();
+    final target = File('${targetDir.path}${Platform.pathSeparator}$fileName');
+    await source.copy(target.path);
+    return target.path;
   }
 }

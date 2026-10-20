@@ -1,3 +1,4 @@
+import 'package:servllama/shared/widgets/ai_identity_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:servllama/app/app_palette.dart';
 import 'package:servllama/core/utils/format_utils.dart';
@@ -41,8 +42,8 @@ class DownloadTaskCard extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: isLight ? Colors.white : colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(22),
+        color: colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: colorScheme.outlineVariant.withAlpha(96)),
       ),
       child: Padding(
@@ -52,7 +53,7 @@ class DownloadTaskCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                ModelFormatBadge(engine: task.engine, size: 38),
+                AiIdentityIcon(model: task.modelName, local: true, size: 40),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -63,12 +64,12 @@ class DownloadTaskCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        '${task.source.displayName} · ${task.repoId}',
+                        '${task.engine.displayName} · ${task.source.displayName} · ${task.repoId}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall?.copyWith(
@@ -83,7 +84,7 @@ class DownloadTaskCard extends StatelessWidget {
                   Text(
                     '${(task.progress * 100).round()}%',
                     style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                       fontFeatures: const <FontFeature>[
                         FontFeature.tabularFigures(),
                       ],

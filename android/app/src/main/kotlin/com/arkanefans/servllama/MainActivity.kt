@@ -3,44 +3,33 @@ package com.arkanefans.servllama
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import android.os.Build
-import android.os.StatFs
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
+    override fun provideFlutterEngine(context: Context): FlutterEngine = AppHost.engine(context)
+    override fun shouldDestroyEngineWithHost(): Boolean = false
+
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
+            "com.arkanefans.servllama/file_export").setMethodCallHandler(null)
+        pendingExportResult?.error("activity_detached", "Export interrupted; retry from the active screen", null)
+        pendingExportResult = null
+        pendingExportSourcePath = null
+        pendingExportFileName = null
+        pendingExportMimeType = null
+        super.cleanUpFlutterEngine(flutterEngine)
+    }
+
     private var pendingExportResult: MethodChannel.Result? = null
     private var pendingExportSourcePath: String? = null
     private var pendingExportFileName: String? = null
     private var pendingExportMimeType: String? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
-        super.configureFlutterEngine(flutterEngine)
-        MethodChannel(
-            flutterEngine.dartExecutor.binaryMessenger,
-            "com.arkanefans.servllama/native_libs",
-        ).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "getNativeLibraryDir" -> result.success(applicationInfo.nativeLibraryDir)
-                else -> result.notImplemented()
-            }
-        }
-        MethodChannel(
-            flutterEngine.dartExecutor.binaryMessenger,
-            "com.arkanefans.servllama/download_environment",
-        ).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "networkTransport" -> result.success(resolveNetworkTransport())
-                "availableStorageBytes" -> {
-                    result.success(StatFs(filesDir.absolutePath).availableBytes)
-                }
-                else -> result.notImplemented()
-            }
-        }
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             "com.arkanefans.servllama/file_export",
@@ -94,6 +83,10 @@ class MainActivity : FlutterActivity() {
             completeExport(result, sourcePath, fileName, mimeType)
             return
         }
+        if (pendingExportResult != null) {
+            result.error("export_busy", "An export is awaiting permission", null)
+            return
+        }
         pendingExportResult = result
         pendingExportSourcePath = sourcePath
         pendingExportFileName = fileName
@@ -116,18 +109,6 @@ class MainActivity : FlutterActivity() {
             )
         } catch (error: Exception) {
             result.error("export_failed", error.message, null)
-        }
-    }
-
-    private fun resolveNetworkTransport(): String {
-        val manager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val network = manager.activeNetwork ?: return "none"
-        val capabilities = manager.getNetworkCapabilities(network) ?: return "none"
-        return when {
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "wifi"
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "ethernet"
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "cellular"
-            else -> "other"
         }
     }
 

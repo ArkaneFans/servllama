@@ -1,14 +1,22 @@
+import 'dart:io';
+import 'package:dio/dio.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/core/logging/log_sink.dart';
+import 'package:servllama/core/security/log_redactor.dart';
 
 class _FakeLogSink implements LogSink {
   final List<AppLogEntry> added = <AppLogEntry>[];
   int flushCount = 0;
   int clearCount = 0;
+  bool failWrites = false;
 
   @override
-  void add(AppLogEntry entry) => added.add(entry);
+  void add(AppLogEntry entry) {
+    if (failWrites) throw StateError('storage unavailable');
+    added.add(entry);
+  }
 
   @override
   Future<void> flush() async => flushCount++;
@@ -22,6 +30,127 @@ class _FakeLogSink implements LogSink {
 
 void main() {
   group('AppLogger', () {
+    test(
+      'diagnostic events persist safe scalar metadata in the page cache',
+      () {
+        final logger = AppLogger();
+        addTearDown(logger.dispose);
+        final sink = _FakeLogSink();
+        logger.attachSink(sink);
+        final credential = 'long-event-credential-' * 20;
+        LogRedactor.remember(credential);
+        logger.event(
+          'speech.job.finished',
+          channel: LogChannel.speech,
+          fields: {
+            'job': 'one\ntwo',
+            'elapsed_ms': 42,
+            'released': true,
+            'credential': credential,
+            'absent': null,
+            'payload': {'text': 'private-payload'},
+            'samples': [1, 2, 3],
+          },
+        );
+        final entry = logger.entriesFor(LogChannel.speech).single;
+        expect(sink.added.single, same(entry));
+        expect(entry.message, contains('elapsed_ms=42 released=true'));
+        expect(entry.message, contains(r'job="one\ntwo"'));
+        expect(entry.message, isNot(contains('\n')));
+        expect(entry.message, contains('[REDACTED]'));
+        for (final excluded in [
+          'long-event-credential',
+          'private-payload',
+          'payload=',
+          'samples=',
+          'absent=',
+        ]) {
+          expect(entry.message, isNot(contains(excluded)));
+        }
+      },
+    );
+
+    test(
+      'failure metadata excludes request, response, path and platform messages',
+      () {
+        final options = RequestOptions(
+          path: 'https://private-host/secret-path',
+          data: {'prompt': 'private-prompt'},
+          headers: {'Authorization': 'private-key'},
+        );
+        final error = DioException(
+          requestOptions: options,
+          type: DioExceptionType.badResponse,
+          message: 'private-error',
+          response: Response(
+            requestOptions: options,
+            statusCode: 429,
+            data: 'private-response',
+          ),
+        );
+        expect(AppLogger.errorFields(error), {
+          'error_type': 'DioException',
+          'network_kind': 'badResponse',
+          'http_status': 429,
+        });
+        expect(
+          AppLogger.errorFields(
+            const FileSystemException(
+              'private-message',
+              '/private-path',
+              OSError('private-os-message', 13),
+            ),
+          ),
+          {'error_type': 'FileSystemException', 'os_error': 13},
+        );
+        expect(
+          AppLogger.errorFields(
+            PlatformException(
+              code: 'audio_decode',
+              message: 'private-text',
+              details: 'private-details',
+            ),
+          ),
+          {'error_type': 'PlatformException', 'platform_code': 'audio_decode'},
+        );
+      },
+    );
+
+    test(
+      'failed sink writes do not fail an event or hide it from the page',
+      () {
+        final logger = AppLogger();
+        addTearDown(logger.dispose);
+        logger.attachSink(_FakeLogSink()..failWrites = true);
+        expect(() => logger.event('client.request.finished'), returnsNormally);
+        expect(
+          logger.entriesFor(LogChannel.app).single.message,
+          'client.request.finished',
+        );
+      },
+    );
+
+    test('new and restored messages stay bounded', () {
+      final logger = AppLogger();
+      addTearDown(logger.dispose);
+      logger.event('bounded', fields: {'id': 'z' * 500});
+      expect(
+        logger.entriesFor(LogChannel.app).single.message.length,
+        lessThan(200),
+      );
+      logger.info('z' * 9000, inMemory: true);
+      expect(logger.entriesFor(LogChannel.app).last.message.length, 8193);
+      logger.restore([
+        AppLogEntry(
+          timestamp: DateTime(2026),
+          channel: LogChannel.client,
+          level: LogLevel.info,
+          message: 'z' * 9000,
+        ),
+      ]);
+      expect(logger.entriesFor(LogChannel.client).single.message.length, 8193);
+    });
+
     test('background logs do not enter page cache', () {
       final logger = AppLogger();
 
@@ -69,6 +198,23 @@ void main() {
 
     test('default max cache size is 2000', () {
       expect(AppLogger().maxEntries, 2000);
+    });
+
+    test('cache bound is shared across all application channels', () {
+      final logger = AppLogger(maxEntries: 2);
+      addTearDown(logger.dispose);
+      logger.event('old', channel: LogChannel.server);
+      logger.event('recent-client', channel: LogChannel.client);
+      logger.event('recent-speech', channel: LogChannel.speech);
+      expect(logger.entriesFor(LogChannel.server), isEmpty);
+      expect(
+        logger.entriesFor(LogChannel.client).single.message,
+        'recent-client',
+      );
+      expect(
+        logger.entriesFor(LogChannel.speech).single.message,
+        'recent-speech',
+      );
     });
 
     group('persistence', () {
@@ -147,7 +293,7 @@ void main() {
       expect(sink.added, isEmpty);
     });
 
-    test('restore respects maxEntries per channel', () {
+    test('restore respects maxEntries', () {
       final logger = AppLogger(maxEntries: 1);
 
       logger.restore([

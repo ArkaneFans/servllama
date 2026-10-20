@@ -2,188 +2,217 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:servllama/l10n/l10n.dart';
 
-/// Chat empty state. Starting the runtime is an implementation detail the
-/// user should not have to think about, so the only primary action here is
-/// "pick a model" — the orchestrator brings the engine up behind it (FR-C1).
+/// A welcome surface shared by local, remote and unconfigured empty chats.
 class ChatConversationHero extends StatelessWidget {
   const ChatConversationHero({
     super.key,
-    required this.isPreparing,
-    required this.preparingLabel,
-    required this.hasLibraryModels,
-    required this.onOpenModels,
-    required this.onDiscoverModels,
+    this.now,
+    required this.serverStatus,
+    required this.onServer,
+    required this.onTranscribe,
+    required this.onSynthesize,
   });
 
-  /// The orchestrator is mid-flight (loading a model, binding the port…).
-  final bool isPreparing;
-
-  /// Phase text to show while [isPreparing]; falls back to a generic label.
-  final String? preparingLabel;
-
-  /// False on a fresh install, where the only useful action is downloading.
-  final bool hasLibraryModels;
-
-  final VoidCallback? onOpenModels;
-  final VoidCallback? onDiscoverModels;
+  final String serverStatus;
+  final DateTime? now;
+  final VoidCallback onServer, onTranscribe, onSynthesize;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
+    final l = context.l10n;
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final brightness = theme.brightness;
-    final isLight = brightness == Brightness.light;
-    final heroTitleColor = isLight
-        ? const Color(0xFF171B24)
-        : colorScheme.onSurface.withAlpha(236);
-    final heroDescriptionColor = isLight
-        ? const Color(0xFF7D8698)
-        : colorScheme.onSurfaceVariant.withAlpha(210);
-    final heroButtonBackgroundColor = _chatActionButtonBackgroundColor(
-      brightness,
-    );
-    final heroButtonForegroundColor = _chatActionButtonForegroundColor(
-      brightness,
-    );
-
-    final String description;
-    final String actionLabel;
-    final VoidCallback? onAction;
-
-    if (isPreparing) {
-      description = preparingLabel ?? l10n.chatPreparingModel;
-      actionLabel = preparingLabel ?? l10n.chatPreparingModel;
-      onAction = null;
-    } else if (!hasLibraryModels) {
-      // Nothing to pick yet, so the download entry is promoted to primary.
-      description = l10n.chatEmptyNoModelsDescription;
-      actionLabel = l10n.discoverTitle;
-      onAction = onDiscoverModels;
-    } else {
-      description = l10n.chatEmptyDescription;
-      actionLabel = l10n.chatEmptyAction;
-      onAction = onOpenModels;
-    }
-
-    return Align(
-      key: const Key('chat_conversation_hero_align'),
-      alignment: const Alignment(0, -0.236),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              key: const Key('chat_empty_state_logo'),
-              width: 118,
-              height: 118,
-              child: SvgPicture.asset('assets/app_icon.svg'),
-            ),
-            Text(
-              l10n.chatEmptyTitle,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontSize: (theme.textTheme.bodyMedium?.fontSize ?? 14) + 4,
-                fontWeight: FontWeight.w500,
-                color: heroTitleColor,
-              ),
-            ),
-            const SizedBox(height: 10),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 292),
-              child: Text(
-                description,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: heroDescriptionColor,
-                  height: 1.5,
-                  fontWeight: FontWeight.w500,
+    final colors = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
+    final hour = (now ?? DateTime.now()).hour;
+    final greeting = switch (hour) {
+      >= 5 && < 11 => l.chatGreetingMorning,
+      >= 11 && < 14 => l.chatGreetingNoon,
+      >= 14 && < 18 => l.chatGreetingAfternoon,
+      _ => l.chatGreetingEvening,
+    };
+    final daytime = hour >= 5 && hour < 18;
+    // Decorative feature accents, independent of engine identity/status colors.
+    final serverAccent = Color(dark ? 0xFF78C5EE : 0xFF227BAA);
+    final transcribeAccent = Color(dark ? 0xFFF1C36F : 0xFFA4660C);
+    final synthesizeAccent = Color(dark ? 0xFF74D2B4 : 0xFF248269);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact =
+            constraints.maxHeight < 420 ||
+            MediaQuery.textScalerOf(context).scale(14) > 18;
+        return SingleChildScrollView(
+          key: const Key('chat_welcome_scroll'),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Align(
+              alignment: const Alignment(0, -.24),
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: compact ? 12 : 24,
                 ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            FilledButton(
-              key: const Key('chat_empty_state_action_button'),
-              onPressed: onAction,
-              style: FilledButton.styleFrom(
-                backgroundColor: heroButtonBackgroundColor,
-                disabledBackgroundColor: heroButtonBackgroundColor.withAlpha(
-                  isLight ? 190 : 210,
-                ),
-                foregroundColor: heroButtonForegroundColor,
-                disabledForegroundColor: heroButtonForegroundColor.withAlpha(
-                  214,
-                ),
-                minimumSize: const Size(0, 10),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 44,
-                  vertical: 10,
-                ),
-                shape: const StadiumBorder(),
-                elevation: 0,
-                textStyle: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.2,
-                ),
-              ),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 160),
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                child: isPreparing
-                    ? Row(
-                        key: ValueKey<String>(actionLabel),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 480),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SvgPicture.asset(
+                        'assets/app_icon.svg',
+                        key: const Key('chat_welcome_app_icon'),
+                        width: compact ? 64 : 108,
+                        height: compact ? 64 : 108,
+                        semanticsLabel: l.appTitle,
+                      ),
+                      SizedBox(height: compact ? 8 : 16),
+                      Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          SizedBox(
-                            key: const Key('chat_empty_state_action_progress'),
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                heroButtonForegroundColor,
-                              ),
+                          ExcludeSemantics(
+                            child: Icon(
+                              daytime
+                                  ? Icons.wb_sunny_outlined
+                                  : Icons.nights_stay_outlined,
+                              key: const Key('chat_welcome_time_icon'),
+                              size: compact ? 24 : 28,
+                              color: daytime
+                                  ? transcribeAccent
+                                  : colors.primary,
                             ),
                           ),
                           const SizedBox(width: 10),
-                          Text(actionLabel),
+                          Flexible(
+                            child: Text(
+                              greeting,
+                              key: const Key('chat_welcome_greeting'),
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.headlineSmall?.copyWith(
+                                fontSize: compact ? 24 : 28,
+                              ),
+                            ),
+                          ),
                         ],
-                      )
-                    : Text(actionLabel, key: ValueKey<String>(actionLabel)),
-              ),
-            ),
-            // Secondary entry so downloading stays one tap away even once the
-            // primary action has become "pick a model".
-            if (!isPreparing && hasLibraryModels)
-              TextButton(
-                key: const Key('chat_empty_state_discover_button'),
-                onPressed: onDiscoverModels,
-                style: TextButton.styleFrom(
-                  foregroundColor: heroDescriptionColor,
-                  textStyle: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        l.chatWelcomeDescription,
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                      SizedBox(height: compact ? 20 : 28),
+                      _WelcomeAction(
+                        key: const Key('chat_welcome_server'),
+                        icon: Icons.dns_outlined,
+                        accent: serverAccent,
+                        label: l.serverTitle,
+                        detail: serverStatus,
+                        onTap: onServer,
+                      ),
+                      const SizedBox(height: 12),
+                      _WelcomeAction(
+                        key: const Key('chat_welcome_asr'),
+                        icon: Icons.mic_none_rounded,
+                        accent: transcribeAccent,
+                        label: l.chatWelcomeTranscribe,
+                        detail: l.chatWelcomeTranscribeHint,
+                        onTap: onTranscribe,
+                      ),
+                      const SizedBox(height: 12),
+                      _WelcomeAction(
+                        key: const Key('chat_welcome_tts'),
+                        icon: Icons.graphic_eq_rounded,
+                        accent: synthesizeAccent,
+                        label: l.chatWelcomeSynthesize,
+                        detail: l.chatWelcomeSynthesizeHint,
+                        onTap: onSynthesize,
+                      ),
+                    ],
                   ),
                 ),
-                child: Text(l10n.discoverTitle),
               ),
-          ],
-        ),
-      ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
 
-Color _chatActionButtonBackgroundColor(Brightness brightness) {
-  return brightness == Brightness.light
-      ? const Color(0xFF565C68)
-      : const Color(0xFF253042);
-}
+class _WelcomeAction extends StatelessWidget {
+  const _WelcomeAction({
+    super.key,
+    required this.icon,
+    required this.accent,
+    required this.label,
+    required this.detail,
+    required this.onTap,
+  });
+  final IconData icon;
+  final Color accent;
+  final String label, detail;
+  final VoidCallback onTap;
 
-Color _chatActionButtonForegroundColor(Brightness brightness) {
-  return brightness == Brightness.light
-      ? Colors.white
-      : const Color(0xFFF4F7FD);
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    return Semantics(
+      button: true,
+      child: Material(
+        color: colors.surfaceContainerLowest,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: colors.outlineVariant),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(
+                      alpha: theme.brightness == Brightness.dark ? .14 : .09,
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, size: 25, color: accent),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(detail, style: theme.textTheme.bodySmall),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: colors.onSurfaceVariant,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

@@ -1,362 +1,341 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:servllama/core/database/app_database.dart';
+import 'package:servllama/core/database/legacy_importer.dart';
+import 'package:servllama/core/database/legacy_migration_progress.dart';
+import 'package:servllama/core/storage/owned_file_cleanup.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/models/chat_message_version_record.dart';
 import 'package:servllama/features/chat/models/chat_session_record.dart';
+import 'package:servllama/features/chat/repositories/chat_record_codec.dart';
+import 'package:servllama/features/chat/repositories/chat_record_store.dart';
+import 'package:servllama/features/chat/repositories/generation_run_repository.dart';
 
 class ChatSessionRepository {
-  ChatSessionRepository({Directory? appSupportDirectory, HiveInterface? hive})
-    : _appSupportDirectory = appSupportDirectory,
-      _hive = hive ?? Hive;
-
-  static const String boxName = 'chat_sessions';
-  static const String messageBoxName = 'chat_messages';
-  static const String versionBoxName = 'chat_message_versions';
-  static const int defaultInitialMessageMin = 2;
-  static const int defaultInitialMessageMax = 30;
-  static const int defaultInitialTextBudget = 20000;
-  static const int _imageInitialLoadWeight = 1200;
-
-  final Directory? _appSupportDirectory;
+  ChatSessionRepository({
+    Directory? appSupportDirectory,
+    HiveInterface? hive,
+    AppDatabase? database,
+    this.onMigrationProgress,
+  }) : _directory = appSupportDirectory,
+       _hive = hive ?? Hive,
+       _injected = database;
+  static const boxName = 'chat_sessions';
+  static const messageBoxName = 'chat_messages';
+  static const versionBoxName = 'chat_message_versions';
+  static const defaultInitialMessageMin = 2;
+  static const defaultInitialMessageMax = 30;
+  static const defaultInitialTextBudget = 20000;
+  final Directory? _directory;
   final HiveInterface _hive;
+  final AppDatabase? _injected;
+  final void Function(LegacyMigrationProgress)? onMigrationProgress;
+  Future<AppDatabase>? _ready;
+  late OwnedFileCleanup _files;
+  Future<AppDatabase> get database => _ready ??= _open();
+  Future<AppDatabase> _open() async {
+    final directory = _directory ?? await getApplicationSupportDirectory();
+    final db =
+        _injected ??
+        (_directory == null
+            ? await AppDatabase.shared()
+            : AppDatabase.at(directory));
+    await LegacyImporter(
+      db,
+      directory,
+      hive: _hive,
+      onProgress: onMigrationProgress,
+    ).run();
+    _files = OwnedFileCleanup(db, directory);
+    await _files.retry();
+    return db;
+  }
 
-  Future<Box<ChatSessionRecord>>? _boxFuture;
-  Future<Box<ChatMessageRecord>>? _messageBoxFuture;
-  Future<Box<ChatMessageVersionRecord>>? _versionBoxFuture;
-  String? _initializedHivePath;
-
-  Future<List<ChatSessionRecord>> loadSessions() async {
-    final box = await _box();
-    final sessions = <ChatSessionRecord>[];
-    final storedSessions = box.values.toList(growable: false);
-    for (final session in storedSessions) {
-      sessions.add(await _migrateLegacySessionMessages(session));
+  Future<void> close() async {
+    if (_directory != null && _injected == null && _ready != null) {
+      await (await _ready!).close();
+      _ready = null;
     }
-    sessions.sort((left, right) => right.updatedAt.compareTo(left.updatedAt));
-    return sessions;
   }
 
-  Future<void> saveSession(ChatSessionRecord session) async {
-    final box = await _box();
-    final cleanSession = await _saveLegacyMessagesIfNeeded(session);
-    await box.put(cleanSession.id, _withoutLegacyMessages(cleanSession));
+  Future<List<ChatSessionRecord>> loadSessions() async =>
+      ChatRecordStore(await database).sessions();
+  Future<int> countUsingConnection(
+    String connectionId,
+  ) async => (await (await database).query(
+    "SELECT count(*) AS total FROM conversations c JOIN assistants a ON a.id=c.assistant_id "
+    "WHERE json_extract(a.config,'\$.chatTarget.connectionId')=?",
+    [connectionId],
+  )).single.read<int>('total');
+
+  Future<void> saveSession(ChatSessionRecord s) async {
+    final db = await database;
+    final store = ChatRecordStore(db);
+    await db.transaction(() async {
+      await store.saveSession(s);
+      for (final m in s.legacyMessages) {
+        await store.saveMessage(m.copyWith(sessionId: s.id));
+      }
+    });
   }
 
-  /// Persists a single message without touching its session record or any
-  /// sibling messages. Used on the streaming hot path where only the draft
-  /// assistant message changes per delta.
-  Future<void> saveMessage(ChatMessageRecord message) async {
-    final box = await _messageBox();
-    await box.put(message.id, message);
+  Future<void> saveMessage(ChatMessageRecord m) async {
+    final db = await database;
+    await db.transaction(() => ChatRecordStore(db).saveMessage(m));
   }
 
-  Future<ChatMessageRecord?> loadMessage(String messageId) async {
-    final box = await _messageBox();
-    return box.get(messageId);
-  }
-
-  Future<void> warmUpMessageStore() async {
-    await _messageBox();
-    await _versionBox();
-  }
-
-  Future<List<ChatMessageRecord>> loadRecentMessages(
+  /// Header, membership, changed bodies and their references commit together.
+  Future<void> commitSession(
     ChatSessionRecord session, {
-    int limit = 30,
+    List<ChatMessageRecord> changedMessages = const [],
   }) async {
-    final ids = session.messageIds;
-    final start = ids.length > limit ? ids.length - limit : 0;
-    return _loadMessagesByIds(ids.skip(start));
+    final db = await database;
+    final store = ChatRecordStore(db);
+    await db.transaction(() async {
+      await store.saveSession(session);
+      final kept = session.messageIds.toSet();
+      final removed = (await store.messageIds(
+        session.id,
+      )).where((id) => !kept.contains(id));
+      await _deleteMessageRows(db, removed);
+      final changed = {for (final m in changedMessages) m.id: m};
+      for (final id in session.messageIds) {
+        final message = changed[id];
+        if (message != null) {
+          await store.saveMessage(message.copyWith(sessionId: session.id));
+        }
+      }
+    });
   }
+
+  Future<void> cleanupFiles() async {
+    await database;
+    await _files.retry();
+  }
+
+  Future<ChatMessageRecord?> loadMessage(String id) async =>
+      ChatRecordStore(await database).message(id);
+  Future<void> warmUpMessageStore() async {
+    await database;
+  }
+
+  Future<List<ChatMessageRecord>> loadAllMessages(ChatSessionRecord s) async =>
+      ChatRecordStore(await database).messages('m.conversation_id=?', [s.id]);
+  Future<List<ChatMessageRecord>> loadRecentMessages(
+    ChatSessionRecord s, {
+    int limit = 30,
+  }) async => (await ChatRecordStore(await database).messages(
+    'm.conversation_id=?',
+    [s.id],
+    order: 'm.position DESC',
+    limit: limit,
+  )).reversed.toList();
+  Future<List<ChatMessageRecord>> loadMessagesBefore(
+    ChatSessionRecord s, {
+    required String beforeMessageId,
+    int limit = 30,
+  }) async => (await ChatRecordStore(await database).messages(
+    'm.conversation_id=? AND m.position < (SELECT position FROM messages WHERE id=? AND conversation_id=?)',
+    [s.id, beforeMessageId, s.id],
+    order: 'm.position DESC',
+    limit: limit,
+  )).reversed.toList();
 
   Future<List<ChatMessageRecord>> loadInitialMessages(
-    ChatSessionRecord session, {
+    ChatSessionRecord s, {
     int minMessages = defaultInitialMessageMin,
     int maxMessages = defaultInitialMessageMax,
     int textBudget = defaultInitialTextBudget,
   }) async {
-    final ids = session.messageIds;
-    if (ids.isEmpty) {
-      return const <ChatMessageRecord>[];
-    }
-
-    final box = await _messageBox();
-    final minCount = minMessages.clamp(1, ids.length).toInt();
-    final configuredMax = maxMessages <= 0
-        ? defaultInitialMessageMax
-        : maxMessages;
-    final maxCount = configuredMax.clamp(minCount, ids.length).toInt();
+    if (s.messageIds.isEmpty) return [];
+    final min = minMessages.clamp(1, s.messageIds.length);
+    final max = (maxMessages <= 0 ? defaultInitialMessageMax : maxMessages)
+        .clamp(min, s.messageIds.length);
     final budget = textBudget <= 0 ? defaultInitialTextBudget : textBudget;
-    final messages = <ChatMessageRecord>[];
-
-    var index = ids.length;
-    var weight = 0;
-    while (index > 0 && messages.length < maxCount) {
-      index -= 1;
-      final message = box.get(ids[index]);
-      if (message == null) {
-        continue;
-      }
-      messages.add(message);
-      weight += _estimateInitialLoadWeight(message);
-      if (messages.length >= minCount && weight >= budget) {
-        break;
-      }
+    final recent = (await loadRecentMessages(s, limit: max)).reversed.toList();
+    var count = 0, weight = 0;
+    for (final m in recent) {
+      final w =
+          m.content.length + ((m.reasoningContent?.length ?? 0) * .8).round();
+      weight +=
+          (m.role == ChatRole.user && w < 200 ? 200 : w) +
+          m.imageFilePaths.length * 1200;
+      count++;
+      if (count >= min && weight >= budget) break;
     }
-
-    if (messages.length.isOdd && index > 0 && messages.length < maxCount) {
-      index -= 1;
-      final message = box.get(ids[index]);
-      if (message != null) {
-        messages.add(message);
-      }
-    }
-
-    return messages.reversed.toList(growable: false);
+    if (count.isOdd && count < recent.length) count++;
+    return recent.take(count).toList().reversed.toList();
   }
 
-  Future<List<ChatMessageRecord>> loadMessagesBefore(
-    ChatSessionRecord session, {
-    required String beforeMessageId,
-    int limit = 30,
-  }) async {
-    final beforeIndex = session.messageIds.indexOf(beforeMessageId);
-    if (beforeIndex <= 0) {
-      return const <ChatMessageRecord>[];
-    }
-    final start = beforeIndex > limit ? beforeIndex - limit : 0;
-    return _loadMessagesByIds(session.messageIds.sublist(start, beforeIndex));
+  Future<void> saveMessageVersion(ChatMessageVersionRecord v) async {
+    final db = await database;
+    await db.transaction(() => ChatRecordStore(db).saveVersion(v));
   }
 
-  Future<List<ChatMessageRecord>> loadAllMessages(
-    ChatSessionRecord session,
+  Future<ChatMessageVersionRecord?> loadMessageVersion(String id) async =>
+      ChatRecordStore(await database).version(id);
+  Future<List<ChatMessageVersionRecord>> loadMessageVersions(
+    Iterable<String> ids,
   ) async {
-    return _loadMessagesByIds(session.messageIds);
+    final result = <ChatMessageVersionRecord>[];
+    for (final id in ids) {
+      final v = await loadMessageVersion(id);
+      if (v != null) result.add(v);
+    }
+    return result;
   }
 
-  Future<void> deleteSession(String sessionId) async {
-    final box = await _box();
-    final session = box.get(sessionId);
-    if (session != null) {
-      final messages = session.legacyMessages.isNotEmpty
-          ? session.legacyMessages
-          : await loadAllMessages(session);
-      await deleteMessages(messages);
-    }
-    await box.delete(sessionId);
+  Future<void> deleteSession(String id) async {
+    final db = await database;
+    await db.transaction(() async {
+      await _deleteMessageRows(db, await ChatRecordStore(db).messageIds(id));
+      await db.execute('DELETE FROM conversations WHERE id=?', [id]);
+    });
+    await cleanupFiles();
+  }
+
+  Future<Set<String>> deleteAssistantAndSessions(String assistantId) async {
+    final db = await database;
+    final deleted = await db.transaction(() async {
+      final assistants = await db.query('SELECT id FROM assistants');
+      if (!assistants.any((r) => r.read<String>('id') == assistantId)) {
+        throw StateError('Assistant unavailable');
+      }
+      if (assistants.length == 1) {
+        throw StateError(
+          'Create another assistant before deleting the last one',
+        );
+      }
+      final ids = (await db.query(
+        'SELECT id FROM conversations WHERE assistant_id=?',
+        [assistantId],
+      )).map((r) => r.read<String>('id')).toSet();
+      for (final id in ids) {
+        await _deleteMessageRows(db, await ChatRecordStore(db).messageIds(id));
+      }
+      // Conversation, draft and run/receipt foreign keys follow current ownership.
+      await db.execute('DELETE FROM assistants WHERE id=?', [assistantId]);
+      return ids;
+    });
+    await cleanupFiles();
+    return deleted;
   }
 
   Future<void> deleteMessages(Iterable<ChatMessageRecord> messages) async {
-    final messageList = messages.toList(growable: false);
-    if (messageList.isEmpty) {
-      return;
-    }
-    await deleteMessageResources(messageList);
-    final box = await _messageBox();
-    await box.deleteAll(messageList.map((message) => message.id));
-  }
-
-  Future<void> saveMessageVersion(ChatMessageVersionRecord version) async {
-    final box = await _versionBox();
-    await box.put(version.id, version);
-  }
-
-  Future<ChatMessageVersionRecord?> loadMessageVersion(String versionId) async {
-    final box = await _versionBox();
-    return box.get(versionId);
-  }
-
-  Future<List<ChatMessageVersionRecord>> loadMessageVersions(
-    Iterable<String> versionIds,
-  ) async {
-    final box = await _versionBox();
-    return versionIds
-        .map(box.get)
-        .whereType<ChatMessageVersionRecord>()
-        .toList(growable: false);
-  }
-
-  Future<void> deleteMessageVersions(Iterable<String> versionIds) async {
-    final ids = versionIds.toSet();
-    if (ids.isEmpty) {
-      return;
-    }
-    final box = await _versionBox();
-    final versions = ids.map(box.get).whereType<ChatMessageVersionRecord>();
-    await deleteAttachmentFiles(
-      versions.expand((version) => version.imageFilePaths),
-    );
-    await box.deleteAll(ids);
-  }
-
-  Future<void> deleteMessageResources(
-    Iterable<ChatMessageRecord> messages,
-  ) async {
-    final messageList = messages.toList(growable: false);
-    await deleteAttachmentFiles(
-      messageList.expand((message) => message.imageFilePaths),
-    );
-    await deleteMessageVersions(
-      messageList.expand((message) => message.versionIds),
+    final db = await database;
+    await db.transaction(
+      () => _deleteMessageRows(db, messages.map((m) => m.id)),
     );
   }
 
-  Future<void> deleteAttachmentFiles(Iterable<String> filePaths) async {
-    for (final filePath in filePaths) {
-      try {
-        final file = File(filePath);
-        if (await file.exists()) {
-          await file.delete();
+  Future<void> commitMessageDeletion(
+    ChatSessionRecord session,
+    ChatMessageRecord original, {
+    ChatMessageRecord? replacement,
+  }) async {
+    final db = await database;
+    final store = ChatRecordStore(db);
+    await db.transaction(() async {
+      final current = await store.message(original.id);
+      if (current == null ||
+          jsonEncode(encodeMessage(current)) !=
+              jsonEncode(encodeMessage(original))) {
+        throw StateError('Message changed before deletion');
+      }
+      final expectedIds = await store.messageIds(session.id);
+      if (original.sessionId != session.id ||
+          !expectedIds.contains(original.id)) {
+        throw StateError('Conversation changed before deletion');
+      }
+      if (replacement == null) expectedIds.remove(original.id);
+      if (jsonEncode(expectedIds) != jsonEncode(session.messageIds)) {
+        throw StateError('Conversation changed before deletion');
+      }
+      final running = await db.query(
+        "SELECT 1 FROM message_revisions r JOIN generation_runs g ON g.id=r.run_id "
+        "WHERE r.message_id=? AND g.state IN ('running','awaitingApproval','cancelling') LIMIT 1",
+        [original.id],
+      );
+      if (running.isNotEmpty) {
+        throw StateError('Finish generation before deleting');
+      }
+      if (replacement == null) {
+        await _deleteMessageRows(db, [original.id]);
+      } else {
+        final kept = [...original.versionIds]
+          ..removeAt(original.currentVersionIndex);
+        if (replacement.id != original.id ||
+            replacement.sessionId != session.id ||
+            kept.isEmpty ||
+            jsonEncode(replacement.versionIds) != jsonEncode(kept)) {
+          throw StateError('Invalid replacement message');
         }
-      } catch (_) {}
-    }
-  }
-
-  Future<Box<ChatSessionRecord>> _box() async {
-    return _boxFuture ??= _openBox();
-  }
-
-  Future<Box<ChatMessageRecord>> _messageBox() async {
-    return _messageBoxFuture ??= _openMessageBox();
-  }
-
-  Future<Box<ChatMessageVersionRecord>> _versionBox() async {
-    return _versionBoxFuture ??= _openVersionBox();
-  }
-
-  Future<Box<ChatSessionRecord>> _openBox() async {
-    await _ensureHiveInitialized();
-    _registerAdapters();
-    if (_hive.isBoxOpen(boxName)) {
-      return _hive.box<ChatSessionRecord>(boxName);
-    }
-    return _hive.openBox<ChatSessionRecord>(boxName);
-  }
-
-  Future<Box<ChatMessageRecord>> _openMessageBox() async {
-    await _ensureHiveInitialized();
-    _registerAdapters();
-    if (_hive.isBoxOpen(messageBoxName)) {
-      return _hive.box<ChatMessageRecord>(messageBoxName);
-    }
-    return _hive.openBox<ChatMessageRecord>(messageBoxName);
-  }
-
-  Future<Box<ChatMessageVersionRecord>> _openVersionBox() async {
-    await _ensureHiveInitialized();
-    _registerAdapters();
-    if (_hive.isBoxOpen(versionBoxName)) {
-      return _hive.box<ChatMessageVersionRecord>(versionBoxName);
-    }
-    return _hive.openBox<ChatMessageVersionRecord>(versionBoxName);
-  }
-
-  void _registerAdapters() {
-    if (!_hive.isAdapterRegistered(1)) {
-      _hive.registerAdapter(ChatMessageRecordAdapter());
-    }
-    if (!_hive.isAdapterRegistered(2)) {
-      _hive.registerAdapter(ChatSessionRecordAdapter());
-    }
-    if (!_hive.isAdapterRegistered(3)) {
-      _hive.registerAdapter(ChatRoleAdapter());
-    }
-    if (!_hive.isAdapterRegistered(4)) {
-      _hive.registerAdapter(ChatMessageVersionRecordAdapter());
-    }
-  }
-
-  Future<void> _ensureHiveInitialized() async {
-    final directory =
-        _appSupportDirectory ?? await getApplicationSupportDirectory();
-    if (_initializedHivePath == directory.path) {
-      return;
-    }
-    _hive.init(directory.path);
-    _initializedHivePath = directory.path;
-  }
-
-  Future<ChatSessionRecord> _migrateLegacySessionMessages(
-    ChatSessionRecord session,
-  ) async {
-    if (session.legacyMessages.isEmpty) {
-      return _withoutLegacyMessages(session);
-    }
-    final cleanSession = await _saveLegacyMessagesIfNeeded(session);
-    final box = await _box();
-    await box.put(cleanSession.id, cleanSession);
-    return cleanSession;
-  }
-
-  Future<ChatSessionRecord> _saveLegacyMessagesIfNeeded(
-    ChatSessionRecord session,
-  ) async {
-    if (session.legacyMessages.isEmpty) {
-      return _withoutLegacyMessages(session);
-    }
-    final savedMessages = await _saveMessagesForSession(
-      session.id,
-      session.legacyMessages,
-    );
-    return _withoutLegacyMessages(
-      session.copyWith(
-        messageIds: savedMessages
-            .map((message) => message.id)
-            .toList(growable: false),
-        legacyMessages: const <ChatMessageRecord>[],
-      ),
-    );
-  }
-
-  Future<List<ChatMessageRecord>> _saveMessagesForSession(
-    String sessionId,
-    Iterable<ChatMessageRecord> messages,
-  ) async {
-    final box = await _messageBox();
-    final savedMessages = messages
-        .map((message) => _messageForSession(sessionId, message))
-        .toList(growable: false);
-    await box.putAll(<String, ChatMessageRecord>{
-      for (final message in savedMessages) message.id: message,
+        final removed = original.versionIds[original.currentVersionIndex];
+        await store.saveMessage(replacement);
+        await _deleteVersions(db, [removed]);
+      }
+      await store.saveSession(session);
     });
-    return savedMessages;
+    await cleanupFiles();
   }
 
-  Future<List<ChatMessageRecord>> _loadMessagesByIds(
-    Iterable<String> messageIds,
+  Future<void> _markAttachments(
+    AppDatabase db,
+    String where,
+    List<Object> args,
   ) async {
-    final box = await _messageBox();
-    return messageIds
-        .map(box.get)
-        .whereType<ChatMessageRecord>()
-        .toList(growable: false);
-  }
-
-  int _estimateInitialLoadWeight(ChatMessageRecord message) {
-    final reasoningLength = message.reasoningContent?.length ?? 0;
-    final textWeight = message.content.length + (reasoningLength * 0.8).round();
-    final roleWeight = message.role == ChatRole.user && textWeight < 200
-        ? 200
-        : textWeight;
-    return roleWeight + message.imageFilePaths.length * _imageInitialLoadWeight;
-  }
-
-  ChatMessageRecord _messageForSession(
-    String sessionId,
-    ChatMessageRecord message,
-  ) {
-    if (message.sessionId == sessionId) {
-      return message;
+    for (final row in await db.query(
+      'SELECT a.path FROM revision_attachments a JOIN message_revisions r ON r.id=a.revision_id WHERE $where',
+      args,
+    )) {
+      await _files.enqueue(
+        row.read<String>('path'),
+        OwnedFileKind.chatAttachment,
+      );
     }
-    return message.copyWith(sessionId: sessionId);
   }
 
-  ChatSessionRecord _withoutLegacyMessages(ChatSessionRecord session) {
-    if (session.legacyMessages.isEmpty) {
-      return session;
+  Future<void> _deleteMessageRows(AppDatabase db, Iterable<String> ids) async {
+    final runs = <String>{};
+    for (final id in ids.toList()) {
+      await _markAttachments(db, 'r.message_id=?', [id]);
+      runs.addAll(
+        (await db.query(
+          'SELECT run_id FROM message_revisions WHERE message_id=? AND run_id IS NOT NULL',
+          [id],
+        )).map((r) => r.read<String>('run_id')),
+      );
+      await db.execute('DELETE FROM messages WHERE id=?', [id]);
     }
-    return session.copyWith(legacyMessages: const <ChatMessageRecord>[]);
+    await GenerationRunRepository(db).deleteUnreferenced(runs);
+  }
+
+  Future<void> _deleteVersions(AppDatabase db, Iterable<String> ids) async {
+    final runs = <String>{};
+    for (final id in ids) {
+      if ((await db.query(
+        'SELECT 1 FROM message_revisions WHERE id=? AND is_selected=1',
+        [id],
+      )).isNotEmpty) {
+        throw StateError('Select another version before deleting');
+      }
+      await _markAttachments(db, 'r.id=?', [id]);
+      runs.addAll(
+        (await db.query(
+          'SELECT run_id FROM message_revisions WHERE id=? AND run_id IS NOT NULL',
+          [id],
+        )).map((r) => r.read<String>('run_id')),
+      );
+      await db.execute('DELETE FROM message_revisions WHERE id=?', [id]);
+    }
+    await GenerationRunRepository(db).deleteUnreferenced(runs);
+  }
+
+  Future<void> deleteMessageVersions(Iterable<String> ids) async {
+    final db = await database;
+    await db.transaction(() => _deleteVersions(db, ids));
   }
 }

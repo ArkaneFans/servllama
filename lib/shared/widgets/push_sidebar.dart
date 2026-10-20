@@ -203,12 +203,7 @@ class _PushSidebarState extends State<PushSidebar>
       await _animateMobileTo(1);
       return;
     }
-    if (_embeddedOpen || !mounted) {
-      return;
-    }
-    setState(() {
-      _embeddedOpen = true;
-    });
+    _setEmbeddedOpen(true);
   }
 
   @override
@@ -217,12 +212,7 @@ class _PushSidebarState extends State<PushSidebar>
       await _animateMobileTo(0);
       return;
     }
-    if (!_embeddedOpen || !mounted) {
-      return;
-    }
-    setState(() {
-      _embeddedOpen = false;
-    });
+    _setEmbeddedOpen(false);
   }
 
   @override
@@ -237,12 +227,7 @@ class _PushSidebarState extends State<PushSidebar>
       await _animateMobileTo(clampedProgress);
       return;
     }
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _embeddedOpen = clampedProgress >= widget.settleThreshold;
-    });
+    _setEmbeddedOpen(clampedProgress >= widget.settleThreshold);
   }
 
   @override
@@ -253,12 +238,19 @@ class _PushSidebarState extends State<PushSidebar>
       _mobileController.value = clampedProgress;
       return;
     }
-    if (!mounted) {
-      return;
+    _setEmbeddedOpen(clampedProgress >= widget.settleThreshold);
+  }
+
+  void _setEmbeddedOpen(bool value) {
+    if (!mounted || _embeddedOpen == value) return;
+    _releaseFocus();
+    setState(() => _embeddedOpen = value);
+  }
+
+  void _releaseFocus() {
+    if (ModalRoute.isCurrentOf(context) == true) {
+      FocusManager.instance.primaryFocus?.unfocus();
     }
-    setState(() {
-      _embeddedOpen = clampedProgress >= widget.settleThreshold;
-    });
   }
 
   void _handlePopInvoked(bool didPop) {
@@ -291,6 +283,9 @@ class _PushSidebarState extends State<PushSidebar>
     if (_mobilePopBarrierActive == nextValue) {
       return;
     }
+    // Covers the menu button, scrim, system back and drag gestures. Releasing
+    // on close also prevents a hidden drawer search retaining keyboard focus.
+    _releaseFocus();
     setState(() {
       _mobilePopBarrierActive = nextValue;
     });
