@@ -85,7 +85,6 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           SettingsSection.form(
             title: l.v2ProfileDescription,
-            subtitle: l.v2ProfileHelp,
             children: [
               TextField(
                 key: const Key('profile_description'),

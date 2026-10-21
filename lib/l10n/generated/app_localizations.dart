@@ -3395,12 +3395,6 @@ abstract class AppLocalizations {
   /// **'User profile'**
   String get v2Profile;
 
-  /// No description provided for @v2ProfileHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Local user details stay on this device. Your avatar and name are used for display and are not automatically added to model requests.'**
-  String get v2ProfileHelp;
-
   /// No description provided for @v2KeepOneAssistant.
   ///
   /// In en, this message translates to:

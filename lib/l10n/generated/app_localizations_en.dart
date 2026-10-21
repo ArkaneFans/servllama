@@ -1894,10 +1894,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2Profile => 'User profile';
 
   @override
-  String get v2ProfileHelp =>
-      'Local user details stay on this device. Your avatar and name are used for display and are not automatically added to model requests.';
-
-  @override
   String get v2KeepOneAssistant =>
       'Create another assistant before deleting the last one.';
 

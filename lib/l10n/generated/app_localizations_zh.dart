@@ -1795,9 +1795,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2Profile => '用户档案';
 
   @override
-  String get v2ProfileHelp => '本地用户信息仅保存在此设备，用于显示头像和名称，不会自动添加到模型请求。';
-
-  @override
   String get v2KeepOneAssistant => '请先创建另一个助手，再删除最后一个助手。';
 
   @override

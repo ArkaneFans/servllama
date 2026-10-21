@@ -51,7 +51,6 @@ void main() {
         find.descendant(of: profileCard, matching: find.text(l.settingsUser)),
         findsOneWidget,
       );
-      expect(find.text(l.v2ProfileHelp), findsNothing);
       expect(
         tester
             .widget<IdentityAvatar>(
