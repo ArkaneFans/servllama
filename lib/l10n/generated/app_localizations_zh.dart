@@ -314,10 +314,52 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsThemeMode => '主题模式';
 
   @override
+  String get settingsThemeModeSubtitle => '浅色、深色或跟随系统';
+
+  @override
+  String get settingsDownloadsSubtitle => '模型下载与存储';
+
+  @override
   String get settingsLanguage => '应用语言';
 
   @override
+  String get settingsLanguageSubtitle => '界面显示语言';
+
+  @override
   String get settingsChatTimeout => '聊天超时时间';
+
+  @override
+  String get settingsChatTimeoutSubtitle => '模型响应等待上限';
+
+  @override
+  String get settingsAssistantsSubtitle => '提示词、模型与工具';
+
+  @override
+  String get settingsConnectionsSubtitle => '供应商与 API 连接';
+
+  @override
+  String get settingsSkillsSubtitle => '可复用的技能包';
+
+  @override
+  String get settingsMcpSubtitle => '外部工具连接';
+
+  @override
+  String get settingsServerSubtitle => '本地 OpenAI 兼容服务';
+
+  @override
+  String get settingsSpeechSubtitle => '本机转录与语音合成';
+
+  @override
+  String get settingsLogsSubtitle => '运行日志与请求诊断';
+
+  @override
+  String get settingsAboutSubtitle => '版本、许可与项目信息';
+
+  @override
+  String get settingsMnnTestSubtitle => '模型加载与推理测试';
+
+  @override
+  String get settingsDebugSubtitle => '服务启动参数';
 
   @override
   String settingsChatTimeoutValue(int seconds) {
@@ -400,10 +442,28 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aboutVersionLabel => '版本';
 
   @override
+  String get aboutVersionSubtitle => '点击复制版本号';
+
+  @override
   String get aboutLlamaCppLabel => 'llama.cpp';
 
   @override
+  String get aboutLlamaCppSubtitle => 'GGUF 推理引擎';
+
+  @override
   String get aboutSystem => '系统';
+
+  @override
+  String get aboutSystemSubtitle => '当前运行平台';
+
+  @override
+  String get aboutMnnSubtitle => '端侧推理引擎';
+
+  @override
+  String get aboutGitHubSubtitle => '源码与问题反馈';
+
+  @override
+  String get aboutLicenseSubtitle => '第三方依赖许可';
 
   @override
   String get serverTitle => '服务器';
@@ -1383,7 +1443,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsHuggingFaceRoute => 'Hugging Face 线路';
 
   @override
-  String get settingsHuggingFaceRouteDescription => '官方站点不可达时可切换到镜像。';
+  String get settingsHuggingFaceRouteDescription => '官方不可达时切换镜像';
 
   @override
   String get settingsRouteAuto => '自动';
@@ -1398,7 +1458,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsHuggingFaceToken => 'Hugging Face 令牌';
 
   @override
+  String get settingsHuggingFaceTokenSubtitle => '访问私有或受限模型';
+
+  @override
   String get settingsModelScopeToken => '魔搭令牌';
+
+  @override
+  String get settingsModelScopeTokenSubtitle => '访问私有或受限模型';
 
   @override
   String get settingsTokenDescription => '仅保存在本机，不会写入日志，也不会出现在导出的日志文件中。';
@@ -1413,7 +1479,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsWifiOnly => '仅在 Wi-Fi 下下载';
 
   @override
-  String get settingsWifiOnlySubtitle => '切换到移动网络时暂停任务';
+  String get settingsWifiOnlySubtitle => '移动网络下暂停';
 
   @override
   String get downloadWifiOnlyDialogTitle => '当前为移动网络';
@@ -1429,7 +1495,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsMaxConcurrentDownloads => '并行下载数';
 
   @override
-  String get settingsMaxConcurrentDownloadsDescription => '同时进行的下载任务数量';
+  String get settingsMaxConcurrentDownloadsDescription => '同时运行的最大任务数';
 
   @override
   String get settingsSectionStorage => '存储';
@@ -1442,6 +1508,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsClearStaging => '清理未完成的下载';
+
+  @override
+  String get settingsClearStagingSubtitle => '移除临时文件';
 
   @override
   String get settingsClearStagingDone => '已清理未完成的下载';

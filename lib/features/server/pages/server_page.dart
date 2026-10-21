@@ -409,12 +409,7 @@ class _MenuGroupCard extends StatelessWidget {
           for (var index = 0; index < items.length; index++) ...[
             _MenuCard(item: items[index]),
             if (index != items.length - 1)
-              Divider(
-                height: 1,
-                indent: 20,
-                endIndent: 20,
-                color: colorScheme.outlineVariant.withAlpha(90),
-              ),
+              Divider(height: 1, indent: 20, endIndent: 20),
           ],
         ],
       ),

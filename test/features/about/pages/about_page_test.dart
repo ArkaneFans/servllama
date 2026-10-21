@@ -6,6 +6,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:servllama/features/about/pages/about_page.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
+import 'package:servllama/shared/widgets/settings_menu_tile.dart';
+import 'package:servllama/shared/widgets/settings_section.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -58,7 +60,12 @@ void main() {
     await pumpAbout(tester);
 
     expect(find.text('ServLlama'), findsOneWidget);
-    expect(find.text('\u624b\u673a\u4e0a\u7684\u5927\u6a21\u578b\u63a8\u7406\u670d\u52a1\u5668'), findsOneWidget);
+    expect(
+      find.text(
+        '\u624b\u673a\u4e0a\u7684\u5927\u6a21\u578b\u63a8\u7406\u670d\u52a1\u5668',
+      ),
+      findsOneWidget,
+    );
     expect(find.text('\u7248\u672c'), findsOneWidget);
     expect(find.text('1.1.0 / 9'), findsOneWidget);
     expect(find.text('\u7cfb\u7edf'), findsOneWidget);
@@ -69,6 +76,23 @@ void main() {
     expect(find.text('3.2.0 \u00b7 abcdef1234'), findsOneWidget);
     expect(find.text('\u5728 GitHub \u4e0a\u70b9\u4eae Star'), findsOneWidget);
     expect(find.text('\u5f00\u6e90\u8bb8\u53ef'), findsOneWidget);
+    final l10n = AppLocalizations.of(tester.element(find.byType(AboutPage)))!;
+    expect(find.text(l10n.aboutVersionSubtitle), findsOneWidget);
+    expect(find.text(l10n.aboutSystemSubtitle), findsOneWidget);
+    expect(find.text(l10n.aboutLlamaCppSubtitle), findsOneWidget);
+    expect(find.text(l10n.aboutMnnSubtitle), findsOneWidget);
+    expect(find.text(l10n.aboutGitHubSubtitle), findsOneWidget);
+    expect(find.text(l10n.aboutLicenseSubtitle), findsOneWidget);
+
+    final tiles = tester.widgetList<SettingsMenuTile>(
+      find.byType(SettingsMenuTile),
+    );
+    expect(tiles, isNotEmpty);
+    expect(tiles.every((tile) => tile.subtitle?.isNotEmpty ?? false), isTrue);
+    final groupedSections = tester
+        .widgetList<SettingsSection>(find.byType(SettingsSection))
+        .where((section) => section.padding == EdgeInsets.zero);
+    expect(groupedSections, hasLength(2));
 
     final iconBox = tester.getRect(find.byKey(const Key('about_hero_icon')));
     final nameBox = tester.getRect(find.text('ServLlama'));
@@ -90,6 +114,12 @@ void main() {
   testWidgets('tapping license opens the license page', (tester) async {
     await pumpAbout(tester);
 
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('about_license_tile')),
+      160,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('about_license_tile')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));

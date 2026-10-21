@@ -175,6 +175,40 @@ void main() {
     },
   );
 
+  testWidgets('grouped list dividers use symmetric horizontal insets', (
+    tester,
+  ) async {
+    await open(tester);
+    await tester.tap(find.byKey(const Key('ui_lab_scenes')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Grouped lists & model cards'),
+      400,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const PageStorageKey('ui_lab_scene_list')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await tester.pumpAndSettle();
+
+    final dividers = find.byType(Divider);
+    expect(dividers, findsNWidgets(2));
+    for (var index = 0; index < 2; index++) {
+      final divider = tester.widget<Divider>(dividers.at(index));
+      expect(divider.indent, 16);
+      expect(divider.endIndent, 16);
+    }
+    final tiles = find.byType(ListTile);
+    expect(tiles, findsNWidgets(3));
+    for (var index = 0; index < 3; index++) {
+      final tileTheme = ListTileTheme.of(tester.element(tiles.at(index)));
+      expect(tileTheme.minTileHeight, 68);
+    }
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'gallery supports larger text, keyboard, local dark mode and clean exit during progress',
     (tester) async {

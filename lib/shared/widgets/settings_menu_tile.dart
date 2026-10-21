@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 /// A single setting row that matches the app's standard settings tile:
-/// a 24px icon box, a `bodyLarge` w500 title, an optional trailing value
-/// and chevron (when [onTap] is set), or an arbitrary [trailing] widget
-/// (e.g. a switch) when no chevron is wanted.
+/// a 24px icon box, a `bodyLarge` w500 title, an optional subtitle,
+/// an optional trailing value and chevron (when [onTap] is set), or an
+/// arbitrary [trailing] widget (e.g. a switch) when no chevron is wanted.
 ///
 /// Extracted from the private `_MenuTile` so the download section can share
 /// the exact same typography, spacing and press animation as the rest of the
@@ -14,6 +14,7 @@ class SettingsMenuTile extends StatefulWidget {
     this.icon,
     this.leading,
     required this.title,
+    this.subtitle,
     this.value,
     this.onTap,
     this.trailing,
@@ -30,6 +31,7 @@ class SettingsMenuTile extends StatefulWidget {
   final Widget? leading;
 
   final String title;
+  final String? subtitle;
   final String? value;
 
   /// When non-null, this widget is shown on the right instead of the value
@@ -94,11 +96,27 @@ class _SettingsMenuTileState extends State<SettingsMenuTile> {
               const SizedBox(width: 14),
               Expanded(
                 flex: 2,
-                child: Text(
-                  widget.title,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.title,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    if (widget.subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.subtitle!,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               if (widget.trailing != null) ...[

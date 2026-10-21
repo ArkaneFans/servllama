@@ -97,7 +97,16 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('server_page_status_card')), findsOneWidget);
-      expect(find.byKey(const Key('server_page_menu_group')), findsOneWidget);
+      final menuGroup = find.byKey(const Key('server_page_menu_group'));
+      expect(menuGroup, findsOneWidget);
+      final menuDividers = find.descendant(
+        of: menuGroup,
+        matching: find.byType(Divider),
+      );
+      expect(menuDividers, findsNWidgets(3));
+      for (final divider in tester.widgetList<Divider>(menuDividers)) {
+        expect(divider.color, isNull);
+      }
       expect(find.byType(Card), findsNothing);
       expect(find.text('未运行'), findsOneWidget);
       expect(

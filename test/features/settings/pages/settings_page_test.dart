@@ -12,6 +12,8 @@ import 'package:servllama/app/providers/app_theme_mode_provider.dart';
 import 'package:servllama/features/downloads/providers/download_provider.dart';
 import 'package:servllama/features/settings/pages/settings_page.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
+import 'package:servllama/shared/widgets/settings_menu_tile.dart';
+import 'package:servllama/shared/widgets/settings_section.dart';
 
 void main() {
   group('SettingsPage', () {
@@ -73,6 +75,42 @@ void main() {
       expect(find.text('技能与 MCP'), findsNothing);
       expect(find.text('180 秒'), findsOneWidget);
       expect(find.text('关于'), findsWidgets);
+      expect(find.text(l.settingsThemeModeSubtitle), findsOneWidget);
+      expect(find.text(l.settingsMcpSubtitle), findsOneWidget);
+      final subtitle = tester.widget<Text>(find.text(l.settingsMcpSubtitle));
+      expect(
+        subtitle.style?.fontSize,
+        Theme.of(
+          tester.element(find.text(l.settingsMcpSubtitle)),
+        ).textTheme.bodyMedium?.fontSize,
+      );
+
+      final tiles = tester.widgetList<SettingsMenuTile>(
+        find.byType(SettingsMenuTile),
+      );
+      expect(tiles, isNotEmpty);
+      expect(tiles.every((tile) => tile.subtitle?.isNotEmpty ?? false), isTrue);
+
+      final sections = tester.widgetList<SettingsSection>(
+        find.byType(SettingsSection),
+      );
+      expect(sections, isNotEmpty);
+      expect(
+        sections.every((section) => section.padding == EdgeInsets.zero),
+        isTrue,
+      );
+      final themeTile = find.byKey(const Key('settings_theme_mode_tile'));
+      final themeTileRow = find
+          .ancestor(of: themeTile, matching: find.byType(Padding))
+          .first;
+      expect(tester.getSize(themeTileRow).height, greaterThanOrEqualTo(76));
+      final dividers = find.byType(Divider);
+      expect(dividers, findsWidgets);
+      for (final divider in tester.widgetList<Divider>(dividers)) {
+        expect(divider.indent, 16);
+        expect(divider.endIndent, 16);
+        expect(divider.color, isNull);
+      }
     });
 
     testWidgets('updates MaterialApp themeMode from bottom sheet', (

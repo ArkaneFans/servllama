@@ -725,43 +725,43 @@ class _UiPrimitivesPageState extends State<UiPrimitivesPage> {
               ),
               _Section('02', l.uiLabManagement, l.uiLabManagementHint),
               _Surface(
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: const _IconDisc(
-                        Icons.person_outline_rounded,
-                        primary: true,
+                child: ListTileTheme(
+                  data: Theme.of(
+                    context,
+                  ).listTileTheme.copyWith(minTileHeight: 68),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: const _IconDisc(
+                          Icons.person_outline_rounded,
+                          primary: true,
+                        ),
+                        title: Text(l.uiLabAssistant),
+                        subtitle: Text(l.uiLabAssistantHint),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => _models(context),
                       ),
-                      title: Text(l.uiLabAssistant),
-                      subtitle: Text(l.uiLabAssistantHint),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () => _models(context),
-                    ),
-                    const Padding(
-                      padding: EdgeInsets.only(left: 68),
-                      child: Divider(),
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.cloud_outlined),
-                      title: const Text('OpenAI'),
-                      subtitle: Text(l.uiLabProviderHint),
-                      trailing: Switch(
-                        value: _enabled,
-                        onChanged: (value) => setState(() => _enabled = value),
+                      const Divider(indent: 16, endIndent: 16),
+                      ListTile(
+                        leading: const Icon(Icons.cloud_outlined),
+                        title: const Text('OpenAI'),
+                        subtitle: Text(l.uiLabProviderHint),
+                        trailing: Switch(
+                          value: _enabled,
+                          onChanged: (value) =>
+                              setState(() => _enabled = value),
+                        ),
                       ),
-                    ),
-                    const Padding(
-                      padding: EdgeInsets.only(left: 68),
-                      child: Divider(),
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.graphic_eq_rounded),
-                      title: Text(l.uiLabVoice),
-                      subtitle: Text(l.uiLabVoiceHint),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () => _feedback(context),
-                    ),
-                  ],
+                      const Divider(indent: 16, endIndent: 16),
+                      ListTile(
+                        leading: const Icon(Icons.graphic_eq_rounded),
+                        title: Text(l.uiLabVoice),
+                        subtitle: Text(l.uiLabVoiceHint),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => _feedback(context),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 12),

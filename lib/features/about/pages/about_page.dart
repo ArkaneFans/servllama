@@ -12,7 +12,6 @@ import 'package:servllama/core/services/llama_server_service.dart';
 import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/widgets/settings_menu_tile.dart';
 import 'package:servllama/shared/widgets/settings_section.dart';
-import 'package:servllama/shared/widgets/settings_tile_list.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 const _kGitHubUrl = 'https://github.com/ArkaneFans/servllama';
@@ -174,63 +173,65 @@ class _AboutPageState extends State<AboutPage> {
           children: [
             const _AboutHero(),
             const SizedBox(height: 18),
-            SettingsSection(
-              child: SettingsTileList(
-                children: [
-                  SettingsMenuTile(
-                    key: const Key('about_version_tile'),
-                    icon: Icons.info_outline_rounded,
-                    title: l10n.aboutVersionLabel,
-                    onTap: _copyAppVersion,
-                    trailing: _trailingValue(
-                      _appVersion,
-                      icon: Icons.copy_rounded,
-                    ),
+            SettingsSection.grouped(
+              children: [
+                SettingsMenuTile(
+                  key: const Key('about_version_tile'),
+                  icon: Icons.info_outline_rounded,
+                  title: l10n.aboutVersionLabel,
+                  subtitle: l10n.aboutVersionSubtitle,
+                  onTap: _copyAppVersion,
+                  trailing: _trailingValue(
+                    _appVersion,
+                    icon: Icons.copy_rounded,
                   ),
-                  SettingsMenuTile(
-                    key: const Key('about_system_tile'),
-                    icon: Icons.smartphone_outlined,
-                    title: l10n.aboutSystem,
-                    value: _systemLabel(),
-                  ),
-                  SettingsMenuTile(
-                    key: const Key('about_llamacpp_tile'),
-                    icon: Icons.memory_outlined,
-                    title: l10n.aboutLlamaCppLabel,
-                    value: _llamaCppVersion,
-                  ),
-                  SettingsMenuTile(
-                    key: const Key('about_mnn_tile'),
-                    icon: Icons.developer_board_outlined,
-                    title: l10n.aboutMnnVersion,
-                    value: _mnnVersion,
-                  ),
-                ],
-              ),
+                ),
+                SettingsMenuTile(
+                  key: const Key('about_system_tile'),
+                  icon: Icons.smartphone_outlined,
+                  title: l10n.aboutSystem,
+                  subtitle: l10n.aboutSystemSubtitle,
+                  value: _systemLabel(),
+                ),
+                SettingsMenuTile(
+                  key: const Key('about_llamacpp_tile'),
+                  icon: Icons.memory_outlined,
+                  title: l10n.aboutLlamaCppLabel,
+                  subtitle: l10n.aboutLlamaCppSubtitle,
+                  value: _llamaCppVersion,
+                ),
+                SettingsMenuTile(
+                  key: const Key('about_mnn_tile'),
+                  icon: Icons.developer_board_outlined,
+                  title: l10n.aboutMnnVersion,
+                  subtitle: l10n.aboutMnnSubtitle,
+                  value: _mnnVersion,
+                ),
+              ],
             ),
             const SizedBox(height: 18),
-            SettingsSection(
-              child: SettingsTileList(
-                children: [
-                  SettingsMenuTile(
-                    key: const Key('about_github_tile'),
-                    icon: Icons.star_outline_rounded,
-                    title: l10n.aboutStarOnGitHub,
-                    onTap: () => unawaited(_openGitHub()),
-                    trailing: Icon(
-                      Icons.open_in_new_rounded,
-                      size: 18,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
+            SettingsSection.grouped(
+              children: [
+                SettingsMenuTile(
+                  key: const Key('about_github_tile'),
+                  icon: Icons.star_outline_rounded,
+                  title: l10n.aboutStarOnGitHub,
+                  subtitle: l10n.aboutGitHubSubtitle,
+                  onTap: () => unawaited(_openGitHub()),
+                  trailing: Icon(
+                    Icons.open_in_new_rounded,
+                    size: 18,
+                    color: colorScheme.onSurfaceVariant,
                   ),
-                  SettingsMenuTile(
-                    key: const Key('about_license_tile'),
-                    icon: Icons.description_outlined,
-                    title: l10n.aboutLicense,
-                    onTap: _openLicenses,
-                  ),
-                ],
-              ),
+                ),
+                SettingsMenuTile(
+                  key: const Key('about_license_tile'),
+                  icon: Icons.description_outlined,
+                  title: l10n.aboutLicense,
+                  subtitle: l10n.aboutLicenseSubtitle,
+                  onTap: _openLicenses,
+                ),
+              ],
             ),
           ],
         ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:servllama/shared/widgets/settings_tile_list.dart';
 
 class SettingsSection extends StatelessWidget {
   factory SettingsSection.form({
@@ -16,6 +17,19 @@ class SettingsSection extends StatelessWidget {
       spacing: 16,
       children: children,
     ),
+  );
+
+  factory SettingsSection.grouped({
+    Key? key,
+    String? title,
+    String? subtitle,
+    required List<Widget> children,
+  }) => SettingsSection(
+    key: key,
+    title: title,
+    subtitle: subtitle,
+    padding: EdgeInsets.zero,
+    child: SettingsTileList.grouped(children: children),
   );
 
   const SettingsSection({

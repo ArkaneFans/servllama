@@ -8,7 +8,6 @@ import 'package:servllama/features/downloads/services/download_settings_store.da
 import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/widgets/settings_menu_tile.dart';
 import 'package:servllama/shared/widgets/settings_section.dart';
-import 'package:servllama/shared/widgets/settings_tile_list.dart';
 
 /// Download route, credentials and storage cleanup. Tokens live here rather
 /// than on the discovery page because they are account settings, not part of
@@ -26,67 +25,68 @@ class DownloadSettingsSection extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SettingsSection(
+            SettingsSection.grouped(
               title: l10n.settingsSectionDownload,
-              child: SettingsTileList(
-                children: [
-                  SettingsMenuTile(
-                    key: const Key('settings_hf_route_tile'),
-                    icon: Icons.alt_route_rounded,
-                    title: l10n.settingsHuggingFaceRoute,
-                    value: _routeLabel(context, settings.huggingFaceRoute),
-                    onTap: () => _showRouteSheet(context, downloads),
+              children: [
+                SettingsMenuTile(
+                  key: const Key('settings_hf_route_tile'),
+                  icon: Icons.alt_route_rounded,
+                  title: l10n.settingsHuggingFaceRoute,
+                  subtitle: l10n.settingsHuggingFaceRouteDescription,
+                  value: _routeLabel(context, settings.huggingFaceRoute),
+                  onTap: () => _showRouteSheet(context, downloads),
+                ),
+                SettingsMenuTile(
+                  key: const Key('settings_hf_token_tile'),
+                  icon: Icons.key_outlined,
+                  title: l10n.settingsHuggingFaceToken,
+                  subtitle: l10n.settingsHuggingFaceTokenSubtitle,
+                  value: _maskToken(context, settings.huggingFaceToken),
+                  onTap: () => _showTokenSheet(
+                    context,
+                    downloads,
+                    ModelHubSource.huggingFace,
+                    settings.huggingFaceToken,
                   ),
-                  SettingsMenuTile(
-                    key: const Key('settings_hf_token_tile'),
-                    icon: Icons.key_outlined,
-                    title: l10n.settingsHuggingFaceToken,
-                    value: _maskToken(context, settings.huggingFaceToken),
-                    onTap: () => _showTokenSheet(
-                      context,
-                      downloads,
-                      ModelHubSource.huggingFace,
-                      settings.huggingFaceToken,
-                    ),
+                ),
+                SettingsMenuTile(
+                  key: const Key('settings_ms_token_tile'),
+                  icon: Icons.key_outlined,
+                  title: l10n.settingsModelScopeToken,
+                  subtitle: l10n.settingsModelScopeTokenSubtitle,
+                  value: _maskToken(context, settings.modelScopeToken),
+                  onTap: () => _showTokenSheet(
+                    context,
+                    downloads,
+                    ModelHubSource.modelScope,
+                    settings.modelScopeToken,
                   ),
-                  SettingsMenuTile(
-                    key: const Key('settings_ms_token_tile'),
-                    icon: Icons.key_outlined,
-                    title: l10n.settingsModelScopeToken,
-                    value: _maskToken(context, settings.modelScopeToken),
-                    onTap: () => _showTokenSheet(
-                      context,
-                      downloads,
-                      ModelHubSource.modelScope,
-                      settings.modelScopeToken,
-                    ),
+                ),
+                SettingsMenuTile(
+                  key: const Key('settings_wifi_only_tile'),
+                  icon: Icons.wifi_rounded,
+                  title: l10n.settingsWifiOnly,
+                  subtitle: l10n.settingsWifiOnlySubtitle,
+                  trailing: Switch.adaptive(
+                    value: settings.wifiOnly,
+                    onChanged: downloads.setWifiOnly,
                   ),
-                  SettingsMenuTile(
-                    key: const Key('settings_wifi_only_tile'),
-                    icon: Icons.wifi_rounded,
-                    title: l10n.settingsWifiOnly,
-                    trailing: Switch.adaptive(
-                      value: settings.wifiOnly,
-                      onChanged: downloads.setWifiOnly,
-                    ),
-                    onTap: () => downloads.setWifiOnly(!settings.wifiOnly),
-                  ),
-                  SettingsMenuTile(
-                    key: const Key('settings_max_concurrent_tile'),
-                    icon: Icons.layers_outlined,
-                    title: l10n.settingsMaxConcurrentDownloads,
-                    value: '${settings.maxConcurrentTasks}',
-                    onTap: () => _showConcurrencySheet(context, downloads),
-                  ),
-                ],
-              ),
+                  onTap: () => downloads.setWifiOnly(!settings.wifiOnly),
+                ),
+                SettingsMenuTile(
+                  key: const Key('settings_max_concurrent_tile'),
+                  icon: Icons.layers_outlined,
+                  title: l10n.settingsMaxConcurrentDownloads,
+                  subtitle: l10n.settingsMaxConcurrentDownloadsDescription,
+                  value: '${settings.maxConcurrentTasks}',
+                  onTap: () => _showConcurrencySheet(context, downloads),
+                ),
+              ],
             ),
             const SizedBox(height: 18),
-            SettingsSection(
+            SettingsSection.grouped(
               title: l10n.settingsSectionStorage,
-              child: SettingsTileList(
-                children: [_StorageTile(downloads: downloads)],
-              ),
+              children: [_StorageTile(downloads: downloads)],
             ),
           ],
         );
@@ -300,6 +300,7 @@ class _StorageTileState extends State<_StorageTile> {
       key: const Key('settings_clear_staging_tile'),
       icon: Icons.cleaning_services_outlined,
       title: l10n.settingsClearStaging,
+      subtitle: l10n.settingsClearStagingSubtitle,
       value: bytes == null ? '' : FormatUtils.bytes(bytes),
       enabled: hasOrphans,
       onTap: hasOrphans ? _clear : null,

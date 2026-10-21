@@ -155,11 +155,7 @@ class _MmprojPickerSheetState extends State<MmprojPickerSheet> {
                       child: Column(
                         children: [
                           for (var i = 0; i < widget.files.length; i++) ...[
-                            if (i > 0)
-                              Divider(
-                                height: 1,
-                                color: colorScheme.outlineVariant.withAlpha(80),
-                              ),
+                            if (i > 0) const Divider(height: 1),
                             RadioListTile<String>(
                               key: Key('mmproj_option_${widget.files[i].path}'),
                               value: widget.files[i].path,

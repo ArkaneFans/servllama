@@ -680,17 +680,101 @@ abstract class AppLocalizations {
   /// **'Theme mode'**
   String get settingsThemeMode;
 
+  /// No description provided for @settingsThemeModeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Light, dark, or system'**
+  String get settingsThemeModeSubtitle;
+
+  /// No description provided for @settingsDownloadsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Model downloads and storage'**
+  String get settingsDownloadsSubtitle;
+
   /// No description provided for @settingsLanguage.
   ///
   /// In en, this message translates to:
   /// **'App language'**
   String get settingsLanguage;
 
+  /// No description provided for @settingsLanguageSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface display language'**
+  String get settingsLanguageSubtitle;
+
   /// No description provided for @settingsChatTimeout.
   ///
   /// In en, this message translates to:
   /// **'Chat timeout'**
   String get settingsChatTimeout;
+
+  /// No description provided for @settingsChatTimeoutSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Model response wait limit'**
+  String get settingsChatTimeoutSubtitle;
+
+  /// No description provided for @settingsAssistantsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompts, models, and tools'**
+  String get settingsAssistantsSubtitle;
+
+  /// No description provided for @settingsConnectionsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Providers and API access'**
+  String get settingsConnectionsSubtitle;
+
+  /// No description provided for @settingsSkillsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reusable skill packages'**
+  String get settingsSkillsSubtitle;
+
+  /// No description provided for @settingsMcpSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'External tool connections'**
+  String get settingsMcpSubtitle;
+
+  /// No description provided for @settingsServerSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Local OpenAI-compatible server'**
+  String get settingsServerSubtitle;
+
+  /// No description provided for @settingsSpeechSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'On-device transcription and speech'**
+  String get settingsSpeechSubtitle;
+
+  /// No description provided for @settingsLogsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Runtime logs and request diagnostics'**
+  String get settingsLogsSubtitle;
+
+  /// No description provided for @settingsAboutSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Version, licenses, and project info'**
+  String get settingsAboutSubtitle;
+
+  /// No description provided for @settingsMnnTestSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Model loading and inference tests'**
+  String get settingsMnnTestSubtitle;
+
+  /// No description provided for @settingsDebugSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Server launch arguments'**
+  String get settingsDebugSubtitle;
 
   /// No description provided for @settingsChatTimeoutValue.
   ///
@@ -836,17 +920,53 @@ abstract class AppLocalizations {
   /// **'Version'**
   String get aboutVersionLabel;
 
+  /// No description provided for @aboutVersionSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to copy version'**
+  String get aboutVersionSubtitle;
+
   /// No description provided for @aboutLlamaCppLabel.
   ///
   /// In en, this message translates to:
   /// **'llama.cpp'**
   String get aboutLlamaCppLabel;
 
+  /// No description provided for @aboutLlamaCppSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'GGUF inference engine'**
+  String get aboutLlamaCppSubtitle;
+
   /// No description provided for @aboutSystem.
   ///
   /// In en, this message translates to:
   /// **'System'**
   String get aboutSystem;
+
+  /// No description provided for @aboutSystemSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Current runtime platform'**
+  String get aboutSystemSubtitle;
+
+  /// No description provided for @aboutMnnSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'On-device inference engine'**
+  String get aboutMnnSubtitle;
+
+  /// No description provided for @aboutGitHubSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Source code and issues'**
+  String get aboutGitHubSubtitle;
+
+  /// No description provided for @aboutLicenseSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Third-party dependency licenses'**
+  String get aboutLicenseSubtitle;
 
   /// No description provided for @serverTitle.
   ///
@@ -2612,7 +2732,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsHuggingFaceRouteDescription.
   ///
   /// In en, this message translates to:
-  /// **'The mirror helps when the official host is unreachable.'**
+  /// **'Switch mirrors when official access fails'**
   String get settingsHuggingFaceRouteDescription;
 
   /// No description provided for @settingsRouteAuto.
@@ -2639,11 +2759,23 @@ abstract class AppLocalizations {
   /// **'Hugging Face token'**
   String get settingsHuggingFaceToken;
 
+  /// No description provided for @settingsHuggingFaceTokenSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Access private or gated models'**
+  String get settingsHuggingFaceTokenSubtitle;
+
   /// No description provided for @settingsModelScopeToken.
   ///
   /// In en, this message translates to:
   /// **'ModelScope token'**
   String get settingsModelScopeToken;
+
+  /// No description provided for @settingsModelScopeTokenSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Access private or restricted models'**
+  String get settingsModelScopeTokenSubtitle;
 
   /// No description provided for @settingsTokenDescription.
   ///
@@ -2672,7 +2804,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsWifiOnlySubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Pause tasks when the network switches to cellular'**
+  /// **'Pause on cellular networks'**
   String get settingsWifiOnlySubtitle;
 
   /// No description provided for @downloadWifiOnlyDialogTitle.
@@ -2702,7 +2834,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsMaxConcurrentDownloadsDescription.
   ///
   /// In en, this message translates to:
-  /// **'How many tasks may run at once'**
+  /// **'Maximum simultaneous tasks'**
   String get settingsMaxConcurrentDownloadsDescription;
 
   /// No description provided for @settingsSectionStorage.
@@ -2728,6 +2860,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Clear unfinished downloads'**
   String get settingsClearStaging;
+
+  /// No description provided for @settingsClearStagingSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove temporary files'**
+  String get settingsClearStagingSubtitle;
 
   /// No description provided for @settingsClearStagingDone.
   ///

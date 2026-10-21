@@ -7,26 +7,49 @@ import 'package:flutter/material.dart';
 /// Extracted from the duplicated private `_SectionItems` so the download
 /// section's tiles line up exactly with the "General"/"Chat"/"About" groups.
 class SettingsTileList extends StatelessWidget {
-  const SettingsTileList({super.key, required this.children});
+  const SettingsTileList({super.key, required this.children}) : grouped = false;
+
+  const SettingsTileList.grouped({super.key, required this.children})
+    : grouped = true;
 
   final List<Widget> children;
+  final bool grouped;
+
+  static const _groupedInset = 16.0;
+  static const _groupedVerticalInset = 8.0;
+  static const _groupedMinTileHeight = 76.0;
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (var index = 0; index < children.length; index++) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: children[index],
-          ),
+          if (grouped)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: _groupedInset),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minHeight: _groupedMinTileHeight,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: _groupedVerticalInset,
+                  ),
+                  child: children[index],
+                ),
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: children[index],
+            ),
           if (index != children.length - 1)
             Divider(
               height: 1,
-              color: colorScheme.outlineVariant.withAlpha(90),
+              indent: grouped ? _groupedInset : 0,
+              endIndent: grouped ? _groupedInset : 0,
             ),
         ],
       ],

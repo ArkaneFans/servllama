@@ -324,10 +324,52 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsThemeMode => 'Theme mode';
 
   @override
+  String get settingsThemeModeSubtitle => 'Light, dark, or system';
+
+  @override
+  String get settingsDownloadsSubtitle => 'Model downloads and storage';
+
+  @override
   String get settingsLanguage => 'App language';
 
   @override
+  String get settingsLanguageSubtitle => 'Interface display language';
+
+  @override
   String get settingsChatTimeout => 'Chat timeout';
+
+  @override
+  String get settingsChatTimeoutSubtitle => 'Model response wait limit';
+
+  @override
+  String get settingsAssistantsSubtitle => 'Prompts, models, and tools';
+
+  @override
+  String get settingsConnectionsSubtitle => 'Providers and API access';
+
+  @override
+  String get settingsSkillsSubtitle => 'Reusable skill packages';
+
+  @override
+  String get settingsMcpSubtitle => 'External tool connections';
+
+  @override
+  String get settingsServerSubtitle => 'Local OpenAI-compatible server';
+
+  @override
+  String get settingsSpeechSubtitle => 'On-device transcription and speech';
+
+  @override
+  String get settingsLogsSubtitle => 'Runtime logs and request diagnostics';
+
+  @override
+  String get settingsAboutSubtitle => 'Version, licenses, and project info';
+
+  @override
+  String get settingsMnnTestSubtitle => 'Model loading and inference tests';
+
+  @override
+  String get settingsDebugSubtitle => 'Server launch arguments';
 
   @override
   String settingsChatTimeoutValue(int seconds) {
@@ -411,10 +453,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutVersionLabel => 'Version';
 
   @override
+  String get aboutVersionSubtitle => 'Tap to copy version';
+
+  @override
   String get aboutLlamaCppLabel => 'llama.cpp';
 
   @override
+  String get aboutLlamaCppSubtitle => 'GGUF inference engine';
+
+  @override
   String get aboutSystem => 'System';
+
+  @override
+  String get aboutSystemSubtitle => 'Current runtime platform';
+
+  @override
+  String get aboutMnnSubtitle => 'On-device inference engine';
+
+  @override
+  String get aboutGitHubSubtitle => 'Source code and issues';
+
+  @override
+  String get aboutLicenseSubtitle => 'Third-party dependency licenses';
 
   @override
   String get serverTitle => 'Server';
@@ -1459,7 +1519,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsHuggingFaceRouteDescription =>
-      'The mirror helps when the official host is unreachable.';
+      'Switch mirrors when official access fails';
 
   @override
   String get settingsRouteAuto => 'Auto';
@@ -1474,7 +1534,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsHuggingFaceToken => 'Hugging Face token';
 
   @override
+  String get settingsHuggingFaceTokenSubtitle =>
+      'Access private or gated models';
+
+  @override
   String get settingsModelScopeToken => 'ModelScope token';
+
+  @override
+  String get settingsModelScopeTokenSubtitle =>
+      'Access private or restricted models';
 
   @override
   String get settingsTokenDescription =>
@@ -1490,8 +1558,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsWifiOnly => 'Download over Wi-Fi only';
 
   @override
-  String get settingsWifiOnlySubtitle =>
-      'Pause tasks when the network switches to cellular';
+  String get settingsWifiOnlySubtitle => 'Pause on cellular networks';
 
   @override
   String get downloadWifiOnlyDialogTitle => 'On a mobile network';
@@ -1508,7 +1575,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsMaxConcurrentDownloadsDescription =>
-      'How many tasks may run at once';
+      'Maximum simultaneous tasks';
 
   @override
   String get settingsSectionStorage => 'Storage';
@@ -1521,6 +1588,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsClearStaging => 'Clear unfinished downloads';
+
+  @override
+  String get settingsClearStagingSubtitle => 'Remove temporary files';
 
   @override
   String get settingsClearStagingDone => 'Cleared unfinished downloads';

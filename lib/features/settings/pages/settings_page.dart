@@ -24,7 +24,6 @@ import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/widgets/settings_menu_tile.dart';
 import 'package:servllama/shared/widgets/mcp_icon.dart';
 import 'package:servllama/shared/widgets/settings_section.dart';
-import 'package:servllama/shared/widgets/settings_tile_list.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -49,147 +48,147 @@ class SettingsPage extends StatelessWidget {
                   children: [
                     const _ProfileSettingsCard(),
                     const SizedBox(height: 24),
-                    SettingsSection(
+                    SettingsSection.grouped(
                       title: l10n.settingsSectionGeneral,
-                      child: SettingsTileList(
-                        children: [
-                          SettingsMenuTile(
-                            key: const Key('settings_theme_mode_tile'),
-                            icon: Icons.palette_outlined,
-                            title: l10n.settingsThemeMode,
-                            value: _themeModeLabel(
-                              l10n,
-                              themeProvider.themeMode,
-                            ),
-                            onTap: () =>
-                                _showThemeModeSheet(context, themeProvider),
+                      children: [
+                        SettingsMenuTile(
+                          key: const Key('settings_theme_mode_tile'),
+                          icon: Icons.palette_outlined,
+                          title: l10n.settingsThemeMode,
+                          subtitle: l10n.settingsThemeModeSubtitle,
+                          value: _themeModeLabel(l10n, themeProvider.themeMode),
+                          onTap: () =>
+                              _showThemeModeSheet(context, themeProvider),
+                        ),
+                        SettingsMenuTile(
+                          key: const Key('settings_downloads_tile'),
+                          icon: Icons.download_outlined,
+                          title: l10n.settingsSectionDownload,
+                          subtitle: l10n.settingsDownloadsSubtitle,
+                          onTap: () =>
+                              _push(context, const DownloadSettingsPage()),
+                        ),
+                        SettingsMenuTile(
+                          key: const Key('settings_language_tile'),
+                          icon: Icons.language_rounded,
+                          title: l10n.settingsLanguage,
+                          subtitle: l10n.settingsLanguageSubtitle,
+                          value: _localeModeLabel(
+                            l10n,
+                            localeProvider.localeMode,
                           ),
-                          SettingsMenuTile(
-                            key: const Key('settings_downloads_tile'),
-                            icon: Icons.download_outlined,
-                            title: l10n.settingsSectionDownload,
-                            onTap: () =>
-                                _push(context, const DownloadSettingsPage()),
-                          ),
-                          SettingsMenuTile(
-                            key: const Key('settings_language_tile'),
-                            icon: Icons.language_rounded,
-                            title: l10n.settingsLanguage,
-                            value: _localeModeLabel(
-                              l10n,
-                              localeProvider.localeMode,
-                            ),
-                            onTap: () =>
-                                _showLanguageSheet(context, localeProvider),
-                          ),
-                        ],
-                      ),
+                          onTap: () =>
+                              _showLanguageSheet(context, localeProvider),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 18),
-                    SettingsSection(
+                    SettingsSection.grouped(
                       title: l10n.settingsSectionChat,
-                      child: SettingsTileList(
-                        children: [
-                          SettingsMenuTile(
-                            key: const Key('settings_assistants_tile'),
-                            icon: Icons.smart_toy_outlined,
-                            title: l10n.v2AssistantManagement,
-                            onTap: () => _push(context, const AssistantsPage()),
+                      children: [
+                        SettingsMenuTile(
+                          key: const Key('settings_assistants_tile'),
+                          icon: Icons.smart_toy_outlined,
+                          title: l10n.v2AssistantManagement,
+                          subtitle: l10n.settingsAssistantsSubtitle,
+                          onTap: () => _push(context, const AssistantsPage()),
+                        ),
+                        SettingsMenuTile(
+                          key: const Key('settings_providers_tile'),
+                          icon: Icons.cloud_outlined,
+                          title: l10n.v2Connections,
+                          subtitle: l10n.settingsConnectionsSubtitle,
+                          onTap: () => _push(context, const ConnectionsPage()),
+                        ),
+                        SettingsMenuTile(
+                          key: const Key('settings_skills_tile'),
+                          icon: Icons.extension_outlined,
+                          title: l10n.v2Skills,
+                          subtitle: l10n.settingsSkillsSubtitle,
+                          onTap: () => _push(context, const SkillsPage()),
+                        ),
+                        SettingsMenuTile(
+                          key: const Key('settings_mcp_tile'),
+                          leading: const McpIcon(size: 22),
+                          title: l10n.v2Mcp,
+                          subtitle: l10n.settingsMcpSubtitle,
+                          onTap: () => _push(context, const McpServersPage()),
+                        ),
+                        SettingsMenuTile(
+                          key: const Key('settings_chat_timeout_tile'),
+                          icon: Icons.timer_outlined,
+                          title: l10n.settingsChatTimeout,
+                          subtitle: l10n.settingsChatTimeoutSubtitle,
+                          value: l10n.settingsChatTimeoutValue(
+                            chatTimeoutProvider.timeoutSeconds,
                           ),
-                          SettingsMenuTile(
-                            key: const Key('settings_providers_tile'),
-                            icon: Icons.cloud_outlined,
-                            title: l10n.v2Connections,
-                            onTap: () =>
-                                _push(context, const ConnectionsPage()),
+                          onTap: () => _showChatTimeoutSheet(
+                            context,
+                            chatTimeoutProvider,
                           ),
-                          SettingsMenuTile(
-                            key: const Key('settings_skills_tile'),
-                            icon: Icons.extension_outlined,
-                            title: l10n.v2Skills,
-                            onTap: () => _push(context, const SkillsPage()),
-                          ),
-                          SettingsMenuTile(
-                            key: const Key('settings_mcp_tile'),
-                            leading: const McpIcon(size: 22),
-                            title: l10n.v2Mcp,
-                            onTap: () => _push(context, const McpServersPage()),
-                          ),
-                          SettingsMenuTile(
-                            key: const Key('settings_chat_timeout_tile'),
-                            icon: Icons.timer_outlined,
-                            title: l10n.settingsChatTimeout,
-                            value: l10n.settingsChatTimeoutValue(
-                              chatTimeoutProvider.timeoutSeconds,
-                            ),
-                            onTap: () => _showChatTimeoutSheet(
-                              context,
-                              chatTimeoutProvider,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 18),
-                    SettingsSection(
+                    SettingsSection.grouped(
                       title: l10n.settingsSectionServices,
-                      child: SettingsTileList(
-                        children: [
-                          SettingsMenuTile(
-                            key: const Key('settings_server_tile'),
-                            icon: Icons.dns_outlined,
-                            title: l10n.drawerServer,
-                            onTap: () => _push(context, const ServerPage()),
-                          ),
-                          SettingsMenuTile(
-                            key: const Key('settings_speech_tile'),
-                            icon: Icons.graphic_eq_rounded,
-                            title: l10n.v2Speech,
-                            onTap: () => _push(context, const SpeechPage()),
-                          ),
-                          SettingsMenuTile(
-                            key: const Key('settings_logs_tile'),
-                            icon: Icons.receipt_long_outlined,
-                            title: l10n.appLogsTitle,
-                            onTap: () => _push(context, const AppLogsPage()),
-                          ),
-                        ],
-                      ),
+                      children: [
+                        SettingsMenuTile(
+                          key: const Key('settings_server_tile'),
+                          icon: Icons.dns_outlined,
+                          title: l10n.drawerServer,
+                          subtitle: l10n.settingsServerSubtitle,
+                          onTap: () => _push(context, const ServerPage()),
+                        ),
+                        SettingsMenuTile(
+                          key: const Key('settings_speech_tile'),
+                          icon: Icons.graphic_eq_rounded,
+                          title: l10n.v2Speech,
+                          subtitle: l10n.settingsSpeechSubtitle,
+                          onTap: () => _push(context, const SpeechPage()),
+                        ),
+                        SettingsMenuTile(
+                          key: const Key('settings_logs_tile'),
+                          icon: Icons.receipt_long_outlined,
+                          title: l10n.appLogsTitle,
+                          subtitle: l10n.settingsLogsSubtitle,
+                          onTap: () => _push(context, const AppLogsPage()),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 18),
-                    SettingsSection(
+                    SettingsSection.grouped(
                       title: l10n.settingsSectionAbout,
-                      child: SettingsTileList(
-                        children: [
-                          SettingsMenuTile(
-                            icon: Icons.info_outline_rounded,
-                            key: const Key('settings_about_tile'),
-                            title: l10n.settingsAbout,
-                            onTap: () => _push(context, const AboutPage()),
-                          ),
-                        ],
-                      ),
+                      children: [
+                        SettingsMenuTile(
+                          icon: Icons.info_outline_rounded,
+                          key: const Key('settings_about_tile'),
+                          title: l10n.settingsAbout,
+                          subtitle: l10n.settingsAboutSubtitle,
+                          onTap: () => _push(context, const AboutPage()),
+                        ),
+                      ],
                     ),
                     if (kDebugMode) ...[
                       const SizedBox(height: 18),
-                      SettingsSection(
+                      SettingsSection.grouped(
                         title: l10n.settingsSectionDeveloper,
-                        child: SettingsTileList(
-                          children: [
-                            SettingsMenuTile(
-                              key: const Key('settings_mnn_test_tile'),
-                              icon: Icons.memory_outlined,
-                              title: l10n.settingsMnnTest,
-                              onTap: () => _push(context, const MnnTestPage()),
-                            ),
-                            SettingsMenuTile(
-                              key: const Key('settings_debug_tile'),
-                              icon: Icons.bug_report_outlined,
-                              title: l10n.settingsDebug,
-                              onTap: () => _push(context, const DebugPage()),
-                            ),
-                          ],
-                        ),
+                        children: [
+                          SettingsMenuTile(
+                            key: const Key('settings_mnn_test_tile'),
+                            icon: Icons.memory_outlined,
+                            title: l10n.settingsMnnTest,
+                            subtitle: l10n.settingsMnnTestSubtitle,
+                            onTap: () => _push(context, const MnnTestPage()),
+                          ),
+                          SettingsMenuTile(
+                            key: const Key('settings_debug_tile'),
+                            icon: Icons.bug_report_outlined,
+                            title: l10n.settingsDebug,
+                            subtitle: l10n.settingsDebugSubtitle,
+                            onTap: () => _push(context, const DebugPage()),
+                          ),
+                        ],
                       ),
                     ],
                   ],
