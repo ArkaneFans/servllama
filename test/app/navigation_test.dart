@@ -488,6 +488,20 @@ void main() {
     await tester.pumpAndSettle();
     expect(input(tester, 'chat_input_field').focusNode.hasFocus, isFalse);
     expect(tester.testTextInput.isVisible, isFalse);
+    final drawerAction = find.descendant(
+      of: find.byKey(const Key('drawer_settings_action')),
+      matching: find.byType(IconButton),
+    );
+    final actionStyle = tester.widget<IconButton>(drawerAction).style!;
+    final drawerColors = Theme.of(tester.element(drawerAction)).colorScheme;
+    expect(
+      actionStyle.minimumSize?.resolve(<WidgetState>{}),
+      const Size(40, 40),
+    );
+    expect(
+      actionStyle.backgroundColor?.resolve(<WidgetState>{}),
+      drawerColors.surfaceContainerLow,
+    );
     for (final route in <String, Type>{
       'drawer_assistants_action': AssistantsPage,
       'drawer_server_action': ServerPage,

@@ -17,10 +17,8 @@ class AssistantSelector extends StatelessWidget {
     if (p == null) return const SizedBox.shrink();
     final chat = context.watch<ChatProvider>();
     final l = context.l10n;
-    final colors = Theme.of(context).colorScheme;
     return Material(
-      color: colors.surfaceContainerHigh,
-      borderRadius: BorderRadius.circular(18),
+      type: MaterialType.transparency,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         child: Tooltip(
