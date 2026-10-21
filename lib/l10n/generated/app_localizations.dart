@@ -5165,6 +5165,12 @@ abstract class AppLocalizations {
   /// **'Preparing ServLlama'**
   String get v2StartupPreparing;
 
+  /// No description provided for @v2CheckingData.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking local data'**
+  String get v2CheckingData;
+
   /// No description provided for @v2MigrationTitle.
   ///
   /// In en, this message translates to:
@@ -5225,6 +5231,120 @@ abstract class AppLocalizations {
   /// **'This step: {completed} / {total} records'**
   String v2MigrationRecords(int completed, int total);
 
+  /// No description provided for @migrationSetupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade local data'**
+  String get migrationSetupTitle;
+
+  /// No description provided for @migrationSetupSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Move legacy chats, model records and download tasks into the new SQLite store.'**
+  String get migrationSetupSubtitle;
+
+  /// No description provided for @migrationStorageHive.
+  ///
+  /// In en, this message translates to:
+  /// **'Hive'**
+  String get migrationStorageHive;
+
+  /// No description provided for @migrationStorageSqlite.
+  ///
+  /// In en, this message translates to:
+  /// **'SQLite'**
+  String get migrationStorageSqlite;
+
+  /// No description provided for @migrationSetupDataTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Will migrate'**
+  String get migrationSetupDataTitle;
+
+  /// No description provided for @migrationSetupRetainNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Original Hive files and model files stay in place.'**
+  String get migrationSetupRetainNote;
+
+  /// No description provided for @migrationProgressTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Migration progress'**
+  String get migrationProgressTitle;
+
+  /// No description provided for @migrationStartButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Start migration'**
+  String get migrationStartButton;
+
+  /// No description provided for @migrationSkipFreshButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip migration and start fresh'**
+  String get migrationSkipFreshButton;
+
+  /// No description provided for @migrationSkipFreshTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip migration?'**
+  String get migrationSkipFreshTitle;
+
+  /// No description provided for @migrationSkipFreshMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Legacy Hive files will remain, but they will not be imported into ServLlama. This cannot be undone.'**
+  String get migrationSkipFreshMessage;
+
+  /// No description provided for @migrationSkipFreshCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get migrationSkipFreshCancel;
+
+  /// No description provided for @migrationSkipFreshConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip and start'**
+  String get migrationSkipFreshConfirm;
+
+  /// No description provided for @migrationCompleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Migration complete'**
+  String get migrationCompleteTitle;
+
+  /// No description provided for @migrationCompleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Legacy chats, model records and download tasks are now stored in SQLite.'**
+  String get migrationCompleteBody;
+
+  /// No description provided for @migrationStartUsing.
+  ///
+  /// In en, this message translates to:
+  /// **'Start using'**
+  String get migrationStartUsing;
+
+  /// No description provided for @migrationFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Migration unfinished'**
+  String get migrationFailedTitle;
+
+  /// No description provided for @migrationStartupFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Local data could not be opened'**
+  String get migrationStartupFailedTitle;
+
+  /// No description provided for @migrationRetryButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry migration'**
+  String get migrationRetryButton;
+
   /// No description provided for @migrationPreviewTitle.
   ///
   /// In en, this message translates to:
@@ -5254,18 +5374,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Simulated error: Not enough storage. Retry to preview recovery.'**
   String get migrationPreviewError;
-
-  /// No description provided for @migrationPreviewComplete.
-  ///
-  /// In en, this message translates to:
-  /// **'Preview complete. Your real data is unchanged.'**
-  String get migrationPreviewComplete;
-
-  /// No description provided for @migrationPreviewReturn.
-  ///
-  /// In en, this message translates to:
-  /// **'Return to sidebar'**
-  String get migrationPreviewReturn;
 
   /// No description provided for @uiLabTitle.
   ///

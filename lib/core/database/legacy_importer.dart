@@ -27,33 +27,64 @@ class LegacyImporter {
     HiveInterface? hive,
     this.onProgress,
   }) : hive = hive ?? Hive;
+  static const chatsMarker = 'legacyImportComplete';
   static const inventoryMarker = 'legacyInventoryImportComplete';
+  static const _chatSourceNames = [
+    'chat_sessions',
+    'chat_messages',
+    'chat_message_versions',
+  ];
+  static const _inventorySourceNames = ['imported_models', 'download_tasks'];
   final AppDatabase db;
   final Directory directory;
   final HiveInterface hive;
   final void Function(LegacyMigrationProgress)? onProgress;
 
-  Future<void> run() async {
+  static Future<bool> hasPendingImport(
+    AppDatabase db,
+    Directory directory,
+  ) async {
+    if (await db.metadata(chatsMarker) != '1' &&
+        await _hasAnySourceFile(directory, _chatSourceNames)) {
+      return true;
+    }
+    return await db.metadata(inventoryMarker) != '1' &&
+        await _hasAnySourceFile(directory, _inventorySourceNames);
+  }
+
+  Future<void> run({bool skipLegacyData = false}) async {
     final prefs = await SharedPreferences.getInstance();
     final oldKey = prefs.getString(ServerPrefsKeys.apiKey);
     if (oldKey != null && oldKey.isNotEmpty) {
       await SecretStore.instance.write(ServerPrefsKeys.apiKey, oldKey);
     }
-    final importChats = await db.metadata('legacyImportComplete') != '1';
+    final importChats = await db.metadata(chatsMarker) != '1';
     final importInventory = await db.metadata(inventoryMarker) != '1';
     final names = [
-      if (importChats) ...[
-        'chat_sessions',
-        'chat_messages',
-        'chat_message_versions',
-      ],
-      if (importInventory) ...['imported_models', 'download_tasks'],
+      if (importChats) ..._chatSourceNames,
+      if (importInventory) ..._inventorySourceNames,
     ];
     var hasLegacyFiles = false;
     for (final name in names) {
       if (hive.isBoxOpen(name) || await _sourceFile(name) != null) {
         hasLegacyFiles = true;
       }
+    }
+    if (skipLegacyData) {
+      await _skipLegacyData(
+        importChats: importChats,
+        importInventory: importInventory,
+      );
+      if (oldKey != null && !await prefs.remove(ServerPrefsKeys.apiKey)) {
+        throw StateError('Legacy credential cleanup failed');
+      }
+      if (hasLegacyFiles) {
+        AppLogger.instance.event(
+          'storage.migration.skipped',
+          fields: {'chats': importChats, 'inventory': importInventory},
+        );
+      }
+      return;
     }
     var stage = LegacyMigrationStage.chats;
     void report(
@@ -329,7 +360,7 @@ class LegacyImporter {
     for (final v in versions) {
       if (!allMessages.containsKey(v.messageId)) step();
     }
-    await db.setMetadata('legacyImportComplete', '1');
+    await db.setMetadata(chatsMarker, '1');
     await db.setMetadata(
       'legacyImportCounts',
       jsonEncode({
@@ -383,5 +414,41 @@ class LegacyImporter {
       if (await file.exists()) return file;
     }
     return null;
+  }
+
+  Future<void> _skipLegacyData({
+    required bool importChats,
+    required bool importInventory,
+  }) async {
+    await db.transaction(() async {
+      if (importChats) {
+        await db.setMetadata(chatsMarker, '1');
+        await db.setMetadata(
+          'legacyImportCounts',
+          jsonEncode({'sessions': 0, 'messages': 0, 'versions': 0}),
+        );
+      }
+      if (importInventory) {
+        await db.setMetadata(inventoryMarker, '1');
+        await db.setMetadata(
+          'legacyInventoryImportCounts',
+          jsonEncode({'models': 0, 'downloads': 0}),
+        );
+      }
+    });
+  }
+
+  static Future<bool> _hasAnySourceFile(
+    Directory directory,
+    List<String> names,
+  ) async {
+    for (final name in names) {
+      for (final extension in ['hive', 'hivec']) {
+        if (await File(p.join(directory.path, '$name.$extension')).exists()) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 }

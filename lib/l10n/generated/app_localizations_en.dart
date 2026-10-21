@@ -2880,6 +2880,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2StartupPreparing => 'Preparing ServLlama';
 
   @override
+  String get v2CheckingData => 'Checking local data';
+
+  @override
   String get v2MigrationTitle => 'Upgrading your data';
 
   @override
@@ -2914,6 +2917,67 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get migrationSetupTitle => 'Upgrade local data';
+
+  @override
+  String get migrationSetupSubtitle =>
+      'Move legacy chats, model records and download tasks into the new SQLite store.';
+
+  @override
+  String get migrationStorageHive => 'Hive';
+
+  @override
+  String get migrationStorageSqlite => 'SQLite';
+
+  @override
+  String get migrationSetupDataTitle => 'Will migrate';
+
+  @override
+  String get migrationSetupRetainNote =>
+      'Original Hive files and model files stay in place.';
+
+  @override
+  String get migrationProgressTitle => 'Migration progress';
+
+  @override
+  String get migrationStartButton => 'Start migration';
+
+  @override
+  String get migrationSkipFreshButton => 'Skip migration and start fresh';
+
+  @override
+  String get migrationSkipFreshTitle => 'Skip migration?';
+
+  @override
+  String get migrationSkipFreshMessage =>
+      'Legacy Hive files will remain, but they will not be imported into ServLlama. This cannot be undone.';
+
+  @override
+  String get migrationSkipFreshCancel => 'Cancel';
+
+  @override
+  String get migrationSkipFreshConfirm => 'Skip and start';
+
+  @override
+  String get migrationCompleteTitle => 'Migration complete';
+
+  @override
+  String get migrationCompleteBody =>
+      'Legacy chats, model records and download tasks are now stored in SQLite.';
+
+  @override
+  String get migrationStartUsing => 'Start using';
+
+  @override
+  String get migrationFailedTitle => 'Migration unfinished';
+
+  @override
+  String get migrationStartupFailedTitle => 'Local data could not be opened';
+
+  @override
+  String get migrationRetryButton => 'Retry migration';
+
+  @override
   String get migrationPreviewTitle => 'Migration preview';
 
   @override
@@ -2929,13 +2993,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get migrationPreviewError =>
       'Simulated error: Not enough storage. Retry to preview recovery.';
-
-  @override
-  String get migrationPreviewComplete =>
-      'Preview complete. Your real data is unchanged.';
-
-  @override
-  String get migrationPreviewReturn => 'Return to sidebar';
 
   @override
   String get uiLabTitle => 'UI primitives';

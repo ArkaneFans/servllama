@@ -1,5 +1,6 @@
 import 'package:servllama/features/agent/services/agent_tool_service.dart';
 import 'package:servllama/core/database/app_database.dart';
+import 'package:servllama/core/database/legacy_importer.dart';
 import 'package:servllama/core/database/legacy_migration_progress.dart';
 import 'package:servllama/features/chat/repositories/generation_run_repository.dart';
 import 'dart:async';
@@ -8,6 +9,7 @@ import 'package:servllama/features/chat/repositories/chat_session_repository.dar
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:servllama/app/app.dart';
 import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/core/logging/file_log_sink.dart';
@@ -21,18 +23,29 @@ Future<void> main() async {
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   await _initLogging();
   runApp(
-    BootstrapGate(initialize: _initializeBusiness, child: const ServLlamaApp()),
+    BootstrapGate(
+      hasPendingMigration: _hasPendingLegacyMigration,
+      initialize: _initializeBusiness,
+      child: const ServLlamaApp(),
+    ),
   );
 }
 
+Future<bool> _hasPendingLegacyMigration() async {
+  final directory = await getApplicationSupportDirectory();
+  return LegacyImporter.hasPendingImport(await AppDatabase.shared(), directory);
+}
+
 Future<void> _initializeBusiness(
-  void Function(LegacyMigrationProgress) report,
-) async {
+  void Function(LegacyMigrationProgress) report, {
+  required bool skipLegacyImport,
+}) async {
   final watch = Stopwatch()..start();
   AppLogger.instance.event('app.initialize.started');
   try {
     await ChatSessionRepository(
       onMigrationProgress: report,
+      skipLegacyImport: skipLegacyImport,
     ).warmUpMessageStore();
     await GenerationRunRepository(await AppDatabase.shared()).recover();
     await AgentToolService.create();

@@ -2723,6 +2723,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2StartupPreparing => '正在启动 ServLlama';
 
   @override
+  String get v2CheckingData => '正在检查本地数据';
+
+  @override
   String get v2MigrationTitle => '正在升级应用数据';
 
   @override
@@ -2755,6 +2758,64 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get migrationSetupTitle => '升级本地数据';
+
+  @override
+  String get migrationSetupSubtitle => '将旧版聊天、模型记录和下载任务迁移到新的 SQLite 存储。';
+
+  @override
+  String get migrationStorageHive => 'Hive';
+
+  @override
+  String get migrationStorageSqlite => 'SQLite';
+
+  @override
+  String get migrationSetupDataTitle => '将迁移';
+
+  @override
+  String get migrationSetupRetainNote => '原始 Hive 文件和模型文件会保留在原位置。';
+
+  @override
+  String get migrationProgressTitle => '迁移进度';
+
+  @override
+  String get migrationStartButton => '开始迁移';
+
+  @override
+  String get migrationSkipFreshButton => '跳过迁移并全新开始';
+
+  @override
+  String get migrationSkipFreshTitle => '跳过迁移？';
+
+  @override
+  String get migrationSkipFreshMessage =>
+      '旧版 Hive 文件会保留，但不会导入 ServLlama。此操作无法撤销。';
+
+  @override
+  String get migrationSkipFreshCancel => '取消';
+
+  @override
+  String get migrationSkipFreshConfirm => '跳过并开始';
+
+  @override
+  String get migrationCompleteTitle => '迁移完成';
+
+  @override
+  String get migrationCompleteBody => '旧版聊天、模型记录和下载任务已迁移到 SQLite。';
+
+  @override
+  String get migrationStartUsing => '开始使用';
+
+  @override
+  String get migrationFailedTitle => '迁移未完成';
+
+  @override
+  String get migrationStartupFailedTitle => '无法打开本地数据';
+
+  @override
+  String get migrationRetryButton => '重试迁移';
+
+  @override
   String get migrationPreviewTitle => '迁移演示';
 
   @override
@@ -2768,12 +2829,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get migrationPreviewError => '模拟错误：存储空间不足。点击重试可演示恢复流程。';
-
-  @override
-  String get migrationPreviewComplete => '迁移演示已完成，真实数据未改变。';
-
-  @override
-  String get migrationPreviewReturn => '返回侧边栏';
 
   @override
   String get uiLabTitle => 'UI 原语';

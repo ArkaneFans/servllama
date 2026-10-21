@@ -24,6 +24,63 @@ void main() {
     expect(await db.metadata('legacyImportComplete'), isNull);
   });
   test(
+    'legacy detection ignores retained sources after both markers',
+    () async {
+      final db = AppDatabase.memory();
+      final dir = await Directory.systemTemp.createTemp('legacy-detection-');
+      addTearDown(() async {
+        await db.close();
+        await dir.delete(recursive: true);
+      });
+
+      expect(await LegacyImporter.hasPendingImport(db, dir), isFalse);
+      final source = await File(
+        '${dir.path}/chat_sessions.hive',
+      ).writeAsString('retained legacy source');
+      expect(await LegacyImporter.hasPendingImport(db, dir), isTrue);
+
+      await db.setMetadata(LegacyImporter.chatsMarker, '1');
+      await db.setMetadata(LegacyImporter.inventoryMarker, '1');
+      expect(await LegacyImporter.hasPendingImport(db, dir), isFalse);
+      expect(await source.readAsString(), 'retained legacy source');
+    },
+  );
+  test(
+    'skipping legacy import publishes markers without reading sources',
+    () async {
+      final db = AppDatabase.memory();
+      final dir = await Directory.systemTemp.createTemp('legacy-skip-');
+      addTearDown(() async {
+        await db.close();
+        await dir.delete(recursive: true);
+      });
+      SharedPreferences.setMockInitialValues({
+        ServerPrefsKeys.apiKey: 'legacy-server-key',
+      });
+      final bytes = <int>[7, 8, 9];
+      final source = await File(
+        '${dir.path}/chat_sessions.hive',
+      ).writeAsBytes(bytes);
+
+      await LegacyImporter(db, dir).run(skipLegacyData: true);
+
+      expect(await db.metadata(LegacyImporter.chatsMarker), '1');
+      expect(await db.metadata(LegacyImporter.inventoryMarker), '1');
+      expect(await source.readAsBytes(), bytes);
+      expect(
+        await SecretStore.instance.read(ServerPrefsKeys.apiKey),
+        'legacy-server-key',
+      );
+      expect(
+        (await SharedPreferences.getInstance()).getString(
+          ServerPrefsKeys.apiKey,
+        ),
+        isNull,
+      );
+      expect(await LegacyImporter.hasPendingImport(db, dir), isFalse);
+    },
+  );
+  test(
     'secret copy is verified before legacy plaintext is removed; rerun is safe',
     () async {
       final db = AppDatabase.memory();
