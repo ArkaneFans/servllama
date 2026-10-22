@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/features/design_preview/ui_primitives_page.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
+import 'package:servllama/shared/widgets/settings_menu_tile.dart';
 
 void main() {
   Future<void> open(WidgetTester tester, {double scale = 1}) async {
@@ -175,7 +176,7 @@ void main() {
     },
   );
 
-  testWidgets('grouped list dividers use symmetric horizontal insets', (
+  testWidgets('grouped list uses the shared settings tile design', (
     tester,
   ) async {
     await open(tester);
@@ -200,11 +201,10 @@ void main() {
       expect(divider.indent, 16);
       expect(divider.endIndent, 16);
     }
-    final tiles = find.byType(ListTile);
+    final tiles = find.byType(SettingsMenuTile);
     expect(tiles, findsNWidgets(3));
     for (var index = 0; index < 3; index++) {
-      final tileTheme = ListTileTheme.of(tester.element(tiles.at(index)));
-      expect(tileTheme.minTileHeight, 68);
+      expect(tester.getSize(tiles.at(index)).height, greaterThanOrEqualTo(72));
     }
     expect(tester.takeException(), isNull);
   });

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:servllama/shared/widgets/settings_tile_list.dart';
 
 /// A single setting row that matches the app's standard settings tile:
 /// a 24px icon box, a `bodyLarge` w500 title, an optional subtitle,
@@ -50,6 +51,12 @@ class SettingsMenuTile extends StatefulWidget {
 }
 
 class _SettingsMenuTileState extends State<SettingsMenuTile> {
+  static const _oneLineHeight = 56.0;
+  static const _twoLineHeight = 72.0;
+  static const _threeLineHeight = 88.0;
+  static const _standardVerticalPadding = 8.0;
+  static const _threeLineVerticalPadding = 12.0;
+
   bool _isPressed = false;
 
   void _setPressed(bool value) {
@@ -65,8 +72,12 @@ class _SettingsMenuTileState extends State<SettingsMenuTile> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isGrouped =
+        context.dependOnInheritedWidgetOfExactType<SettingsTileGroupScope>() !=
+        null;
     final contentOpacity = _isPressed ? 0.58 : 1.0;
     final effectiveOnTap = widget.enabled ? widget.onTap : null;
+    final textContent = _buildTextContent(theme, colorScheme);
 
     return Semantics(
       button: effectiveOnTap != null,
@@ -96,28 +107,39 @@ class _SettingsMenuTileState extends State<SettingsMenuTile> {
               const SizedBox(width: 14),
               Expanded(
                 flex: 2,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.title,
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    if (widget.subtitle != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        widget.subtitle!,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                          height: 1.35,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
+                child: isGrouped
+                    ? LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isThreeLine = _isMultilineSubtitle(
+                            context,
+                            theme,
+                            colorScheme,
+                            constraints.maxWidth,
+                          );
+                          final minHeight = widget.subtitle == null
+                              ? _oneLineHeight
+                              : isThreeLine
+                              ? _threeLineHeight
+                              : _twoLineHeight;
+                          final verticalPadding = isThreeLine
+                              ? _threeLineVerticalPadding
+                              : _standardVerticalPadding;
+
+                          return ConstrainedBox(
+                            constraints: BoxConstraints(minHeight: minHeight),
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(
+                                vertical: verticalPadding,
+                              ),
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: textContent,
+                              ),
+                            ),
+                          );
+                        },
+                      )
+                    : textContent,
               ),
               if (widget.trailing != null) ...[
                 const SizedBox(width: 12),
@@ -149,6 +171,58 @@ class _SettingsMenuTileState extends State<SettingsMenuTile> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildTextContent(ThemeData theme, ColorScheme colorScheme) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.title,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        if (widget.subtitle != null) ...[
+          const SizedBox(height: 2),
+          Text(widget.subtitle!, style: _subtitleStyle(theme, colorScheme)),
+        ],
+      ],
+    );
+  }
+
+  bool _isMultilineSubtitle(
+    BuildContext context,
+    ThemeData theme,
+    ColorScheme colorScheme,
+    double maxWidth,
+  ) {
+    if (widget.subtitle == null || !maxWidth.isFinite || maxWidth <= 0) {
+      return false;
+    }
+
+    final painter = TextPainter(
+      text: TextSpan(
+        text: widget.subtitle,
+        style:
+            _subtitleStyle(theme, colorScheme) ??
+            DefaultTextStyle.of(context).style,
+      ),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      locale: Localizations.maybeLocaleOf(context),
+    )..layout(maxWidth: maxWidth);
+    final isMultiline = painter.computeLineMetrics().length > 1;
+    painter.dispose();
+    return isMultiline;
+  }
+
+  TextStyle? _subtitleStyle(ThemeData theme, ColorScheme colorScheme) {
+    return theme.textTheme.bodyMedium?.copyWith(
+      color: colorScheme.onSurfaceVariant,
+      height: 1.35,
     );
   }
 }

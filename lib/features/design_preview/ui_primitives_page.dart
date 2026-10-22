@@ -3,6 +3,8 @@ import 'package:servllama/shared/widgets/app_tab_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:servllama/shared/widgets/app_message.dart';
 import 'package:servllama/shared/widgets/numeric_slider.dart';
+import 'package:servllama/shared/widgets/settings_menu_tile.dart';
+import 'package:servllama/shared/widgets/settings_tile_list.dart';
 import 'package:servllama/features/design_preview/preview_theme.dart';
 import 'package:servllama/l10n/l10n.dart';
 
@@ -725,43 +727,30 @@ class _UiPrimitivesPageState extends State<UiPrimitivesPage> {
               ),
               _Section('02', l.uiLabManagement, l.uiLabManagementHint),
               _Surface(
-                child: ListTileTheme(
-                  data: Theme.of(
-                    context,
-                  ).listTileTheme.copyWith(minTileHeight: 68),
-                  child: Column(
-                    children: [
-                      ListTile(
-                        leading: const _IconDisc(
-                          Icons.person_outline_rounded,
-                          primary: true,
-                        ),
-                        title: Text(l.uiLabAssistant),
-                        subtitle: Text(l.uiLabAssistantHint),
-                        trailing: const Icon(Icons.chevron_right_rounded),
-                        onTap: () => _models(context),
+                child: SettingsTileList.grouped(
+                  children: [
+                    SettingsMenuTile(
+                      icon: Icons.person_outline_rounded,
+                      title: l.uiLabAssistant,
+                      subtitle: l.uiLabAssistantHint,
+                      onTap: () => _models(context),
+                    ),
+                    SettingsMenuTile(
+                      icon: Icons.cloud_outlined,
+                      title: 'OpenAI',
+                      subtitle: l.uiLabProviderHint,
+                      trailing: Switch(
+                        value: _enabled,
+                        onChanged: (value) => setState(() => _enabled = value),
                       ),
-                      const Divider(indent: 16, endIndent: 16),
-                      ListTile(
-                        leading: const Icon(Icons.cloud_outlined),
-                        title: const Text('OpenAI'),
-                        subtitle: Text(l.uiLabProviderHint),
-                        trailing: Switch(
-                          value: _enabled,
-                          onChanged: (value) =>
-                              setState(() => _enabled = value),
-                        ),
-                      ),
-                      const Divider(indent: 16, endIndent: 16),
-                      ListTile(
-                        leading: const Icon(Icons.graphic_eq_rounded),
-                        title: Text(l.uiLabVoice),
-                        subtitle: Text(l.uiLabVoiceHint),
-                        trailing: const Icon(Icons.chevron_right_rounded),
-                        onTap: () => _feedback(context),
-                      ),
-                    ],
-                  ),
+                    ),
+                    SettingsMenuTile(
+                      icon: Icons.graphic_eq_rounded,
+                      title: l.uiLabVoice,
+                      subtitle: l.uiLabVoiceHint,
+                      onTap: () => _feedback(context),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 12),

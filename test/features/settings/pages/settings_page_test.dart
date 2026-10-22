@@ -101,10 +101,7 @@ void main() {
         isTrue,
       );
       final themeTile = find.byKey(const Key('settings_theme_mode_tile'));
-      final themeTileRow = find
-          .ancestor(of: themeTile, matching: find.byType(Padding))
-          .first;
-      expect(tester.getSize(themeTileRow).height, greaterThanOrEqualTo(76));
+      expect(tester.getSize(themeTile).height, greaterThanOrEqualTo(72));
       final dividers = find.byType(Divider);
       expect(dividers, findsWidgets);
       for (final divider in tester.widgetList<Divider>(dividers)) {

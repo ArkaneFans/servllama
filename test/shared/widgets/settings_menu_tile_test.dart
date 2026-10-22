@@ -4,10 +4,13 @@ import 'package:servllama/shared/widgets/settings_menu_tile.dart';
 import 'package:servllama/shared/widgets/settings_section.dart';
 
 void main() {
-  testWidgets('grouped tile height grows with a multi-line subtitle', (
+  testWidgets('grouped tiles follow the three Material list heights', (
     tester,
   ) async {
-    final subtitle = List.filled(12, 'Dynamic subtitle content').join(' ');
+    final multilineSubtitle = List.filled(
+      4,
+      'Dynamic subtitle content',
+    ).join(' ');
 
     await tester.pumpWidget(
       MaterialApp(
@@ -21,10 +24,22 @@ void main() {
                   title: 'Section',
                   children: [
                     SettingsMenuTile(
-                      key: const Key('dynamic_tile'),
+                      key: const Key('one_line_tile'),
+                      icon: Icons.info_outline_rounded,
+                      title: 'One line',
+                    ),
+                    SettingsMenuTile(
+                      key: const Key('two_line_tile'),
                       icon: Icons.info_outline_rounded,
                       title: 'Title',
-                      subtitle: subtitle,
+                      subtitle: 'Short',
+                      onTap: () {},
+                    ),
+                    SettingsMenuTile(
+                      key: const Key('multiline_tile'),
+                      icon: Icons.info_outline_rounded,
+                      title: 'Title',
+                      subtitle: multilineSubtitle,
                       onTap: () {},
                     ),
                   ],
@@ -39,8 +54,16 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(
-      tester.getSize(find.byKey(const Key('dynamic_tile'))).height,
-      greaterThan(76),
+      tester.getSize(find.byKey(const Key('one_line_tile'))).height,
+      moreOrLessEquals(56),
+    );
+    expect(
+      tester.getSize(find.byKey(const Key('two_line_tile'))).height,
+      moreOrLessEquals(72),
+    );
+    expect(
+      tester.getSize(find.byKey(const Key('multiline_tile'))).height,
+      greaterThanOrEqualTo(88),
     );
   });
 }

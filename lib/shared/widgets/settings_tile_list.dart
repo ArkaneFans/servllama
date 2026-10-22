@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
 
 /// A vertical list of setting tiles separated by the app's standard divider,
-/// with the same per-tile vertical padding used across the settings page and
-/// server config page.
+/// with the same horizontal inset used across grouped settings pages.
 ///
 /// Extracted from the duplicated private `_SectionItems` so the download
 /// section's tiles line up exactly with the "General"/"Chat"/"About" groups.
+///
+/// Lets [SettingsMenuTile] use grouped-list sizing while ungrouped server
+/// settings keep their existing spacing.
+class SettingsTileGroupScope extends InheritedWidget {
+  const SettingsTileGroupScope({super.key, required super.child});
+
+  @override
+  bool updateShouldNotify(SettingsTileGroupScope oldWidget) => false;
+}
+
 class SettingsTileList extends StatelessWidget {
   const SettingsTileList({super.key, required this.children}) : grouped = false;
 
@@ -16,29 +25,17 @@ class SettingsTileList extends StatelessWidget {
   final bool grouped;
 
   static const _groupedInset = 16.0;
-  static const _groupedVerticalInset = 8.0;
-  static const _groupedMinTileHeight = 76.0;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    final list = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (var index = 0; index < children.length; index++) ...[
           if (grouped)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: _groupedInset),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  minHeight: _groupedMinTileHeight,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: _groupedVerticalInset,
-                  ),
-                  child: children[index],
-                ),
-              ),
+              child: children[index],
             )
           else
             Padding(
@@ -54,5 +51,6 @@ class SettingsTileList extends StatelessWidget {
         ],
       ],
     );
+    return grouped ? SettingsTileGroupScope(child: list) : list;
   }
 }
