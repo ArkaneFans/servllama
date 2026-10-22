@@ -6070,30 +6070,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'What’s on your mind today?'**
   String get chatWelcomeDescription;
-
-  /// No description provided for @chatWelcomeTranscribe.
-  ///
-  /// In en, this message translates to:
-  /// **'Transcribe'**
-  String get chatWelcomeTranscribe;
-
-  /// No description provided for @chatWelcomeSynthesize.
-  ///
-  /// In en, this message translates to:
-  /// **'Synthesize'**
-  String get chatWelcomeSynthesize;
-
-  /// No description provided for @chatWelcomeTranscribeHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Audio to text'**
-  String get chatWelcomeTranscribeHint;
-
-  /// No description provided for @chatWelcomeSynthesizeHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Text to audio'**
-  String get chatWelcomeSynthesizeHint;
 }
 
 class _AppLocalizationsDelegate

@@ -158,7 +158,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.byKey(const Key('chat_welcome_greeting')), findsOneWidget);
-        for (final id in ['server', 'asr', 'tts']) {
+        for (final id in ['server', 'speech']) {
           expect(find.byKey(Key('chat_welcome_$id')), findsOneWidget);
         }
         expect(find.text('先下载一个模型，之后全程在本机运行。'), findsNothing);

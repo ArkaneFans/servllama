@@ -1376,9 +1376,5 @@
   "chatGreetingNoon": "中午好",
   "chatGreetingAfternoon": "下午好",
   "chatGreetingEvening": "晚上好",
-  "chatWelcomeDescription": "今天想聊些什么？",
-  "chatWelcomeTranscribe": "语音转录",
-  "chatWelcomeSynthesize": "语音合成",
-  "chatWelcomeTranscribeHint": "声音转文字",
-  "chatWelcomeSynthesizeHint": "让文字发声"
+  "chatWelcomeDescription": "今天想聊些什么？"
 }

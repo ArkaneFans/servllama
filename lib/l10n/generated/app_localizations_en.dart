@@ -3372,16 +3372,4 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatWelcomeDescription => 'What’s on your mind today?';
-
-  @override
-  String get chatWelcomeTranscribe => 'Transcribe';
-
-  @override
-  String get chatWelcomeSynthesize => 'Synthesize';
-
-  @override
-  String get chatWelcomeTranscribeHint => 'Audio to text';
-
-  @override
-  String get chatWelcomeSynthesizeHint => 'Text to audio';
 }

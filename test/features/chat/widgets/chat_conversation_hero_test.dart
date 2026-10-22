@@ -16,33 +16,37 @@ void main() {
             data: MediaQueryData(textScaler: TextScaler.linear(scale)),
             child: ChatConversationHero(
               now: DateTime(2026, 10, 5, hour),
-              serverStatus: '已停止',
               onServer: action ?? () {},
-              onTranscribe: action ?? () {},
-              onSynthesize: action ?? () {},
+              onSpeech: action ?? () {},
             ),
           ),
         ),
       );
 
-  testWidgets(
-    'welcome shows app identity and unpersonalized local-time greeting',
-    (tester) async {
-      for (final entry in [
-        (5, '早上好'),
-        (11, '中午好'),
-        (14, '下午好'),
-        (18, '晚上好'),
-        (0, '晚上好'),
-      ]) {
-        await tester.pumpWidget(host(hour: entry.$1));
-        expect(find.text(entry.$2), findsOneWidget);
-      }
-      expect(find.byKey(const Key('chat_welcome_app_icon')), findsOneWidget);
-      expect(find.byKey(const Key('chat_welcome_time_icon')), findsOneWidget);
-      await tester.pumpWidget(const SizedBox.shrink());
-    },
-  );
+  testWidgets('welcome uses a light greeting without the app icon', (
+    tester,
+  ) async {
+    for (final entry in [
+      (5, '早上好'),
+      (11, '中午好'),
+      (14, '下午好'),
+      (18, '晚上好'),
+      (0, '晚上好'),
+    ]) {
+      await tester.pumpWidget(host(hour: entry.$1));
+      expect(find.text(entry.$2), findsOneWidget);
+    }
+    expect(find.byKey(const Key('chat_welcome_app_icon')), findsNothing);
+    expect(find.byKey(const Key('chat_welcome_time_icon')), findsOneWidget);
+    final greeting = tester.widget<Text>(
+      find.byKey(const Key('chat_welcome_greeting')),
+    );
+    expect(greeting.style?.fontSize, 22);
+    expect(greeting.style?.fontWeight, FontWeight.w400);
+    final description = tester.widget<Text>(find.text('今天想聊些什么？'));
+    expect(description.style?.fontSize, 18);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   testWidgets('large text in a short viewport keeps every shortcut reachable', (
     tester,
@@ -53,14 +57,33 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     var taps = 0;
     await tester.pumpWidget(host(hour: 14, scale: 2, action: () => taps++));
-    for (final id in ['server', 'asr', 'tts']) {
+    for (final id in ['server', 'speech']) {
       final card = find.byKey(Key('chat_welcome_$id'));
       await tester.ensureVisible(card);
       await tester.pumpAndSettle();
       await tester.tap(card);
       expect(tester.takeException(), isNull);
     }
-    expect(taps, 3);
+    expect(taps, 2);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('welcome shows two equal-height side-by-side cards', (
+    tester,
+  ) async {
+    await tester.pumpWidget(host(hour: 14));
+
+    final server = tester.getRect(find.byKey(const Key('chat_welcome_server')));
+    final speech = tester.getRect(find.byKey(const Key('chat_welcome_speech')));
+    expect(speech.left, greaterThan(server.right));
+    expect(speech.top, server.top);
+    expect(speech.height, server.height);
+    expect(find.text('服务器'), findsOneWidget);
+    expect(find.text('语音工坊'), findsOneWidget);
+    expect(find.text('已停止'), findsNothing);
+    expect(find.text('转录与合成'), findsNothing);
+    expect(find.byKey(const Key('chat_welcome_asr')), findsNothing);
+    expect(find.byKey(const Key('chat_welcome_tts')), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 }

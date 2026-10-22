@@ -1,4 +1,3 @@
-import 'package:servllama/core/models/model_asset.dart';
 import 'package:servllama/features/server/pages/server_page.dart';
 import 'package:servllama/shared/widgets/app_message.dart';
 import 'package:servllama/shared/widgets/app_scaffold.dart';
@@ -750,7 +749,6 @@ class _ChatConversationPanel extends StatelessWidget {
     final snapshot = context.select<ChatProvider, _ChatBodySnapshot>(
       _ChatBodySnapshot.fromProvider,
     );
-    final serverProvider = context.watch<EngineRuntimeProvider?>();
     final animateConversationBody =
         Theme.of(context).platform != TargetPlatform.android;
     final conversationSwitchDelay = animateConversationBody
@@ -767,7 +765,6 @@ class _ChatConversationPanel extends StatelessWidget {
           scrollCoordinator.handleConversationBodyCommitted,
       child: _ChatConversationBody(
         snapshot: snapshot,
-        serverProvider: serverProvider,
         bottomContentPadding: bottomContentPadding,
         scrollCoordinator: scrollCoordinator,
         onCopyMessage: onCopyMessage,
@@ -847,7 +844,6 @@ class _ChatInputPanel extends StatelessWidget {
 class _ChatConversationBody extends StatelessWidget {
   const _ChatConversationBody({
     required this.snapshot,
-    required this.serverProvider,
     required this.bottomContentPadding,
     required this.scrollCoordinator,
     required this.onCopyMessage,
@@ -859,7 +855,6 @@ class _ChatConversationBody extends StatelessWidget {
   });
 
   final _ChatBodySnapshot snapshot;
-  final EngineRuntimeProvider? serverProvider;
   final double bottomContentPadding;
   final ChatScrollCoordinator scrollCoordinator;
   final Future<void> Function(ChatMessageRecord message) onCopyMessage;
@@ -909,12 +904,6 @@ class _ChatConversationBody extends StatelessWidget {
       }
     }
     if (visibleMessages.isEmpty) {
-      final runtime = serverProvider;
-      final status = runtime?.isBusy == true && runtime?.currentPhase != null
-          ? RuntimeLabels.phase(context.l10n, runtime!.currentPhase!)
-          : runtime?.isRunning == true
-          ? context.l10n.serverStatusRunning
-          : context.l10n.serverStatusStopped;
       void open(Widget page) => Navigator.of(
         context,
       ).push(MaterialPageRoute<void>(builder: (_) => page));
@@ -922,12 +911,8 @@ class _ChatConversationBody extends StatelessWidget {
         padding: EdgeInsets.only(bottom: bottomContentPadding),
         child: ChatConversationHero(
           key: ValueKey<String>('chat_conversation_hero_$conversationKey'),
-          serverStatus: status,
           onServer: () => open(const ServerPage()),
-          onTranscribe: () =>
-              open(const SpeechPage(initialKind: AssetKind.asr)),
-          onSynthesize: () =>
-              open(const SpeechPage(initialKind: AssetKind.tts)),
+          onSpeech: () => open(const SpeechPage()),
         ),
       );
     }

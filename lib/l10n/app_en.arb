@@ -1606,9 +1606,5 @@
   "chatGreetingNoon": "Good afternoon",
   "chatGreetingAfternoon": "Good afternoon",
   "chatGreetingEvening": "Good evening",
-  "chatWelcomeDescription": "What’s on your mind today?",
-  "chatWelcomeTranscribe": "Transcribe",
-  "chatWelcomeSynthesize": "Synthesize",
-  "chatWelcomeTranscribeHint": "Audio to text",
-  "chatWelcomeSynthesizeHint": "Text to audio"
+  "chatWelcomeDescription": "What’s on your mind today?"
 }

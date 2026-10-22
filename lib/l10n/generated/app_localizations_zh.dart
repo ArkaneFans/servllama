@@ -3183,16 +3183,4 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get chatWelcomeDescription => '今天想聊些什么？';
-
-  @override
-  String get chatWelcomeTranscribe => '语音转录';
-
-  @override
-  String get chatWelcomeSynthesize => '语音合成';
-
-  @override
-  String get chatWelcomeTranscribeHint => '声音转文字';
-
-  @override
-  String get chatWelcomeSynthesizeHint => '让文字发声';
 }

@@ -1167,23 +1167,16 @@ void main() {
       chat.updateDraft('Keep the welcome draft');
       await tester.pumpWidget(app());
       await tester.pumpAndSettle();
-      for (final entry in [
-        ('server', null),
-        ('asr', AssetKind.asr),
-        ('tts', AssetKind.tts),
-      ]) {
-        await tester.tap(find.byKey(Key('chat_welcome_${entry.$1}')));
+      for (final id in ['server', 'speech']) {
+        await tester.tap(find.byKey(Key('chat_welcome_$id')));
         await tester.pumpAndSettle();
-        if (entry.$2 == null) {
+        if (id == 'server') {
           expect(find.byType(ServerPage), findsOneWidget);
         } else {
           final page = tester.widget<SpeechPage>(find.byType(SpeechPage));
-          expect(page.initialKind, entry.$2);
+          expect(page.initialKind, isNull);
           final context = tester.element(find.byType(TabBarView));
-          expect(
-            DefaultTabController.of(context).index,
-            entry.$2 == AssetKind.asr ? 0 : 1,
-          );
+          expect(DefaultTabController.of(context).index, 0);
         }
         await tester.pageBack();
         await tester.pumpAndSettle();

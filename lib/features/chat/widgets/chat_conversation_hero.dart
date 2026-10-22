@@ -1,28 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:servllama/l10n/l10n.dart';
+import 'package:servllama/shared/theme/app_visual_theme.dart';
 
 /// A welcome surface shared by local, remote and unconfigured empty chats.
 class ChatConversationHero extends StatelessWidget {
   const ChatConversationHero({
     super.key,
     this.now,
-    required this.serverStatus,
     required this.onServer,
-    required this.onTranscribe,
-    required this.onSynthesize,
+    required this.onSpeech,
   });
 
-  final String serverStatus;
   final DateTime? now;
-  final VoidCallback onServer, onTranscribe, onSynthesize;
+  final VoidCallback onServer, onSpeech;
 
   @override
   Widget build(BuildContext context) {
     final l = context.l10n;
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final dark = theme.brightness == Brightness.dark;
     final hour = (now ?? DateTime.now()).hour;
     final greeting = switch (hour) {
       >= 5 && < 11 => l.chatGreetingMorning,
@@ -31,10 +27,6 @@ class ChatConversationHero extends StatelessWidget {
       _ => l.chatGreetingEvening,
     };
     final daytime = hour >= 5 && hour < 18;
-    // Decorative feature accents, independent of engine identity/status colors.
-    final serverAccent = Color(dark ? 0xFF78C5EE : 0xFF227BAA);
-    final transcribeAccent = Color(dark ? 0xFFF1C36F : 0xFFA4660C);
-    final synthesizeAccent = Color(dark ? 0xFF74D2B4 : 0xFF248269);
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact =
@@ -56,14 +48,6 @@ class ChatConversationHero extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      SvgPicture.asset(
-                        'assets/app_icon.svg',
-                        key: const Key('chat_welcome_app_icon'),
-                        width: compact ? 64 : 108,
-                        height: compact ? 64 : 108,
-                        semanticsLabel: l.appTitle,
-                      ),
-                      SizedBox(height: compact ? 8 : 16),
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -73,10 +57,8 @@ class ChatConversationHero extends StatelessWidget {
                                   ? Icons.wb_sunny_outlined
                                   : Icons.nights_stay_outlined,
                               key: const Key('chat_welcome_time_icon'),
-                              size: compact ? 24 : 28,
-                              color: daytime
-                                  ? transcribeAccent
-                                  : colors.primary,
+                              size: compact ? 20 : 22,
+                              color: colors.primary,
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -88,7 +70,8 @@ class ChatConversationHero extends StatelessWidget {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: theme.textTheme.headlineSmall?.copyWith(
-                                fontSize: compact ? 24 : 28,
+                                fontSize: compact ? 20 : 22,
+                                fontWeight: FontWeight.w400,
                               ),
                             ),
                           ),
@@ -99,35 +82,34 @@ class ChatConversationHero extends StatelessWidget {
                         l.chatWelcomeDescription,
                         textAlign: TextAlign.center,
                         style: theme.textTheme.bodyMedium?.copyWith(
+                          fontSize: compact ? 16 : 18,
                           color: colors.onSurfaceVariant,
                         ),
                       ),
                       SizedBox(height: compact ? 20 : 28),
-                      _WelcomeAction(
-                        key: const Key('chat_welcome_server'),
-                        icon: Icons.dns_outlined,
-                        accent: serverAccent,
-                        label: l.serverTitle,
-                        detail: serverStatus,
-                        onTap: onServer,
-                      ),
-                      const SizedBox(height: 12),
-                      _WelcomeAction(
-                        key: const Key('chat_welcome_asr'),
-                        icon: Icons.mic_none_rounded,
-                        accent: transcribeAccent,
-                        label: l.chatWelcomeTranscribe,
-                        detail: l.chatWelcomeTranscribeHint,
-                        onTap: onTranscribe,
-                      ),
-                      const SizedBox(height: 12),
-                      _WelcomeAction(
-                        key: const Key('chat_welcome_tts'),
-                        icon: Icons.graphic_eq_rounded,
-                        accent: synthesizeAccent,
-                        label: l.chatWelcomeSynthesize,
-                        detail: l.chatWelcomeSynthesizeHint,
-                        onTap: onSynthesize,
+                      IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              child: _WelcomeAction(
+                                key: const Key('chat_welcome_server'),
+                                icon: Icons.dns_outlined,
+                                label: l.serverTitle,
+                                onTap: onServer,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _WelcomeAction(
+                                key: const Key('chat_welcome_speech'),
+                                icon: Icons.graphic_eq_rounded,
+                                label: l.v2Speech,
+                                onTap: onSpeech,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -145,14 +127,11 @@ class _WelcomeAction extends StatelessWidget {
   const _WelcomeAction({
     super.key,
     required this.icon,
-    required this.accent,
     required this.label,
-    required this.detail,
     required this.onTap,
   });
   final IconData icon;
-  final Color accent;
-  final String label, detail;
+  final String label;
   final VoidCallback onTap;
 
   @override
@@ -163,50 +142,35 @@ class _WelcomeAction extends StatelessWidget {
       button: true,
       child: Material(
         color: colors.surfaceContainerLowest,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: colors.outlineVariant),
-        ),
         clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppVisualTheme.cardRadius),
+        ),
         child: InkWell(
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Row(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: accent.withValues(
-                      alpha: theme.brightness == Brightness.dark ? .14 : .09,
+                Row(
+                  children: [
+                    Icon(icon, size: 24, color: colors.primary),
+                    const Spacer(),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 20,
+                      color: colors.onSurfaceVariant,
                     ),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(icon, size: 25, color: accent),
+                  ],
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        label,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(detail, style: theme.textTheme.bodySmall),
-                    ],
+                const SizedBox(height: 16),
+                Text(
+                  label,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
                   ),
-                ),
-                const SizedBox(width: 8),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  size: 20,
-                  color: colors.onSurfaceVariant,
                 ),
               ],
             ),
