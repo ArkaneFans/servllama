@@ -1080,7 +1080,6 @@
   "v2ChangeConversationAssistant": "更换此会话的助手",
   "v2ChangeConversationAssistantHelp": "保留本会话的模型、消息、版本和草稿。之后的生成使用新助手的提示词与权限，历史消息署名保持不变。",
   "v2ChooseConversationModel": "请选择模型",
-  "v2AllAssistantHistory": "全部助手的会话",
   "v2ConnectionConversationCount": "{count} 个会话使用此供应商，删除后需重新选择模型。",
   "v2DeleteAssistantHelp": "删除助手会同时删除关联的所有会话、消息和草稿。此操作不可撤销。",
   "@v2ConnectionConversationCount": {
@@ -1185,6 +1184,8 @@
   "settingsUser": "用户设置",
   "settingsSectionServices": "服务与诊断",
   "settingsSectionDeveloper": "开发工具",
+  "settingsUiLabSubtitle": "组件、配色与交互预览",
+  "settingsMigrationPreviewSubtitle": "模拟新版数据迁移流程",
   "settingsMnnTest": "MNN 测试",
   "settingsDebug": "调试",
   "localModelImport": "导入本地模型",

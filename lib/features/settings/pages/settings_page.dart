@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:servllama/app/providers/chat_timeout_provider.dart';
 import 'package:servllama/app/providers/app_locale_provider.dart';
 import 'package:servllama/app/providers/app_theme_mode_provider.dart';
+import 'package:servllama/app/bootstrap/migration_preview_page.dart';
 import 'package:servllama/features/about/pages/about_page.dart';
 import 'package:servllama/features/agent/pages/mcp_servers_page.dart';
 import 'package:servllama/features/agent/pages/skills_page.dart';
@@ -13,6 +14,7 @@ import 'package:servllama/features/assistants/pages/connections_page.dart';
 import 'package:servllama/features/assistants/pages/profile_page.dart';
 import 'package:servllama/features/assistants/providers/assistant_provider.dart';
 import 'package:servllama/features/assistants/widgets/identity_avatar.dart';
+import 'package:servllama/features/design_preview/ui_primitives_page.dart';
 import 'package:servllama/features/logs/pages/app_logs_page.dart';
 import 'package:servllama/features/mnn_test/pages/mnn_test_page.dart';
 import 'package:servllama/features/server/pages/debug_page.dart';
@@ -174,6 +176,22 @@ class SettingsPage extends StatelessWidget {
                       SettingsSection.grouped(
                         title: l10n.settingsSectionDeveloper,
                         children: [
+                          SettingsMenuTile(
+                            key: const Key('settings_ui_lab_tile'),
+                            icon: Icons.widgets_outlined,
+                            title: l10n.uiLabTitle,
+                            subtitle: l10n.settingsUiLabSubtitle,
+                            onTap: () =>
+                                _push(context, const UiPrimitivesPage()),
+                          ),
+                          SettingsMenuTile(
+                            key: const Key('settings_migration_preview_tile'),
+                            icon: Icons.compare_arrows_rounded,
+                            title: l10n.migrationPreviewTitle,
+                            subtitle: l10n.settingsMigrationPreviewSubtitle,
+                            onTap: () =>
+                                _push(context, const MigrationPreviewPage()),
+                          ),
                           SettingsMenuTile(
                             key: const Key('settings_mnn_test_tile'),
                             icon: Icons.memory_outlined,

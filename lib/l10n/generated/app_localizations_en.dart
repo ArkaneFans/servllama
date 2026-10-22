@@ -2628,9 +2628,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2ChooseConversationModel => 'Please select a model';
 
   @override
-  String get v2AllAssistantHistory => 'Conversations from all assistants';
-
-  @override
   String v2ConnectionConversationCount(int count) {
     return '$count conversations use this provider and will need another model selection.';
   }
@@ -2814,6 +2811,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsSectionDeveloper => 'Developer tools';
+
+  @override
+  String get settingsUiLabSubtitle =>
+      'Components, colors and interaction previews';
+
+  @override
+  String get settingsMigrationPreviewSubtitle =>
+      'Preview the new data migration flow';
 
   @override
   String get settingsMnnTest => 'MNN test';

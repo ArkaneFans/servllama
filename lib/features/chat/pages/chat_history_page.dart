@@ -47,8 +47,6 @@ class ChatHistoryPage extends StatelessWidget {
                 autofocus: false,
               ),
               const SizedBox(height: 12),
-              if (context.watch<AssistantProvider?>() != null)
-                Text(l10n.v2AllAssistantHistory),
               Expanded(
                 child: Consumer<ChatProvider>(
                   builder: (context, provider, _) {

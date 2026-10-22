@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:servllama/app/bootstrap/migration_preview_page.dart';
+import 'package:servllama/features/design_preview/ui_primitives_page.dart';
 import 'package:servllama/features/assistants/providers/assistant_provider.dart';
 import 'package:servllama/features/assistants/widgets/identity_avatar.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
@@ -253,6 +255,34 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('ServLlama'), findsOneWidget);
+    });
+
+    testWidgets('opens UI primitives and migration preview from dev tools', (
+      tester,
+    ) async {
+      _useTallSurface(tester);
+
+      await tester.pumpWidget(
+        _TestHost(
+          themeProvider: AppThemeModeProvider(kvStorage: KvStorage()),
+          localeProvider: AppLocaleProvider(kvStorage: KvStorage()),
+          chatTimeoutProvider: ChatTimeoutProvider(kvStorage: KvStorage()),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('开发工具'), findsOneWidget);
+      for (final entry in <String, Type>{
+        'settings_ui_lab_tile': UiPrimitivesPage,
+        'settings_migration_preview_tile': MigrationPreviewPage,
+      }.entries) {
+        await tester.tap(find.byKey(Key(entry.key)));
+        await tester.pumpAndSettle();
+        expect(find.byType(entry.value), findsOneWidget);
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        expect(find.byType(SettingsPage), findsOneWidget);
+      }
     });
   });
 }

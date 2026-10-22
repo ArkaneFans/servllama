@@ -1310,7 +1310,6 @@
   "v2ChangeConversationAssistant": "Change this conversation’s assistant",
   "v2ChangeConversationAssistantHelp": "Keep this conversation’s model, messages, versions and draft. Future replies use the new assistant’s instructions and permissions; historical attribution stays unchanged.",
   "v2ChooseConversationModel": "Please select a model",
-  "v2AllAssistantHistory": "Conversations from all assistants",
   "v2ConnectionConversationCount": "{count} conversations use this provider and will need another model selection.",
   "v2DeleteAssistantHelp": "Deleting this assistant also deletes all associated conversations, messages, and drafts. This cannot be undone.",
   "@v2ConnectionConversationCount": {
@@ -1415,6 +1414,8 @@
   "settingsUser": "User settings",
   "settingsSectionServices": "Services & diagnostics",
   "settingsSectionDeveloper": "Developer tools",
+  "settingsUiLabSubtitle": "Components, colors and interaction previews",
+  "settingsMigrationPreviewSubtitle": "Preview the new data migration flow",
   "settingsMnnTest": "MNN test",
   "settingsDebug": "Debug",
   "localModelImport": "Import local model",

@@ -2489,9 +2489,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2ChooseConversationModel => '请选择模型';
 
   @override
-  String get v2AllAssistantHistory => '全部助手的会话';
-
-  @override
   String v2ConnectionConversationCount(int count) {
     return '$count 个会话使用此供应商，删除后需重新选择模型。';
   }
@@ -2661,6 +2658,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsSectionDeveloper => '开发工具';
+
+  @override
+  String get settingsUiLabSubtitle => '组件、配色与交互预览';
+
+  @override
+  String get settingsMigrationPreviewSubtitle => '模拟新版数据迁移流程';
 
   @override
   String get settingsMnnTest => 'MNN 测试';

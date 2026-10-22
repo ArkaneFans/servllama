@@ -2,7 +2,6 @@ import 'package:servllama/features/settings/pages/download_settings_page.dart';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/rendering.dart';
-import 'package:servllama/features/design_preview/ui_primitives_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -486,6 +485,8 @@ void main() {
     );
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
+    expect(find.byKey(const Key('drawer_ui_primitives')), findsNothing);
+    expect(find.byKey(const Key('drawer_migration_preview')), findsNothing);
     expect(input(tester, 'chat_input_field').focusNode.hasFocus, isFalse);
     expect(tester.testTextInput.isVisible, isFalse);
     final drawerAction = find.descendant(
@@ -508,7 +509,6 @@ void main() {
       'drawer_models_action': ModelLibraryPage,
       'drawer_speech_action': SpeechPage,
       'drawer_settings_action': SettingsPage,
-      'drawer_ui_primitives': UiPrimitivesPage,
     }.entries) {
       await tester.showKeyboard(find.byKey(const Key('drawer_search_input')));
       expect(tester.testTextInput.isVisible, isTrue);

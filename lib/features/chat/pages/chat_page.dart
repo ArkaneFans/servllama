@@ -147,6 +147,7 @@ class _ChatViewState extends State<_ChatView> {
       provider.clearLastError();
       AppMessage.show(context, errorMessage, tone: AppMessageTone.error);
     }
+    _showBudgetMessage(context, provider);
   }
 
   Future<void> _pickFromGallery(BuildContext context) async {
@@ -442,11 +443,15 @@ class _ChatViewState extends State<_ChatView> {
 
   Future<void> _handleRegenerateMessage(
     BuildContext context,
-    ChatMessageRecord message,
-  ) async {
+    ChatMessageRecord message, {
+    bool executeTools = false,
+  }) async {
     _scrollCoordinator.enableAutoStickToBottom();
     final provider = context.read<ChatProvider>();
-    await provider.regenerateFromMessage(message.id);
+    await provider.regenerateFromMessage(
+      message.id,
+      executeTools: executeTools,
+    );
     if (!context.mounted) {
       return;
     }
@@ -455,6 +460,18 @@ class _ChatViewState extends State<_ChatView> {
       provider.clearLastError();
       AppMessage.show(context, errorMessage, tone: AppMessageTone.error);
     }
+    _showBudgetMessage(context, provider);
+  }
+
+  void _showBudgetMessage(BuildContext context, ChatProvider provider) {
+    if (provider.stopReason?.endsWith('Budget') != true) {
+      return;
+    }
+    AppMessage.show(
+      context,
+      context.l10n.v2BudgetReached,
+      tone: AppMessageTone.warning,
+    );
   }
 
   Future<void> _handleSelectMessageVersion(
@@ -481,10 +498,7 @@ class _ChatViewState extends State<_ChatView> {
       case ChatMessageAction.regenerate:
         await _handleRegenerateMessage(context, message);
       case ChatMessageAction.rerun:
-        await context.read<ChatProvider>().regenerateFromMessage(
-          message.id,
-          executeTools: true,
-        );
+        await _handleRegenerateMessage(context, message, executeTools: true);
       case ChatMessageAction.speak:
         await runUiAction(context, () async {
           final answer = await context.read<ChatProvider>().finalAnswer(
@@ -797,11 +811,6 @@ class _ChatInputPanel extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         const AgentApprovalBanner(),
-        if (provider.stopReason?.endsWith('Budget') == true)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Text(context.l10n.v2BudgetReached),
-          ),
         ChatInputBar(
           key: const Key('chat_input_bar'),
           controller: controller,

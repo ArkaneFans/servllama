@@ -1,6 +1,4 @@
 import 'package:servllama/shared/widgets/app_message.dart';
-import 'package:servllama/features/design_preview/ui_primitives_page.dart';
-import 'package:servllama/app/bootstrap/migration_preview_page.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/core/providers/engine_runtime_provider.dart';
@@ -118,51 +116,11 @@ class _MainScaffoldState extends State<MainScaffold> {
                       onOpenChat: _handleSessionOpened,
                     ),
                   ),
-                  Divider(
-                    height: 1,
-                    color: colorScheme.outlineVariant.withAlpha(120),
-                  ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Tooltip(
-                                message: l10n.uiLabTitle,
-                                child: TextButton(
-                                  key: const Key('drawer_ui_primitives'),
-                                  onPressed: () => _pushFromSidebar(
-                                    const UiPrimitivesPage(),
-                                  ),
-                                  child: Text(
-                                    l10n.uiLabTitle,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Tooltip(
-                                message: l10n.migrationPreviewTitle,
-                                child: TextButton(
-                                  key: const Key('drawer_migration_preview'),
-                                  onPressed: () => _pushFromSidebar(
-                                    const MigrationPreviewPage(),
-                                  ),
-                                  child: Text(
-                                    l10n.migrationPreviewTitle,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
                         const AssistantSelector(),
                         const SizedBox(height: 12),
                         Wrap(

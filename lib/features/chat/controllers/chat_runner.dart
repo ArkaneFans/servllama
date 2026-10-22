@@ -1092,16 +1092,11 @@ class ChatRunner extends ChangeNotifier {
     final toolSession = reuseHistory
         ? null
         : await service?.open(_runId!, _conversationId!, config, token);
-    var callsUsed = 0, outputTokens = 0;
+    var callsUsed = 0;
     try {
       for (var round = 0; round < config.assistant.maxTurns; round++) {
         revalidateAuthorization();
         if (token.isCancelled) throw token.cancelError!;
-        final remaining = config.assistant.maxTokens - outputTokens;
-        if (remaining <= 0) {
-          _stopReason = 'tokenBudget';
-          return;
-        }
         final text = StringBuffer();
         final system = config.system + (toolSession?.skillInstructions ?? '');
         final contextSize =
@@ -1119,11 +1114,16 @@ class ChatRunner extends ChangeNotifier {
                   t.images.length * 2000,
             );
         if (contextSize > config.assistant.contextChars) {
-          _stopReason = 'contextBudget';
+          _stopAtBudget(
+            'contextBudget',
+            round: round,
+            callsUsed: callsUsed,
+            contextSize: contextSize,
+          );
           return;
         }
         // Reserve the last request for a tool-free answer, still within the
-        // same turn/token/deadline limits.
+        // same turn and deadline limits.
         final allowTools =
             config.capabilities.supportsTools &&
             !reuseHistory &&
@@ -1140,7 +1140,7 @@ class ChatRunner extends ChangeNotifier {
           system: system,
           tools: allowTools ? (toolSession?.definitions ?? []) : [],
           temperature: config.assistant.temperature,
-          maxTokens: remaining,
+          maxTokens: config.assistant.maxTokens,
         )) {
           text.write(e.text);
           if (e.stopReason != null) completed = e;
@@ -1154,24 +1154,8 @@ class ChatRunner extends ChangeNotifier {
           providerParts: completed.providerParts,
         );
         _trace.add(assistantTurn);
-        outputTokens += completed.outputTokens > 0
-            ? completed.outputTokens
-            : ((text.length +
-                          jsonEncode(
-                            completed.calls.map((c) => c.arguments).toList(),
-                          ).length) /
-                      3)
-                  .ceil();
         if (completed.calls.isEmpty) {
-          if ([
-            'length',
-            'max_tokens',
-            'MAX_TOKENS',
-          ].contains(completed.stopReason)) {
-            _stopReason = 'tokenBudget';
-          } else {
-            _finalAnswer = text.toString();
-          }
+          _finalAnswer = text.toString();
           if (_draftAssistantMessage != null) {
             await _persistDraftDelta(_draftAssistantMessage!, flush: true);
           }
@@ -1181,9 +1165,13 @@ class ChatRunner extends ChangeNotifier {
           throw StateError('Tool calls are disabled for this response');
         }
         if (!allowTools) {
-          _stopReason = callsUsed >= config.assistant.maxToolCalls
-              ? 'toolBudget'
-              : 'turnBudget';
+          _stopAtBudget(
+            callsUsed >= config.assistant.maxToolCalls
+                ? 'toolBudget'
+                : 'turnBudget',
+            round: round,
+            callsUsed: callsUsed,
+          );
           return;
         }
         turns.add(assistantTurn);
@@ -1194,7 +1182,7 @@ class ChatRunner extends ChangeNotifier {
           if (toolSession == null) throw StateError('Tool service unavailable');
           final AiTurn result;
           if (callsUsed >= config.assistant.maxToolCalls) {
-            _stopReason = 'toolBudget';
+            _stopAtBudget('toolBudget', round: round, callsUsed: callsUsed);
             result = AiTurn(
               role: 'tool',
               toolCallId: call.id,
@@ -1214,10 +1202,40 @@ class ChatRunner extends ChangeNotifier {
         }
         yield const ChatStreamDelta(content: '\n\n');
       }
-      _stopReason = 'turnBudget';
+      _stopAtBudget(
+        'turnBudget',
+        round: config.assistant.maxTurns - 1,
+        callsUsed: callsUsed,
+      );
     } finally {
       await toolSession?.close();
     }
+  }
+
+  void _stopAtBudget(
+    String reason, {
+    required int round,
+    int? callsUsed,
+    int? contextSize,
+  }) {
+    if (_stopReason == reason) return;
+    _stopReason = reason;
+    final assistant = _activeConfig?.assistant;
+    _logger.event(
+      'client.run.budget_reached',
+      channel: LogChannel.client,
+      level: LogLevel.warning,
+      fields: {
+        'run': _runId,
+        'reason': reason,
+        'round': round + 1,
+        'calls_used': callsUsed,
+        'max_tool_calls': assistant?.maxToolCalls,
+        'max_turns': assistant?.maxTurns,
+        'context_size': contextSize,
+        'context_limit': assistant?.contextChars,
+      },
+    );
   }
 
   List<ChatMessageRecord> _messagesWithStreamingDraft(

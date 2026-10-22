@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/core/database/app_database.dart';
+import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/features/agent/repositories/agent_repository.dart';
 import 'package:servllama/features/agent/services/agent_tool_service.dart';
 import 'package:servllama/features/assistants/models/assistant.dart';
@@ -25,6 +26,8 @@ import 'package:servllama/features/chat/services/llama_chat_api_client.dart';
 class _Protocol extends ChatProtocolClient {
   bool callTools = true;
   Completer<void>? paused;
+  List<AiEvent> Function(List<AiTurn> turns, List<AiTool> tools)? responder;
+
   @override
   Stream<AiEvent> complete(
     AiConnection c,
@@ -41,6 +44,13 @@ class _Protocol extends ChatProtocolClient {
     if (paused != null) {
       paused!.complete();
       throw await cancelToken.whenCancel;
+    }
+    final responder = this.responder;
+    if (responder != null) {
+      for (final event in responder(turns, tools)) {
+        yield event;
+      }
+      return;
     }
     if (callTools && tools.isNotEmpty && turns.last.role != 'tool') {
       yield const AiEvent(
@@ -71,6 +81,8 @@ void main() {
   late ChatRunner runner;
   late AgentToolService service;
   late _Protocol protocol;
+  late AppLogger logger;
+  late Assistant activeAssistant;
   const assistant = Assistant(id: 'a', name: 'Assistant', tools: ['ask_user']);
   const connection = AiConnection(
     id: 'c',
@@ -95,6 +107,8 @@ void main() {
     service = AgentToolService(AgentRepository(db), directory);
     AgentToolService.current = service;
     final api = LlamaChatApiClient();
+    logger = AppLogger();
+    activeAssistant = assistant;
     sessions = ChatSessionListController(repository: repository);
     conversation = ChatConversationController(
       repository: repository,
@@ -112,6 +126,7 @@ void main() {
             models: models,
             idGenerator: ChatIdGenerator(),
             defaultSessionTitle: 'New chat',
+            logger: logger,
             protocolClient: protocol,
           )
           ..isRemote = true
@@ -121,7 +136,7 @@ void main() {
             status: ChatModelStatus.loaded,
           )
           ..configuration = () async => ChatRunConfig(
-            assistant: assistant,
+            assistant: activeAssistant,
             connection: connection,
             key: '',
             modelId: 'model',
@@ -146,6 +161,53 @@ void main() {
     }
     expect(service.pendingCount, 1);
   }
+
+  test('provider length stops without a token budget', () async {
+    activeAssistant = assistant.changed({'maxTokens': 1});
+    protocol.responder = (_, _) => const [
+      AiEvent(text: 'Partial answer'),
+      AiEvent(stopReason: 'length'),
+    ];
+
+    await runner.sendMessage('Hello');
+
+    expect(runner.stopReason, isNull);
+    expect(
+      logger
+          .entriesFor(LogChannel.client)
+          .where(
+            (entry) => entry.message.contains('client.run.budget_reached'),
+          ),
+      isEmpty,
+    );
+  });
+
+  test('turn budget is logged and exposed as the stop reason', () async {
+    activeAssistant = assistant.changed({'maxTurns': 1});
+    protocol.responder = (_, _) => const [
+      AiEvent(
+        stopReason: 'tool_calls',
+        calls: [
+          AiToolCall(
+            id: 'ask',
+            name: 'ask_user',
+            arguments: {'question': 'Continue?'},
+          ),
+        ],
+      ),
+    ];
+
+    await runner.sendMessage('Hello');
+
+    expect(runner.stopReason, 'turnBudget');
+    final budgetLogs = logger
+        .entriesFor(LogChannel.client)
+        .where((entry) => entry.message.contains('client.run.budget_reached'))
+        .toList();
+    expect(budgetLogs, hasLength(1));
+    expect(budgetLogs.single.level, LogLevel.warning);
+    expect(budgetLogs.single.message, contains('reason="turnBudget"'));
+  });
 
   test(
     'cancelling before any text retains the tool-only reply and its revision',

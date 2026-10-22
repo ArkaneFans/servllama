@@ -4727,12 +4727,6 @@ abstract class AppLocalizations {
   /// **'Please select a model'**
   String get v2ChooseConversationModel;
 
-  /// No description provided for @v2AllAssistantHistory.
-  ///
-  /// In en, this message translates to:
-  /// **'Conversations from all assistants'**
-  String get v2AllAssistantHistory;
-
   /// No description provided for @v2ConnectionConversationCount.
   ///
   /// In en, this message translates to:
@@ -5044,6 +5038,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Developer tools'**
   String get settingsSectionDeveloper;
+
+  /// No description provided for @settingsUiLabSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Components, colors and interaction previews'**
+  String get settingsUiLabSubtitle;
+
+  /// No description provided for @settingsMigrationPreviewSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview the new data migration flow'**
+  String get settingsMigrationPreviewSubtitle;
 
   /// No description provided for @settingsMnnTest.
   ///
