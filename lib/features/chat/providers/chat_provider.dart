@@ -870,15 +870,9 @@ class ChatProvider extends ChangeNotifier {
     );
   }
 
-  Future<void> regenerateFromMessage(
-    String messageId, {
-    bool executeTools = false,
-  }) async {
+  Future<void> regenerateFromMessage(String messageId) async {
     if (!canManageMessages) return;
-    await _generation.regenerateFromMessage(
-      messageId,
-      executeTools: executeTools,
-    );
+    await _generation.regenerateFromMessage(messageId);
   }
 
   void clearLastError() {

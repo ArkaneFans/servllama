@@ -2064,12 +2064,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2Review => '审阅';
 
   @override
-  String get v2Rerun => '重新执行为新一轮';
-
-  @override
-  String get v2RerunHelp => '工具将按当前权限重新运行，需要审批的操作会再次请求确认。';
-
-  @override
   String get v2BudgetReached => '已达到本轮预算，保留已完成的结果。';
 
   @override

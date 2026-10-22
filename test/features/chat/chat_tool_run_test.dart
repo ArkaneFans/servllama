@@ -242,10 +242,7 @@ void main() {
       await runner.sendMessage('Hello');
       final original = conversation.visibleMessages.last;
       protocol.callTools = true;
-      final running = runner.regenerateFromMessage(
-        original.id,
-        executeTools: true,
-      );
+      final running = runner.regenerateFromMessage(original.id);
       await waitForApproval();
       final run = service.activeRunId!;
       runner.cancelStreaming();
@@ -272,10 +269,7 @@ void main() {
       await service.decide('${service.activeRunId}:ask', true, answer: 'Yes');
       await first;
       final original = conversation.visibleMessages.last;
-      final second = runner.regenerateFromMessage(
-        original.id,
-        executeTools: true,
-      );
+      final second = runner.regenerateFromMessage(original.id);
       await waitForApproval();
       final secondRun = service.activeRunId!;
       // Generation/approval owns the draft until it reaches a terminal state.
@@ -371,22 +365,69 @@ void main() {
   );
 
   test(
-    'rephrasing reads saved receipts without executing or claiming new calls',
+    'regeneration starts a fresh tool run and preserves the previous run',
     () async {
       final running = runner.sendMessage('Hello');
       await waitForApproval();
-      await service.decide('${service.activeRunId}:ask', true, answer: 'Yes');
+      final originalRun = service.activeRunId!;
+      await service.decide('$originalRun:ask', true, answer: 'Yes');
       await running;
       final original = conversation.visibleMessages.last;
-      await runner.regenerateFromMessage(original.id);
-      final rephrased = conversation.visibleMessages.last;
-      expect(rephrased.content, 'Final answer');
-      expect(rephrased.runId, isNot(original.runId));
+
+      final regenerating = runner.regenerateFromMessage(original.id);
+      await waitForApproval();
+      final regeneratedRun = service.activeRunId!;
+      expect(regeneratedRun, isNot(originalRun));
+      await service.decide('$regeneratedRun:ask', true, answer: 'Yes');
+      await regenerating;
+
+      final regenerated = conversation.visibleMessages.last;
+      expect(regenerated.content.trim(), 'Final answer');
+      expect(regenerated.runId, regeneratedRun);
       expect(
-        await service.repository.forRun(rephrased.sessionId!, rephrased.runId!),
-        isEmpty,
+        await service.repository.forRun(regenerated.sessionId!, originalRun),
+        hasLength(1),
       );
-      expect(await db.query('SELECT id FROM tool_invocations'), hasLength(1));
+      expect(
+        await service.repository.forRun(regenerated.sessionId!, regeneratedRun),
+        hasLength(1),
+      );
+      expect(await db.query('SELECT id FROM tool_invocations'), hasLength(2));
+    },
+  );
+
+  test(
+    'user regeneration truncates following messages and their runs',
+    () async {
+      final first = runner.sendMessage('First');
+      await waitForApproval();
+      final firstRun = service.activeRunId!;
+      await service.decide('$firstRun:ask', true, answer: 'Yes');
+      await first;
+
+      protocol.callTools = false;
+      await runner.sendMessage('Second');
+      final user = conversation.visibleMessages.first;
+      final removedRuns = conversation.visibleMessages
+          .where((message) => message.role == ChatRole.assistant)
+          .map((message) => message.runId!)
+          .toSet();
+      expect(removedRuns, hasLength(2));
+
+      await runner.regenerateFromMessage(user.id);
+
+      final messages = conversation.visibleMessages;
+      expect(messages, hasLength(2));
+      expect(messages.first.id, user.id);
+      expect(messages.last.role, ChatRole.assistant);
+      expect(messages.last.runId, isNot(isIn(removedRuns)));
+      expect(await db.query('SELECT id FROM tool_invocations'), isEmpty);
+      for (final runId in removedRuns) {
+        expect(
+          await db.query('SELECT id FROM generation_runs WHERE id=?', [runId]),
+          isEmpty,
+        );
+      }
     },
   );
 

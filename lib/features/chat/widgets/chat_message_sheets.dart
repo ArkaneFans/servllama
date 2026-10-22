@@ -4,15 +4,7 @@ import 'package:servllama/features/speech/services/speech_job_service.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/l10n/l10n.dart';
 
-enum ChatMessageAction {
-  copy,
-  edit,
-  regenerate,
-  rerun,
-  speak,
-  deleteVersion,
-  delete,
-}
+enum ChatMessageAction { copy, edit, regenerate, speak, deleteVersion, delete }
 
 class ChatMessageActionSheet extends StatelessWidget {
   const ChatMessageActionSheet({
@@ -55,16 +47,6 @@ class ChatMessageActionSheet extends StatelessWidget {
                         Navigator.of(context).pop(ChatMessageAction.regenerate)
                   : null,
             ),
-            if (message.runId != null)
-              ListTile(
-                leading: const Icon(Icons.replay_circle_filled_outlined),
-                title: Text(l10n.v2Rerun),
-                subtitle: Text(l10n.v2RerunHelp),
-                enabled: canRegenerate,
-                onTap: canRegenerate
-                    ? () => Navigator.of(context).pop(ChatMessageAction.rerun)
-                    : null,
-              ),
             if (message.role == ChatRole.assistant &&
                 context.read<SpeechJobService?>() != null)
               ListTile(

@@ -1113,8 +1113,6 @@
   "v2Reject": "Reject",
   "v2ApproveOnce": "Allow once",
   "v2Review": "Review",
-  "v2Rerun": "Execute as a new run",
-  "v2RerunHelp": "Tools use current permissions; actions that require approval will ask again.",
   "v2BudgetReached": "Run budget reached. Completed results are retained.",
   "v2Interrupted": "Interrupted. Create a new task explicitly to retry.",
   "v2Speech": "Voice Workshop",

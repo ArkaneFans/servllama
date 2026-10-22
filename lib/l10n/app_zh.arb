@@ -900,8 +900,6 @@
   "v2Reject": "拒绝",
   "v2ApproveOnce": "允许本次",
   "v2Review": "审阅",
-  "v2Rerun": "重新执行为新一轮",
-  "v2RerunHelp": "工具将按当前权限重新运行，需要审批的操作会再次请求确认。",
   "v2BudgetReached": "已达到本轮预算，保留已完成的结果。",
   "v2Interrupted": "执行已中断，请明确创建新任务重试。",
   "v2Speech": "语音工坊",

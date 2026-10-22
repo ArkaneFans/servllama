@@ -442,15 +442,11 @@ class _ChatViewState extends State<_ChatView> {
 
   Future<void> _handleRegenerateMessage(
     BuildContext context,
-    ChatMessageRecord message, {
-    bool executeTools = false,
-  }) async {
+    ChatMessageRecord message,
+  ) async {
     _scrollCoordinator.enableAutoStickToBottom();
     final provider = context.read<ChatProvider>();
-    await provider.regenerateFromMessage(
-      message.id,
-      executeTools: executeTools,
-    );
+    await provider.regenerateFromMessage(message.id);
     if (!context.mounted) {
       return;
     }
@@ -496,8 +492,6 @@ class _ChatViewState extends State<_ChatView> {
         await _handleEditMessage(context, message);
       case ChatMessageAction.regenerate:
         await _handleRegenerateMessage(context, message);
-      case ChatMessageAction.rerun:
-        await _handleRegenerateMessage(context, message, executeTools: true);
       case ChatMessageAction.speak:
         await runUiAction(context, () async {
           final answer = await context.read<ChatProvider>().finalAnswer(

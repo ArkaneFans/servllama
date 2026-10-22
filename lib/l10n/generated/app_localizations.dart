@@ -3917,18 +3917,6 @@ abstract class AppLocalizations {
   /// **'Review'**
   String get v2Review;
 
-  /// No description provided for @v2Rerun.
-  ///
-  /// In en, this message translates to:
-  /// **'Execute as a new run'**
-  String get v2Rerun;
-
-  /// No description provided for @v2RerunHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Tools use current permissions; actions that require approval will ask again.'**
-  String get v2RerunHelp;
-
   /// No description provided for @v2BudgetReached.
   ///
   /// In en, this message translates to:

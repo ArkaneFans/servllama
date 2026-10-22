@@ -2172,13 +2172,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2Review => 'Review';
 
   @override
-  String get v2Rerun => 'Execute as a new run';
-
-  @override
-  String get v2RerunHelp =>
-      'Tools use current permissions; actions that require approval will ask again.';
-
-  @override
   String get v2BudgetReached =>
       'Run budget reached. Completed results are retained.';
 
