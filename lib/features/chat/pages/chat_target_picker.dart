@@ -266,7 +266,12 @@ class _ChatTargetPickerState extends State<ChatTargetPicker> {
       if (c.models.isEmpty) continue;
       final matchesProvider = c.name.toLowerCase().contains(query);
       final models = c.models
-          .where((id) => matchesProvider || id.toLowerCase().contains(query))
+          .where(
+            (id) =>
+                matchesProvider ||
+                id.toLowerCase().contains(query) ||
+                c.nameFor(id).toLowerCase().contains(query),
+          )
           .toList();
       if (!matchesProvider && models.isEmpty) continue;
       slivers.add(SliverToBoxAdapter(child: _ProviderHeading(name: c.name)));
@@ -276,6 +281,7 @@ class _ChatTargetPickerState extends State<ChatTargetPicker> {
           itemBuilder: (context, index) {
             final id = models[index];
             final target = ChatTarget.remote(c.id, id);
+            final modelName = c.nameFor(id);
             return ListTile(
               key: ValueKey('chat_target_remote_${c.id}_$id'),
               leading: AiIdentityIcon(
@@ -293,7 +299,11 @@ class _ChatTargetPickerState extends State<ChatTargetPicker> {
                 borderRadius: BorderRadius.circular(18),
               ),
               selectedTileColor: Theme.of(context).colorScheme.primaryContainer,
-              title: Text(id, maxLines: 1, overflow: TextOverflow.ellipsis),
+              title: Text(
+                modelName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
               enabled: !disabled && c.enabled,
               selected: _selected(current, target),
               onTap: () => _choose(target),

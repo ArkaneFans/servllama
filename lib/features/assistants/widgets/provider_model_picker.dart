@@ -2,60 +2,6 @@ import 'package:servllama/shared/widgets/ai_identity_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:servllama/l10n/l10n.dart';
 
-class AddProviderModelDialog extends StatefulWidget {
-  const AddProviderModelDialog({super.key, required this.existing});
-  final Set<String> existing;
-  @override
-  State<AddProviderModelDialog> createState() => _AddProviderModelDialogState();
-}
-
-class _AddProviderModelDialogState extends State<AddProviderModelDialog> {
-  final input = TextEditingController();
-  final form = GlobalKey<FormState>();
-  @override
-  void dispose() {
-    input.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l = context.l10n;
-    return AlertDialog(
-      title: Text(l.v2AddModel),
-      content: Form(
-        key: form,
-        child: TextFormField(
-          key: const Key('provider_manual_model'),
-          controller: input,
-          autofocus: true,
-          maxLength: 512,
-          decoration: InputDecoration(labelText: l.v2ModelId),
-          validator: (value) => value == null || value.trim().isEmpty
-              ? l.v2ModelIdRequired
-              : widget.existing.contains(value.trim())
-              ? l.v2ModelAlreadyAdded
-              : null,
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(l.commonCancel),
-        ),
-        FilledButton(
-          onPressed: () {
-            if (form.currentState!.validate()) {
-              Navigator.pop(context, input.text.trim());
-            }
-          },
-          child: Text(l.v2Add),
-        ),
-      ],
-    );
-  }
-}
-
 /// Endpoint results are candidates, never a replacement for the saved list.
 class ProviderModelPicker extends StatefulWidget {
   const ProviderModelPicker({

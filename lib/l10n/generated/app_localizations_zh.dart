@@ -2572,6 +2572,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2AddModel => '手动添加模型';
 
   @override
+  String get v2AddModelAction => '添加';
+
+  @override
+  String get v2EditModel => '编辑模型';
+
+  @override
   String get v2RemoveModel => '移除模型';
 
   @override
@@ -3127,10 +3133,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get v2ModelCapabilities => '模型能力';
-
-  @override
-  String get v2ModelCapabilitiesHelp =>
-      '请按模型说明设置能力。获取模型仅返回模型 ID，不检测图片或工具支持情况。模型修改会立即保存。';
 
   @override
   String get v2ModelText => '文本';

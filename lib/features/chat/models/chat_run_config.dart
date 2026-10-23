@@ -50,6 +50,7 @@ class ChatRunConfig {
       ..remove('chatTarget'),
     'connection': connection.toJson()
       ..remove('sortOrder')
+      ..remove('modelNames')
       ..['models'] = [modelId]
       ..['modelCapabilities'] = {modelId: capabilities.toJson()},
     'modelId': modelId,

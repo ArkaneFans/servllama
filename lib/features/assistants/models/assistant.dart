@@ -144,6 +144,7 @@ class AiConnection {
     this.models = const [],
     this.revision = 1,
     this.modelCapabilities = const {},
+    this.modelNames = const {},
     this.enabled = true,
     this.sortOrder = 0,
   });
@@ -158,8 +159,14 @@ class AiConnection {
   /// Repository-owned catalog position; lower values appear first.
   final int sortOrder;
   final Map<String, ModelCapabilities> modelCapabilities;
+  final Map<String, String> modelNames;
   ModelCapabilities capabilitiesFor(String id) =>
       modelCapabilities[id] ?? const ModelCapabilities();
+  String nameFor(String id) {
+    final name = modelNames[id]?.trim();
+    return name == null || name.isEmpty ? id : name;
+  }
+
   bool hasModel(String? id) => enabled && models.contains(id);
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -173,32 +180,50 @@ class AiConnection {
     'modelCapabilities': {
       for (final model in models) model: capabilitiesFor(model).toJson(),
     },
+    'modelNames': {
+      for (final model in models)
+        if (modelNames[model]?.trim().isNotEmpty == true)
+          model: modelNames[model]!.trim(),
+    },
     'enabled': enabled,
     'sortOrder': sortOrder,
   };
-  factory AiConnection.fromJson(Map<String, dynamic> j) => AiConnection(
-    id: j['id'],
-    name: j['name'],
-    protocol: AiProtocol.values.byName(j['protocol']),
-    baseUrl: j['baseUrl'],
-    apiPath: j['apiPath'],
-    secretRef: j['secretRef'],
-    models: List<String>.unmodifiable(j['models'] ?? []),
-    revision: j['revision'] ?? 1,
-    modelCapabilities: Map.unmodifiable({
-      for (final model in List<String>.from(j['models'] ?? []))
-        model: ModelCapabilities.fromJson(
-          Map<String, dynamic>.from(
-            (j['modelCapabilities'] as Map?)?[model] ??
-                // Read old provider-wide settings for its existing models only.
-                // New writes contain model settings and drop the retired flags.
-                (j.containsKey('modelCapabilities') ? <String, dynamic>{} : j),
+  factory AiConnection.fromJson(Map<String, dynamic> j) {
+    final models = List<String>.unmodifiable(j['models'] ?? []);
+    final rawNames = Map<String, dynamic>.from(j['modelNames'] as Map? ?? {});
+    return AiConnection(
+      id: j['id'],
+      name: j['name'],
+      protocol: AiProtocol.values.byName(j['protocol']),
+      baseUrl: j['baseUrl'],
+      apiPath: j['apiPath'],
+      secretRef: j['secretRef'],
+      models: models,
+      revision: j['revision'] ?? 1,
+      modelCapabilities: Map.unmodifiable({
+        for (final model in models)
+          model: ModelCapabilities.fromJson(
+            Map<String, dynamic>.from(
+              (j['modelCapabilities'] as Map?)?[model] ??
+                  // Read old provider-wide settings for its existing models
+                  // only. New writes contain model settings and drop the
+                  // retired flags.
+                  (j.containsKey('modelCapabilities')
+                      ? <String, dynamic>{}
+                      : j),
+            ),
           ),
-        ),
-    }),
-    enabled: j['enabled'] ?? true,
-    sortOrder: j['sortOrder'] ?? 0,
-  );
+      }),
+      modelNames: Map.unmodifiable({
+        for (final model in models)
+          if (rawNames[model] is String &&
+              (rawNames[model] as String).trim().isNotEmpty)
+            model: (rawNames[model] as String).trim(),
+      }),
+      enabled: j['enabled'] ?? true,
+      sortOrder: j['sortOrder'] ?? 0,
+    );
+  }
   AiConnection changed(Map<String, dynamic> changes) =>
       AiConnection.fromJson({...toJson(), ...changes});
   void validate() {

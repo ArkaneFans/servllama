@@ -415,6 +415,21 @@ class _AssistantEditorState extends State<AssistantEditor> {
             .where((assistant) => assistant.id == widget.assistant.id)
             .firstOrNull ??
         widget.assistant;
+    final target = current.chatTarget;
+    final remoteConnection = target?.isRemote == true
+        ? p.connection(target!.connectionId)
+        : null;
+    final targetLabel = target == null
+        ? l.v2NoDefaultModel
+        : !target.isConfigured
+        ? l.v2MissingTarget
+        : target.isRemote
+        ? '${remoteConnection?.name ?? l.v2MissingTarget} / ${remoteConnection?.nameFor(target.modelId ?? '') ?? target.modelId}'
+        : p.assets
+                  .where((asset) => asset.id == target.assetId)
+                  .firstOrNull
+                  ?.name ??
+              l.v2MissingTarget;
     return PopScope(
       canPop: _allowPop,
       onPopInvokedWithResult: (didPop, _) {
@@ -478,22 +493,7 @@ class _AssistantEditorState extends State<AssistantEditor> {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(l.v2AssistantDefaultModel),
-                  subtitle: Text(
-                    current.chatTarget == null
-                        ? l.v2NoDefaultModel
-                        : !current.chatTarget!.isConfigured
-                        ? l.v2MissingTarget
-                        : current.chatTarget!.isRemote
-                        ? '${p.connection(current.chatTarget!.connectionId)?.name ?? l.v2MissingTarget} / ${current.chatTarget!.modelId}'
-                        : p.assets
-                                  .where(
-                                    (asset) =>
-                                        asset.id == current.chatTarget!.assetId,
-                                  )
-                                  .firstOrNull
-                                  ?.name ??
-                              l.v2MissingTarget,
-                  ),
+                  subtitle: Text(targetLabel),
                   onTap: () async {
                     final selected = await showChatTargetPicker(
                       context,

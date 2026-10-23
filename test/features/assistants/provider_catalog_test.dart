@@ -49,10 +49,12 @@ void main() {
       legacy['supportsImages'] = false;
       legacy['supportsTools'] = true;
       legacy['models'] = ['kept', 'other'];
+      legacy['modelNames'] = {'kept': 'Primary', 'other': 'Other'};
       final loaded = AiConnection.fromJson(legacy);
       expect(loaded.capabilitiesFor('kept').supportsImages, isFalse);
       expect(loaded.capabilitiesFor('other').supportsImages, isFalse);
       expect(loaded.capabilitiesFor('other').supportsTools, isTrue);
+      expect(loaded.nameFor('kept'), 'Primary');
       final edited = loaded.changed({
         'modelCapabilities': {
           'kept': const ModelCapabilities(
@@ -80,6 +82,7 @@ void main() {
         }),
       );
       expect(removed.modelCapabilities.keys, ['other']);
+      expect(removed.modelNames.keys, ['other']);
       expect(
         (await repository.connections()).single.toJson(),
         removed.toJson(),
@@ -126,9 +129,11 @@ void main() {
             supportsTools: false,
           ),
         },
+        modelNames: {' model ': ' Friendly model '},
       ),
     );
     expect(saved.models, ['model']);
+    expect(saved.nameFor('model'), 'Friendly model');
     expect(saved.capabilitiesFor('model').supportsImages, isFalse);
     expect(saved.capabilitiesFor('model').supportsTools, isFalse);
   });
@@ -428,6 +433,7 @@ void main() {
       );
       expect(config.authorizedBy(assistant, custom), isTrue);
       expect(config.snapshot()['connection'], isNot(contains('sortOrder')));
+      expect(config.snapshot()['connection'], isNot(contains('modelNames')));
       expect(
         config.authorizedBy(assistant, custom.changed({'enabled': false})),
         isFalse,

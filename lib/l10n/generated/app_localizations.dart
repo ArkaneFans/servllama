@@ -4877,6 +4877,18 @@ abstract class AppLocalizations {
   /// **'Add model manually'**
   String get v2AddModel;
 
+  /// No description provided for @v2AddModelAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get v2AddModelAction;
+
+  /// No description provided for @v2EditModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit model'**
+  String get v2EditModel;
+
   /// No description provided for @v2RemoveModel.
   ///
   /// In en, this message translates to:
@@ -5962,12 +5974,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Model capabilities'**
   String get v2ModelCapabilities;
-
-  /// No description provided for @v2ModelCapabilitiesHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Set capabilities for each model according to its documentation. Fetching models only returns IDs; it does not verify image or tool support. Model changes save immediately.'**
-  String get v2ModelCapabilitiesHelp;
 
   /// No description provided for @v2ModelText.
   ///

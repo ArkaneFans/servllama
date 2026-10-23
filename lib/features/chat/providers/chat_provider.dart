@@ -92,7 +92,7 @@ class ChatProvider extends ChangeNotifier {
       final connection = _assistants?.connection(target.connectionId);
       return connection == null
           ? target.modelId
-          : '${connection.name} / ${target.modelId ?? ''}';
+          : '${connection.name} / ${connection.nameFor(target.modelId ?? '')}';
     }
     return targetAsset?.name;
   }
@@ -346,7 +346,9 @@ class ChatProvider extends ChangeNotifier {
                 ? target.modelId ?? ''
                 : asset?.runtimeId ?? target.assetId ?? '',
             displayName: target.isRemote
-                ? target.modelId ?? ''
+                ? connection?.nameFor(target.modelId ?? '') ??
+                      target.modelId ??
+                      ''
                 : asset?.name ?? target.assetId ?? '',
             status: _generation.targetReady
                 ? ChatModelStatus.loaded

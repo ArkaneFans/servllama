@@ -12,11 +12,11 @@ import 'package:servllama/features/assistants/models/provider_presets.dart';
 import 'package:servllama/features/assistants/pages/connections_page.dart';
 import 'package:servllama/features/assistants/providers/assistant_provider.dart';
 import 'package:servllama/features/assistants/widgets/provider_model_picker.dart';
+import 'package:servllama/features/assistants/widgets/provider_model_sheet.dart';
 import 'package:servllama/features/chat/pages/chat_target_picker.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
 import 'package:servllama/app/app_theme.dart';
 import 'package:servllama/shared/navigation/app_navigation_observer.dart';
-import 'package:servllama/features/assistants/widgets/model_capabilities_sheet.dart';
 
 const _cloud = AiConnection(
   id: 'cloud',
@@ -276,13 +276,30 @@ void main() {
       await reveal(tester, row);
       await tester.tap(row);
       await tester.pumpAndSettle();
+      final idField = find.byKey(const Key('provider_model_id'));
+      final idEditable = tester.widget<EditableText>(
+        find.descendant(of: idField, matching: find.byType(EditableText)),
+      );
+      expect(idEditable.readOnly, isTrue);
+      expect(idEditable.enableInteractiveSelection, isFalse);
+      expect(
+        idEditable.style.color,
+        Theme.of(
+          tester.element(idField),
+        ).colorScheme.onSurface.withValues(alpha: .6),
+      );
+      await tester.enterText(
+        find.byKey(const Key('provider_model_name')),
+        'Primary model',
+      );
       await tester.tap(find.byKey(const Key('model_images')));
       await tester.tap(find.byKey(const Key('model_tools')));
-      await tester.tap(find.byKey(const Key('model_capabilities_done')));
+      await tester.tap(find.byKey(const Key('provider_model_save_button')));
       await tester.pumpAndSettle();
       // Capability edits are stored immediately, without pressing save.
       final saved = settings.connections.first;
       expect(saved.name, 'Cloud fixture');
+      expect(saved.nameFor('kept'), 'Primary model');
       expect(saved.capabilitiesFor('kept').supportsImages, isFalse);
       expect(saved.capabilitiesFor('kept').supportsTools, isFalse);
       expect(saved.capabilitiesFor('other').supportsImages, isTrue);
@@ -331,9 +348,9 @@ void main() {
       await reveal(tester, row);
       await tester.tap(row);
       await tester.pumpAndSettle();
-      expect(find.byType(ModelCapabilitiesSheet), findsOneWidget);
+      expect(find.byType(ProviderModelSheet), findsOneWidget);
       await tester.tap(find.byKey(const Key('model_images')));
-      await tester.tap(find.byKey(const Key('model_capabilities_close')));
+      await tester.tap(find.byKey(const Key('provider_model_close')));
       await tester.pumpAndSettle();
       await tester.tap(row);
       await tester.pumpAndSettle();
@@ -364,6 +381,42 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(ChatTargetPicker), findsNothing);
   });
+
+  testWidgets(
+    'model display names are searchable while targets keep the API model ID',
+    (tester) async {
+      ChatTarget? picked;
+      settings.connections = [
+        _cloud.changed({
+          'modelNames': {'kept': 'Friendly model'},
+        }),
+      ];
+      await tester.pumpWidget(
+        app(
+          pickerLauncher(
+            onSelected: (target) async {
+              picked = target;
+            },
+          ),
+        ),
+      );
+      await tester.tap(find.text('Pick'));
+      await tester.pumpAndSettle();
+      expect(find.text('Friendly model'), findsOneWidget);
+      expect(find.text('kept'), findsNothing);
+      await tester.enterText(
+        find.byKey(const Key('chat_target_search')),
+        'friendly',
+      );
+      await tester.pump();
+      await tester.tap(
+        find.byKey(const ValueKey('chat_target_remote_cloud_kept')),
+      );
+      await tester.pumpAndSettle();
+      expect(picked?.connectionId, 'cloud');
+      expect(picked?.modelId, 'kept');
+    },
+  );
 
   testWidgets(
     'provider rows drop delete actions and deletion lives in the editor',
@@ -462,29 +515,45 @@ void main() {
     await tester.tap(add);
     await tester.pumpAndSettle();
     final l = AppLocalizations.of(
-      tester.element(find.byType(AddProviderModelDialog)),
+      tester.element(find.byType(ProviderModelSheet)),
     )!;
     await tester.enterText(
-      find.byKey(const Key('provider_manual_model')),
+      find.byKey(const Key('provider_model_id')),
       ' kept ',
     );
-    await tester.tap(find.text(l.v2Add));
+    await tester.tap(find.byKey(const Key('provider_model_add_button')));
     await tester.pump();
     expect(find.text(l.v2ModelAlreadyAdded), findsOneWidget);
     await tester.enterText(
-      find.byKey(const Key('provider_manual_model')),
+      find.byKey(const Key('provider_model_id')),
       ' new-model ',
     );
-    await tester.tap(find.text(l.v2Add));
+    await tester.enterText(
+      find.byKey(const Key('provider_model_name')),
+      'New model',
+    );
+    await tester.tap(find.byKey(const Key('model_images')));
+    await tester.tap(find.byKey(const Key('provider_model_add_button')));
     await tester.pumpAndSettle();
     // Adding a model saves it without the provider save action.
     expect(settings.connections.first.models, ['kept', 'new-model']);
+    expect(settings.connections.first.nameFor('new-model'), 'New model');
     expect(
       settings.connections.first.capabilitiesFor('new-model').toJson(),
-      ModelCapabilities.textOnly.toJson(),
+      const ModelCapabilities(
+        supportsImages: true,
+        supportsTools: false,
+      ).toJson(),
     );
     final row = find.byKey(const ValueKey('provider_model_new-model'));
     await reveal(tester, row);
+    expect(find.text('New model'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const Key('provider_models_search')),
+      'New model',
+    );
+    await tester.pump();
+    expect(row, findsOneWidget);
     await tester.tap(
       find.descendant(of: row, matching: find.byType(IconButton)),
     );
@@ -494,7 +563,34 @@ void main() {
     await tester.pumpAndSettle();
     // Removal is stored immediately as well.
     expect(settings.connections.first.models, ['kept']);
+    expect(settings.connections.first.modelNames, isEmpty);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('manual model names follow the ID until the name is edited', (
+    tester,
+  ) async {
+    await tester.pumpWidget(app(editorLauncher()));
+    await openEditor(tester);
+    final add = find.byKey(const Key('provider_add_model'));
+    await reveal(tester, add);
+    await tester.tap(add);
+    await tester.pumpAndSettle();
+
+    final idField = find.byKey(const Key('provider_model_id'));
+    final nameField = find.byKey(const Key('provider_model_name'));
+    await tester.enterText(idField, 'first-model');
+    await tester.pump();
+    expect(tester.widget<TextField>(nameField).controller!.text, 'first-model');
+
+    await tester.enterText(nameField, 'Custom name');
+    await tester.pump();
+    await tester.enterText(idField, 'second-model');
+    await tester.pump();
+    expect(tester.widget<TextField>(nameField).controller!.text, 'Custom name');
+
+    await tester.tap(find.byKey(const Key('provider_model_close')));
+    await tester.pumpAndSettle();
   });
 
   testWidgets(

@@ -2718,6 +2718,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2AddModel => 'Add model manually';
 
   @override
+  String get v2AddModelAction => 'Add';
+
+  @override
+  String get v2EditModel => 'Edit model';
+
+  @override
   String get v2RemoveModel => 'Remove model';
 
   @override
@@ -3309,10 +3315,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get v2ModelCapabilities => 'Model capabilities';
-
-  @override
-  String get v2ModelCapabilitiesHelp =>
-      'Set capabilities for each model according to its documentation. Fetching models only returns IDs; it does not verify image or tool support. Model changes save immediately.';
 
   @override
   String get v2ModelText => 'Text';

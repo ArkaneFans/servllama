@@ -182,15 +182,21 @@ class AssistantRepository {
           nextRef = 'connection:${c.id}:${newId()}';
           await secrets.write(nextRef!, newSecret);
         }
+        final models = c.models.map((id) => id.trim()).toSet().toList();
         final value = c.changed({
           'secretRef': nextRef,
           'revision': (previous?.revision ?? 0) + 1,
           'sortOrder':
               previous?.sortOrder ?? (current.firstOrNull?.sortOrder ?? 0) - 1,
-          'models': c.models.map((id) => id.trim()).toSet().toList(),
+          'models': models,
           'modelCapabilities': {
             for (final id in c.models)
               id.trim(): c.capabilitiesFor(id).toJson(),
+          },
+          'modelNames': {
+            for (final id in c.models)
+              if (c.modelNames[id]?.trim().isNotEmpty == true)
+                id.trim(): c.modelNames[id]!.trim(),
           },
         });
         await db.execute(

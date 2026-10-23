@@ -1,6 +1,6 @@
 import 'package:servllama/shared/widgets/app_tab_bar.dart';
 import 'package:servllama/shared/widgets/settings_section.dart';
-import 'package:servllama/features/assistants/widgets/model_capabilities_sheet.dart';
+import 'package:servllama/features/assistants/widgets/provider_model_sheet.dart';
 import 'package:servllama/features/assistants/widgets/add_connection_sheet.dart';
 import 'package:servllama/shared/widgets/form_list_view.dart';
 import 'package:servllama/shared/widgets/app_scaffold.dart';
@@ -42,7 +42,11 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
         .where(
           (c) =>
               c.name.toLowerCase().contains(query) ||
-              c.models.any((m) => m.toLowerCase().contains(query)),
+              c.models.any(
+                (id) =>
+                    id.toLowerCase().contains(query) ||
+                    c.nameFor(id).toLowerCase().contains(query),
+              ),
         )
         .toList();
     return AppScaffold(
@@ -269,24 +273,35 @@ class _ConnectionEditorState extends State<ConnectionEditor>
   }
 
   Future<void> addManualModel(AiConnection stored) async {
-    final id = await showDialog<String>(
+    final value = await showModalBottomSheet<ProviderModelValue>(
       context: context,
-      builder: (_) => AddProviderModelDialog(existing: stored.models.toSet()),
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (_) => ProviderModelSheet(existing: stored.models.toSet()),
     );
-    if (!mounted || id == null) return;
+    if (!mounted || value == null) return;
     final provider = context.read<AssistantProvider>();
     final current = _stored(provider);
-    final models = [...current.models, id];
+    if (current.models.contains(value.id)) return;
+    final models = [...current.models, value.id];
+    final names = Map<String, String>.from(current.modelNames);
+    if (value.name.isEmpty) {
+      names.remove(value.id);
+    } else {
+      names[value.id] = value.name;
+    }
     await _saveModels(
       provider,
       current.changed({
         'models': models,
         'modelCapabilities': {
           for (final model in models)
-            model: model == id
-                ? ModelCapabilities.textOnly.toJson()
+            model: model == value.id
+                ? value.capabilities.toJson()
                 : current.capabilitiesFor(model).toJson(),
         },
+        'modelNames': names,
       }),
     );
   }
@@ -322,28 +337,41 @@ class _ConnectionEditorState extends State<ConnectionEditor>
     );
   }
 
-  Future<void> editCapabilities(AiConnection stored, String id) async {
-    final value = await showModalBottomSheet<ModelCapabilities>(
+  Future<void> editModel(AiConnection stored, String id) async {
+    final value = await showModalBottomSheet<ProviderModelValue>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => ModelCapabilitiesSheet(
-        model: id,
-        initial: stored.capabilitiesFor(id),
+      showDragHandle: true,
+      builder: (_) => ProviderModelSheet(
+        existing: stored.models.toSet(),
+        modelId: id,
+        modelName: stored.modelNames[id] ?? '',
+        capabilities: stored.capabilitiesFor(id),
       ),
     );
     if (!mounted || value == null) return;
     final provider = context.read<AssistantProvider>();
     final current = _stored(provider);
     if (!current.models.contains(id)) return;
+    final names = Map<String, String>.from(current.modelNames);
+    if (value.name.isEmpty) {
+      names.remove(id);
+    } else {
+      names[id] = value.name;
+    }
     await _saveModels(
       provider,
       current.changed({
         'modelCapabilities': {
           for (final model in current.models)
-            model: (model == id ? value : current.capabilitiesFor(model))
-                .toJson(),
+            model:
+                (model == id
+                        ? value.capabilities
+                        : current.capabilitiesFor(model))
+                    .toJson(),
         },
+        'modelNames': names,
       }),
     );
   }
@@ -593,7 +621,11 @@ class _ConnectionEditorState extends State<ConnectionEditor>
     final theme = Theme.of(context);
     final query = modelSearch.text.trim().toLowerCase();
     final visible = stored.models
-        .where((id) => id.toLowerCase().contains(query))
+        .where(
+          (id) =>
+              id.toLowerCase().contains(query) ||
+              stored.nameFor(id).toLowerCase().contains(query),
+        )
         .toList();
     return CustomScrollView(
       key: const PageStorageKey('provider_models'),
@@ -677,6 +709,7 @@ class _ConnectionEditorState extends State<ConnectionEditor>
               itemBuilder: (context, index) {
                 final id = visible[index];
                 final value = stored.capabilitiesFor(id);
+                final modelName = stored.nameFor(id);
                 return Card(
                   child: ListTile(
                     key: ValueKey('provider_model_$id'),
@@ -685,9 +718,13 @@ class _ConnectionEditorState extends State<ConnectionEditor>
                       providerId: original.id,
                       providerName: name.text,
                     ),
-                    title: Text(id),
+                    title: Text(
+                      modelName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     subtitle: Text(modelCapabilityLabel(context, value)),
-                    onTap: () => editCapabilities(stored, id),
+                    onTap: () => editModel(stored, id),
                     trailing: IconButton(
                       tooltip: l.commonDelete,
                       icon: const Icon(Icons.remove_circle_outline),
