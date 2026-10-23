@@ -1752,20 +1752,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2BaseUrl => 'API 基础地址';
 
   @override
-  String get v2BaseUrlHelp => '包含版本路径，例如 /v1 或 /v1beta；仅可信局域网使用 HTTP。';
-
-  @override
   String get v2ApiKey => 'API Key';
 
   @override
-  String get v2KeyHelp => '安全存储；编辑时留空保留已有密钥。';
-
-  @override
   String get v2ApiPath => 'API 路径';
-
-  @override
-  String get v2ApiPathHelp =>
-      '追加到基础 URL 的聊天补全路径；标准 OpenAI 兼容接口保持 /chat/completions。';
 
   @override
   String get v2ClearKey => '清除已保存的密钥';
@@ -1787,9 +1777,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get v2TestPassed => '测试成功，尚未保存。';
-
-  @override
-  String get v2DraftHelp => '保存后生效；返回放弃未保存的修改。测试连接不会自动保存。';
 
   @override
   String get v2Profile => '用户档案';
@@ -2563,9 +2550,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get v2ProviderEnabled => '启用供应商';
-
-  @override
-  String get v2ProviderEnabledHelp => '禁用后保留配置和历史，停止使用此供应商的运行。';
 
   @override
   String get v2ProviderOn => '已启用';

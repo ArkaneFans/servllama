@@ -1848,22 +1848,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2BaseUrl => 'API base URL';
 
   @override
-  String get v2BaseUrlHelp =>
-      'Include /v1 or /v1beta. Use HTTP only on a trusted local network.';
-
-  @override
   String get v2ApiKey => 'API key';
 
   @override
-  String get v2KeyHelp =>
-      'Stored securely. Leave blank to keep the existing key.';
-
-  @override
   String get v2ApiPath => 'API path';
-
-  @override
-  String get v2ApiPathHelp =>
-      'Chat completions path appended to the base URL. Leave as /chat/completions for standard OpenAI-compatible APIs.';
 
   @override
   String get v2ClearKey => 'Clear saved key';
@@ -1885,10 +1873,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get v2TestPassed => 'Test succeeded. Changes are not saved yet.';
-
-  @override
-  String get v2DraftHelp =>
-      'Save to apply changes; going back discards unsaved edits. Testing a connection does not save.';
 
   @override
   String get v2Profile => 'User profile';
@@ -2711,10 +2695,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get v2ProviderEnabled => 'Enable provider';
-
-  @override
-  String get v2ProviderEnabledHelp =>
-      'Disabling preserves settings and history and stops runs using this provider.';
 
   @override
   String get v2ProviderOn => 'Enabled';

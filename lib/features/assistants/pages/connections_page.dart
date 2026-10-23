@@ -485,7 +485,6 @@ class _ConnectionEditorState extends State<ConnectionEditor>
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(l.v2ProviderEnabled),
-                      subtitle: Text(l.v2ProviderEnabledHelp),
                       value: enabled,
                       onChanged: (value) => setState(() => enabled = value),
                     ),
@@ -520,10 +519,7 @@ class _ConnectionEditorState extends State<ConnectionEditor>
                       controller: url,
                       keyboardType: TextInputType.url,
                       autocorrect: false,
-                      decoration: InputDecoration(
-                        labelText: l.v2BaseUrl,
-                        helperText: l.v2BaseUrlHelp,
-                      ),
+                      decoration: InputDecoration(labelText: l.v2BaseUrl),
                     ),
                     if (protocol == AiProtocol.openai)
                       TextField(
@@ -533,7 +529,6 @@ class _ConnectionEditorState extends State<ConnectionEditor>
                         textInputAction: TextInputAction.next,
                         decoration: InputDecoration(
                           labelText: l.v2ApiPath,
-                          helperText: l.v2ApiPathHelp,
                           hintText: _defaultApiPath,
                         ),
                       ),
@@ -543,10 +538,7 @@ class _ConnectionEditorState extends State<ConnectionEditor>
                       obscureText: true,
                       enableSuggestions: false,
                       autocorrect: false,
-                      decoration: InputDecoration(
-                        labelText: l.v2ApiKey,
-                        helperText: l.v2KeyHelp,
-                      ),
+                      decoration: InputDecoration(labelText: l.v2ApiKey),
                     ),
                     if (original.secretRef != null)
                       CheckboxListTile(
@@ -581,7 +573,6 @@ class _ConnectionEditorState extends State<ConnectionEditor>
                       Text(testResult!, style: theme.textTheme.bodySmall),
                   ],
                 ),
-                Text(l.v2DraftHelp, style: theme.textTheme.bodySmall),
                 FilledButton.icon(
                   key: const Key('provider_save_button'),
                   onPressed: busy ? null : () => _save(stored),
@@ -625,14 +616,6 @@ class _ConnectionEditorState extends State<ConnectionEditor>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               spacing: 16,
               children: [
-                Text(
-                  l.v2ProviderModelCount(stored.models.length),
-                  style: theme.textTheme.titleMedium,
-                ),
-                Text(
-                  l.v2ModelCapabilitiesHelp,
-                  style: theme.textTheme.bodySmall,
-                ),
                 TextField(
                   key: const Key('provider_models_search'),
                   controller: modelSearch,

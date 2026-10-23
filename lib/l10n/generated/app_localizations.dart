@@ -3311,35 +3311,17 @@ abstract class AppLocalizations {
   /// **'API base URL'**
   String get v2BaseUrl;
 
-  /// No description provided for @v2BaseUrlHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Include /v1 or /v1beta. Use HTTP only on a trusted local network.'**
-  String get v2BaseUrlHelp;
-
   /// No description provided for @v2ApiKey.
   ///
   /// In en, this message translates to:
   /// **'API key'**
   String get v2ApiKey;
 
-  /// No description provided for @v2KeyHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Stored securely. Leave blank to keep the existing key.'**
-  String get v2KeyHelp;
-
   /// No description provided for @v2ApiPath.
   ///
   /// In en, this message translates to:
   /// **'API path'**
   String get v2ApiPath;
-
-  /// No description provided for @v2ApiPathHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Chat completions path appended to the base URL. Leave as /chat/completions for standard OpenAI-compatible APIs.'**
-  String get v2ApiPathHelp;
 
   /// No description provided for @v2ClearKey.
   ///
@@ -3382,12 +3364,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Test succeeded. Changes are not saved yet.'**
   String get v2TestPassed;
-
-  /// No description provided for @v2DraftHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Save to apply changes; going back discards unsaved edits. Testing a connection does not save.'**
-  String get v2DraftHelp;
 
   /// No description provided for @v2Profile.
   ///
@@ -4864,12 +4840,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enable provider'**
   String get v2ProviderEnabled;
-
-  /// No description provided for @v2ProviderEnabledHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Disabling preserves settings and history and stops runs using this provider.'**
-  String get v2ProviderEnabledHelp;
 
   /// No description provided for @v2ProviderOn.
   ///

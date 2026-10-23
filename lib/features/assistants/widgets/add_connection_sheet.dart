@@ -120,7 +120,6 @@ class _AddConnectionSheetState extends State<AddConnectionSheet> {
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         title: Text(l.v2ProviderEnabled),
-                        subtitle: Text(l.v2ProviderEnabledHelp),
                         value: enabled,
                         onChanged: (value) => setState(() => enabled = value),
                       ),
@@ -161,10 +160,7 @@ class _AddConnectionSheetState extends State<AddConnectionSheet> {
                         keyboardType: TextInputType.url,
                         autocorrect: false,
                         textInputAction: TextInputAction.next,
-                        decoration: InputDecoration(
-                          labelText: l.v2BaseUrl,
-                          helperText: l.v2BaseUrlHelp,
-                        ),
+                        decoration: InputDecoration(labelText: l.v2BaseUrl),
                       ),
                       if (protocol == AiProtocol.openai)
                         TextField(
@@ -174,7 +170,6 @@ class _AddConnectionSheetState extends State<AddConnectionSheet> {
                           textInputAction: TextInputAction.next,
                           decoration: InputDecoration(
                             labelText: l.v2ApiPath,
-                            helperText: l.v2ApiPathHelp,
                             hintText: _defaultApiPath,
                           ),
                         ),
@@ -185,10 +180,7 @@ class _AddConnectionSheetState extends State<AddConnectionSheet> {
                         enableSuggestions: false,
                         autocorrect: false,
                         textInputAction: TextInputAction.done,
-                        decoration: InputDecoration(
-                          labelText: l.v2ApiKey,
-                          helperText: l.v2KeyHelp,
-                        ),
+                        decoration: InputDecoration(labelText: l.v2ApiKey),
                       ),
                     ],
                   ),
