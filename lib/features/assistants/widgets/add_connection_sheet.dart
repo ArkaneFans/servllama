@@ -33,7 +33,7 @@ class _AddConnectionSheetState extends State<AddConnectionSheet> {
   final Map<AiProtocol, String> _baseUrlsByProtocol = {..._defaultBaseUrls};
   final apiPath = TextEditingController(text: _defaultApiPath);
   final keyInput = TextEditingController();
-  bool enabled = true;
+  bool enabled = true, hideKey = true;
   AiProtocol protocol = AiProtocol.openai;
   bool busy = false;
 
@@ -176,11 +176,24 @@ class _AddConnectionSheetState extends State<AddConnectionSheet> {
                       TextField(
                         key: const Key('provider_key'),
                         controller: keyInput,
-                        obscureText: true,
+                        obscureText: hideKey,
                         enableSuggestions: false,
                         autocorrect: false,
                         textInputAction: TextInputAction.done,
-                        decoration: InputDecoration(labelText: l.v2ApiKey),
+                        decoration: InputDecoration(
+                          labelText: l.v2ApiKey,
+                          suffixIcon: IconButton(
+                            key: const Key('provider_key_visibility'),
+                            tooltip: hideKey ? l.v2ShowApiKey : l.v2HideApiKey,
+                            onPressed: () => setState(() => hideKey = !hideKey),
+                            icon: Icon(
+                              hideKey
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                              size: 20,
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),

@@ -15,11 +15,7 @@ class _Recorder extends AssistantProvider {
     loaded = true;
   }
   @override
-  Future<void> saveConnection(
-    AiConnection c, {
-    String? key,
-    bool clearKey = false,
-  }) async {
+  Future<void> saveConnection(AiConnection c, {String? key}) async {
     saved = c;
     savedKey = key;
   }
@@ -87,6 +83,21 @@ void main() {
     expect(kept.name, 'Y');
     final legacy = AiConnection.fromJson({...c.toJson()}..remove('apiPath'));
     expect(legacy.apiPath, isNull);
+  });
+
+  testWidgets('api key is hidden by default and toggles with the eye action', (
+    tester,
+  ) async {
+    await openSheet(tester);
+    final field = find.byKey(const Key('provider_key'));
+    expect(tester.widget<TextField>(field).obscureText, isTrue);
+
+    final visibility = find.byKey(const Key('provider_key_visibility'));
+    await tester.ensureVisible(visibility);
+    await tester.pumpAndSettle();
+    await tester.tap(visibility);
+    await tester.pump();
+    expect(tester.widget<TextField>(field).obscureText, isFalse);
   });
 
   testWidgets('adds an enabled openai provider with the default api path', (

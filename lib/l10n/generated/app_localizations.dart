@@ -3317,17 +3317,23 @@ abstract class AppLocalizations {
   /// **'API key'**
   String get v2ApiKey;
 
+  /// No description provided for @v2ShowApiKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Show API key'**
+  String get v2ShowApiKey;
+
+  /// No description provided for @v2HideApiKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide API key'**
+  String get v2HideApiKey;
+
   /// No description provided for @v2ApiPath.
   ///
   /// In en, this message translates to:
   /// **'API path'**
   String get v2ApiPath;
-
-  /// No description provided for @v2ClearKey.
-  ///
-  /// In en, this message translates to:
-  /// **'Clear saved key'**
-  String get v2ClearKey;
 
   /// No description provided for @v2ModelsHelp.
   ///

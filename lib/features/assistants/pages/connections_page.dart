@@ -165,12 +165,13 @@ class _ConnectionEditorState extends State<ConnectionEditor>
         : _defaultApiPath,
   );
   final keyInput = TextEditingController();
+  String _savedKey = '';
   final request = CancelToken();
   late bool enabled = original.enabled;
   late AiProtocol protocol = original.protocol;
   late final tabs = TabController(length: 2, vsync: this);
   final modelSearch = TextEditingController();
-  bool busy = false, clearKey = false;
+  bool busy = false, hideKey = true, _keyEdited = false;
   String? testResult;
 
   /// Latest stored row: model edits persist here immediately, while the
@@ -197,7 +198,27 @@ class _ConnectionEditorState extends State<ConnectionEditor>
         if (mounted && testResult != null) setState(() => testResult = null);
       });
     }
+    _loadSavedKey();
   }
+
+  Future<void> _loadSavedKey() async {
+    if (original.secretRef == null) return;
+    try {
+      final value = await context.read<AssistantProvider>().credential(
+        original,
+      );
+      if (!mounted) return;
+      _savedKey = value;
+      if (!_keyEdited) keyInput.text = value;
+    } catch (_) {
+      // Keep the editor usable if secure storage is temporarily unavailable.
+    }
+  }
+
+  String? get _keyForSave =>
+      original.secretRef != null && keyInput.text == _savedKey
+      ? null
+      : keyInput.text;
 
   @override
   void dispose() {
@@ -224,7 +245,6 @@ class _ConnectionEditorState extends State<ConnectionEditor>
       found = await context.read<AssistantProvider>().discover(
         _draft(stored),
         keyInput.text,
-        clearKey: clearKey,
         cancelToken: request,
       );
     });
@@ -341,11 +361,7 @@ class _ConnectionEditorState extends State<ConnectionEditor>
   Future<void> _save(AiConnection stored) async {
     final provider = context.read<AssistantProvider>();
     await act(() async {
-      await provider.saveConnection(
-        _draft(stored),
-        key: keyInput.text,
-        clearKey: clearKey,
-      );
+      await provider.saveConnection(_draft(stored), key: _keyForSave);
       if (mounted) Navigator.pop(context);
     });
   }
@@ -535,21 +551,25 @@ class _ConnectionEditorState extends State<ConnectionEditor>
                     TextField(
                       key: const Key('provider_key'),
                       controller: keyInput,
-                      obscureText: true,
+                      obscureText: hideKey,
                       enableSuggestions: false,
                       autocorrect: false,
-                      decoration: InputDecoration(labelText: l.v2ApiKey),
-                    ),
-                    if (original.secretRef != null)
-                      CheckboxListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(l.v2ClearKey),
-                        value: clearKey,
-                        onChanged: (v) => setState(() {
-                          clearKey = v!;
-                          testResult = null;
-                        }),
+                      onChanged: (_) => _keyEdited = true,
+                      decoration: InputDecoration(
+                        labelText: l.v2ApiKey,
+                        suffixIcon: IconButton(
+                          key: const Key('provider_key_visibility'),
+                          tooltip: hideKey ? l.v2ShowApiKey : l.v2HideApiKey,
+                          onPressed: () => setState(() => hideKey = !hideKey),
+                          icon: Icon(
+                            hideKey
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                            size: 20,
+                          ),
+                        ),
                       ),
+                    ),
                     OutlinedButton.icon(
                       icon: const Icon(Icons.wifi_tethering_rounded, size: 20),
                       onPressed: busy
@@ -560,7 +580,6 @@ class _ConnectionEditorState extends State<ConnectionEditor>
                                 _draft(stored),
                                 keyInput.text,
                                 stored.models.firstOrNull ?? '',
-                                clearKey: clearKey,
                                 cancelToken: request,
                               );
                               if (mounted) {

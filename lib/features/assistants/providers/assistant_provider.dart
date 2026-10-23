@@ -133,17 +133,9 @@ class AssistantProvider extends ChangeNotifier {
 
   Future<void> duplicate(Assistant a) =>
       save(a.changed({'id': newId(), 'revision': 1, 'name': '${a.name} (2)'}));
-  Future<void> saveConnection(
-    AiConnection c, {
-    String? key,
-    bool clearKey = false,
-  }) async {
+  Future<void> saveConnection(AiConnection c, {String? key}) async {
     try {
-      await (await repository).saveConnection(
-        c,
-        newSecret: key,
-        clearSecret: clearKey,
-      );
+      await (await repository).saveConnection(c, newSecret: key);
       _logger.event(
         'client.connection.saved',
         channel: LogChannel.client,
@@ -205,18 +197,13 @@ class AssistantProvider extends ChangeNotifier {
   Future<List<String>> discover(
     AiConnection draft,
     String typedKey, {
-    bool clearKey = false,
     CancelToken? cancelToken,
   }) async {
     final client = ChatProtocolClient(logger: _logger);
     try {
       return await client.listModels(
         draft,
-        typedKey.isNotEmpty
-            ? typedKey
-            : clearKey
-            ? ''
-            : await credential(draft),
+        typedKey.isNotEmpty ? typedKey : await credential(draft),
         cancelToken: cancelToken,
       );
     } finally {
@@ -228,18 +215,13 @@ class AssistantProvider extends ChangeNotifier {
     AiConnection draft,
     String typedKey,
     String model, {
-    bool clearKey = false,
     CancelToken? cancelToken,
   }) async {
     final client = ChatProtocolClient(logger: _logger);
     try {
       await client.test(
         draft,
-        typedKey.isNotEmpty
-            ? typedKey
-            : clearKey
-            ? ''
-            : await credential(draft),
+        typedKey.isNotEmpty ? typedKey : await credential(draft),
         model,
         cancelToken: cancelToken,
       );

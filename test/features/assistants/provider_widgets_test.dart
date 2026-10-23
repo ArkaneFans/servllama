@@ -39,7 +39,8 @@ const _local = ModelAsset(
 
 class _Settings extends AssistantProvider {
   List<String> discovered = ['kept', 'new', 'other'];
-  bool failDiscovery = false, blockDiscovery = false, sawClearKey = false;
+  bool failDiscovery = false, blockDiscovery = false;
+  String? savedKey;
   CancelToken? discoveryToken;
   _Settings() {
     loaded = true;
@@ -69,12 +70,9 @@ class _Settings extends AssistantProvider {
   @override
   Future<void> refreshAssets() async {}
   @override
-  Future<void> saveConnection(
-    AiConnection c, {
-    String? key,
-    bool clearKey = false,
-  }) async {
+  Future<void> saveConnection(AiConnection c, {String? key}) async {
     c.validate();
+    savedKey = key;
     connections = [
       for (final old in connections)
         if (old.id == c.id) c.changed({'revision': old.revision + 1}) else old,
@@ -92,15 +90,17 @@ class _Settings extends AssistantProvider {
   Future<List<String>> discover(
     AiConnection draft,
     String typedKey, {
-    bool clearKey = false,
     CancelToken? cancelToken,
   }) async {
-    sawClearKey = clearKey;
     discoveryToken = cancelToken;
     if (blockDiscovery) throw await cancelToken!.whenCancel;
     if (failDiscovery) throw StateError('Fixture discovery failure');
     return discovered;
   }
+
+  @override
+  Future<String> credential(AiConnection c) async =>
+      c.secretRef == null ? '' : 'stored-secret';
 }
 
 class _Runtime extends Fake
@@ -229,6 +229,33 @@ void main() {
     await tester.ensureVisible(finder);
     await tester.pumpAndSettle();
   }
+
+  testWidgets(
+    'editor loads a stored key, reveals it on demand and keeps it unchanged',
+    (tester) async {
+      await tester.pumpWidget(app(editorLauncher()));
+      await openEditor(tester);
+
+      final keyField = find.byKey(const Key('provider_key'));
+      await tester.ensureVisible(keyField);
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<TextField>(keyField).controller!.text,
+        'stored-secret',
+      );
+      expect(tester.widget<TextField>(keyField).obscureText, isTrue);
+
+      await tester.tap(find.byKey(const Key('provider_key_visibility')));
+      await tester.pump();
+      expect(tester.widget<TextField>(keyField).obscureText, isFalse);
+
+      final save = find.byKey(const Key('provider_save_button'));
+      await revealConfigField(tester, save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+      expect(settings.savedKey, isNull);
+    },
+  );
 
   testWidgets(
     'model capability edits persist at once while configuration keeps a draft',

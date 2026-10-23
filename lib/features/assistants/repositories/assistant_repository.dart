@@ -165,7 +165,6 @@ class AssistantRepository {
   Future<AiConnection> saveConnection(
     AiConnection c, {
     String? newSecret,
-    bool clearSecret = false,
   }) async {
     c.validate();
     String? previousRef, nextRef;
@@ -178,7 +177,7 @@ class AssistantRepository {
           throw StateError('Provider changed; reopen its settings');
         }
         previousRef = previous?.secretRef;
-        nextRef = clearSecret ? null : previousRef;
+        nextRef = previousRef;
         if (newSecret != null && newSecret.isNotEmpty) {
           nextRef = 'connection:${c.id}:${newId()}';
           await secrets.write(nextRef!, newSecret);

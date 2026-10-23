@@ -1755,10 +1755,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2ApiKey => 'API Key';
 
   @override
-  String get v2ApiPath => 'API 路径';
+  String get v2ShowApiKey => '显示 API Key';
 
   @override
-  String get v2ClearKey => '清除已保存的密钥';
+  String get v2HideApiKey => '隐藏 API Key';
+
+  @override
+  String get v2ApiPath => 'API 路径';
 
   @override
   String get v2ModelsHelp => '模型 ID，每行一个（可手工输入）';

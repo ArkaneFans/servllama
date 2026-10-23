@@ -379,7 +379,7 @@ void main() {
   );
 
   test(
-    'failed commit preserves the old credential and clear removes it only after saving',
+    'failed commit preserves the old credential and empty input keeps it',
     () async {
       final original = await repository.saveConnection(
         custom,
@@ -399,12 +399,19 @@ void main() {
         original.toJson(),
       );
       await db.execute('DROP TRIGGER reject_provider');
-      final cleared = await repository.saveConnection(
-        original,
-        clearSecret: true,
+      final preserved = await repository.saveConnection(
+        original.changed({'name': 'Updated'}),
+        newSecret: '',
       );
-      expect(cleared.secretRef, isNull);
-      expect(secrets.values, isEmpty);
+      expect(preserved.secretRef, original.secretRef);
+      expect(secrets.values.values.single, 'fixture-old');
+
+      final replaced = await repository.saveConnection(
+        preserved,
+        newSecret: 'fixture-new',
+      );
+      expect(replaced.secretRef, isNot(preserved.secretRef));
+      expect(secrets.values.values.single, 'fixture-new');
     },
   );
 
@@ -449,7 +456,7 @@ void main() {
   );
 
   test(
-    'discovery respects a cleared credential draft and typed replacement without saving',
+    'discovery uses the stored credential and honors a typed replacement',
     () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       addTearDown(() => server.close(force: true));
@@ -466,13 +473,11 @@ void main() {
       );
       final provider = AssistantProvider(repository: repository);
       addTearDown(provider.dispose);
-      expect(await provider.discover(saved, '', clearKey: true), ['candidate']);
-      await provider.discover(saved, 'fixture-typed-key', clearKey: true);
       await provider.discover(saved, '');
+      await provider.discover(saved, 'fixture-typed-key');
       expect(headers, [
-        null,
-        'Bearer fixture-typed-key',
         'Bearer fixture-stored-key',
+        'Bearer fixture-typed-key',
       ]);
       expect((await repository.connections()).single.toJson(), saved.toJson());
       expect(secrets.values.values.single, 'fixture-stored-key');

@@ -1851,10 +1851,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2ApiKey => 'API key';
 
   @override
-  String get v2ApiPath => 'API path';
+  String get v2ShowApiKey => 'Show API key';
 
   @override
-  String get v2ClearKey => 'Clear saved key';
+  String get v2HideApiKey => 'Hide API key';
+
+  @override
+  String get v2ApiPath => 'API path';
 
   @override
   String get v2ModelsHelp => 'Model IDs, one per line (manual entry supported)';
