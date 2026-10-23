@@ -172,7 +172,6 @@ class _ConnectionEditorState extends State<ConnectionEditor>
   late final tabs = TabController(length: 2, vsync: this);
   final modelSearch = TextEditingController();
   bool busy = false, hideKey = true, _keyEdited = false;
-  String? testResult;
 
   /// Latest stored row: model edits persist here immediately, while the
   /// configuration fields stay in a draft until the bottom save action.
@@ -193,11 +192,6 @@ class _ConnectionEditorState extends State<ConnectionEditor>
   @override
   void initState() {
     super.initState();
-    for (final controller in [name, url, apiPath, keyInput]) {
-      controller.addListener(() {
-        if (mounted && testResult != null) setState(() => testResult = null);
-      });
-    }
     _loadSavedKey();
   }
 
@@ -525,10 +519,7 @@ class _ConnectionEditorState extends State<ConnectionEditor>
                             ),
                           )
                           .toList(),
-                      onChanged: (v) => setState(() {
-                        protocol = v!;
-                        testResult = null;
-                      }),
+                      onChanged: (v) => setState(() => protocol = v!),
                     ),
                     TextField(
                       key: const Key('provider_url'),
@@ -570,26 +561,6 @@ class _ConnectionEditorState extends State<ConnectionEditor>
                         ),
                       ),
                     ),
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.wifi_tethering_rounded, size: 20),
-                      onPressed: busy
-                          ? null
-                          : () => act(() async {
-                              setState(() => testResult = null);
-                              await provider.testConnection(
-                                _draft(stored),
-                                keyInput.text,
-                                stored.models.firstOrNull ?? '',
-                                cancelToken: request,
-                              );
-                              if (mounted) {
-                                setState(() => testResult = l.v2TestPassed);
-                              }
-                            }),
-                      label: Text(l.v2TestConnection),
-                    ),
-                    if (testResult != null)
-                      Text(testResult!, style: theme.textTheme.bodySmall),
                   ],
                 ),
                 FilledButton.icon(
