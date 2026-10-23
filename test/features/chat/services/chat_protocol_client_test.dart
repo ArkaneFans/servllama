@@ -47,6 +47,43 @@ void main() {
       expect(await repo.connections(), isEmpty);
     },
   );
+
+  test('chat requests omit optional output limits by default', () {
+    final client = ChatProtocolClient();
+    addTearDown(() => client.dio.close(force: true));
+    const turns = [AiTurn(role: 'user', text: 'hello')];
+    AiConnection connection(AiProtocol protocol) => AiConnection(
+      id: protocol.name,
+      name: protocol.name,
+      protocol: protocol,
+      baseUrl: 'https://example.com/v1',
+    );
+
+    final openai = client.requestBody(
+      connection(AiProtocol.openai),
+      'model',
+      turns,
+    );
+    expect(openai, isNot(contains('max_tokens')));
+
+    final gemini = client.requestBody(
+      connection(AiProtocol.gemini),
+      'model',
+      turns,
+    );
+    expect(
+      (gemini['generationConfig'] as Map),
+      isNot(contains('maxOutputTokens')),
+    );
+
+    final anthropic = client.requestBody(
+      connection(AiProtocol.anthropic),
+      'model',
+      turns,
+    );
+    expect(anthropic['max_tokens'], 32768);
+  });
+
   for (final protocol in AiProtocol.values) {
     for (final streaming in [false, true]) {
       test(

@@ -25,6 +25,8 @@ import 'package:servllama/features/chat/services/llama_chat_api_client.dart';
 
 class _Protocol extends ChatProtocolClient {
   bool callTools = true;
+  int? receivedMaxTokens;
+  Duration outputDelay = Duration.zero;
   Completer<void>? paused;
   List<AiEvent> Function(List<AiTurn> turns, List<AiTool> tools)? responder;
 
@@ -38,12 +40,16 @@ class _Protocol extends ChatProtocolClient {
     String system = '',
     List<AiTool> tools = const [],
     double temperature = .7,
-    int maxTokens = 2048,
+    int? maxTokens,
     String? runId,
   }) async* {
+    receivedMaxTokens = maxTokens;
     if (paused != null) {
       paused!.complete();
       throw await cancelToken.whenCancel;
+    }
+    if (outputDelay > Duration.zero) {
+      await Future<void>.delayed(outputDelay);
     }
     final responder = this.responder;
     if (responder != null) {
@@ -162,7 +168,7 @@ void main() {
     expect(service.pendingCount, 1);
   }
 
-  test('provider length stops without a token budget', () async {
+  test('assistant maxTokens is not sent to the provider', () async {
     activeAssistant = assistant.changed({'maxTokens': 1});
     protocol.responder = (_, _) => const [
       AiEvent(text: 'Partial answer'),
@@ -171,6 +177,7 @@ void main() {
 
     await runner.sendMessage('Hello');
 
+    expect(protocol.receivedMaxTokens, isNull);
     expect(runner.stopReason, isNull);
     expect(
       logger
@@ -182,31 +189,47 @@ void main() {
     );
   });
 
-  test('turn budget is logged and exposed as the stop reason', () async {
-    activeAssistant = assistant.changed({'maxTurns': 1});
-    protocol.responder = (_, _) => const [
-      AiEvent(
-        stopReason: 'tool_calls',
-        calls: [
-          AiToolCall(
-            id: 'ask',
-            name: 'ask_user',
-            arguments: {'question': 'Continue?'},
-          ),
-        ],
-      ),
-    ];
+  test('assistant turn and tool call fields do not cap the loop', () async {
+    activeAssistant = assistant.changed({'maxTurns': 1, 'maxToolCalls': 0});
+    final running = runner.sendMessage('Hello');
+    await waitForApproval();
+    final run = service.activeRunId!;
+    await service.decide('$run:ask', true, answer: 'Yes');
+    await running;
+
+    final reply = conversation.visibleMessages.last;
+    expect(reply.content.trim(), 'Final answer');
+    expect(reply.runId, run);
+    expect(
+      await service.repository.forRun(reply.sessionId!, run),
+      hasLength(1),
+    );
+    expect(runner.stopReason, isNull);
+  });
+
+  test('assistant contextChars does not restrict the request input', () async {
+    activeAssistant = assistant.changed({
+      'contextChars': 1000,
+      'instructions': 'x' * 2000,
+    });
+    protocol.callTools = false;
 
     await runner.sendMessage('Hello');
 
-    expect(runner.stopReason, 'turnBudget');
-    final budgetLogs = logger
-        .entriesFor(LogChannel.client)
-        .where((entry) => entry.message.contains('client.run.budget_reached'))
-        .toList();
-    expect(budgetLogs, hasLength(1));
-    expect(budgetLogs.single.level, LogLevel.warning);
-    expect(budgetLogs.single.message, contains('reason="turnBudget"'));
+    expect(conversation.visibleMessages.last.content.trim(), 'Final answer');
+    expect(runner.stopReason, isNull);
+  });
+
+  test('assistant timeoutSeconds is not used as a run deadline', () async {
+    activeAssistant = assistant.changed({'timeoutSeconds': 0});
+    protocol
+      ..callTools = false
+      ..outputDelay = const Duration(milliseconds: 20);
+
+    await runner.sendMessage('Hello');
+
+    expect(conversation.visibleMessages.last.content.trim(), 'Final answer');
+    expect(runner.stopReason, isNull);
   });
 
   test(

@@ -660,10 +660,6 @@ class ChatRunner extends ChangeNotifier {
     _activeCancelToken = CancelToken();
     var began = false;
     var terminalState = 'completed';
-    final timeout = Timer(
-      Duration(seconds: _activeConfig?.assistant.timeoutSeconds ?? 180),
-      () => _cancel('deadline'),
-    );
     streamingMessages.update(draftMessage, isStreaming: true);
 
     var currentMessages = _messagesWithStreamingDraft(
@@ -778,7 +774,6 @@ class ChatRunner extends ChangeNotifier {
         }
       }
     } finally {
-      timeout.cancel();
       if (_activeCancelToken?.isCancelled == true) terminalState = 'cancelled';
       try {
         if (began && _draftAssistantMessage != null) {
@@ -947,33 +942,16 @@ class ChatRunner extends ChangeNotifier {
 
   Future<List<AiTurn>> _turns(
     List<ChatMessageRecord> messages,
-    int budget,
     ChatRunConfig config,
   ) async {
-    final chosen = <ChatMessageRecord>[];
     final histories = <String, Map<String, dynamic>>{};
-    var count = 0;
-    for (final m in messages.reversed) {
+    for (final m in messages) {
       final history = await _runs?.history(m);
       if (history != null) histories[m.id] = history;
-      final trace = histories[m.id]?['checkpoint']?['trace'] as List?;
-      final weight =
-          (trace != null && trace.isNotEmpty
-              ? jsonEncode(trace).length
-              : m.content.length) +
-          m.imageFilePaths.length * 2000;
-      if (chosen.isNotEmpty && count + weight > budget) break;
-      if (chosen.isEmpty && weight > budget) {
-        throw const FormatException(
-          'The latest message exceeds this assistant context budget',
-        );
-      }
-      chosen.add(m);
-      count += weight;
     }
     final result = <AiTurn>[];
     final preceding = <ChatMessageRecord>[];
-    for (final m in chosen.reversed) {
+    for (final m in messages) {
       final saved = histories[m.id]?['checkpoint'] as Map?;
       final trace = saved?['trace'] as List?;
       if (trace != null &&
@@ -1043,7 +1021,7 @@ class ChatRunner extends ChangeNotifier {
       );
       return;
     }
-    final turns = await _turns(messages, config.assistant.contextChars, config);
+    final turns = await _turns(messages, config);
     if (!config.capabilities.supportsImages &&
         turns.any((t) => t.images.isNotEmpty)) {
       throw const FormatException('This model does not support images');
@@ -1055,42 +1033,12 @@ class ChatRunner extends ChangeNotifier {
       config,
       token,
     );
-    var callsUsed = 0;
     try {
-      for (var round = 0; round < config.assistant.maxTurns; round++) {
+      while (true) {
         revalidateAuthorization();
         if (token.isCancelled) throw token.cancelError!;
         final text = StringBuffer();
         final system = config.system + (toolSession?.skillInstructions ?? '');
-        final contextSize =
-            system.length +
-            turns.fold<int>(
-              0,
-              (sum, t) =>
-                  sum +
-                  (t.providerParts.isNotEmpty
-                      ? jsonEncode(t.providerParts).length
-                      : t.text.length +
-                            jsonEncode(
-                              t.calls.map((c) => c.toJson()).toList(),
-                            ).length) +
-                  t.images.length * 2000,
-            );
-        if (contextSize > config.assistant.contextChars) {
-          _stopAtBudget(
-            'contextBudget',
-            round: round,
-            callsUsed: callsUsed,
-            contextSize: contextSize,
-          );
-          return;
-        }
-        // Reserve the last request for a tool-free answer, still within the
-        // same turn and deadline limits.
-        final allowTools =
-            config.capabilities.supportsTools &&
-            round < config.assistant.maxTurns - 1 &&
-            callsUsed < config.assistant.maxToolCalls;
         AiEvent? completed;
         await for (final e in _protocol.complete(
           config.connection,
@@ -1100,9 +1048,10 @@ class ChatRunner extends ChangeNotifier {
           cancelToken: token,
           runId: _runId,
           system: system,
-          tools: allowTools ? (toolSession?.definitions ?? []) : [],
+          tools: config.capabilities.supportsTools
+              ? (toolSession?.definitions ?? [])
+              : const [],
           temperature: config.assistant.temperature,
-          maxTokens: config.assistant.maxTokens,
         )) {
           text.write(e.text);
           if (e.stopReason != null) completed = e;
@@ -1126,36 +1075,13 @@ class ChatRunner extends ChangeNotifier {
         if (!config.capabilities.supportsTools) {
           throw StateError('Tool calls are disabled for this response');
         }
-        if (!allowTools) {
-          _stopAtBudget(
-            callsUsed >= config.assistant.maxToolCalls
-                ? 'toolBudget'
-                : 'turnBudget',
-            round: round,
-            callsUsed: callsUsed,
-          );
-          return;
-        }
         turns.add(assistantTurn);
         if (_draftAssistantMessage != null) {
           await _persistDraftDelta(_draftAssistantMessage!, flush: true);
         }
         for (final call in completed.calls) {
           if (toolSession == null) throw StateError('Tool service unavailable');
-          final AiTurn result;
-          if (callsUsed >= config.assistant.maxToolCalls) {
-            _stopAtBudget('toolBudget', round: round, callsUsed: callsUsed);
-            result = AiTurn(
-              role: 'tool',
-              toolCallId: call.id,
-              toolName: call.name,
-              isError: true,
-              text: 'Tool budget exhausted. Summarize existing results.',
-            );
-          } else {
-            callsUsed++;
-            result = await toolSession.invoke(call);
-          }
+          final result = await toolSession.invoke(call);
           turns.add(result);
           _trace.add(result);
           if (_draftAssistantMessage != null) {
@@ -1164,40 +1090,9 @@ class ChatRunner extends ChangeNotifier {
         }
         yield const ChatStreamDelta(content: '\n\n');
       }
-      _stopAtBudget(
-        'turnBudget',
-        round: config.assistant.maxTurns - 1,
-        callsUsed: callsUsed,
-      );
     } finally {
       await toolSession?.close();
     }
-  }
-
-  void _stopAtBudget(
-    String reason, {
-    required int round,
-    int? callsUsed,
-    int? contextSize,
-  }) {
-    if (_stopReason == reason) return;
-    _stopReason = reason;
-    final assistant = _activeConfig?.assistant;
-    _logger.event(
-      'client.run.budget_reached',
-      channel: LogChannel.client,
-      level: LogLevel.warning,
-      fields: {
-        'run': _runId,
-        'reason': reason,
-        'round': round + 1,
-        'calls_used': callsUsed,
-        'max_tool_calls': assistant?.maxToolCalls,
-        'max_turns': assistant?.maxTurns,
-        'context_size': contextSize,
-        'context_limit': assistant?.contextChars,
-      },
-    );
   }
 
   List<ChatMessageRecord> _messagesWithStreamingDraft(

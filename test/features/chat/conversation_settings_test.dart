@@ -153,7 +153,7 @@ class _Protocol extends ChatProtocolClient {
     String system = '',
     List<AiTool> tools = const [],
     double temperature = .7,
-    int maxTokens = 2048,
+    int? maxTokens,
     String? runId,
   }) async* {
     models.add(model);

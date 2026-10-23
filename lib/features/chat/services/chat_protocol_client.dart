@@ -9,6 +9,8 @@ import 'package:servllama/features/chat/models/ai_turn.dart';
 
 /// One request/response round only. Tool scheduling belongs to ChatRunner.
 class ChatProtocolClient {
+  static const _anthropicFallbackMaxTokens = 32768;
+
   ChatProtocolClient({Dio? dio, AppLogger? logger})
     : _logger = logger ?? AppLogger.instance,
       dio =
@@ -192,7 +194,7 @@ class ChatProtocolClient {
     String system = '',
     List<AiTool> tools = const [],
     double temperature = .7,
-    int maxTokens = 2048,
+    int? maxTokens,
   }) {
     switch (c.protocol) {
       case AiProtocol.openai:
@@ -201,7 +203,7 @@ class ChatProtocolClient {
           'stream': true,
           'stream_options': {'include_usage': true},
           'temperature': temperature,
-          'max_tokens': maxTokens,
+          if (maxTokens != null) 'max_tokens': maxTokens,
           'messages': [
             if (system.isNotEmpty) {'role': 'system', 'content': system},
             ...turns.map(_openaiTurn),
@@ -234,7 +236,8 @@ class ChatProtocolClient {
         return {
           'model': model,
           'stream': true,
-          'max_tokens': maxTokens,
+          // Anthropic requires this field even when chat itself has no limit.
+          'max_tokens': maxTokens ?? _anthropicFallbackMaxTokens,
           'temperature': temperature,
           if (system.isNotEmpty) 'system': system,
           'messages': messages,
@@ -267,7 +270,7 @@ class ChatProtocolClient {
             },
           'generationConfig': {
             'temperature': temperature,
-            'maxOutputTokens': maxTokens,
+            if (maxTokens != null) 'maxOutputTokens': maxTokens,
           },
           if (tools.isNotEmpty)
             'tools': [
@@ -384,7 +387,7 @@ class ChatProtocolClient {
     String system = '',
     List<AiTool> tools = const [],
     double temperature = .7,
-    int maxTokens = 2048,
+    int? maxTokens,
     String? runId,
   }) async* {
     final watch = Stopwatch()..start();
@@ -474,7 +477,7 @@ class ChatProtocolClient {
     String system = '',
     List<AiTool> tools = const [],
     double temperature = .7,
-    int maxTokens = 2048,
+    int? maxTokens,
     required void Function(int?) onStatus,
   }) async* {
     c.validate();
