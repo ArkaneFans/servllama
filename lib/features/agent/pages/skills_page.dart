@@ -26,6 +26,12 @@ class _SkillsPageState extends State<SkillsPage> {
   @override
   void initState() {
     super.initState();
+    final cached = context.read<AgentToolService>().cachedSkills;
+    if (cached != null) {
+      skills = cached;
+      loaded = true;
+      return;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) runUiAction(context, reload);
     });

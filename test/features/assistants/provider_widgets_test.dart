@@ -42,6 +42,9 @@ class _Settings extends AssistantProvider {
   bool failDiscovery = false, blockDiscovery = false;
   String? savedKey;
   CancelToken? discoveryToken;
+  String? hydratedKey;
+  Completer<String>? pendingCredential;
+  int credentialReads = 0;
   _Settings() {
     loaded = true;
     connections = [
@@ -99,8 +102,15 @@ class _Settings extends AssistantProvider {
   }
 
   @override
-  Future<String> credential(AiConnection c) async =>
-      c.secretRef == null ? '' : 'stored-secret';
+  String? cachedCredential(AiConnection c) =>
+      c.secretRef == null ? '' : hydratedKey;
+
+  @override
+  Future<String> credential(AiConnection c) async {
+    credentialReads++;
+    return pendingCredential?.future ??
+        (c.secretRef == null ? '' : 'stored-secret');
+  }
 }
 
 class _Runtime extends Fake
@@ -256,6 +266,63 @@ void main() {
       expect(settings.savedKey, isNull);
     },
   );
+
+  testWidgets('a restored credential is present on the first editor frame', (
+    tester,
+  ) async {
+    settings.hydratedKey = 'stored-secret';
+    await tester.pumpWidget(app(const ConnectionEditor(connection: _cloud)));
+    final field = tester.widget<TextField>(
+      find.byKey(const Key('provider_key')),
+    );
+    expect(field.controller!.text, 'stored-secret');
+    expect(field.obscureText, isTrue);
+    expect(
+      field.decoration!.floatingLabelBehavior,
+      FloatingLabelBehavior.always,
+    );
+    expect(settings.credentialReads, 0);
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(field.controller!.text, 'stored-secret');
+  });
+
+  testWidgets('failed credential recovery cannot silently save an empty key', (
+    tester,
+  ) async {
+    settings.pendingCredential = Completer<String>();
+    await tester.pumpWidget(app(const ConnectionEditor(connection: _cloud)));
+    final field = find.byKey(const Key('provider_key'));
+    expect(tester.widget<TextField>(field).enabled, isFalse);
+    await revealConfigField(
+      tester,
+      find.byKey(const Key('provider_save_button')),
+    );
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const Key('provider_save_button')))
+          .onPressed,
+      isNull,
+    );
+    settings.pendingCredential!.completeError(
+      StateError('fixture storage unavailable'),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(field).decoration!.errorText, isNotNull);
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const Key('provider_save_button')))
+          .onPressed,
+      isNull,
+    );
+    expect(settings.savedKey, isNull);
+    settings.pendingCredential = Completer<String>()..complete('stored-secret');
+    await tester.ensureVisible(find.text('Retry'));
+    await tester.tap(find.text('Retry'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(field).enabled, isTrue);
+    expect(tester.widget<TextField>(field).controller!.text, 'stored-secret');
+    expect(tester.widget<TextField>(field).decoration!.errorText, isNull);
+  });
 
   testWidgets(
     'model capability edits persist at once while configuration keeps a draft',

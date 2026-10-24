@@ -3,6 +3,9 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/core/database/app_database.dart';
 import 'package:servllama/core/security/secret_store.dart';
+import 'package:servllama/core/models/model_asset.dart';
+import 'package:servllama/core/repositories/unified_model_repository.dart';
+import 'package:servllama/core/storage/kv_storage.dart';
 import 'package:servllama/features/assistants/models/assistant.dart';
 import 'package:servllama/features/assistants/models/provider_presets.dart';
 import 'package:servllama/features/assistants/repositories/assistant_repository.dart';
@@ -11,8 +14,15 @@ import 'package:servllama/features/chat/models/chat_run_config.dart';
 
 class _Secrets extends SecretStore {
   final values = <String, String>{};
+  int reads = 0;
+  bool failReads = false;
   @override
-  Future<String?> read(String key) async => values[key];
+  Future<String?> read(String key) async {
+    reads++;
+    if (failReads) throw StateError('fixture secure storage unavailable');
+    return values[key];
+  }
+
   @override
   Future<void> write(String key, String value) async {
     values[key] = value;
@@ -22,6 +32,11 @@ class _Secrets extends SecretStore {
   Future<void> delete(String key) async {
     values.remove(key);
   }
+}
+
+class _EmptyAssets extends UnifiedModelRepository {
+  @override
+  Future<List<ModelAsset>> listAssets({bool reconcile = true}) async => [];
 }
 
 void main() {
@@ -41,6 +56,74 @@ void main() {
     repository = AssistantRepository(db, secrets: secrets);
   });
   tearDown(() => db.close());
+
+  test(
+    'credential failure preserves settings and stays retryable instead of caching an empty key',
+    () async {
+      final saved = await repository.saveConnection(
+        custom,
+        newSecret: 'fixture-key',
+      );
+      secrets.failReads = true;
+      final provider = AssistantProvider(
+        repository: repository,
+        models: _EmptyAssets(),
+      );
+      addTearDown(provider.dispose);
+      await provider.load();
+      expect(provider.loaded, isTrue);
+      expect(provider.connection(custom.id)!.secretRef, saved.secretRef);
+      expect(provider.cachedCredential(saved), isNull);
+      await expectLater(provider.credential(saved), throwsStateError);
+      secrets.failReads = false;
+      expect(await provider.credential(saved), 'fixture-key');
+      expect(provider.cachedCredential(saved), 'fixture-key');
+    },
+  );
+
+  test(
+    'settings restore hydrates credentials before publishing and refreshes rotated keys',
+    () async {
+      var saved = await repository.saveConnection(
+        custom,
+        newSecret: 'fixture-first',
+      );
+      final provider = AssistantProvider(
+        repository: repository,
+        models: _EmptyAssets(),
+      );
+      await provider.load();
+      expect(provider.loaded, isTrue);
+      expect(provider.cachedCredential(saved), 'fixture-first');
+      final reads = secrets.reads;
+      expect(await provider.credential(saved), 'fixture-first');
+      expect(secrets.reads, reads);
+      await provider.saveConnection(saved, key: 'fixture-second');
+      saved = provider.connection(custom.id)!;
+      expect(provider.cachedCredential(saved), 'fixture-second');
+      provider.dispose();
+      final restored = AssistantProvider(
+        repository: AssistantRepository(
+          db,
+          secrets: secrets,
+          preferences: KvStorage(),
+        ),
+        models: _EmptyAssets(),
+      );
+      addTearDown(restored.dispose);
+      await restored.load();
+      expect(
+        restored.cachedCredential(restored.connection(custom.id)!),
+        'fixture-second',
+      );
+      expect(
+        jsonEncode(
+          (await repository.connections()).map((c) => c.toJson()).toList(),
+        ),
+        isNot(contains('fixture-second')),
+      );
+    },
+  );
 
   test(
     'old capability flags become per-model settings and save without stale entries',

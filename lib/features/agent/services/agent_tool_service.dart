@@ -158,17 +158,24 @@ class AgentToolService extends ChangeNotifier {
 
   Future<SkillRecord?> importSkillFromFile() async {
     final skill = await skills.pickAndImport();
-    if (skill != null) notifyListeners();
+    if (skill != null) {
+      await loadSkills();
+      notifyListeners();
+    }
     return skill;
   }
 
   Future<SkillRecord> importSkillFromText(String markdown) async {
     final skill = await skills.importMarkdown(markdown);
+    await loadSkills();
     notifyListeners();
     return skill;
   }
 
-  Future<List<SkillRecord>> loadSkills() => skills.list();
+  List<SkillRecord>? cachedSkills;
+
+  Future<List<SkillRecord>> loadSkills() async =>
+      cachedSkills = List.unmodifiable(await skills.list());
 
   Future<SkillDetails> loadSkillDetails(SkillRecord skill) =>
       skills.details(skill);
@@ -201,6 +208,7 @@ class AgentToolService extends ChangeNotifier {
     } finally {
       // A filesystem cleanup failure must not postpone committed revocation.
       await revalidate();
+      await loadSkills();
       notifyListeners();
     }
   }

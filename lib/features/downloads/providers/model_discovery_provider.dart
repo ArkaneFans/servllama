@@ -60,6 +60,8 @@ class ModelDiscoveryProvider extends ChangeNotifier {
   ModelHubErrorKind? _loadMoreError;
   Map<HubModelFormat, String> _nextPageTokens = <HubModelFormat, String>{};
   int _searchEpoch = 0;
+  Future<void>? _prepareFuture, _initialSearch;
+  bool _prepared = false;
 
   List<CatalogEntry> get catalog => List<CatalogEntry>.unmodifiable(_catalog);
   List<HubRepoSummary> get searchResults =>
@@ -105,10 +107,15 @@ class ModelDiscoveryProvider extends ChangeNotifier {
   ModelFeasibility feasibilityOf(String filePath) =>
       _feasibility[filePath] ?? ModelFeasibility.unknown;
 
-  Future<void> load() async {
-    if (_isLoadingCatalog) {
-      return;
-    }
+  /// Local presentation data is ready before navigation; hub I/O stays lazy.
+  Future<void> prepare() {
+    if (_prepared) return Future<void>.value();
+    return _prepareFuture ??= _prepare().whenComplete(
+      () => _prepareFuture = null,
+    );
+  }
+
+  Future<void> _prepare() async {
     _isLoadingCatalog = true;
     notifyListeners();
 
@@ -117,6 +124,7 @@ class ModelDiscoveryProvider extends ChangeNotifier {
       _activeSource = _settings.preferredSource;
       _memory = await _capabilityService.readMemory();
       _catalog = await _catalogService.load();
+      _prepared = true;
     } catch (error, stackTrace) {
       _logger.error(
         '加载精选模型目录失败',
@@ -128,9 +136,11 @@ class ModelDiscoveryProvider extends ChangeNotifier {
       _isLoadingCatalog = false;
       notifyListeners();
     }
-    if (!_disposed) {
-      await search(_query);
-    }
+  }
+
+  Future<void> load() async {
+    await prepare();
+    if (!_disposed) await (_initialSearch ??= search(_query));
   }
 
   Future<void> setSource(ModelHubSource source) async {

@@ -5,10 +5,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:mnn_engine/mnn_engine.dart';
-import 'package:package_info_plus/package_info_plus.dart';
-import 'package:servllama/core/services/llama_server_service.dart';
+import 'package:provider/provider.dart';
+import 'package:servllama/core/services/app_info_service.dart';
+import 'package:servllama/shared/widgets/bundled_svg_asset.dart';
 import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/widgets/settings_menu_tile.dart';
 import 'package:servllama/shared/widgets/settings_section.dart';
@@ -32,77 +31,23 @@ class _AboutPageState extends State<AboutPage> {
   @override
   void initState() {
     super.initState();
-    unawaited(_loadAppVersion());
-    unawaited(_loadLlamaCppVersion());
-    unawaited(_loadMnnVersion());
-  }
-
-  Future<void> _loadAppVersion() async {
-    try {
-      final info = await PackageInfo.fromPlatform();
-      final version = info.version.trim();
-      final buildNumber = info.buildNumber.trim();
-      final label = [
-        if (version.isNotEmpty) version,
-        if (buildNumber.isNotEmpty) buildNumber,
-      ].join(' / ');
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _appVersion = label.isEmpty ? _kPendingValue : label;
-      });
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _appVersion = _kPendingValue;
-      });
+    final service = context.read<AppInfoService?>() ?? AppInfoService();
+    final cached = service.cached;
+    if (cached != null) {
+      _applyInfo(cached);
+    } else {
+      unawaited(
+        service.load().then((info) {
+          if (mounted) setState(() => _applyInfo(info));
+        }),
+      );
     }
   }
 
-  Future<void> _loadLlamaCppVersion() async {
-    try {
-      final version = (await LlamaServerService().loadBundledVersion()).trim();
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _llamaCppVersion = version.isEmpty ? _kPendingValue : version;
-      });
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _llamaCppVersion = _kPendingValue;
-      });
-    }
-  }
-
-  Future<void> _loadMnnVersion() async {
-    try {
-      final info = await MnnEngine.instance.initialize();
-      final commit = info.mnnCommit.trim();
-      final shortCommit = commit.length > 10 ? commit.substring(0, 10) : commit;
-      final detail = shortCommit.isEmpty || shortCommit == 'unknown'
-          ? info.mnnVersion
-          : '${info.mnnVersion} \u00b7 $shortCommit';
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _mnnVersion = detail.trim().isEmpty ? _kPendingValue : detail;
-      });
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _mnnVersion = _kPendingValue;
-      });
-    }
+  void _applyInfo(AppInfo info) {
+    _appVersion = info.app;
+    _llamaCppVersion = info.llamaCpp;
+    _mnnVersion = info.mnn;
   }
 
   void _copyAppVersion() {
@@ -132,7 +77,11 @@ class _AboutPageState extends State<AboutPage> {
       applicationName: 'ServLlama',
       applicationIcon: Padding(
         padding: const EdgeInsets.all(8),
-        child: SvgPicture.asset('assets/app_icon.svg', width: 48, height: 48),
+        child: const BundledSvgAsset(
+          'assets/app_icon.svg',
+          width: 48,
+          height: 48,
+        ),
       ),
     );
   }
@@ -256,7 +205,7 @@ class _AboutHero extends StatelessWidget {
             key: const Key('about_hero_icon'),
             width: 64,
             height: 64,
-            child: SvgPicture.asset('assets/app_icon.svg'),
+            child: const BundledSvgAsset('assets/app_icon.svg'),
           ),
           const SizedBox(width: 14),
           Expanded(

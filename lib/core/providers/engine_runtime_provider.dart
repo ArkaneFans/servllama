@@ -145,6 +145,14 @@ class EngineRuntimeProvider extends ChangeNotifier {
   /// active engine listens on.
   String get baseUrl => 'http://127.0.0.1:$_port';
 
+  Future<void>? _initialRestore;
+
+  Future<void> ensureRestored() =>
+      _initialRestore ??= restore().catchError((Object error) {
+        _initialRestore = null;
+        throw error;
+      });
+
   Future<void> restore() async {
     final storedEngine = await _kvStorage.getString(
       EnginePrefsKeys.activeEngine,

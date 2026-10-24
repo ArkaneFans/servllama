@@ -48,6 +48,7 @@ class SpeechJobService extends ChangeNotifier {
   final Set<String> _deleting = {};
   Future<void> _writes = Future.value();
   Future<void>? _drainOperation;
+  Future<void>? _initializing;
 
   /// Waits for current native cleanup and queued persistence, without starting
   /// blocked jobs. Useful when tearing down the process-owned services.
@@ -61,6 +62,19 @@ class SpeechJobService extends ChangeNotifier {
     Directory? storageRoot,
     AppDatabase? database,
     bool configureAudio = true,
+  }) {
+    if (ready) return Future<void>.value();
+    return _initializing ??= _initialize(
+      storageRoot: storageRoot,
+      database: database,
+      configureAudio: configureAudio,
+    ).whenComplete(() => _initializing = null);
+  }
+
+  Future<void> _initialize({
+    Directory? storageRoot,
+    AppDatabase? database,
+    required bool configureAudio,
   }) async {
     try {
       final storage = storageRoot ?? await getApplicationSupportDirectory();

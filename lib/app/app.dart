@@ -1,7 +1,6 @@
 import 'package:servllama/shared/navigation/app_navigation_observer.dart';
 import 'package:servllama/features/agent/services/agent_tool_service.dart';
 import 'package:servllama/features/speech/services/speech_job_service.dart';
-import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -12,6 +11,10 @@ import 'package:servllama/app/providers/app_locale_provider.dart';
 import 'package:servllama/app/providers/app_theme_mode_provider.dart';
 import 'package:servllama/app/app_theme.dart';
 import 'package:servllama/app/main_scaffold.dart';
+import 'package:servllama/app/bootstrap/app_startup_gate.dart';
+import 'package:servllama/core/providers/server_config_provider.dart';
+import 'package:servllama/core/services/app_info_service.dart';
+import 'package:servllama/shared/widgets/bundled_svg_asset.dart';
 import 'package:servllama/features/assistants/providers/assistant_provider.dart';
 import 'package:servllama/core/providers/engine_runtime_provider.dart';
 import 'package:servllama/core/providers/model_management_provider.dart';
@@ -28,43 +31,19 @@ class ServLlamaApp extends StatelessWidget {
     return WithForegroundTask(
       child: MultiProvider(
         providers: [
+          Provider(
+            create: (_) => BundledSvgCache(),
+            dispose: (_, cache) => cache.dispose(),
+          ),
+          Provider(create: (_) => AppInfoService()),
           if (AgentToolService.current != null)
             ChangeNotifierProvider.value(value: AgentToolService.current!),
-          ChangeNotifierProvider(
-            create: (_) {
-              final provider = AppLocaleProvider();
-              unawaited(provider.load());
-              return provider;
-            },
-          ),
-          ChangeNotifierProvider(
-            create: (_) {
-              final provider = AppThemeModeProvider();
-              unawaited(provider.load());
-              return provider;
-            },
-          ),
-          ChangeNotifierProvider(
-            create: (_) {
-              final provider = ChatTimeoutProvider();
-              unawaited(provider.load());
-              return provider;
-            },
-          ),
-          ChangeNotifierProvider(
-            create: (_) {
-              final provider = EngineRuntimeProvider();
-              unawaited(provider.restore());
-              return provider;
-            },
-          ),
-          ChangeNotifierProvider(
-            create: (_) {
-              final p = AssistantProvider();
-              unawaited(p.load());
-              return p;
-            },
-          ),
+          ChangeNotifierProvider(create: (_) => AppLocaleProvider()),
+          ChangeNotifierProvider(create: (_) => AppThemeModeProvider()),
+          ChangeNotifierProvider(create: (_) => ChatTimeoutProvider()),
+          ChangeNotifierProvider(create: (_) => EngineRuntimeProvider()),
+          ChangeNotifierProvider(create: (_) => AssistantProvider()),
+          ChangeNotifierProvider(create: (_) => ServerConfigProvider()),
           ChangeNotifierProvider(
             create: (context) {
               final runtime = context.read<EngineRuntimeProvider>();
@@ -82,7 +61,6 @@ class ServLlamaApp extends StatelessWidget {
                       newModelId: newModelId,
                     ),
               );
-              unawaited(provider.load());
               return provider;
             },
           ),
@@ -93,17 +71,10 @@ class ServLlamaApp extends StatelessWidget {
                 onLibraryChanged: modelManagement.refresh,
                 modelNameCoordinator: modelManagement.nameCoordinator,
               );
-              unawaited(provider.load());
               return provider;
             },
           ),
-          ChangeNotifierProvider(
-            create: (_) {
-              final provider = ModelDiscoveryProvider();
-              unawaited(provider.load());
-              return provider;
-            },
-          ),
+          ChangeNotifierProvider(create: (_) => ModelDiscoveryProvider()),
           ChangeNotifierProxyProvider3<
             EngineRuntimeProvider,
             ChatTimeoutProvider,
@@ -139,7 +110,6 @@ class ServLlamaApp extends StatelessWidget {
               final service = SpeechJobService(
                 context.read<EngineRuntimeProvider>().resources,
               );
-              unawaited(service.initialize());
               return service;
             },
           ),
@@ -162,10 +132,49 @@ class ServLlamaApp extends StatelessWidget {
                   GlobalCupertinoLocalizations.delegate,
                 ],
                 supportedLocales: AppLocalizations.supportedLocales,
-                home: const MainScaffold(),
+                home: AppStartupGate(
+                  initialize: _prepareState,
+                  child: const MainScaffold(),
+                ),
               ),
         ),
       ),
     );
+  }
+
+  Future<void> _prepareState(BuildContext context) async {
+    final assistants = context.read<AssistantProvider>();
+    final runtime = context.read<EngineRuntimeProvider>();
+    final themes = [AppTheme.light().colorScheme, AppTheme.dark().colorScheme];
+    await Future.wait([
+      context.read<AppLocaleProvider>().load(),
+      context.read<AppThemeModeProvider>().load(),
+      context.read<ChatTimeoutProvider>().load(),
+      runtime.ensureRestored(),
+      context.read<ServerConfigProvider>().load(),
+      context.read<ModelManagementProvider>().load(),
+      context.read<DownloadProvider>().load(),
+      context.read<ModelDiscoveryProvider>().prepare(),
+      context.read<AppInfoService>().load(),
+      context.read<BundledSvgCache>().warmUp(
+        identityColors: themes.map((c) => c.onSurface),
+        mcpColors: themes.map((c) => c.onSurfaceVariant),
+      ),
+    ]);
+    if (!context.mounted) return;
+    // Asset reconciliation precedes consumers that read the same inventory.
+    await assistants.load();
+    if (!context.mounted) return;
+    if (!assistants.loaded || assistants.error != null) {
+      throw StateError('Application settings could not be restored');
+    }
+    await Future.wait([
+      context.read<ChatProvider>().load(),
+      context.read<SpeechJobService>().initialize(),
+      if (AgentToolService.current != null)
+        AgentToolService.current!.loadSkills(),
+      if (AgentToolService.current != null)
+        AgentToolService.current!.mcp.load(),
+    ]);
   }
 }

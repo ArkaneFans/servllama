@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:provider/provider.dart';
+import 'package:servllama/core/services/app_info_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:servllama/features/about/pages/about_page.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
@@ -51,9 +53,11 @@ void main() {
   });
 
   Future<void> pumpAbout(WidgetTester tester) async {
-    await tester.pumpWidget(const _TestHost());
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
+    final service = AppInfoService();
+    await tester.runAsync(service.load);
+    await tester.pumpWidget(
+      Provider.value(value: service, child: const _TestHost()),
+    );
   }
 
   testWidgets('lays out branding and details from the top', (tester) async {

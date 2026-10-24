@@ -32,6 +32,10 @@ class ServerConfigPage extends StatelessWidget {
       );
     }
 
+    if (context.read<ServerConfigProvider?>() != null) {
+      return const _ServerConfigView();
+    }
+
     return ChangeNotifierProvider<ServerConfigProvider>(
       create: (_) => ServerConfigProvider(),
       child: const _ServerConfigView(),

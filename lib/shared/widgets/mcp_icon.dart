@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:servllama/shared/widgets/bundled_svg_asset.dart';
 
 /// Official Model Context Protocol mark.
 ///
@@ -16,11 +16,11 @@ class McpIcon extends StatelessWidget {
     final resolvedColor =
         color ?? Theme.of(context).colorScheme.onSurfaceVariant;
 
-    return SvgPicture.asset(
+    return BundledSvgAsset(
       'assets/ai-icons/mcp.svg',
       width: size,
       height: size,
-      theme: SvgTheme(currentColor: resolvedColor),
+      currentColor: resolvedColor,
     );
   }
 }

@@ -779,6 +779,7 @@
   "v2Protocol": "协议",
   "v2BaseUrl": "API 基础地址",
   "v2ApiKey": "API Key",
+  "v2CredentialLoadFailed": "无法读取已保存的凭据，请重试后再保存。",
   "v2ShowApiKey": "显示 API Key",
   "v2HideApiKey": "隐藏 API Key",
   "v2ApiPath": "API 路径",

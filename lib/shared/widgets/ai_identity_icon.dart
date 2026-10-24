@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:servllama/shared/widgets/bundled_svg_asset.dart';
 
 /// Presentation only: a logo never implies capabilities or provider trust.
 abstract final class AiBrand {
@@ -145,10 +145,10 @@ class AiIdentityIcon extends StatelessWidget {
     final c = Theme.of(context).colorScheme;
     final fallback = _fallbackCharacter;
     final glyph = brand != null
-        ? SvgPicture.asset(
+        ? BundledSvgAsset(
             'assets/ai-icons/$brand.svg',
             // Preserve brand fills/gradients; only currentColor follows theme.
-            theme: SvgTheme(currentColor: c.onSurface),
+            currentColor: c.onSurface,
             width: framed ? size * .6 : size,
             height: framed ? size * .6 : size,
           )

@@ -28,6 +28,7 @@ class AssistantProvider extends ChangeNotifier {
   UserProfile profile = const UserProfile();
   String? activeId, error;
   bool loaded = false;
+  final Map<String, String> _credentials = {};
   Future<void> _assistantUpdateQueue = Future.value();
   Assistant? get active =>
       assistants.where((a) => a.id == activeId).firstOrNull;
@@ -39,6 +40,7 @@ class AssistantProvider extends ChangeNotifier {
       await r.initializeProviders();
       assistants = await r.assistants();
       connections = await r.connections();
+      await _restoreCredentials();
       profile = await r.profile();
       if (assistants.isEmpty) {
         final initial = Assistant(id: newId(), name: 'ServLlama');
@@ -151,6 +153,7 @@ class AssistantProvider extends ChangeNotifier {
       rethrow;
     } finally {
       connections = await (await repository).connections();
+      await _restoreCredentials();
       assistants = await (await repository).assistants();
       await AgentToolService.current?.revalidate();
       notifyListeners();
@@ -175,6 +178,7 @@ class AssistantProvider extends ChangeNotifier {
       rethrow;
     } finally {
       connections = await (await repository).connections();
+      await _restoreCredentials();
       assistants = await (await repository).assistants();
       await AgentToolService.current?.revalidate();
       notifyListeners();
@@ -191,9 +195,53 @@ class AssistantProvider extends ChangeNotifier {
 
   AiConnection? connection(String? id) =>
       connections.where((c) => c.id == id).firstOrNull;
-  Future<String> credential(AiConnection c) async => c.secretRef == null
-      ? ''
-      : await (await repository).secrets.read(c.secretRef!) ?? '';
+
+  /// A process-local projection, never part of the persisted provider config.
+  /// Editors initialize from this snapshot instead of filling an empty field.
+  String? cachedCredential(AiConnection c) =>
+      c.secretRef == null ? '' : _credentials[c.secretRef];
+
+  Future<String> credential(AiConnection c) async {
+    final cached = cachedCredential(c);
+    if (cached != null) return cached;
+    final value = await (await repository).secrets.read(c.secretRef!) ?? '';
+    _credentials[c.secretRef!] = value;
+    return value;
+  }
+
+  Future<void> _restoreCredentials() async {
+    final refs = connections
+        .map((c) => c.secretRef)
+        .whereType<String>()
+        .toSet();
+    _credentials.removeWhere((ref, _) => !refs.contains(ref));
+    await Future.wait(
+      connections.map((connection) async {
+        try {
+          await credential(connection);
+        } catch (error) {
+          // An unreadable credential is not an empty key, nor a reason to block
+          // unrelated local features. Its editor/request can retry the read.
+          _logger.event(
+            'client.credential.restore_failed',
+            channel: LogChannel.client,
+            level: LogLevel.error,
+            fields: {
+              'connection': connection.id,
+              ...AppLogger.errorFields(error),
+            },
+          );
+        }
+      }),
+    );
+  }
+
+  @override
+  void dispose() {
+    _credentials.clear();
+    super.dispose();
+  }
+
   Future<List<String>> discover(
     AiConnection draft,
     String typedKey, {

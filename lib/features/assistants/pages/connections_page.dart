@@ -168,7 +168,7 @@ class _ConnectionEditorState extends State<ConnectionEditor>
         ? original.apiPath!.trim()
         : _defaultApiPath,
   );
-  final keyInput = TextEditingController();
+  late final TextEditingController keyInput;
   String _savedKey = '';
   final request = CancelToken();
   late bool enabled = original.enabled;
@@ -176,6 +176,7 @@ class _ConnectionEditorState extends State<ConnectionEditor>
   late final tabs = TabController(length: 2, vsync: this);
   final modelSearch = TextEditingController();
   bool busy = false, hideKey = true, _keyEdited = false;
+  bool _keyLoading = false, _keyLoadFailed = false;
 
   /// Latest stored row: model edits persist here immediately, while the
   /// configuration fields stay in a draft until the bottom save action.
@@ -196,11 +197,16 @@ class _ConnectionEditorState extends State<ConnectionEditor>
   @override
   void initState() {
     super.initState();
-    _loadSavedKey();
+    final cached = context.read<AssistantProvider>().cachedCredential(original);
+    _savedKey = cached ?? '';
+    keyInput = TextEditingController(text: _savedKey);
+    if (cached == null) _loadSavedKey();
   }
 
   Future<void> _loadSavedKey() async {
     if (original.secretRef == null) return;
+    _keyLoading = true;
+    _keyLoadFailed = false;
     try {
       final value = await context.read<AssistantProvider>().credential(
         original,
@@ -209,7 +215,9 @@ class _ConnectionEditorState extends State<ConnectionEditor>
       _savedKey = value;
       if (!_keyEdited) keyInput.text = value;
     } catch (_) {
-      // Keep the editor usable if secure storage is temporarily unavailable.
+      _keyLoadFailed = true;
+    } finally {
+      if (mounted) setState(() => _keyLoading = false);
     }
   }
 
@@ -570,12 +578,17 @@ class _ConnectionEditorState extends State<ConnectionEditor>
                     TextField(
                       key: const Key('provider_key'),
                       controller: keyInput,
+                      enabled: !_keyLoading && !_keyLoadFailed,
                       obscureText: hideKey,
                       enableSuggestions: false,
                       autocorrect: false,
                       onChanged: (_) => _keyEdited = true,
                       decoration: InputDecoration(
                         labelText: l.v2ApiKey,
+                        floatingLabelBehavior: FloatingLabelBehavior.always,
+                        errorText: _keyLoadFailed
+                            ? l.v2CredentialLoadFailed
+                            : null,
                         suffixIcon: IconButton(
                           key: const Key('provider_key_visibility'),
                           tooltip: hideKey ? l.v2ShowApiKey : l.v2HideApiKey,
@@ -589,11 +602,21 @@ class _ConnectionEditorState extends State<ConnectionEditor>
                         ),
                       ),
                     ),
+                    if (_keyLoadFailed)
+                      TextButton.icon(
+                        onPressed: () => setState(() {
+                          _loadSavedKey();
+                        }),
+                        icon: const Icon(Icons.refresh),
+                        label: Text(l.downloadRetry),
+                      ),
                   ],
                 ),
                 FilledButton.icon(
                   key: const Key('provider_save_button'),
-                  onPressed: busy ? null : () => _save(stored),
+                  onPressed: busy || _keyLoading || _keyLoadFailed
+                      ? null
+                      : () => _save(stored),
                   icon: const Icon(Icons.save_outlined, size: 20),
                   label: Text(l.commonSave),
                 ),
