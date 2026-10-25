@@ -201,7 +201,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatLoadingModel => '加载模型中...';
 
   @override
-  String get chatInputHintStartServer => '请先启动服务器';
+  String get chatInputHintStartServer => '模型未加载，请加载模型';
 
   @override
   String get chatInputHintLoadingModel => '模型加载中...';
@@ -317,7 +317,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsThemeMode => '主题模式';
 
   @override
-  String get settingsThemeModeSubtitle => '浅色、深色或跟随系统';
+  String get settingsThemeModeSubtitle => '选择主题颜色';
 
   @override
   String get settingsDownloadsSubtitle => '模型下载与存储';
@@ -1060,10 +1060,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modelFormatExplainer => 'GGUF 是单个文件，MNN 模型是整个目录。卡片上的引擎徽标用于区分两者。';
 
   @override
-  String get modelLibraryEmptyTitle => '还没有模型，请前往发现模型下载，或导入本地模型。';
+  String get modelLibraryEmptyTitle => '还没有模型';
 
   @override
-  String get modelLibraryEmptyDescription => '可以下载一个，或导入已有的模型文件。';
+  String get modelLibraryEmptyDescription => '点击 + 添加模型';
 
   @override
   String get modelLibrarySearchHint => '搜索模型名称';
@@ -2454,7 +2454,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2ConversationModelHelp => '按供应商选择模型。点击本地模型后加载并启动服务。';
 
   @override
-  String get v2NoLocalChatModels => '暂无可用的本地 LLM，请先在模型页下载或导入。';
+  String get v2NoLocalChatModels => '暂无模型';
 
   @override
   String get v2AssistantDefaultModel => '聊天模型';

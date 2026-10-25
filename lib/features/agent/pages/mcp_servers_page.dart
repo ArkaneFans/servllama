@@ -1,6 +1,7 @@
 import 'package:servllama/shared/widgets/settings_section.dart';
 import 'package:servllama/shared/widgets/form_list_view.dart';
 import 'package:servllama/shared/widgets/app_scaffold.dart';
+import 'package:servllama/shared/widgets/app_empty_state.dart';
 import 'package:servllama/shared/widgets/mcp_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:servllama/app/app_palette.dart';
@@ -95,34 +96,13 @@ class _McpServersPageState extends State<McpServersPage> {
               if (loaded && servers.isEmpty)
                 SliverFillRemaining(
                   hasScrollBody: false,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(32, 24, 32, 24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        McpIcon(
-                          size: 40,
-                          color: Theme.of(context).colorScheme.outline,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          l.v2McpEmpty,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          l.v2McpEmptyHint,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurfaceVariant,
-                              ),
-                        ),
-                      ],
+                  child: AppEmptyState(
+                    icon: McpIcon(
+                      size: 40,
+                      color: Theme.of(context).colorScheme.outline,
                     ),
+                    title: l.v2McpEmpty,
+                    description: l.v2McpEmptyHint,
                   ),
                 ),
               if (loaded && servers.isNotEmpty)

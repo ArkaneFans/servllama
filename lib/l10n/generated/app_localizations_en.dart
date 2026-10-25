@@ -211,7 +211,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatLoadingModel => 'Loading model...';
 
   @override
-  String get chatInputHintStartServer => 'Start the server first';
+  String get chatInputHintStartServer =>
+      'Model not loaded. Please load a model.';
 
   @override
   String get chatInputHintLoadingModel => 'Model loading...';
@@ -327,7 +328,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsThemeMode => 'Theme mode';
 
   @override
-  String get settingsThemeModeSubtitle => 'Light, dark, or system';
+  String get settingsThemeModeSubtitle => 'Choose theme colors';
 
   @override
   String get settingsDownloadsSubtitle => 'Model downloads and storage';
@@ -1102,12 +1103,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'GGUF is a single file; MNN models are whole directories. The engine badge on each card tells them apart.';
 
   @override
-  String get modelLibraryEmptyTitle =>
-      'No models yet. Download from Discover or import a local model.';
+  String get modelLibraryEmptyTitle => 'No models yet';
 
   @override
-  String get modelLibraryEmptyDescription =>
-      'Download one, or import a file you already have.';
+  String get modelLibraryEmptyDescription => 'Tap + to add a model';
 
   @override
   String get modelLibrarySearchHint => 'Search model names';
@@ -2588,8 +2587,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Choose a model by provider. Selecting a local model loads it and starts the service.';
 
   @override
-  String get v2NoLocalChatModels =>
-      'No local LLM is available. Download or import one from Models.';
+  String get v2NoLocalChatModels => 'No models';
 
   @override
   String get v2AssistantDefaultModel => 'Chat model';

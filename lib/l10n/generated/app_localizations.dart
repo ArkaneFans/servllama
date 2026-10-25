@@ -473,7 +473,7 @@ abstract class AppLocalizations {
   /// No description provided for @chatInputHintStartServer.
   ///
   /// In en, this message translates to:
-  /// **'Start the server first'**
+  /// **'Model not loaded. Please load a model.'**
   String get chatInputHintStartServer;
 
   /// No description provided for @chatInputHintLoadingModel.
@@ -689,7 +689,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsThemeModeSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Light, dark, or system'**
+  /// **'Choose theme colors'**
   String get settingsThemeModeSubtitle;
 
   /// No description provided for @settingsDownloadsSubtitle.
@@ -2042,13 +2042,13 @@ abstract class AppLocalizations {
   /// No description provided for @modelLibraryEmptyTitle.
   ///
   /// In en, this message translates to:
-  /// **'No models yet. Download from Discover or import a local model.'**
+  /// **'No models yet'**
   String get modelLibraryEmptyTitle;
 
   /// No description provided for @modelLibraryEmptyDescription.
   ///
   /// In en, this message translates to:
-  /// **'Download one, or import a file you already have.'**
+  /// **'Tap + to add a model'**
   String get modelLibraryEmptyDescription;
 
   /// No description provided for @modelLibrarySearchHint.
@@ -4664,7 +4664,7 @@ abstract class AppLocalizations {
   /// No description provided for @v2NoLocalChatModels.
   ///
   /// In en, this message translates to:
-  /// **'No local LLM is available. Download or import one from Models.'**
+  /// **'No models'**
   String get v2NoLocalChatModels;
 
   /// No description provided for @v2AssistantDefaultModel.

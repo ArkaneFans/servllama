@@ -49,6 +49,7 @@ import 'package:servllama/features/speech/pages/speech_page.dart';
 import 'package:servllama/features/speech/services/speech_job_service.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
 import 'package:servllama/shared/widgets/push_sidebar.dart';
+import 'package:servllama/shared/widgets/app_empty_state.dart';
 import 'package:servllama/shared/navigation/app_navigation_observer.dart';
 
 import '../features/speech/speech_test_support.dart';
@@ -732,6 +733,45 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
+
+  testWidgets('model, skill and MCP empty states share text styles', (
+    tester,
+  ) async {
+    screen(tester, const Size(360, 800));
+    final pages = <(Widget, String, String)>[
+      (const ModelLibraryPage(), 'No models yet', 'Tap + to add a model'),
+      (
+        const SkillsPage(),
+        'No skills yet',
+        'Tap + in the upper-right corner to import one',
+      ),
+      (
+        const McpServersPage(),
+        'No MCP servers yet',
+        'Tap + in the upper-right corner to add one',
+      ),
+    ];
+    for (final (page, title, description) in pages) {
+      await tester.pumpWidget(app(home: page, scale: 1.6));
+      await settleSql(tester, () => find.text(title).evaluate().isNotEmpty);
+
+      final titleFinder = find.text(title);
+      final theme = Theme.of(tester.element(titleFinder));
+      expect(find.byType(AppEmptyState), findsOneWidget);
+      expect(
+        tester.widget<Text>(titleFinder).style,
+        theme.textTheme.titleMedium,
+      );
+      expect(
+        tester.widget<Text>(find.text(description)).style,
+        theme.textTheme.bodyMedium?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    }
+  });
 
   testWidgets('skills add sheet validates and imports pasted markdown', (
     tester,

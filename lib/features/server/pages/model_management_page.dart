@@ -1,5 +1,6 @@
 import 'package:servllama/shared/widgets/app_message.dart';
 import 'package:servllama/shared/widgets/app_scaffold.dart';
+import 'package:servllama/shared/widgets/app_empty_state.dart';
 import 'package:servllama/shared/widgets/ai_identity_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:servllama/features/downloads/pages/model_discovery_page.dart';
@@ -207,6 +208,8 @@ class _ModelManagementViewState extends State<_ModelManagementView>
         final runtime = context.watch<EngineRuntimeProvider?>();
 
         final query = _searchController.text;
+        final hasFilters =
+            query.trim().isNotEmpty || _formatFilter != _LibraryFilter.all;
         final libraryDownloads = downloads.libraryTasks
             .where((task) => _downloadNameMatches(task, query))
             .toList(growable: false);
@@ -318,15 +321,28 @@ class _ModelManagementViewState extends State<_ModelManagementView>
                       ),
                       Expanded(
                         child: models.isEmpty && visibleDownloads.isEmpty
-                            ? query.trim().isEmpty
-                                  ? _EmptyState(
-                                      title: l10n.modelLibraryEmptyTitle,
-                                    )
-                                  : _EmptyState(
-                                      title: l10n.modelLibraryEmptySearchTitle,
-                                      description: l10n
-                                          .modelLibraryEmptySearchDescription,
-                                    )
+                            ? CustomScrollView(
+                                slivers: [
+                                  SliverFillRemaining(
+                                    hasScrollBody: false,
+                                    child: !hasFilters
+                                        ? AppEmptyState(
+                                            icon: const Icon(
+                                              Icons.memory_outlined,
+                                            ),
+                                            title: l10n.modelLibraryEmptyTitle,
+                                            description: l10n
+                                                .modelLibraryEmptyDescription,
+                                          )
+                                        : _EmptyState(
+                                            title: l10n
+                                                .modelLibraryEmptySearchTitle,
+                                            description: l10n
+                                                .modelLibraryEmptySearchDescription,
+                                          ),
+                                  ),
+                                ],
+                              )
                             : ListView(
                                 padding: const EdgeInsets.fromLTRB(
                                   20,

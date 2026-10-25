@@ -1,4 +1,5 @@
 import 'package:servllama/shared/widgets/app_scaffold.dart';
+import 'package:servllama/shared/widgets/app_empty_state.dart';
 import 'package:flutter/material.dart';
 import 'package:servllama/features/assistants/providers/assistant_provider.dart';
 import 'package:provider/provider.dart';
@@ -183,35 +184,10 @@ class _SkillsPageState extends State<SkillsPage> {
               if (loaded && skills.isEmpty)
                 SliverFillRemaining(
                   hasScrollBody: false,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(32, 24, 32, 24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.extension_outlined,
-                          size: 40,
-                          color: Theme.of(context).colorScheme.outline,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          l.v2SkillsEmpty,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          l.v2SkillsEmptyHint,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurfaceVariant,
-                              ),
-                        ),
-                      ],
-                    ),
+                  child: AppEmptyState(
+                    icon: const Icon(Icons.extension_outlined),
+                    title: l.v2SkillsEmpty,
+                    description: l.v2SkillsEmptyHint,
                   ),
                 ),
               if (skills.isNotEmpty)

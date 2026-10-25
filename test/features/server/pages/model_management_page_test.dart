@@ -26,6 +26,8 @@ import 'package:servllama/features/downloads/services/model_catalog_service.dart
 import 'package:servllama/features/downloads/services/model_download_service.dart';
 import 'package:servllama/features/downloads/services/model_hub_client.dart';
 import 'package:servllama/features/server/pages/model_management_page.dart';
+import 'package:servllama/l10n/generated/app_localizations.dart';
+import 'package:servllama/shared/widgets/app_empty_state.dart';
 
 import '../../../support/stub_engine_adapter.dart';
 
@@ -56,7 +58,9 @@ void main() {
           );
     });
 
-    testWidgets('shows a text prompt when there are no models', (tester) async {
+    testWidgets('shows an icon and two lines when there are no models', (
+      tester,
+    ) async {
       final provider = ModelManagementProvider(
         repository: FakeLocalModelRepository(),
         filePicker: FakeGgufFilePicker(),
@@ -66,11 +70,28 @@ void main() {
       await tester.pumpWidget(_host(provider));
       await tester.pumpAndSettle();
 
-      expect(find.text('还没有模型，请前往发现模型下载，或导入本地模型。'), findsOneWidget);
+      expect(find.text('还没有模型'), findsOneWidget);
+      expect(find.text('点击 + 添加模型'), findsOneWidget);
+      expect(find.byType(AppEmptyState), findsOneWidget);
+      expect(find.byIcon(Icons.memory_outlined), findsOneWidget);
       expect(
         find.byKey(const Key('model_management_import_fab')),
         findsOneWidget,
       );
+    });
+
+    testWidgets('localizes the empty model library in English', (tester) async {
+      final provider = ModelManagementProvider(
+        repository: FakeLocalModelRepository(),
+        filePicker: FakeGgufFilePicker(),
+        logger: AppLogger(),
+      );
+
+      await tester.pumpWidget(_host(provider, locale: const Locale('en')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('No models yet'), findsOneWidget);
+      expect(find.text('Tap + to add a model'), findsOneWidget);
     });
 
     testWidgets('keeps paused and failed downloads in the library', (
@@ -105,7 +126,7 @@ void main() {
       expect(find.text('paused-model'), findsOneWidget);
       expect(find.text('failed-model'), findsOneWidget);
       expect(find.text('installed-model'), findsOneWidget);
-      expect(find.text('还没有模型，请前往发现模型下载，或导入本地模型。'), findsNothing);
+      expect(find.byType(AppEmptyState), findsNothing);
       expect(tester.widget<Badge>(find.byType(Badge)).isLabelVisible, isFalse);
     });
 
@@ -154,6 +175,7 @@ void main() {
 
       expect(find.text('Qwen3-0.6B'), findsNothing);
       expect(find.text('没有匹配的模型'), findsOneWidget);
+      expect(find.text('点击 + 添加模型'), findsNothing);
 
       await tester.tap(find.byKey(const Key('model_library_search_clear')));
       await tester.pump();
@@ -162,6 +184,30 @@ void main() {
       expect(find.text('llama-failed'), findsOneWidget);
       expect(find.text('Gemma-2B'), findsOneWidget);
     });
+
+    testWidgets(
+      'does not suggest adding when an engine filter has no matches',
+      (tester) async {
+        final provider = ModelManagementProvider(
+          repository: FakeLocalModelRepository(
+            initialModels: <ModelDescriptor>[
+              _descriptor(id: 'm1', modelName: 'installed-model'),
+            ],
+          ),
+          filePicker: FakeGgufFilePicker(),
+          logger: AppLogger(),
+        );
+
+        await tester.pumpWidget(_host(provider));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('MNN · 0'));
+        await tester.pump();
+
+        expect(find.text('没有匹配的模型'), findsOneWidget);
+        expect(find.byType(AppEmptyState), findsNothing);
+        expect(find.text('点击 + 添加模型'), findsNothing);
+      },
+    );
 
     testWidgets('shows model cards with modelName and size', (tester) async {
       final provider = ModelManagementProvider(
@@ -312,7 +358,8 @@ void main() {
       await _settle(tester);
 
       expect(find.text('模型已删除: delete'), findsOneWidget);
-      expect(find.text('还没有模型，请前往发现模型下载，或导入本地模型。'), findsOneWidget);
+      expect(find.text('还没有模型'), findsOneWidget);
+      expect(find.text('点击 + 添加模型'), findsOneWidget);
     });
 
     testWidgets('imports model and shows snackbar feedback', (tester) async {
@@ -809,6 +856,7 @@ Widget _host(
   EngineRuntimeProvider? runtime,
   ModelDiscoveryProvider? discovery,
   DownloadProvider? downloads,
+  Locale locale = const Locale('zh'),
 }) {
   return MultiProvider(
     providers: [
@@ -827,7 +875,12 @@ Widget _host(
       if (runtime != null)
         ChangeNotifierProvider<EngineRuntimeProvider>.value(value: runtime),
     ],
-    child: MaterialApp(home: ModelManagementPage(provider: provider)),
+    child: MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      locale: locale,
+      home: ModelManagementPage(provider: provider),
+    ),
   );
 }
 
