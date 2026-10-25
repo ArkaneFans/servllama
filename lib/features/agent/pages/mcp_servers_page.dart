@@ -28,7 +28,9 @@ class _McpServersPageState extends State<McpServersPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) runUiAction(context, reload);
+      if (mounted) {
+        runUiAction(context, () => reload(refreshAssistants: false));
+      }
     });
   }
 
@@ -38,16 +40,19 @@ class _McpServersPageState extends State<McpServersPage> {
     super.dispose();
   }
 
-  Future<void> reload({bool refreshConnections = false}) async {
+  Future<void> reload({
+    bool refreshConnections = false,
+    bool refreshAssistants = true,
+  }) async {
     if (!mounted) return;
     final service = context.read<AgentToolService>();
     final assistants = context.read<AssistantProvider>();
     if (refreshConnections) {
       await service.mcp.refreshAll();
     } else {
-      await service.mcp.load();
+      await service.mcp.ensureLoaded();
     }
-    await assistants.load();
+    if (refreshAssistants) await assistants.load();
   }
 
   @override

@@ -33,17 +33,19 @@ class _SkillsPageState extends State<SkillsPage> {
       return;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) runUiAction(context, reload);
+      if (mounted) runUiAction(context, () => reload(refresh: false));
     });
   }
 
-  Future<void> reload() async {
+  Future<void> reload({bool refresh = true}) async {
     if (!mounted) return;
     final service = context.read<AgentToolService>();
     final assistants = context.read<AssistantProvider>();
     try {
-      final records = await service.loadSkills();
-      await assistants.load();
+      final records = await (refresh
+          ? service.loadSkills()
+          : service.ensureSkillsLoaded());
+      if (refresh) await assistants.load();
       if (mounted) setState(() => skills = records);
     } finally {
       if (mounted) setState(() => loaded = true);

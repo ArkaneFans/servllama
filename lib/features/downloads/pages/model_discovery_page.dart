@@ -43,6 +43,7 @@ class _ModelDiscoveryPageState extends State<ModelDiscoveryPage>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         context.read<ModelDiscoveryProvider>().load();
+        context.read<SpeechJobService?>()?.initialize();
       }
     });
   }
@@ -319,7 +320,8 @@ class _FeaturedTabState extends State<_FeaturedTab>
         for (final p in packages) SpeechCatalogCard(package: p),
         if (languages.isEmpty &&
             packages.isEmpty &&
-            !widget.discovery.isLoadingCatalog)
+            !widget.discovery.isLoadingCatalog &&
+            (purpose == 'llm' || speech == null || speech.ready))
           _CenteredHint(text: l.modelLibraryEmptySearchTitle),
       ],
     );

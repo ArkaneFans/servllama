@@ -16,6 +16,76 @@ void main() {
   });
   tearDown(() => h.close());
 
+  test(
+    'warmup and demand coalesce speech initialization without starting jobs',
+    () async {
+      final cold = SpeechJobService(
+        h.resources,
+        logger: h.logger,
+        workerFactory: () =>
+            throw StateError('Initialization must not run inference'),
+      );
+      final first = cold.initialize(
+        storageRoot: h.directory,
+        database: h.db,
+        configureAudio: false,
+      );
+      final demand = cold.initialize();
+      expect(identical(first, demand), isTrue);
+      await Future.wait([first, demand]);
+      expect(cold.ready, isTrue);
+      expect(cold.loadError, isNull);
+      expect(h.workers, isEmpty);
+      final models = cold.models;
+      await cold.initialize();
+      expect(cold.models, same(models));
+      cold.dispose();
+    },
+  );
+
+  test(
+    'failed speech preparation can retry with a clean error state',
+    () async {
+      final file = File('${h.directory.path}/not-a-directory');
+      await file.writeAsString('fixture');
+      final cold = SpeechJobService(h.resources, logger: h.logger);
+      await cold.initialize(
+        storageRoot: Directory(file.path),
+        database: h.db,
+        configureAudio: false,
+      );
+      expect(cold.ready, isFalse);
+      expect(cold.loadError, isNotNull);
+      await cold.initialize(
+        storageRoot: h.directory,
+        database: h.db,
+        configureAudio: false,
+      );
+      expect(cold.ready, isTrue);
+      expect(cold.loadError, isNull);
+      cold.dispose();
+    },
+  );
+
+  test(
+    'disposing during speech preparation releases partial services',
+    () async {
+      final cold = SpeechJobService(h.resources, logger: h.logger);
+      final initializing = cold.initialize(
+        storageRoot: h.directory,
+        database: h.db,
+        configureAudio: false,
+      );
+      cold.dispose();
+      await initializing;
+      expect(cold.ready, isFalse);
+      expect(() => cold.models.addListener(() {}), throwsFlutterError);
+      expect(() => cold.audio.addListener(() {}), throwsFlutterError);
+      await cold.initialize();
+      expect(cold.ready, isFalse);
+    },
+  );
+
   test('active queries do not deserialize unrelated historical jobs', () async {
     await h.db.execute(
       "INSERT INTO speech_jobs(id,state,asset_id,created_at,payload) VALUES('old','completed','asset',0,'not read by active queries')",

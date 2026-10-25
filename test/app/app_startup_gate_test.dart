@@ -32,7 +32,7 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('local snapshots ready'), findsNothing);
     local.complete();
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.text('local snapshots ready'), findsOneWidget);
     expect(calls, 1);
   });
@@ -53,5 +53,33 @@ void main() {
     await tester.pump();
     expect(find.text('local snapshots ready'), findsOneWidget);
     expect(calls, 2);
+  });
+
+  testWidgets('captured pre-runApp failure waits for explicit retry', (
+    tester,
+  ) async {
+    var calls = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: AppStartupGate(
+          initialError: StateError('fixture pre-runApp failure'),
+          initialize: (_) async {
+            calls++;
+          },
+          child: const Text('ready'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(calls, 0);
+    expect(tester.binding.sendFramesToEngine, isTrue);
+    expect(find.text('ready'), findsNothing);
+    final l = AppLocalizations.of(tester.element(find.byType(AppStartupGate)))!;
+    await tester.tap(find.text(l.v2RetryStartup));
+    await tester.pumpAndSettle();
+    expect(calls, 1);
+    expect(find.text('ready'), findsOneWidget);
   });
 }

@@ -11,6 +11,62 @@ void main() {
   AppLocalizations localizations(WidgetTester tester) =>
       AppLocalizations.of(tester.element(find.byType(MigrationFlowView)))!;
 
+  testWidgets('known migration check opens its choice without checking again', (
+    tester,
+  ) async {
+    var checks = 0, admissions = 0;
+    await tester.pumpWidget(
+      BootstrapGate(
+        initialPendingMigration: true,
+        hasPendingMigration: () async {
+          checks++;
+          return true;
+        },
+        initialize: (_, {required skipLegacyImport}) async {
+          admissions++;
+        },
+        child: const MaterialApp(home: Text('Business ready')),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(checks, 0);
+    expect(admissions, 0);
+    expect(tester.binding.sendFramesToEngine, isTrue);
+    expect(find.byKey(const Key('migration_start')), findsOneWidget);
+  });
+
+  for (final failedCheck in [true, false]) {
+    testWidgets(
+      'captured ${failedCheck ? 'check' : 'admission'} failure does not auto-retry',
+      (tester) async {
+        var checks = 0, admissions = 0;
+        await tester.pumpWidget(
+          BootstrapGate(
+            initialPendingMigration: failedCheck ? null : false,
+            initialError: StateError('fixture admission failure'),
+            hasPendingMigration: () async {
+              checks++;
+              return false;
+            },
+            initialize: (_, {required skipLegacyImport}) async {
+              admissions++;
+            },
+            child: const MaterialApp(home: Text('Business ready')),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(checks, 0);
+        expect(admissions, 0);
+        final l = localizations(tester);
+        await tester.tap(find.text(l.v2RetryStartup));
+        await tester.pumpAndSettle();
+        expect(checks, failedCheck ? 1 : 0);
+        expect(admissions, 1);
+        expect(find.text('Business ready'), findsOneWidget);
+      },
+    );
+  }
+
   testWidgets(
     'legacy data waits for a choice and completed migration waits for Start using',
     (tester) async {

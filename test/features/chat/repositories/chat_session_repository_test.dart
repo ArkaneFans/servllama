@@ -342,6 +342,32 @@ void main() {
       expect(await attachment.exists(), isFalse);
     },
   );
+
+  test(
+    'light app startup defers durable file cleanup without losing deletion intents',
+    () async {
+      final attachment = await image('deferred.png');
+      await db.execute(
+        'INSERT INTO pending_file_deletions(path, kind) VALUES (?, ?)',
+        [attachment.path, 'chatAttachment'],
+      );
+      await repository.close();
+      repository = ChatSessionRepository(
+        appSupportDirectory: root,
+        hive: Hive,
+        retryCleanupOnOpen: false,
+      );
+      db = await repository.database;
+      expect(
+        await db.query('SELECT * FROM pending_file_deletions'),
+        hasLength(1),
+      );
+      expect(await attachment.exists(), isTrue);
+      await repository.cleanupFiles();
+      expect(await db.query('SELECT * FROM pending_file_deletions'), isEmpty);
+      expect(await attachment.exists(), isFalse);
+    },
+  );
 }
 
 ChatSessionRecord _session(

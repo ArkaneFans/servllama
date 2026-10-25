@@ -289,7 +289,7 @@ class _RecordingDownloadProvider extends DownloadProvider {
   List<DownloadTaskView> get tasks => _queued;
 
   @override
-  Future<void> load() async {}
+  Future<void> load({bool startTransfers = true}) async {}
 
   @override
   Future<bool> isBlockedByWifiOnlyPolicy() async => false;

@@ -18,6 +18,25 @@ void main() {
       AppL10nService.instance.setLocale(const Locale('en'));
     });
 
+    test(
+      'warmup and route await one load; prepared reads preserve edits',
+      () async {
+        final loader = _BlockingLoadLoader();
+        final provider = ServerConfigProvider(settingsLoader: loader);
+        final first = provider.ensureLoaded();
+        final route = provider.ensureLoaded();
+        expect(identical(first, route), isTrue);
+        expect(loader.calls, 1);
+        loader.pending.complete(const ServerLaunchSettings(port: 9002));
+        await Future.wait([first, route]);
+        await provider.updatePort(9003);
+        await provider.ensureLoaded();
+        expect(loader.calls, 1);
+        expect(provider.port, 9003);
+        provider.dispose();
+      },
+    );
+
     test('load marks initial load as completed', () async {
       final provider = ServerConfigProvider(
         settingsLoader: _FixedServerLaunchSettingsLoader(
@@ -212,6 +231,19 @@ class _BlockingSaveLoader extends ServerLaunchSettingsLoader {
 
   @override
   Future<void> save(ServerLaunchSettings settings) => gate.future;
+}
+
+class _BlockingLoadLoader extends ServerLaunchSettingsLoader {
+  final pending = Completer<ServerLaunchSettings>();
+  int calls = 0;
+  @override
+  Future<ServerLaunchSettings> load() {
+    calls++;
+    return pending.future;
+  }
+
+  @override
+  Future<void> save(ServerLaunchSettings settings) async {}
 }
 
 class _FixedServerLaunchSettingsLoader extends ServerLaunchSettingsLoader {

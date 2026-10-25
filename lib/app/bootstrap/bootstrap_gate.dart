@@ -20,11 +20,17 @@ class BootstrapGate extends StatefulWidget {
     required this.hasPendingMigration,
     required this.initialize,
     required this.child,
+    this.initialPendingMigration,
+    this.initialError,
   });
 
   final Future<bool> Function() hasPendingMigration;
   final BootstrapInitializer initialize;
   final Widget child;
+
+  /// The entry point can check admission before constructing a widget tree.
+  final bool? initialPendingMigration;
+  final Object? initialError;
 
   @override
   State<BootstrapGate> createState() => _BootstrapGateState();
@@ -44,17 +50,23 @@ class _BootstrapGateState extends State<BootstrapGate> {
   @override
   void initState() {
     super.initState();
-    _checkMigration();
+    if (widget.initialError != null) {
+      _error = widget.initialError;
+      _failedChecking = widget.initialPendingMigration == null;
+      _phase = MigrationFlowPhase.failed;
+    } else {
+      _checkMigration(knownPending: widget.initialPendingMigration);
+    }
   }
 
-  Future<void> _checkMigration() async {
+  Future<void> _checkMigration({bool? knownPending}) async {
     setState(() {
       _phase = MigrationFlowPhase.checking;
       _error = null;
       _failedChecking = false;
     });
     try {
-      final pending = await widget.hasPendingMigration();
+      final pending = knownPending ?? await widget.hasPendingMigration();
       if (!mounted) return;
       _pendingMigration = pending;
       if (pending) {
@@ -127,6 +139,8 @@ class _BootstrapGateState extends State<BootstrapGate> {
   @override
   Widget build(BuildContext context) {
     if (_ready) return widget.child;
+    // The normal entry point admits data before runApp. This widget owns the
+    // visible migration/retry flow, not the native launch screen lifetime.
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),

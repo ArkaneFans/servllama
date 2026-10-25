@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
@@ -11,6 +12,8 @@ class _FakeLogSink implements LogSink {
   int flushCount = 0;
   int clearCount = 0;
   bool failWrites = false;
+  Completer<List<AppLogEntry>>? history;
+  int historyReads = 0;
 
   @override
   void add(AppLogEntry entry) {
@@ -22,7 +25,10 @@ class _FakeLogSink implements LogSink {
   Future<void> flush() async => flushCount++;
 
   @override
-  Future<List<AppLogEntry>> loadRecent(int max) async => const <AppLogEntry>[];
+  Future<List<AppLogEntry>> loadRecent(int max) {
+    historyReads++;
+    return history?.future ?? Future.value(const <AppLogEntry>[]);
+  }
 
   @override
   Future<void> clear() async => clearCount++;
@@ -30,6 +36,90 @@ class _FakeLogSink implements LogSink {
 
 void main() {
   group('AppLogger', () {
+    test(
+      'lazy history is shared and merges with bounded live startup logs',
+      () async {
+        final logger = AppLogger(maxEntries: 3);
+        addTearDown(logger.dispose);
+        final sink = _FakeLogSink()..history = Completer<List<AppLogEntry>>();
+        logger.attachSink(sink);
+        expect(sink.historyReads, 0);
+        final read = logger.ensureHistoryLoaded();
+        expect(identical(read, logger.ensureHistoryLoaded()), isTrue);
+        logger.event('startup-one');
+        logger.event('startup-two');
+        sink.history!.complete([
+          for (final name in ['oldest', 'old'])
+            AppLogEntry(
+              timestamp: DateTime(2020),
+              channel: LogChannel.app,
+              level: LogLevel.info,
+              message: name,
+            ),
+          // A sink flush may include a live event written during its read.
+          ...sink.added,
+        ]);
+        await read;
+        expect(logger.entriesFor(LogChannel.app).map((e) => e.message), [
+          'old',
+          'startup-one',
+          'startup-two',
+        ]);
+        expect(sink.added, hasLength(2));
+        await logger.ensureHistoryLoaded();
+        expect(sink.historyReads, 1);
+      },
+    );
+
+    test(
+      'clearing while history is pending cannot resurrect old logs',
+      () async {
+        final logger = AppLogger();
+        addTearDown(logger.dispose);
+        final sink = _FakeLogSink()..history = Completer<List<AppLogEntry>>();
+        logger.attachSink(sink);
+        final read = logger.ensureHistoryLoaded();
+        logger.event('discard');
+        logger.clearChannel(LogChannel.app);
+        await logger.clearPersisted();
+        logger.event('after-clear');
+        sink.history!.complete([
+          AppLogEntry(
+            timestamp: DateTime(2020),
+            channel: LogChannel.app,
+            level: LogLevel.info,
+            message: 'old',
+          ),
+        ]);
+        await read;
+        expect(logger.entriesFor(LogChannel.app).single.message, 'after-clear');
+        await logger.ensureHistoryLoaded();
+        expect(sink.historyReads, 1);
+      },
+    );
+
+    test('replacing a sink discards its pending history snapshot', () async {
+      final logger = AppLogger();
+      addTearDown(logger.dispose);
+      final first = _FakeLogSink()..history = Completer<List<AppLogEntry>>();
+      logger.attachSink(first);
+      final read = logger.ensureHistoryLoaded();
+      final next = _FakeLogSink();
+      logger.attachSink(next);
+      await logger.ensureHistoryLoaded();
+      first.history!.complete([
+        AppLogEntry(
+          timestamp: DateTime(2020),
+          channel: LogChannel.app,
+          level: LogLevel.info,
+          message: 'obsolete',
+        ),
+      ]);
+      await read;
+      expect(logger.entriesFor(LogChannel.app), isEmpty);
+      expect(next.historyReads, 1);
+    });
+
     test(
       'diagnostic events persist safe scalar metadata in the page cache',
       () {

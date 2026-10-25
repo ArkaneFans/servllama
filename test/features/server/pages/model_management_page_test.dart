@@ -900,7 +900,7 @@ class _FixedTasksDownloadProvider extends DownloadProvider {
   List<DownloadTaskView> get tasks => _seeded;
 
   @override
-  Future<void> load() async {}
+  Future<void> load({bool startTransfers = true}) async {}
 }
 
 class _RecordingDownloadProvider extends DownloadProvider {
@@ -919,7 +919,7 @@ class _RecordingDownloadProvider extends DownloadProvider {
   Future<bool> isBlockedByWifiOnlyPolicy() async => false;
 
   @override
-  Future<void> load() async {}
+  Future<void> load({bool startTransfers = true}) async {}
 
   @override
   Future<DownloadTaskView> enqueue({

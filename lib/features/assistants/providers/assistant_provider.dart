@@ -28,13 +28,14 @@ class AssistantProvider extends ChangeNotifier {
   UserProfile profile = const UserProfile();
   String? activeId, error;
   bool loaded = false;
+  bool _disposed = false;
   final Map<String, String> _credentials = {};
   Future<void> _assistantUpdateQueue = Future.value();
   Assistant? get active =>
       assistants.where((a) => a.id == activeId).firstOrNull;
   Future<AssistantRepository> get repository async =>
       _repository ??= AssistantRepository(await AppDatabase.shared());
-  Future<void> load() async {
+  Future<void> load({bool reconcileAssets = true}) async {
     try {
       final r = await repository;
       await r.initializeProviders();
@@ -55,11 +56,12 @@ class AssistantProvider extends ChangeNotifier {
       if (savedId != activeId) {
         await r.preferences.setString('v2.activeAssistant', activeId!);
       }
-      assets = await models.listAssets();
+      assets = await models.listAssets(reconcile: reconcileAssets);
       await r.clearMissingTargets();
       assistants = await r.assistants();
       error = null;
       loaded = true;
+      _assetsReconciled = reconcileAssets;
     } catch (e) {
       error = LogRedactor.redact(e.toString());
       _logger.event(
@@ -205,7 +207,7 @@ class AssistantProvider extends ChangeNotifier {
     final cached = cachedCredential(c);
     if (cached != null) return cached;
     final value = await (await repository).secrets.read(c.secretRef!) ?? '';
-    _credentials[c.secretRef!] = value;
+    if (!_disposed) _credentials[c.secretRef!] = value;
     return value;
   }
 
@@ -238,8 +240,14 @@ class AssistantProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _credentials.clear();
     super.dispose();
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
   }
 
   Future<List<String>> discover(
@@ -278,11 +286,35 @@ class AssistantProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> refreshAssets() async {
-    assets = await models.listAssets();
+  bool _assetsReconciled = false;
+  Future<void>? _assetRefresh;
+
+  Future<void> ensureAssetsReconciled() =>
+      _assetRefresh ??
+      (_assetsReconciled ? Future<void>.value() : refreshAssets());
+
+  Future<void> refreshAssets() {
+    // A committed import/delete needs a fresh read after any older prefetch.
+    late final Future<void> refreshing;
+    refreshing = (_assetRefresh ?? Future<void>.value())
+        .then((_) {}, onError: (Object _) {})
+        .then((_) => _refreshAssets())
+        .whenComplete(() {
+          if (identical(_assetRefresh, refreshing)) _assetRefresh = null;
+        });
+    _assetRefresh = refreshing;
+    return refreshing;
+  }
+
+  Future<void> _refreshAssets() async {
+    final refreshed = await models.listAssets();
     final r = await repository;
     await r.clearMissingTargets();
-    assistants = await r.assistants();
+    final current = await r.assistants();
+    assets = refreshed;
+    assistants = current;
+    _assetsReconciled = true;
+    await AgentToolService.current?.revalidate();
     notifyListeners();
   }
 }

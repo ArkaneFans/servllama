@@ -11,6 +11,10 @@ class ChatSessionListController extends ChangeNotifier {
   List<ChatSessionRecord> _sessions = <ChatSessionRecord>[];
   bool _isInitialized = false;
   bool _isLoading = false;
+  bool _disposed = false;
+  Future<void>? _loading;
+  final _pendingUpserts = <String, ChatSessionRecord>{};
+  final _pendingRemovals = <String>{};
   String _query = '';
 
   List<ChatSessionRecord> get sessions =>
@@ -31,22 +35,33 @@ class ChatSessionListController extends ChangeNotifier {
         .toList(growable: false);
   }
 
-  Future<void> load() async {
-    if (_isInitialized || _isLoading) {
-      return;
-    }
+  Future<void> load() {
+    if (_disposed || _isInitialized) return Future<void>.value();
+    return _loading ??= _load().whenComplete(() => _loading = null);
+  }
 
+  Future<void> _load() async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      _sessions = List<ChatSessionRecord>.from(
-        await _repository.loadSessions(),
-      );
+      final restored = await _repository.loadSessions();
+      if (_disposed) return;
+      // Sending a new draft or deleting an assistant can finish while this
+      // initial read is in flight. Its older result must not undo those edits.
+      _sessions = [
+        for (final session in restored)
+          if (!_pendingRemovals.contains(session.id) &&
+              !_pendingUpserts.containsKey(session.id))
+            session,
+        ..._pendingUpserts.values,
+      ]..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
       _isInitialized = true;
     } catch (_) {
     } finally {
       _isLoading = false;
+      _pendingUpserts.clear();
+      _pendingRemovals.clear();
       notifyListeners();
     }
   }
@@ -87,6 +102,12 @@ class ChatSessionListController extends ChangeNotifier {
   }
 
   void removeSessions(Set<String> ids, {bool notify = true}) {
+    if (_isLoading) {
+      _pendingRemovals.addAll(ids);
+      for (final id in ids) {
+        _pendingUpserts.remove(id);
+      }
+    }
     _sessions = List<ChatSessionRecord>.from(_sessions)
       ..removeWhere((item) => ids.contains(item.id));
     if (notify) notifyListeners();
@@ -101,6 +122,10 @@ class ChatSessionListController extends ChangeNotifier {
   }
 
   void upsertSession(ChatSessionRecord session, {bool notify = true}) {
+    if (_isLoading) {
+      _pendingUpserts[session.id] = session;
+      _pendingRemovals.remove(session.id);
+    }
     final nextSessions = List<ChatSessionRecord>.from(_sessions);
     final index = nextSessions.indexWhere((item) => item.id == session.id);
     if (index >= 0) {
@@ -127,5 +152,16 @@ class ChatSessionListController extends ChangeNotifier {
       }
     }
     return null;
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 }

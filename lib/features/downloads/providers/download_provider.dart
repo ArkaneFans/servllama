@@ -129,13 +129,21 @@ class DownloadProvider extends ChangeNotifier {
       .where((task) => task.status.belongsInLibrary)
       .toList(growable: false);
 
-  Future<void> load() {
-    if (_hasLoaded) {
-      return Future<void>.value();
+  Future<void> load({bool startTransfers = true}) async {
+    if (!_hasLoaded) {
+      await (_loadFuture ??= _loadOnce().whenComplete(() {
+        _loadFuture = null;
+      }));
     }
-    return _loadFuture ??= _loadOnce().whenComplete(() {
-      _loadFuture = null;
-    });
+    if (startTransfers) resumeRestoredTransfers();
+  }
+
+  /// Restore the drawer/task snapshot before first paint, but start network
+  /// work only after the app-level completion listener has been attached.
+  void resumeRestoredTransfers() {
+    if (_disposed || !_hasLoaded) return;
+    _ensureEnvironmentMonitor();
+    unawaited(_pump());
   }
 
   Future<void> _loadOnce() async {
@@ -162,15 +170,6 @@ class DownloadProvider extends ChangeNotifier {
           completedIds.add(record.id);
           continue;
         }
-        final allocation = await _allocateName(
-          taskId: record.id,
-          requestedName: record.requestedModelName,
-          preferredName: record.modelName,
-        );
-        if (record.modelName != allocation.name) {
-          record.modelName = allocation.name;
-          await _taskRepository.save(record);
-        }
         if (DownloadStatus.fromName(record.statusValue).isActive) {
           record.statusValue = DownloadStatus.queued.name;
           record.pausedByNetwork = false;
@@ -181,6 +180,13 @@ class DownloadProvider extends ChangeNotifier {
         _tasks.remove(id);
         await _taskRepository.delete(id);
       }
+      // Persisted names are a lightweight snapshot, not a reason to rescan
+      // every installed model. Imports and final commits recheck collisions.
+      await _modelNameCoordinator?.restoreReservations({
+        for (final record in _tasks.values)
+          if (record.targetModelId?.trim().isNotEmpty != true)
+            _reservationId(record.id): record.modelName,
+      });
       _hasLoaded = true;
     } catch (error, stackTrace) {
       _logger.error(
@@ -192,8 +198,6 @@ class DownloadProvider extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
-      _ensureEnvironmentMonitor();
-      unawaited(_pump());
     }
   }
 

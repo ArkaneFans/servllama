@@ -644,16 +644,33 @@ class ChatProvider extends ChangeNotifier {
             .toList()
       : filteredSessions;
 
-  Future<void> load() async {
-    await _loadDrafts();
+  Future<void> load({bool preloadMessages = true}) async {
+    await prepareDrafts();
+    if (_disposed) return;
     await _sessionList.load();
+    if (_disposed) return;
     _refreshBinding();
     _conversation.clearIfSelectedSessionMissing(notify: false);
-    unawaited(_repository.warmUpMessageStore().catchError((_) {}));
-    _conversation.preloadInitialMessages(
-      _sessionList.sessions.take(initialMessagePreloadCount),
-    );
+    if (preloadMessages) {
+      unawaited(_repository.warmUpMessageStore().catchError((_) {}));
+      _conversation.preloadInitialMessages(
+        _sessionList.sessions.take(initialMessagePreloadCount),
+      );
+    }
   }
+
+  /// The fresh-chat input needs drafts, not every history membership list.
+  Future<void> prepareDrafts() async {
+    await _loadDrafts();
+    if (_disposed) return;
+    _refreshBinding();
+  }
+
+  Future<void> cleanupFiles() => _repository.cleanupFiles();
+
+  /// Cache-only: shares the same budget and single-flight load as selection.
+  /// The app schedules each recent window separately, outside startup gating.
+  Future<void> warmUpSession(String id) => _conversation.warmUpSession(id);
 
   void updateSessionQuery(String value) {
     _sessionList.updateQuery(value);

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:servllama/app/bootstrap/migration_flow_view.dart';
 import 'package:servllama/core/logging/app_logger.dart';
@@ -9,9 +11,13 @@ class AppStartupGate extends StatefulWidget {
     super.key,
     required this.initialize,
     required this.child,
+    this.onReady,
+    this.initialError,
   });
   final Future<void> Function(BuildContext) initialize;
   final Widget child;
+  final VoidCallback? onReady;
+  final Object? initialError;
 
   @override
   State<AppStartupGate> createState() => _AppStartupGateState();
@@ -24,8 +30,13 @@ class _AppStartupGateState extends State<AppStartupGate> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _initialize();
+    _error = widget.initialError;
+    // A failure from before runApp stays visible until explicit retry.
+    if (_error != null) return;
+    // Providers may notify synchronously at the start of a load. Leave build,
+    // but do not spend a whole frame painting a temporary preparation page.
+    scheduleMicrotask(() {
+      if (mounted) unawaited(_initialize());
     });
   }
 
@@ -38,13 +49,17 @@ class _AppStartupGateState extends State<AppStartupGate> {
     final watch = Stopwatch()..start();
     try {
       await widget.initialize(context);
-      if (mounted) setState(() => _ready = true);
+      if (!mounted) return;
+      setState(() => _ready = true);
+      widget.onReady?.call();
       AppLogger.instance.event(
         'app.ui_prepare.completed',
         fields: {'elapsed_ms': watch.elapsedMilliseconds},
       );
     } catch (error) {
-      if (mounted) setState(() => _error = error);
+      if (mounted) {
+        setState(() => _error = error);
+      }
       AppLogger.instance.event(
         'app.ui_prepare.failed',
         level: LogLevel.error,

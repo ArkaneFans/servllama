@@ -44,6 +44,7 @@ class ServerConfigProvider extends ChangeNotifier {
   String? _llamaCppBackendError;
 
   bool _hasCompletedInitialLoad = false;
+  Future<void>? _loadFuture;
   bool _isLoading = false;
   bool _disposed = false;
   String? _statusMessage;
@@ -111,11 +112,13 @@ class ServerConfigProvider extends ChangeNotifier {
     super.notifyListeners();
   }
 
-  Future<void> load() async {
-    if (_isLoading) {
-      return;
-    }
+  Future<void> ensureLoaded() =>
+      _hasCompletedInitialLoad ? Future.value() : load();
 
+  Future<void> load() =>
+      _loadFuture ??= _load().whenComplete(() => _loadFuture = null);
+
+  Future<void> _load() async {
     _isLoading = true;
     _statusMessage = AppL10nService.instance.current.serverConfigStatusLoading;
     notifyListeners();

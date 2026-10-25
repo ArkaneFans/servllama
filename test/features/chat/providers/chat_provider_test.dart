@@ -98,6 +98,27 @@ void main() {
       expect(provider.models, isEmpty);
     });
 
+    test('startup snapshot does not eagerly prefetch messages', () async {
+      repository.sessions = [
+        _session(id: 's1', title: 'one', messages: _messages(count: 4)),
+        _session(id: 's2', title: 'two', messages: _messages(count: 4)),
+      ];
+      await provider.load(preloadMessages: false);
+      await _flushMicrotasks();
+      expect(repository.warmUpMessageStoreCallCount, 0);
+      expect(repository.initialMessagesLoadCounts, isEmpty);
+      final notifications = <Object>[];
+      provider.addListener(() => notifications.add(Object()));
+      await provider.warmUpSession('s1');
+      expect(provider.selectedSession, isNull);
+      expect(provider.visibleMessages, isEmpty);
+      expect(notifications, isEmpty);
+      await provider.selectSession('s1');
+      expect(repository.initialMessagesLoadCounts['s1'], 1);
+      expect(provider.visibleMessages, hasLength(4));
+      provider.dispose();
+    });
+
     test(
       'load warms message store and preloads initial message windows',
       () async {

@@ -70,7 +70,7 @@ class _Models extends ModelManagementProvider {
 
 class _Downloads extends DownloadProvider {
   @override
-  Future<void> load() async {}
+  Future<void> load({bool startTransfers = true}) async {}
   @override
   Future<int> orphanedStagingBytes() async => 0;
 }

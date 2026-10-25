@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
@@ -39,6 +40,18 @@ class _EmptyAssets extends UnifiedModelRepository {
   Future<List<ModelAsset>> listAssets({bool reconcile = true}) async => [];
 }
 
+class _TrackedAssets extends UnifiedModelRepository {
+  final modes = <bool>[];
+  Completer<List<ModelAsset>>? pending;
+  List<ModelAsset> current = [];
+
+  @override
+  Future<List<ModelAsset>> listAssets({bool reconcile = true}) async {
+    modes.add(reconcile);
+    return pending == null ? current : await pending!.future;
+  }
+}
+
 void main() {
   late AppDatabase db;
   late AssistantRepository repository;
@@ -56,6 +69,79 @@ void main() {
     repository = AssistantRepository(db, secrets: secrets);
   });
   tearDown(() => db.close());
+
+  test(
+    'light startup restores credentials and targets from the database snapshot',
+    () async {
+      final saved = await repository.saveConnection(
+        custom,
+        newSecret: 'fixture-key',
+      );
+      await repository.saveAssistant(
+        const Assistant(
+          id: 'a',
+          name: 'A',
+          chatTarget: ChatTarget.remote('custom', 'kept'),
+        ),
+      );
+      final models = _TrackedAssets();
+      final provider = AssistantProvider(
+        repository: repository,
+        models: models,
+      );
+      addTearDown(provider.dispose);
+      await provider.load(reconcileAssets: false);
+      expect(models.modes, [false]);
+      expect(provider.cachedCredential(saved), 'fixture-key');
+      expect(provider.active!.chatTarget!.modelId, 'kept');
+      expect(provider.resolveTarget(provider.active!.chatTarget), isNotNull);
+      models.pending = Completer<List<ModelAsset>>();
+      final refresh = provider.ensureAssetsReconciled();
+      expect(identical(refresh, provider.ensureAssetsReconciled()), isTrue);
+      await Future<void>.delayed(Duration.zero);
+      expect(models.modes, [false, true]);
+      models.pending!.complete([]);
+      await refresh;
+      await provider.ensureAssetsReconciled();
+      expect(models.modes, [false, true]);
+      expect(provider.active!.chatTarget!.modelId, 'kept');
+      expect(provider.cachedCredential(saved), 'fixture-key');
+    },
+  );
+
+  test(
+    'explicit asset refresh reads after an older in-flight prefetch',
+    () async {
+      final models = _TrackedAssets();
+      final provider = AssistantProvider(
+        repository: repository,
+        models: models,
+      );
+      addTearDown(provider.dispose);
+      await provider.load(reconcileAssets: false);
+      final pending = Completer<List<ModelAsset>>();
+      models.pending = pending;
+      final warmup = provider.ensureAssetsReconciled();
+      await Future<void>.delayed(Duration.zero);
+      final explicit = provider.refreshAssets();
+      const fresh = ModelAsset(
+        id: 'fresh',
+        kind: AssetKind.llm,
+        engine: 'mnn',
+        runtimeId: 'model',
+        storageOwner: 'mnn',
+        path: '',
+        name: 'Fresh',
+        revision: '1',
+      );
+      models.pending = null;
+      models.current = [fresh];
+      pending.complete([]);
+      await Future.wait([warmup, explicit]);
+      expect(models.modes, [false, true, true]);
+      expect(provider.assets.single.id, 'fresh');
+    },
+  );
 
   test(
     'credential failure preserves settings and stays retryable instead of caching an empty key',
