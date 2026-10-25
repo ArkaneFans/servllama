@@ -97,6 +97,15 @@ Ready bytes are available synchronously, while demand consumers join compilation
 and keep stable dimensions. Current-theme preparation is an optimization, not a
 requirement for correct first-frame rendering.
 
+Asset reads stay on the UI isolate. Only SVG XML bytes and the immutable color
+theme enter flutter_svg's compiler, via `SvgBytesLoader`. Do not pass a live
+`rootBundle`/`CachingAssetBundle` to the compiler's `SvgAssetLoader`: in the
+resolved flutter_svg 2.3.0, its Release compute closure captures that loader,
+including the bundle's unsendable cached Futures. Ordinary `loadString` calls
+can therefore make every later explicit-bundle SVG load fail. The library's
+pending cache also retains failed loads, so reopening a page cannot repair it.
+This is a compilation/isolate boundary, not a GPU picture lifetime problem.
+
 ## Reference and verification
 
 The launch priority now follows ServLlama main, rather than copying Kelivo's
@@ -118,6 +127,21 @@ module-local error behavior, migration/retry visibility, coalesced early demand,
 durable credential reads, typed-draft preservation and early native ownership
 restoration. SVG tests still capture actual RGBA pixels for every bundled mark
 in both palettes and compare with `SvgPicture.asset`, including demand/reentry.
+
+Those host tests are not sufficient for the Release compiler: flutter_svg
+2.3.0 compiles synchronously in Debug and uses a real isolate in Release.
+`tool/verify_bundled_svg.dart` is a separate Release-only entrypoint that primes
+real bundle string caches, then checks actual rendered alpha pixels for every
+mark in both palettes, demand coalescing, route reentry and fallback colors.
+It opens no business database or settings. On an idle test device, build it with:
+
+```text
+flutter build apk --release --target-platform android-arm64 --target tool/verify_bundled_svg.dart
+```
+
+Verify matching signing before `adb install -r`, then look for `SVG_VERIFY PASS`
+in logcat. Afterwards rebuild the normal `lib/main.dart` Release APK and reinstall
+with `-r`. Never uninstall or clear application data just to run this check.
 
 Compare release builds on the same device/data over multiple ordinary cold
 starts. Check both homepage latency and immediate provider/model/speech/log

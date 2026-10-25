@@ -138,6 +138,49 @@ void main() {
     expect(cache.bytecode(asset, color), isNull);
   });
 
+  testWidgets('source read failures can retry without poisoning compilation', (
+    tester,
+  ) async {
+    final cache = BundledSvgCache();
+    addTearDown(cache.dispose);
+    final bundle = _RetryBundle();
+    const asset = 'assets/ai-icons/anthropic.svg';
+    const color = Color(0xff123456);
+    await tester.runAsync(() async {
+      await expectLater(
+        cache.load(asset, color, bundle: bundle),
+        throwsStateError,
+      );
+      expect(cache.bytecode(asset, color), isNull);
+      final bytes = await cache.load(asset, color, bundle: bundle);
+      expect(bytes.lengthInBytes, greaterThan(0));
+      expect(cache.bytecode(asset, color), same(bytes));
+    });
+    expect(bundle.loads, 2);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('source ByteData views preserve their offset and length', (
+    tester,
+  ) async {
+    final cache = BundledSvgCache();
+    addTearDown(cache.dispose);
+    const asset = 'assets/ai-icons/openai.svg';
+    const color = Color(0xff234567);
+    final bundle = _OffsetBundle();
+    await tester.runAsync(() async {
+      // The bundle deliberately retains an unsendable Future. The Release
+      // verifier exercises the real isolate boundary with the same condition.
+      await bundle.loadString(asset);
+      final actual = await cache.load(asset, color, bundle: bundle);
+      final expected = await const SvgAssetLoader(
+        asset,
+        theme: SvgTheme(currentColor: color),
+      ).loadBytes(null);
+      expect(actual.buffer.asUint8List(), expected.buffer.asUint8List());
+    });
+  });
+
   testWidgets('prepared marks paint on first frame after route reentry', (
     tester,
   ) async {
@@ -216,4 +259,24 @@ class _DelayedBundle extends CachingAssetBundle {
   final ready = Completer<ByteData>();
   @override
   Future<ByteData> load(String key) => ready.future;
+}
+
+class _RetryBundle extends CachingAssetBundle {
+  var loads = 0;
+  @override
+  Future<ByteData> load(String key) {
+    if (++loads == 1) return Future.error(StateError('temporary read failure'));
+    return rootBundle.load(key);
+  }
+}
+
+class _OffsetBundle extends CachingAssetBundle {
+  @override
+  Future<ByteData> load(String key) async {
+    final source = Uint8List.sublistView(await rootBundle.load(key));
+    final padded = Uint8List(source.length + 8)
+      ..fillRange(0, source.length + 8, 255);
+    padded.setRange(4, 4 + source.length, source);
+    return ByteData.sublistView(padded, 4, 4 + source.length);
+  }
 }

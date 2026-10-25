@@ -57,18 +57,22 @@ class BundledSvgCache {
     final key = (asset, color);
     final ready = _bytecode[key];
     if (ready != null) return SynchronousFuture(ready);
-    final loader = SvgAssetLoader(
-      asset,
-      assetBundle: bundle ?? rootBundle,
-      theme: SvgTheme(currentColor: color),
-    );
-    if (_disposed) return loader.loadBytes(null);
     final pending = _pending[key];
     if (pending != null) return pending;
-    final loading = loader.loadBytes(null).then((data) {
-      if (!_disposed) _bytecode[key] = data;
-      return data;
-    });
+    // Release SVG compilation runs in an isolate. Keep AssetBundle (and its
+    // unsendable cached Futures) on the UI isolate; send only the SVG bytes.
+    final loading = (bundle ?? rootBundle)
+        .load(asset)
+        .then(
+          (data) => SvgBytesLoader(
+            Uint8List.sublistView(data),
+            theme: SvgTheme(currentColor: color),
+          ).loadBytes(null),
+        )
+        .then((data) {
+          if (!_disposed) _bytecode[key] = data;
+          return data;
+        });
     _pending[key] = loading;
     // Cached loaders can complete synchronously. Register cleanup only after
     // insertion, and handle the cleanup future's error as well as the caller's.
