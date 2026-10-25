@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 import 'package:servllama/core/logging/app_logger.dart';
 
 /// A fixed app-owned preparation step, not a job or dependency scheduler.
@@ -10,33 +8,15 @@ class StartupTask {
   final Future<void> Function() action;
 
   Future<void> run({required String phase, AppLogger? logger}) async {
-    final log = logger ?? AppLogger.instance;
-    final watch = Stopwatch()..start();
-    final trace = TimelineTask()..start('startup.$phase.$name');
     try {
       await action();
-      log.event(
-        'app.startup.task.completed',
-        fields: {
-          'phase': phase,
-          'task': name,
-          'elapsed_ms': watch.elapsedMilliseconds,
-        },
-      );
     } catch (error) {
-      log.event(
+      (logger ?? AppLogger.instance).event(
         'app.startup.task.failed',
         level: LogLevel.warning,
-        fields: {
-          'phase': phase,
-          'task': name,
-          'elapsed_ms': watch.elapsedMilliseconds,
-          ...AppLogger.errorFields(error),
-        },
+        fields: {'phase': phase, 'task': name, ...AppLogger.errorFields(error)},
       );
       rethrow;
-    } finally {
-      trace.finish();
     }
   }
 }

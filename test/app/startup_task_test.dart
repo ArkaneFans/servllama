@@ -3,25 +3,37 @@ import 'package:servllama/app/bootstrap/startup_task.dart';
 import 'package:servllama/core/logging/app_logger.dart';
 
 void main() {
-  test('startup timing includes phase and step, not error payloads', () async {
+  test('successful startup tasks do not emit logs', () async {
     final logger = AppLogger();
     await StartupTask(
       'snapshot',
       () async {},
     ).run(phase: 'critical', logger: logger);
-    final success = logger.entriesFor(LogChannel.app).single.message;
-    expect(success, contains('elapsed_ms='));
-    expect(success, contains('phase="critical"'));
-    final task = StartupTask('optional', () async {
-      throw StateError('private prompt /storage/private/api-key');
-    });
-    await expectLater(
-      task.run(phase: 'warmup', logger: logger),
-      throwsStateError,
-    );
-    final failure = logger.entriesFor(LogChannel.app).last.message;
-    expect(failure, contains('error_type="StateError"'));
-    expect(failure, isNot(contains('private')));
-    expect(failure, isNot(contains('api-key')));
+    expect(logger.entriesFor(LogChannel.app), isEmpty);
   });
+
+  test(
+    'startup failures retain only phase, step and safe error metadata',
+    () async {
+      final logger = AppLogger();
+      final error = StateError('private prompt /storage/private/api-key');
+      final task = StartupTask('optional', () async {
+        throw error;
+      });
+      await expectLater(
+        task.run(phase: 'warmup', logger: logger),
+        throwsA(same(error)),
+      );
+      final entry = logger.entriesFor(LogChannel.app).single;
+      expect(entry.level, LogLevel.warning);
+      final failure = entry.message;
+      expect(failure, startsWith('app.startup.task.failed'));
+      expect(failure, contains('phase="warmup"'));
+      expect(failure, contains('task="optional"'));
+      expect(failure, contains('error_type="StateError"'));
+      expect(failure, isNot(contains('elapsed_ms')));
+      expect(failure, isNot(contains('private')));
+      expect(failure, isNot(contains('api-key')));
+    },
+  );
 }

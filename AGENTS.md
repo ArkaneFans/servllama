@@ -43,6 +43,8 @@ lib/
   l10n/         ARB localization sources and generated bindings
 android/        Android host, platform bridges and native packaging
 assets/         Bundled catalogs, icons, licenses and display metadata
+docs/           Documentation and existing README display assets
+  engineering/  Feature mechanisms, technical boundaries and verification
 native/         Native build definitions and provenance manifests
 patches/        Application-owned upstream patches and build recipes
 test/           Unit and widget tests
@@ -73,6 +75,9 @@ Pages present UI and route interactions; providers/controllers coordinate flows;
 
 All paths below are relative to this repository.
 
+Feature and technical documents live in `docs/engineering/`. Read the relevant document before changing its mechanisms, and update it when behavior or ownership boundaries change. README display assets keep their existing paths; native build and patch instructions stay beside their sources.
+
+- [docs/engineering/cold-start.md](docs/engineering/cold-start.md): database admission, independent restoration, shared caches, bounded idle preparation and Release SVG verification.
 - `pubspec.yaml` and `pubspec.lock`: dependencies and resolved versions.
 - `lib/core/database/app_database.dart`: business database schema.
 - `llama-server-README.md` and `patches/llama.cpp/README.md`: server integration and native builds.

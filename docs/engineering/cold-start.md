@@ -121,11 +121,11 @@ We borrow that shared-owner/local-boundary principle, not its storage layout.
 RikkaHub's shared state and startup profiling offer similar boundaries, but its
 Kotlin/Compose Baseline/Startup Profiles are not a Flutter loading mechanism.
 
-`StartupTask` emits typed phase/task/elapsed metadata and Dart timeline spans,
-never keys, payloads or private paths. `app.startup.interactive` records the first
-business frame's post-frame callback, including ordinary admission. It does not
-mean every business field/cache is ready, Android's window draw or GPU raster
-completion. Migration/manual retry must be measured separately.
+Successful background restoration and idle preparation emit no per-task timing
+logs or Dart timeline spans, and there is no first-frame timing log. Existing
+business initialization diagnostics remain; `StartupTask` records only failures
+with phase/task/error-type metadata, never keys, payloads or private paths.
+Migration/manual retry must be measured separately.
 
 Regression coverage blocks business reads while checking homepage first paint,
 module-local error behavior, migration/retry visibility, coalesced early demand,
@@ -151,7 +151,8 @@ with `-r`. Never uninstall or clear application data just to run this check.
 Compare release builds on the same device/data over multiple ordinary cold
 starts. Check both homepage latency and immediate provider/model/speech/log
 navigation before idle preparation finishes. Include input during restoration,
-gestures, background/resume and ongoing generation. Use DevTools and exported
-startup spans; `am start -W` alone cannot establish business readiness. Removing
-application-level waits does not imply zero native icon time or prove a measured
-hardware improvement. Host tests/build audits do not replace device validation.
+gestures, background/resume and ongoing generation. Use DevTools and Android
+system startup traces; `am start -W` alone cannot establish business readiness.
+Removing application-level waits does not imply zero native icon time or prove
+a measured hardware improvement. Host tests/build audits do not replace device
+validation.

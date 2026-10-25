@@ -17,7 +17,6 @@ class AppIdleWarmup extends StatefulWidget {
     this.onReady,
     this.activity,
     this.isBusy,
-    this.startupWatch,
   });
 
   final ValueListenable<bool> ready;
@@ -25,7 +24,6 @@ class AppIdleWarmup extends StatefulWidget {
   final FutureOr<void> Function()? onReady;
   final Listenable? activity;
   final bool Function()? isBusy;
-  final Stopwatch? startupWatch;
   final Widget child;
 
   @override
@@ -118,11 +116,6 @@ class _AppIdleWarmupState extends State<AppIdleWarmup>
   Future<void> _start() async {
     _started = true;
     _running = true;
-    widget.startupWatch?.stop();
-    AppLogger.instance.event(
-      'app.startup.interactive',
-      fields: {'elapsed_ms': widget.startupWatch?.elapsedMilliseconds},
-    );
     try {
       // Real background services are not optional warm-up and must not be
       // abandoned when the user starts interacting with the app.

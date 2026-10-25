@@ -31,8 +31,7 @@ import 'package:servllama/features/downloads/providers/model_discovery_provider.
 import 'package:servllama/l10n/generated/app_localizations.dart';
 
 class ServLlamaApp extends StatefulWidget {
-  const ServLlamaApp({super.key, this.startupWatch, this.scope});
-  final Stopwatch? startupWatch;
+  const ServLlamaApp({super.key, this.scope});
   final AppProviderScope? scope;
 
   @override
@@ -181,7 +180,6 @@ class _ServLlamaAppState extends State<ServLlamaApp> {
                 final library = context.read<ModelManagementProvider>();
                 return AppIdleWarmup(
                   ready: const AlwaysStoppedAnimation(true),
-                  startupWatch: widget.startupWatch,
                   activity: Listenable.merge([runtime, chat, speech, library]),
                   isBusy: () =>
                       runtime.isBusy ||
