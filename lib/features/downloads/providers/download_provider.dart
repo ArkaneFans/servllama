@@ -138,8 +138,8 @@ class DownloadProvider extends ChangeNotifier {
     if (startTransfers) resumeRestoredTransfers();
   }
 
-  /// Restore the drawer/task snapshot before first paint, but start network
-  /// work only after the app-level completion listener has been attached.
+  /// Resume only after metadata restoration and the app-level completion
+  /// listener have been attached. Restoration never gates the homepage.
   void resumeRestoredTransfers() {
     if (_disposed || !_hasLoaded) return;
     _ensureEnvironmentMonitor();

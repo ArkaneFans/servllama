@@ -44,6 +44,7 @@ void main() {
       );
       final serverService = _FakeLlamaServerService();
       final serverProvider = EngineRuntimeProvider(
+        kvStorage: KvStorage(),
         llamaCppAdapter: LlamaCppEngineAdapter(
           serverService: serverService,
           settingsLoader: _FixedServerLaunchSettingsLoader(
@@ -62,6 +63,7 @@ void main() {
         serverService.dispose();
       });
 
+      await tester.runAsync(serverProvider.ensureRestored);
       await tester.pumpWidget(
         _TestApp(
           serverProvider: serverProvider,
@@ -113,6 +115,7 @@ void main() {
       );
       final serverService = _FakeLlamaServerService();
       final serverProvider = EngineRuntimeProvider(
+        kvStorage: KvStorage(),
         llamaCppAdapter: LlamaCppEngineAdapter(
           serverService: serverService,
           settingsLoader: _FixedServerLaunchSettingsLoader(
@@ -131,6 +134,7 @@ void main() {
         serverService.dispose();
       });
 
+      await tester.runAsync(serverProvider.ensureRestored);
       await tester.pumpWidget(
         _TestApp(
           serverProvider: serverProvider,
@@ -175,6 +179,7 @@ void main() {
       );
       final serverService = _FakeLlamaServerService();
       final serverProvider = EngineRuntimeProvider(
+        kvStorage: KvStorage(),
         llamaCppAdapter: LlamaCppEngineAdapter(
           serverService: serverService,
           settingsLoader: _FixedServerLaunchSettingsLoader(
@@ -193,6 +198,7 @@ void main() {
         serverService.dispose();
       });
 
+      await tester.runAsync(serverProvider.ensureRestored);
       await tester.pumpWidget(
         _TestApp(
           serverProvider: serverProvider,
@@ -229,6 +235,7 @@ void main() {
       );
       final serverService = _FakeLlamaServerService();
       final serverProvider = EngineRuntimeProvider(
+        kvStorage: KvStorage(),
         llamaCppAdapter: LlamaCppEngineAdapter(
           serverService: serverService,
           settingsLoader: _FixedServerLaunchSettingsLoader(
@@ -247,11 +254,14 @@ void main() {
         serverService.dispose();
       });
 
-      await serverProvider.switchEngine(InferenceEngine.mnn);
+      await tester.runAsync(
+        () => serverProvider.switchEngine(InferenceEngine.mnn),
+      );
       tester.view.physicalSize = const Size(800, 1600);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.runAsync(serverProvider.ensureRestored);
       await tester.pumpWidget(
         _TestApp(
           serverProvider: serverProvider,
@@ -289,6 +299,7 @@ void main() {
       );
       final serverService = _FakeLlamaServerService();
       final serverProvider = EngineRuntimeProvider(
+        kvStorage: KvStorage(),
         llamaCppAdapter: LlamaCppEngineAdapter(
           serverService: serverService,
           settingsLoader: _FixedServerLaunchSettingsLoader(
@@ -307,6 +318,7 @@ void main() {
         serverService.dispose();
       });
 
+      await tester.runAsync(serverProvider.ensureRestored);
       await tester.pumpWidget(
         _TestApp(
           serverProvider: serverProvider,
@@ -355,6 +367,7 @@ void main() {
       );
       final serverService = _FakeLlamaServerService();
       final serverProvider = EngineRuntimeProvider(
+        kvStorage: KvStorage(),
         llamaCppAdapter: LlamaCppEngineAdapter(
           serverService: serverService,
           settingsLoader: _FixedServerLaunchSettingsLoader(
@@ -373,6 +386,7 @@ void main() {
         serverService.dispose();
       });
 
+      await tester.runAsync(serverProvider.ensureRestored);
       await tester.pumpWidget(
         _TestApp(
           serverProvider: serverProvider,

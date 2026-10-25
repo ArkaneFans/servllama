@@ -1,186 +1,128 @@
-# Cold start and bounded warm-up
+# Cold start and bounded idle preparation
 
-## Boundaries
+## Three boundaries
 
-Startup has three small, explicit layers. Critical snapshots are listed in
-`lib/app/bootstrap/app_startup_state.dart`, optional tasks in `lib/app/app.dart`;
-neither is a dependency graph or a second business scheduler.
+1. `main` admits business data before `runApp`: legacy migration checks,
+   message storage and interrupted Run/tool recovery. Pending migration and
+   admission failures use the existing visible `BootstrapGate` with explicit
+   retry. Migration still precedes construction of business providers.
+2. `ServLlamaApp` immediately displays `MainScaffold`, as on main. Locale,
+   theme, timeout, runtime status and assistant/provider metadata restore
+   independently without a whole-app readiness future. `AppProviderScope`
+   only composes the existing owners; it performs no I/O or readiness gating.
+   `ChatPage` starts its draft/history read after the first frame, without
+   automatically prefetching message bodies.
+3. `AppIdleWarmup`, above the Navigator, prepares a finite set of small local
+   caches after paint. Routes can always use the same loaders on demand.
 
-1. `main` admits business data: legacy migration, message storage and
-   interrupted Run/tool recovery finish before business providers are created.
-   `BootstrapGate` handles a pending migration or admission failure visibly.
-2. `AppStartupState` prepares the first usable UI: locale, theme, timeout,
-   runtime ownership/status, download task metadata, assistant/provider settings
-   and credentials, cached model-asset rows and drafts. Independent snapshots
-   overlap; chat binding follows assistant restoration. Filesystem inventories,
-   history/message memberships, historical logs and SVG compilation are not
-   admission conditions. `AppStartupGate` keeps required-state errors and
-   preparation after a visible migration/retry closed and retryable.
-3. `AppIdleWarmup`, above the Navigator, starts existing background services
-   after the business frame is painted and prepares optional local caches in
-   foreground idle slots. Optional failures never close routes.
+There is no `AppStartupState.prepare`, `AppStartupGate`, explicit
+`deferFirstFrame`/`allowFirstFrame`, splash preserve/remove callback, arbitrary
+startup delay or minimum splash duration. Flutter and Android own native
+launch-screen removal; native launch icon assets are unchanged. Restoring the
+launch theme does not animate as a user theme change. Because settings load
+asynchronously, the first frame may use system locale/theme before restoration,
+just as main does. Fast homepage paint takes priority over an all-ready frame.
 
-Runtime restoration discovers existing native resources; it does not select a
-different chat target, load model weights, start an idle server or replay a Run.
-For MNN this means a service status snapshot, not `initializeEngine` or loading
-the inference libraries. Native initialization belongs to an explicit engine
-start, with cancellation checked before and after it. Cloud chat remains
-independent of local inference startup.
+## Independent restoration and early interaction
 
-Assistant restoration reads database asset rows with `reconcile: false`.
-Persisted missing/disabled references are still validated and credentials are
-restored before publishing editable settings. An idle inventory refresh later
-detects files deleted outside the app and clears genuinely missing targets;
-actual model starts continue to validate their own paths. Cached catalog rows
-are display/configuration state, not proof that a model can be loaded.
+Assistant restoration uses database model-asset rows (`reconcile: false`), not
+filesystem inventories or native initialization. Missing/disabled references
+are still validated. A model picker/import/delete uses the authoritative
+existing repositories and explicit asset refresh; cached rows do not establish
+that a model can actually be loaded.
 
-## Launch presentation
+`AssistantProvider.ensureLoaded` shares its initial metadata read with route
+loads. Mutations join that read before changing settings. The provider publishes
+its restored fields together; a provider/profile page entered early shows only
+its own loading/retry state and does not expose empty editable settings as if
+restoration had completed. A module failure does not close unrelated routes.
 
-Normal startup performs data admission and the small configuration preparation
-before `runApp`, like Kelivo. `ServLlamaApp` adopts the exact prepared provider
-instances, not another copy or another round of reads. Its normal first frame
-contains the main scaffold, without a temporary loading widget tree.
-Flutter and Android own native launch-screen removal. There is no application
-`deferFirstFrame`/`allowFirstFrame`, splash preserve/remove callback or
-keep-on-screen condition. The app does not change native launch icon assets.
-The restored launch theme is applied without a theme-transition animation;
-later user-initiated theme changes keep the normal animation.
+Provider keys are read only on editor/request demand. Those reads share a
+single flight per secret reference. Verified saves populate the process-local
+cache, while rotated/deleted references invalidate old cache entries. Missing
+or unreadable storage is never cached as an empty secret. Existing editor
+readiness and stable API Key rendering remain intact; persistence is guaranteed
+by secure storage, not by prewarming or retaining the process.
 
-A pending migration choice or a bootstrap/check failure runs `BootstrapGate`
-immediately. Already-completed checks and captured failures are passed to the
-visible flow instead of being repeated automatically. A required-snapshot
-failure runs the app with its captured error; `AppStartupGate` waits for explicit
-retry. Preparation after a visible migration also uses this gate. These flows
-retain progress/retry UI and never return to a native splash or blank page.
-The readiness boundary still applies after migration or retry:
-business routes never expose editable placeholder settings or credentials.
-This removes a transient UI, not the underlying persistence/recovery work;
-there is no arbitrary timeout, delayed spinner or minimum splash duration.
+Drafts and assistant metadata may finish in either order. Saved drafts merge
+without overwriting new input; text typed before the owning assistant is known
+moves to that assistant's draft and takes precedence over an older saved value.
+Sending and assistant/model selection stay locally unavailable until their
+required draft/assistant state exists. Conversation creation registers its
+single-flight lock before awaiting restoration.
 
-## Work after the first business frame
+Runtime operations join `ensureRestored` before using persisted engine/model
+selection or native ownership. Local-chat startup also waits before deciding
+whether to reuse/stop a resident model. Restoration never loads model weights,
+starts an idle server, changes the assistant's target or replays a Run. MNN
+restoration reads service status, not `initializeEngine`. Explicit start and
+native cleanup retain the existing cancellation and resource-lease boundaries.
+Locale/theme/timeout edits similarly join their initial read, so an early edit
+cannot later be overwritten by restoration.
 
-Real background behavior is separate from prefetch:
+## Background services and idle work
 
-- Interrupted range-resumable downloads resume through `DownloadProvider`.
-  Its metadata snapshot is restored earlier with `startTransfers: false`, so
-  the drawer and completion listener exist before network work starts.
-  Pending display-name reservations are restored in memory without inventory
-  scans; new allocations and final model commits still check real collisions
-  through the existing name coordinator and authoritative model stores.
-- MCP sessions start through the existing app-scoped connection manager.
-  Remote connection completion is not part of readiness or cache warm-up.
-- Initial session history starts after first paint, without preloading bodies.
-  Draft input is already ready. Routes share the initial read, and new sessions,
-  renames and deletions made while it is pending are merged over its older
-  snapshot. The optional plan follows this read so it can choose actual recent
-  sessions. Disposal suppresses late state notifications.
+Real services are not optional prefetch. After paint, existing download
+metadata/restoration and MCP startup begin independently. They do not wait for
+history, queue order or user inactivity. Download display-name reservations
+restore in memory; allocation and final commits still check real collisions.
 
-The optional queue is finite and sequential:
+The sequential idle plan contains only:
 
-- Model inventory reconciliation, server settings, installed-model display
-  lists, speech initialization, bundled discovery catalogs, the Skill list and
-  About metadata come first, ahead of bulk icon/message prefetch.
-- Bundled AI/MCP/app SVG marks, one compilation per slot. Retained variants are the
-  fixed light/dark palette colors and the app mark, not interpolated animation
-  colors or arbitrary user tints.
-- Initial message windows for at most four recent sessions. They reuse the
-  existing eight-entry cache and its per-window message/text budgets. Full
-  histories and attachment decoding are never prefetched.
-- Durable owned-file cleanup and historical logs come last. Database migration
-  and interrupted Run/tool recovery remain admission work. Deferred cleanup
-  retains its transactionally stored intents across process termination.
+- Server configuration, the small Skill list and About metadata.
+- Bundled AI/MCP/app SVG bytecode, one variant per slot, in the current palette.
+  Other palettes/consumers load through the same bounded cache on demand.
+- Pending owned-file deletion intents, last. This is durable maintenance,
+  not a scan of installed models or chat history. Failed intents survive exit.
 
-Every optional step waits past the next requested frame and checks Flutter's
-idle scheduling strategy. Pointer gestures, animations, chat message loading,
-generation, engine transitions, model imports, audio capture/playback and active
-speech jobs take priority. Pausing
-defers the next step; resuming continues the queue. Disposal abandons pending
-steps. Already-started I/O settles under its original owner instead of being
-mistaken for cancellable native work.
+Model inventory scans, installed-model lists, speech initialization, discovery
+catalogs, recent message windows and historical logs are no longer part of the
+launch plan. Their existing page/operation loaders remain demand-driven. Speech
+entry recovers interrupted jobs before execution without automatically replaying
+them. Logs join the existing bounded single-flight historical read when opened.
+Explicit refresh after a mutation must still read fresh state rather than
+reuse an older prefetch.
 
-This deliberately avoids timers with an arbitrary startup delay, offstage
-copies of pages, unbounded prefetch and concurrent native warm-up. Idle checks
-are frame-paced: Flutter's `scheduleTask(Priority.idle)` can repeatedly post
-zero-delay events when denied, so it is not used for this queue.
+Every idle step waits beyond a requested frame and checks Flutter's idle
+scheduling strategy. Gestures, animations, generation, message loading, engine
+transitions, imports and active audio/jobs take priority. Backgrounding defers
+the next step; resuming continues. Disposal abandons pending steps, but in-flight
+I/O settles under its original owner. Optional failures are isolated and are
+attempted once; demand loaders/explicit retry own recovery. There is no second
+business scheduler, offstage page tree or unbounded native warming.
 
-## Demand, freshness and failure
+The SVG cache holds compiled `ByteData` only. Official `SvgPicture` owns GPU
+picture decoding, fitting and disposal; no retained app-owned painter is used.
+Ready bytes are available synchronously, while demand consumers join compilation
+and keep stable dimensions. Current-theme preparation is an optimization, not a
+requirement for correct first-frame rendering.
 
-Prewarming is an optimization, not a page's prerequisite:
+## Reference and verification
 
-- Providers keep their own single-flight/idempotent initializers. A route can
-  start a missing load or await an existing one without waiting for queue order.
-- Bundled SVG consumers join the same compilation future and use a stable
-  size while loading. The bounded app cache holds only compiled `ByteData`;
-  a value-equal `BytesLoader` supplies it to the official `SvgPicture` widget.
-  Ready bytes return synchronously for first-frame rendering and remain
-  available across route disposal even if the library's byte LRU is evicted.
-  Unsupported tints/standalone contexts use `SvgPicture.asset`. Picture/GPU
-  decoding, fitting, clipping and disposal belong exclusively to the framework,
-  not to an app-owned `CustomPainter` or retained GPU-picture cache.
-- Speech entry pages request the existing app-owned initializer; initialization
-  recovers jobs before allowing execution and never replays interrupted jobs.
-  Failed initialization can be retried without leaking partial services.
-- Explicit refresh remains separate from an already-prepared read. In
-  particular, a Skill refresh after an edit/import must not reuse a prefetch
-  begun before that mutation. Model-asset refresh serializes a fresh read after
-  any older in-flight prefetch. MCP connection refresh also remains explicit.
-- Warmed chat windows use the current session record, share foreground loads
-  and retain existing signature validation/deletion safeguards. Prefetch never
-  changes selection, drafts, visible messages or global assistant selection.
-- Opening Logs early joins the same single-flight historical read as idle
-  preparation. Restored records merge chronologically with live startup events,
-  without duplicating persisted live records or re-persisting history. The
-  application-wide bound still applies; clearing/replacing the sink invalidates
-  a pending read so old records cannot reappear after Clear.
+The launch priority now follows ServLlama main, rather than copying Kelivo's
+pre-runApp business snapshot. Kelivo normally admits its database and loads one
+shared `BusinessPreferences` snapshot before `runApp`, then projects provider
+state and initializes chat locally without a whole-app page readiness gate.
+We borrow that shared-owner/local-boundary principle, not its storage layout.
+RikkaHub's shared state and startup profiling offer similar boundaries, but its
+Kotlin/Compose Baseline/Startup Profiles are not a Flutter loading mechanism.
 
-An optional step is attempted once per app scope. There is no automatic retry
-loop; feature loaders and explicit retry/refresh own recovery. Network model
-search, backend capability probes, microphone permission, recording/playback,
-model loading and inference remain demand-driven. Secure credential durability
-is guaranteed by storage, not by process-local caches or prewarming.
+`StartupTask` emits typed phase/task/elapsed metadata and Dart timeline spans,
+never keys, payloads or private paths. `app.startup.interactive` records the first
+business frame's post-frame callback, including ordinary admission. It does not
+mean every business field/cache is ready, Android's window draw or GPU raster
+completion. Migration/manual retry must be measured separately.
 
-## Diagnostics and verification
+Regression coverage blocks business reads while checking homepage first paint,
+module-local error behavior, migration/retry visibility, coalesced early demand,
+durable credential reads, typed-draft preservation and early native ownership
+restoration. SVG tests still capture actual RGBA pixels for every bundled mark
+in both palettes and compare with `SvgPicture.asset`, including demand/reentry.
 
-`StartupTask` adds `startup.<phase>.<task>` spans to the Dart timeline and logs
-phase, task and elapsed milliseconds using the bounded application logger.
-Failures contain typed metadata only, never credentials, paths or payloads.
-`app.startup.interactive` measures entry to the first business frame's
-post-frame callback, including normal bootstrap. It is not Android's first
-window draw, GPU raster completion or evidence that every optional cache is ready.
-Migration/manual retry runs should be analyzed separately.
-
-For performance comparisons use the same physical device, data and release or
-profile build; do not compare Debug startup with release startup. Force-stop
-only after explicitly stopping any inference/recording/download work whose
-interruption is not intended. Measure at least ten ordinary cold starts and
-compare median/tail readiness time plus first navigation to providers, model
-library, speech, discovery and About. Include immediate navigation before
-warm-up completes, scrolling, background/resume and ongoing generation.
-Use DevTools frame/timeline traces alongside exported startup events; Android
-`am start -W` alone does not measure business readiness.
-
-The design borrows Kelivo's data-admission/shared-snapshot boundaries, and
-RikkaHub's shared-state and startup-measurement separation. Kelivo's normal
-`main` finishes database admission and loads `BusinessPreferences` before
-`runApp`; it only constructs a progress app when restore/migration needs it.
-Its `SettingsProvider` projects that shared state without making every page
-catalog/history/icon a whole-app readiness condition. ServLlama follows that
-lightweight approach, retaining its own local-resource ownership checks and
-interrupted-work recovery rather than copying Kelivo's architecture.
-RikkaHub's ART Baseline/Startup Profiles optimize Kotlin/Compose paths; they
-are not a substitute for Flutter data readiness or SVG bytecode preparation.
-Android's process/Flutter engine/first raster startup still has a cost. Removing
-the artificial waits does not imply zero launch-icon time, and release-build
-changes require physical-device timing before claiming a measured speedup.
-
-Regression coverage verifies unmounted/single-flight configuration preparation,
-adoption of prepared instances in the business first frame, ordinary startup
-without a frame hold/preparation animation, migration visibility, captured
-failures without automatic replay and explicit retries.
-SVG tests capture actual first-frame RGBA pixels for every bundled mark in both
-palettes, check nonempty alpha, and compare with `SvgPicture.asset`. Demand loads,
-route reentry and disposal during compilation are covered too. These host
-raster tests do not substitute for Android/Impeller hardware validation.
-Additional tests cover snapshot-only assistant loading, lazy log-history
-merging/clearing, concurrent history mutations, deferred durable file cleanup,
-and ownership restoration without MNN initialization.
+Compare release builds on the same device/data over multiple ordinary cold
+starts. Check both homepage latency and immediate provider/model/speech/log
+navigation before idle preparation finishes. Include input during restoration,
+gestures, background/resume and ongoing generation. Use DevTools and exported
+startup spans; `am start -W` alone cannot establish business readiness. Removing
+application-level waits does not imply zero native icon time or prove a measured
+hardware improvement. Host tests/build audits do not replace device validation.

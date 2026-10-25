@@ -57,6 +57,7 @@ void main() {
         port: 9000,
       );
       final serverProvider = EngineRuntimeProvider(
+        kvStorage: KvStorage(),
         llamaCppAdapter: LlamaCppEngineAdapter(
           deviceProbeService: LlamaCppDeviceProbeService(
             resultOverride: () => const LlamaCppDeviceProbeResult(),
@@ -93,6 +94,7 @@ void main() {
         ),
       );
 
+      await tester.runAsync(serverProvider.ensureRestored);
       await tester.pumpWidget(_TestApp(serverProvider: serverProvider));
       await tester.pumpAndSettle();
 
@@ -153,7 +155,9 @@ void main() {
         serverService.dispose();
       });
 
-      await serverProvider.selectModel('Qwen3.5-2B-Q4_0');
+      await tester.runAsync(
+        () => serverProvider.selectModel('Qwen3.5-2B-Q4_0'),
+      );
       final library = ModelManagementProvider(
         repository: _FixedModelStoragePaths('C:\\app\\models'),
         unifiedRepository: _FixedUnifiedModelRepository(<LibraryModel>[
@@ -180,6 +184,7 @@ void main() {
       await library.load();
       addTearDown(library.dispose);
 
+      await tester.runAsync(serverProvider.ensureRestored);
       await tester.pumpWidget(
         _TestApp(serverProvider: serverProvider, library: library),
       );
@@ -231,6 +236,7 @@ void main() {
     testWidgets('shows last error when server startup fails', (tester) async {
       final serverService = _FailingLlamaServerService();
       final serverProvider = EngineRuntimeProvider(
+        kvStorage: KvStorage(),
         llamaCppAdapter: LlamaCppEngineAdapter(
           deviceProbeService: LlamaCppDeviceProbeService(
             resultOverride: () => const LlamaCppDeviceProbeResult(),
@@ -258,9 +264,10 @@ void main() {
         serverService.dispose();
       });
 
-      await serverProvider.selectModel('test-model');
+      await tester.runAsync(() => serverProvider.selectModel('test-model'));
       await tester.runAsync(() => serverProvider.start());
 
+      await tester.runAsync(serverProvider.ensureRestored);
       await tester.pumpWidget(_TestApp(serverProvider: serverProvider));
       await tester.pumpAndSettle();
 
@@ -318,6 +325,7 @@ void main() {
         serverService.dispose();
       });
 
+      await tester.runAsync(serverProvider.ensureRestored);
       await tester.pumpWidget(_TestApp(serverProvider: serverProvider));
       // Not pumpAndSettle: the uptime ticker holds a periodic timer open for
       // as long as the runtime is up, so no frame is ever "settled".
@@ -365,13 +373,25 @@ void main() {
         serverService.dispose();
       });
 
+      await tester.runAsync(serverProvider.ensureRestored);
       await tester.pumpWidget(_TestApp(serverProvider: serverProvider));
       await tester.pumpAndSettle();
 
-      await serverProvider.selectModel('test-model');
+      await tester.runAsync(() => serverProvider.selectModel('test-model'));
       await tester.pump();
       await tester.tap(find.byKey(const Key('server_page_toggle_button')));
       await tester.pump();
+      for (
+        var attempt = 0;
+        attempt < 20 &&
+            serverProvider.currentPhase != RuntimePhase.startingServer;
+        attempt++
+      ) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 1)),
+        );
+        await tester.pump();
+      }
 
       final button = tester.widget<FilledButton>(
         find.byKey(const Key('server_page_toggle_button')),
@@ -483,6 +503,7 @@ void main() {
     testWidgets('opens logs page from grouped menu', (tester) async {
       final serverService = _ControllableLlamaServerService();
       final serverProvider = EngineRuntimeProvider(
+        kvStorage: KvStorage(),
         llamaCppAdapter: LlamaCppEngineAdapter(
           deviceProbeService: LlamaCppDeviceProbeService(
             resultOverride: () => const LlamaCppDeviceProbeResult(),
@@ -503,6 +524,7 @@ void main() {
         serverService.dispose();
       });
 
+      await tester.runAsync(serverProvider.ensureRestored);
       await tester.pumpWidget(_TestApp(serverProvider: serverProvider));
       await tester.pumpAndSettle();
 
@@ -520,6 +542,7 @@ void main() {
     ) async {
       final serverService = _ControllableLlamaServerService();
       final serverProvider = EngineRuntimeProvider(
+        kvStorage: KvStorage(),
         llamaCppAdapter: LlamaCppEngineAdapter(
           deviceProbeService: LlamaCppDeviceProbeService(
             resultOverride: () => const LlamaCppDeviceProbeResult(),
@@ -540,6 +563,7 @@ void main() {
         serverService.dispose();
       });
 
+      await tester.runAsync(serverProvider.ensureRestored);
       await tester.pumpWidget(_TestApp(serverProvider: serverProvider));
       await tester.pumpAndSettle();
 

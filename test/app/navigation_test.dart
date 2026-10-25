@@ -114,6 +114,7 @@ void main() {
     await assistants.load();
     await assistants.select('daily');
     runtime = EngineRuntimeProvider(
+      kvStorage: KvStorage(),
       llamaCppAdapter: StubEngineAdapter(engine: InferenceEngine.llamaCpp),
       mnnAdapter: StubEngineAdapter(),
     );
@@ -304,6 +305,13 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('chat_server_toggle_button')));
       await tester.pumpAndSettle();
+      await settleSql(
+        tester,
+        () => find
+            .byKey(const Key('chat_engine_start_option_mnn'))
+            .evaluate()
+            .isNotEmpty,
+      );
       await tester.tap(find.byKey(const Key('chat_engine_start_option_mnn')));
       await settleSql(
         tester,

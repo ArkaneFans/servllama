@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:servllama/app/bootstrap/app_idle_warmup.dart';
-import 'package:servllama/app/bootstrap/app_startup_state.dart';
+import 'package:servllama/app/providers/app_provider_scope.dart';
 import 'package:servllama/app/bootstrap/startup_task.dart';
 import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/shared/navigation/app_navigation_observer.dart';
@@ -19,7 +19,6 @@ import 'package:servllama/app/providers/app_locale_provider.dart';
 import 'package:servllama/app/providers/app_theme_mode_provider.dart';
 import 'package:servllama/app/app_theme.dart';
 import 'package:servllama/app/main_scaffold.dart';
-import 'package:servllama/app/bootstrap/app_startup_gate.dart';
 import 'package:servllama/core/providers/server_config_provider.dart';
 import 'package:servllama/core/services/app_info_service.dart';
 import 'package:servllama/shared/widgets/bundled_svg_asset.dart';
@@ -32,31 +31,22 @@ import 'package:servllama/features/downloads/providers/model_discovery_provider.
 import 'package:servllama/l10n/generated/app_localizations.dart';
 
 class ServLlamaApp extends StatefulWidget {
-  const ServLlamaApp({super.key, this.startupWatch, this.startup});
+  const ServLlamaApp({super.key, this.startupWatch, this.scope});
   final Stopwatch? startupWatch;
-  final AppStartupState? startup;
+  final AppProviderScope? scope;
 
   @override
   State<ServLlamaApp> createState() => _ServLlamaAppState();
 }
 
 class _ServLlamaAppState extends State<ServLlamaApp> {
-  late final AppStartupState _startup;
-  late final bool _preparedOnEntry;
-  late final ValueNotifier<bool> _ready;
+  late final AppProviderScope _scope;
+  bool _themeLoaded = false;
 
   @override
   void initState() {
     super.initState();
-    _startup = widget.startup ?? AppStartupState();
-    _preparedOnEntry = _startup.ready;
-    _ready = ValueNotifier(_preparedOnEntry);
-  }
-
-  @override
-  void dispose() {
-    _ready.dispose();
-    super.dispose();
+    _scope = widget.scope ?? AppProviderScope();
   }
 
   @override
@@ -82,20 +72,44 @@ class _ServLlamaAppState extends State<ServLlamaApp> {
           Provider(create: (_) => AppInfoService()),
           if (AgentToolService.current != null)
             ChangeNotifierProvider.value(value: AgentToolService.current!),
-          ChangeNotifierProvider(create: (_) => _startup.locale, lazy: false),
-          ChangeNotifierProvider(create: (_) => _startup.theme, lazy: false),
-          ChangeNotifierProvider(create: (_) => _startup.timeout, lazy: false),
-          ChangeNotifierProvider(create: (_) => _startup.runtime, lazy: false),
           ChangeNotifierProvider(
-            create: (_) => _startup.assistants,
+            create: (_) {
+              _startTask('locale', _scope.locale.load);
+              return _scope.locale;
+            },
+            lazy: false,
+          ),
+          ChangeNotifierProvider(
+            create: (_) {
+              _startTask('theme', _scope.theme.load);
+              return _scope.theme;
+            },
+            lazy: false,
+          ),
+          ChangeNotifierProvider(
+            create: (_) {
+              _startTask('chat_timeout', _scope.timeout.load);
+              return _scope.timeout;
+            },
+            lazy: false,
+          ),
+          ChangeNotifierProvider(
+            create: (_) {
+              _startTask('runtime_restore', _scope.runtime.ensureRestored);
+              return _scope.runtime;
+            },
+            lazy: false,
+          ),
+          ChangeNotifierProvider(
+            create: (_) {
+              _startTask('assistant_snapshot', _scope.assistants.ensureLoaded);
+              return _scope.assistants;
+            },
             lazy: false,
           ),
           ChangeNotifierProvider(create: (_) => ServerConfigProvider()),
-          ChangeNotifierProvider(create: (_) => _startup.library, lazy: false),
-          ChangeNotifierProvider(
-            create: (_) => _startup.downloads,
-            lazy: false,
-          ),
+          ChangeNotifierProvider(create: (_) => _scope.library, lazy: false),
+          ChangeNotifierProvider(create: (_) => _scope.downloads, lazy: false),
           ChangeNotifierProvider(create: (_) => ModelDiscoveryProvider()),
           ChangeNotifierProxyProvider3<
             EngineRuntimeProvider,
@@ -103,7 +117,7 @@ class _ServLlamaAppState extends State<ServLlamaApp> {
             AssistantProvider,
             ChatProvider
           >(
-            create: (_) => _startup.chat,
+            create: (_) => _scope.chat,
             lazy: false,
             update:
                 (
@@ -113,7 +127,7 @@ class _ServLlamaAppState extends State<ServLlamaApp> {
                   assistants,
                   chatProvider,
                 ) {
-                  final provider = chatProvider ?? _startup.chat;
+                  final provider = chatProvider ?? _scope.chat;
                   provider.bind(assistants, runtimeProvider);
                   provider.updateServerState(
                     baseUrl: runtimeProvider.baseUrl,
@@ -127,7 +141,7 @@ class _ServLlamaAppState extends State<ServLlamaApp> {
                 },
           ),
           ChangeNotifierProvider(
-            // App-owned recovery is prepared during idle time or on demand.
+            // App-owned recovery is initialized on speech entry, never at launch.
             create: (context) {
               final service = SpeechJobService(
                 context.read<EngineRuntimeProvider>().resources,
@@ -137,111 +151,91 @@ class _ServLlamaAppState extends State<ServLlamaApp> {
           ),
         ],
         child: Consumer2<AppThemeModeProvider, AppLocaleProvider>(
-          builder: (context, themeModeProvider, localeProvider, _) =>
-              MaterialApp(
-                onGenerateTitle: (context) =>
-                    AppLocalizations.of(context)!.appTitle,
-                debugShowCheckedModeBanner: false,
-                navigatorObservers: [AppNavigationObserver()],
-                theme: AppTheme.light(),
-                darkTheme: AppTheme.dark(),
-                themeMode: themeModeProvider.themeMode,
-                // A restored launch palette is not a user theme transition.
-                themeAnimationDuration: _ready.value
-                    ? kThemeAnimationDuration
-                    : Duration.zero,
-                locale: localeProvider.locale,
-                localizationsDelegates: [
-                  AppLocalizations.delegate,
-                  GlobalMaterialLocalizations.delegate,
-                  GlobalWidgetsLocalizations.delegate,
-                  GlobalCupertinoLocalizations.delegate,
-                ],
-                supportedLocales: AppLocalizations.supportedLocales,
-                builder: (context, child) {
-                  final runtime = context.read<EngineRuntimeProvider>();
-                  final chat = context.read<ChatProvider>();
-                  final speech = context.read<SpeechJobService>();
-                  final library = context.read<ModelManagementProvider>();
-                  return AppIdleWarmup(
-                    ready: _ready,
-                    startupWatch: widget.startupWatch,
-                    activity: Listenable.merge([
-                      runtime,
-                      chat,
-                      speech,
-                      library,
-                    ]),
-                    isBusy: () =>
-                        runtime.isBusy ||
-                        chat.isSending ||
-                        chat.isLoadingMessages ||
-                        chat.isLoadingOlderMessages ||
-                        speech.jobs.any((job) => job.state.active) ||
-                        library.isImporting ||
-                        library.isImportingMmproj ||
-                        library.isRenaming ||
-                        library.deletingModelId != null ||
-                        (speech.ready &&
-                            (speech.audio.recording ||
-                                speech.audio.recordingBusy ||
-                                speech.audio.playbackActive ||
-                                speech.models.importing ||
-                                speech.models.progress.isNotEmpty)),
-                    onReady: () => _startBackground(context),
-                    createTasks: () => _warmupTasks(context),
-                    child: child ?? const SizedBox.shrink(),
-                  );
-                },
-                home: _preparedOnEntry
-                    ? const MainScaffold()
-                    : AppStartupGate(
-                        initialError: _startup.error,
-                        initialize: (_) => _startup.prepare(),
-                        onReady: () => _ready.value = true,
-                        child: const MainScaffold(),
-                      ),
-              ),
+          builder: (context, themeModeProvider, localeProvider, _) {
+            final animateTheme = _themeLoaded;
+            _themeLoaded = themeModeProvider.hasLoaded;
+            return MaterialApp(
+              onGenerateTitle: (context) =>
+                  AppLocalizations.of(context)!.appTitle,
+              debugShowCheckedModeBanner: false,
+              navigatorObservers: [AppNavigationObserver()],
+              theme: AppTheme.light(),
+              darkTheme: AppTheme.dark(),
+              themeMode: themeModeProvider.themeMode,
+              // A restored launch palette is not a user theme transition.
+              themeAnimationDuration: animateTheme
+                  ? kThemeAnimationDuration
+                  : Duration.zero,
+              locale: localeProvider.locale,
+              localizationsDelegates: [
+                AppLocalizations.delegate,
+                GlobalMaterialLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+                GlobalCupertinoLocalizations.delegate,
+              ],
+              supportedLocales: AppLocalizations.supportedLocales,
+              builder: (context, child) {
+                final runtime = context.read<EngineRuntimeProvider>();
+                final chat = context.read<ChatProvider>();
+                final speech = context.read<SpeechJobService>();
+                final library = context.read<ModelManagementProvider>();
+                return AppIdleWarmup(
+                  ready: const AlwaysStoppedAnimation(true),
+                  startupWatch: widget.startupWatch,
+                  activity: Listenable.merge([runtime, chat, speech, library]),
+                  isBusy: () =>
+                      runtime.isBusy ||
+                      chat.isSending ||
+                      chat.isLoadingMessages ||
+                      chat.isLoadingOlderMessages ||
+                      speech.jobs.any((job) => job.state.active) ||
+                      library.isImporting ||
+                      library.isImportingMmproj ||
+                      library.isRenaming ||
+                      library.deletingModelId != null ||
+                      (speech.ready &&
+                          (speech.audio.recording ||
+                              speech.audio.recordingBusy ||
+                              speech.audio.playbackActive ||
+                              speech.models.importing ||
+                              speech.models.progress.isNotEmpty)),
+                  onReady: () => _startBackground(context),
+                  createTasks: () => _warmupTasks(context),
+                  child: child ?? const SizedBox.shrink(),
+                );
+              },
+              home: const MainScaffold(),
+            );
+          },
         ),
       ),
     );
   }
 
-  Future<void> _startBackground(BuildContext context) async {
-    final chat = context.read<ChatProvider>();
-    context.read<DownloadProvider>().resumeRestoredTransfers();
+  void _startTask(String name, Future<void> Function() load) {
+    unawaited(
+      StartupTask(name, load).run(phase: 'background').catchError((_) {}),
+    );
+  }
+
+  void _startBackground(BuildContext context) {
+    // These services restore independently after paint, not behind idle work.
+    _startTask('downloads', context.read<DownloadProvider>().load);
     final tools = AgentToolService.current;
-    if (tools != null) unawaited(tools.mcp.start());
-    // History is not the fresh-chat input. Start it immediately after first
-    // paint; demand loads join it and concurrent new conversations survive it.
-    await StartupTask(
-      'chat_sessions',
-      () => chat.load(preloadMessages: false),
-    ).run(phase: 'background');
+    if (tools != null) _startTask('mcp', tools.mcp.start);
+    // ChatPage owns its post-frame draft/history load. Do not start another
+    // body prefetch or make the optional queue wait for all history rows.
   }
 
   Future<List<StartupTask>> _warmupTasks(BuildContext context) async {
     final cache = context.read<BundledSvgCache>();
-    final chat = context.read<ChatProvider>();
+    final cleanupFiles = context.read<ChatProvider>().cleanupFiles;
     final tools = AgentToolService.current;
-    final themes = [AppTheme.light().colorScheme, AppTheme.dark().colorScheme];
+    final colors = Theme.of(context).colorScheme;
     final pageTasks = <StartupTask>[
-      StartupTask(
-        'model_assets',
-        context.read<AssistantProvider>().ensureAssetsReconciled,
-      ),
       StartupTask(
         'server_config',
         context.read<ServerConfigProvider>().ensureLoaded,
-      ),
-      StartupTask(
-        'model_library',
-        context.read<ModelManagementProvider>().load,
-      ),
-      StartupTask('speech', context.read<SpeechJobService>().initialize),
-      StartupTask(
-        'local_catalog',
-        context.read<ModelDiscoveryProvider>().prepare,
       ),
       if (tools != null) StartupTask('skills', tools.ensureSkillsLoaded),
       StartupTask('app_info', context.read<AppInfoService>().load),
@@ -257,16 +251,14 @@ class _ServLlamaAppState extends State<ServLlamaApp> {
       ];
       // One compiled SVG per idle slot; rendering remains framework-owned.
       for (final asset in assets) {
-        final colors = asset == 'assets/app_icon.svg'
+        final tints = asset == 'assets/app_icon.svg'
             ? {const Color(0xff000000)}
-            : themes
-                  .map(
-                    (c) => asset.endsWith('/mcp.svg')
-                        ? c.onSurfaceVariant
-                        : c.onSurface,
-                  )
-                  .toSet();
-        for (final color in colors) {
+            : {
+                asset.endsWith('/mcp.svg')
+                    ? colors.onSurfaceVariant
+                    : colors.onSurface,
+              };
+        for (final color in tints) {
           tasks.add(
             StartupTask('bundled_icon', () => cache.load(asset, color)),
           );
@@ -279,19 +271,8 @@ class _ServLlamaAppState extends State<ServLlamaApp> {
         fields: AppLogger.errorFields(error),
       );
     }
-    // ServLlama starts on a new draft. Only a few recent windows are useful;
-    // full histories, attachments and Run recovery never belong to prefetch.
-    for (final session in chat.sessions.take(4)) {
-      final id = session.id;
-      tasks.add(
-        StartupTask('recent_chat_window', () => chat.warmUpSession(id)),
-      );
-    }
-    return [
-      ...pageTasks,
-      ...tasks,
-      StartupTask('file_cleanup', chat.cleanupFiles),
-      StartupTask('log_history', AppLogger.instance.ensureHistoryLoaded),
-    ];
+    // No inventory scans, speech setup, discovery catalogs, history bodies or
+    // historical logs at launch. Those pages use their existing demand loaders.
+    return [...pageTasks, ...tasks, StartupTask('file_cleanup', cleanupFiles)];
   }
 }

@@ -17,11 +17,12 @@ class _Secrets extends SecretStore {
   final values = <String, String>{};
   int reads = 0;
   bool failReads = false;
+  Completer<String?>? pending;
   @override
   Future<String?> read(String key) async {
     reads++;
     if (failReads) throw StateError('fixture secure storage unavailable');
-    return values[key];
+    return pending?.future ?? values[key];
   }
 
   @override
@@ -71,7 +72,61 @@ void main() {
   tearDown(() => db.close());
 
   test(
-    'light startup restores credentials and targets from the database snapshot',
+    'initial demand is single flight and an early save waits for it',
+    () async {
+      final models = _TrackedAssets()..pending = Completer<List<ModelAsset>>();
+      final provider = AssistantProvider(
+        repository: repository,
+        models: models,
+      );
+      addTearDown(provider.dispose);
+      final initial = provider.ensureLoaded();
+      expect(identical(initial, provider.ensureLoaded()), isTrue);
+      final saving = provider.saveConnection(custom, key: 'fixture-key');
+      await Future<void>.delayed(Duration.zero);
+      expect(provider.loaded, isFalse);
+      expect(
+        (await repository.connections()).any((c) => c.id == custom.id),
+        isFalse,
+      );
+      models.pending!.complete([]);
+      await Future.wait([initial, saving]);
+      expect(models.modes, [false]);
+      expect(provider.connection(custom.id)!.models, ['kept']);
+      expect(
+        provider.cachedCredential(provider.connection(custom.id)!),
+        'fixture-key',
+      );
+    },
+  );
+
+  test(
+    'credential demand coalesces and missing storage is never cached empty',
+    () async {
+      final saved = await repository.saveConnection(
+        custom,
+        newSecret: 'fixture-key',
+      );
+      final provider = AssistantProvider(
+        repository: repository,
+        models: _EmptyAssets(),
+      );
+      addTearDown(provider.dispose);
+      await provider.ensureLoaded();
+      secrets.pending = Completer<String?>();
+      final first = provider.credential(saved);
+      expect(identical(first, provider.credential(saved)), isTrue);
+      secrets.pending!.complete(null);
+      await expectLater(first, throwsStateError);
+      expect(provider.cachedCredential(saved), isNull);
+      secrets.pending = null;
+      expect(await provider.credential(saved), 'fixture-key');
+      expect(secrets.reads, 2);
+    },
+  );
+
+  test(
+    'light startup restores targets without secure-storage or inventory reads',
     () async {
       final saved = await repository.saveConnection(
         custom,
@@ -92,7 +147,8 @@ void main() {
       addTearDown(provider.dispose);
       await provider.load(reconcileAssets: false);
       expect(models.modes, [false]);
-      expect(provider.cachedCredential(saved), 'fixture-key');
+      expect(provider.cachedCredential(saved), isNull);
+      expect(secrets.reads, 0);
       expect(provider.active!.chatTarget!.modelId, 'kept');
       expect(provider.resolveTarget(provider.active!.chatTarget), isNotNull);
       models.pending = Completer<List<ModelAsset>>();
@@ -105,7 +161,7 @@ void main() {
       await provider.ensureAssetsReconciled();
       expect(models.modes, [false, true]);
       expect(provider.active!.chatTarget!.modelId, 'kept');
-      expect(provider.cachedCredential(saved), 'fixture-key');
+      expect(await provider.credential(saved), 'fixture-key');
     },
   );
 
@@ -168,7 +224,7 @@ void main() {
   );
 
   test(
-    'settings restore hydrates credentials before publishing and refreshes rotated keys',
+    'demand credential reads cache verified keys and survive process recreation',
     () async {
       var saved = await repository.saveConnection(
         custom,
@@ -180,7 +236,8 @@ void main() {
       );
       await provider.load();
       expect(provider.loaded, isTrue);
-      expect(provider.cachedCredential(saved), 'fixture-first');
+      expect(provider.cachedCredential(saved), isNull);
+      expect(await provider.credential(saved), 'fixture-first');
       final reads = secrets.reads;
       expect(await provider.credential(saved), 'fixture-first');
       expect(secrets.reads, reads);
@@ -199,7 +256,7 @@ void main() {
       addTearDown(restored.dispose);
       await restored.load();
       expect(
-        restored.cachedCredential(restored.connection(custom.id)!),
+        await restored.credential(restored.connection(custom.id)!),
         'fixture-second',
       );
       expect(

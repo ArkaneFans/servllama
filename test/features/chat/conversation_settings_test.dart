@@ -114,6 +114,9 @@ class _Runtime extends Fake implements EngineRuntimeProvider {
   @override
   String get apiKey => '';
   @override
+  Future<void> ensureRestored() async {}
+
+  @override
   Future<void> stop() async {
     actions.add('stop');
     running = false;

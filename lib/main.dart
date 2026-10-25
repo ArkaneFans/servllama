@@ -16,7 +16,6 @@ import 'package:servllama/core/logging/file_log_sink.dart';
 import 'package:servllama/core/services/native_licenses.dart';
 import 'package:servllama/app/bootstrap/bootstrap_gate.dart';
 import 'package:servllama/app/bootstrap/startup_task.dart';
-import 'package:servllama/app/bootstrap/app_startup_state.dart';
 
 Future<void> main() async {
   final startupWatch = Stopwatch()..start();
@@ -48,15 +47,9 @@ Future<void> main() async {
     return;
   }
 
-  // Like data admission, the small configuration snapshot precedes runApp.
-  // Flutter owns first-frame delivery; no native splash retention callbacks.
-  final startup = AppStartupState();
-  try {
-    await StartupTask('ui_snapshot', startup.prepare).run(phase: 'critical');
-  } catch (_) {
-    // The app displays this captured failure, without an automatic retry.
-  }
-  runApp(ServLlamaApp(startupWatch: startupWatch, startup: startup));
+  // Only database admission precedes the homepage, as on main. Business
+  // providers restore independently; Flutter owns first-frame delivery.
+  runApp(ServLlamaApp(startupWatch: startupWatch));
 }
 
 Future<bool> _hasPendingLegacyMigration() async {

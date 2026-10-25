@@ -27,6 +27,14 @@ class _AssistantsPageState extends State<AssistantsPage> {
   final search = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(context.read<AssistantProvider>().ensureLoaded());
+    });
+  }
+
+  @override
   void dispose() {
     search.dispose();
     super.dispose();
@@ -51,7 +59,7 @@ class _AssistantsPageState extends State<AssistantsPage> {
             key: const Key('assistant_add'),
             tooltip: l.v2Add,
             icon: const Icon(Icons.add),
-            onPressed: () => _add(context),
+            onPressed: p.loaded && p.error == null ? () => _add(context) : null,
           ),
         ],
       ),
@@ -63,9 +71,12 @@ class _AssistantsPageState extends State<AssistantsPage> {
             if (p.error != null)
               ListTile(
                 title: Text(l.v2OperationFailed),
-                subtitle: Text(p.error!),
+                trailing: TextButton(
+                  onPressed: () => p.load(reconcileAssets: false),
+                  child: Text(l.v2ToolRetryLoad),
+                ),
               ),
-            if (!p.loaded) const LinearProgressIndicator(),
+            if (!p.loaded && p.error == null) const LinearProgressIndicator(),
             if (p.assistants.isNotEmpty) ...[
               TextField(
                 key: const Key('assistant_search'),

@@ -14,25 +14,49 @@ class AppThemeModeProvider extends ChangeNotifier {
   ThemeMode get themeMode => _themeMode;
   bool get hasLoaded => _hasLoaded;
 
-  Future<void> load() async {
+  Future<void>? _loadFuture;
+  bool _disposed = false;
+
+  Future<void> load() => _hasLoaded
+      ? Future<void>.value()
+      : _loadFuture ??= _load().whenComplete(() => _loadFuture = null);
+
+  Future<void> _load() async {
     if (_hasLoaded) {
       return;
     }
 
     final storedValue = await _kvStorage.getString(AppPrefsKeys.themeMode);
+    if (_disposed) return;
     _themeMode = _themeModeFromStorage(storedValue);
     _hasLoaded = true;
     notifyListeners();
   }
 
   Future<void> updateThemeMode(ThemeMode value) async {
+    await load();
+    if (_disposed) return;
     if (_themeMode == value) {
       return;
     }
 
     _themeMode = value;
-    await _kvStorage.setString(AppPrefsKeys.themeMode, _themeModeToStorage(value));
+    await _kvStorage.setString(
+      AppPrefsKeys.themeMode,
+      _themeModeToStorage(value),
+    );
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
   }
 
   static String _themeModeToStorage(ThemeMode value) {

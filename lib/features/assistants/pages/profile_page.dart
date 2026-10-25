@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:servllama/shared/widgets/settings_section.dart';
 import 'package:servllama/shared/widgets/form_list_view.dart';
 import 'package:servllama/shared/widgets/app_scaffold.dart';
@@ -16,11 +18,39 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  late final p = context.read<AssistantProvider>().profile;
-  late final name = TextEditingController(text: p.name),
-      description = TextEditingController(text: p.description);
-  late String avatar = p.avatar;
-  bool avatarBusy = false, saving = false;
+  final name = TextEditingController(), description = TextEditingController();
+  String avatar = '';
+  bool avatarBusy = false, saving = false, initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final provider = context.read<AssistantProvider>();
+    if (provider.loaded && provider.error == null) {
+      _restoreProfile();
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_loadProfile());
+      });
+    }
+  }
+
+  void _restoreProfile() {
+    final profile = context.read<AssistantProvider>().profile;
+    name.text = profile.name;
+    description.text = profile.description;
+    avatar = profile.avatar;
+    initialized = true;
+  }
+
+  Future<void> _loadProfile() async {
+    final provider = context.read<AssistantProvider>();
+    await provider.ensureLoaded();
+    if (mounted && provider.loaded && provider.error == null) {
+      setState(_restoreProfile);
+    }
+  }
+
   @override
   void dispose() {
     name.dispose();
@@ -31,6 +61,28 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     final l = context.l10n;
+    final provider = context.watch<AssistantProvider>();
+    if (!initialized) {
+      return AppScaffold(
+        appBar: AppBar(title: Text(l.v2Profile)),
+        body: provider.error == null
+            ? const Align(
+                alignment: Alignment.topCenter,
+                child: LinearProgressIndicator(),
+              )
+            : Center(
+                child: TextButton(
+                  onPressed: () async {
+                    await provider.load(reconcileAssets: false);
+                    if (mounted && provider.loaded && provider.error == null) {
+                      setState(_restoreProfile);
+                    }
+                  },
+                  child: Text(l.v2ToolRetryLoad),
+                ),
+              ),
+      );
+    }
     final displayName = name.text.trim();
     return AppScaffold(
       appBar: AppBar(

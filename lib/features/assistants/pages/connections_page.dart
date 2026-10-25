@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:servllama/shared/widgets/app_tab_bar.dart';
 import 'package:servllama/shared/widgets/settings_section.dart';
 import 'package:servllama/features/assistants/widgets/provider_model_sheet.dart';
@@ -28,6 +30,14 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
   final search = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(context.read<AssistantProvider>().ensureLoaded());
+    });
+  }
+
+  @override
   void dispose() {
     search.dispose();
     super.dispose();
@@ -56,7 +66,7 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
           IconButton(
             tooltip: l.v2Add,
             icon: const Icon(Icons.add),
-            onPressed: () => _add(context),
+            onPressed: p.loaded && p.error == null ? () => _add(context) : null,
           ),
         ],
       ),
@@ -80,7 +90,16 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
             ),
           ),
           const SizedBox(height: 16),
-          if (visible.isEmpty)
+          if (!p.loaded && p.error == null) const LinearProgressIndicator(),
+          if (p.error != null)
+            ListTile(
+              title: Text(l.v2OperationFailed),
+              trailing: TextButton(
+                onPressed: () => p.load(reconcileAssets: false),
+                child: Text(l.v2ToolRetryLoad),
+              ),
+            ),
+          if (p.loaded && p.error == null && visible.isEmpty)
             Padding(
               padding: const EdgeInsets.all(24),
               child: Text(

@@ -132,7 +132,12 @@ class ChatProvider extends ChangeNotifier {
         !_drafts.containsKey('draft')) {
       return;
     }
-    _drafts.putIfAbsent(draftKey, () => _drafts['draft']!);
+    if (_unownedDraftEdited) {
+      _drafts[draftKey] = _drafts['draft']!;
+      _unownedDraftEdited = false;
+    } else {
+      _drafts.putIfAbsent(draftKey, () => _drafts['draft']!);
+    }
     _drafts.remove('draft');
   }
 
@@ -197,11 +202,16 @@ class ChatProvider extends ChangeNotifier {
       sessions.any((session) => session.id == key);
   String get currentDraft => _drafts[draftKey] ?? '';
   String draftFor(String key) => _drafts[key] ?? '';
+  bool _unownedDraftEdited = false;
+
   void updateDraft(String value, {String? key}) {
     final destination = key ?? draftKey;
     if (!hasDraftDestination(destination)) return;
     if (_drafts[destination] == value) return;
     _drafts[destination] = value;
+    if (destination == 'draft' && _assistants?.loaded == false) {
+      _unownedDraftEdited = true;
+    }
     _draftDebounce?.cancel();
     _draftDebounce = Timer(
       const Duration(milliseconds: 300),
@@ -271,6 +281,12 @@ class ChatProvider extends ChangeNotifier {
     }
     final operation = _creatingConversation =
         () async {
+          await _assistants?.ensureLoaded();
+          if (_assistants != null &&
+              (!_assistants!.loaded || _assistants!.error != null)) {
+            throw StateError('Assistant settings unavailable');
+          }
+          _initializeDraft();
           await _loadDrafts();
           final now = DateTime.now();
           final oldKey = draftKey;
@@ -356,6 +372,7 @@ class ChatProvider extends ChangeNotifier {
           );
     final key = jsonEncode([
       selectedSession?.id,
+      _draftsLoaded,
       assistant?.id,
       assistant?.revision,
       target?.toJson(),
@@ -466,6 +483,7 @@ class ChatProvider extends ChangeNotifier {
           throw StateError('Connection unavailable');
         }
       } else {
+        if (startLocal) await _runtime?.ensureRestored();
         final asset = await _assistants?.models.asset(target.assetId!);
         if (asset?.isReady != true || asset?.kind != AssetKind.llm) {
           throw StateError('Local model unavailable');
@@ -532,6 +550,7 @@ class ChatProvider extends ChangeNotifier {
     _preparingLocal = true;
     notifyListeners();
     try {
+      await runtime.ensureRestored();
       final asset = await assistants.models.asset(target!.assetId!);
       if (asset == null || !asset.isReady || asset.kind != AssetKind.llm) {
         throw StateError('Local model unavailable');
@@ -598,6 +617,7 @@ class ChatProvider extends ChangeNotifier {
       _generation.pendingImageAttachments;
 
   bool get canManageSessions =>
+      (!hasAssistantContext || (_assistants!.loaded && _draftsLoaded)) &&
       !isLoading &&
       _creatingConversation == null &&
       !_changingSettings &&

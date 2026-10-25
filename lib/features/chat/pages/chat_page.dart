@@ -93,7 +93,12 @@ class _ChatViewState extends State<_ChatView> {
       if (!mounted) {
         return;
       }
-      context.read<ChatProvider>().load();
+      unawaited(
+        runUiAction(
+          context,
+          () => context.read<ChatProvider>().load(preloadMessages: false),
+        ),
+      );
     });
   }
 
@@ -168,7 +173,9 @@ class _ChatViewState extends State<_ChatView> {
 
   Future<void> _handleServerAction(BuildContext context) async {
     final runtime = context.read<EngineRuntimeProvider?>();
-    if (runtime == null || runtime.isBusy) {
+    if (runtime == null) return;
+    await runtime.ensureRestored();
+    if (!context.mounted || runtime.isBusy) {
       return;
     }
 

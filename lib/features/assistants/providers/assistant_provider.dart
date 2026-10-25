@@ -35,30 +35,56 @@ class AssistantProvider extends ChangeNotifier {
       assistants.where((a) => a.id == activeId).firstOrNull;
   Future<AssistantRepository> get repository async =>
       _repository ??= AssistantRepository(await AppDatabase.shared());
-  Future<void> load({bool reconcileAssets = true}) async {
+  Future<void>? _loadFuture;
+
+  /// Metadata only: route demand joins the same initial read as startup.
+  Future<void> ensureLoaded() =>
+      _loadFuture ??
+      (loaded ? Future<void>.value() : load(reconcileAssets: false));
+
+  Future<void> _requireLoaded() async {
+    await ensureLoaded();
+    if (_disposed || !loaded || error != null) {
+      throw StateError('Application settings unavailable; retry loading');
+    }
+  }
+
+  Future<void> load({bool reconcileAssets = true}) => _loadFuture ??= _load(
+    reconcileAssets: reconcileAssets,
+  ).whenComplete(() => _loadFuture = null);
+
+  Future<void> _load({required bool reconcileAssets}) async {
     try {
       final r = await repository;
       await r.initializeProviders();
-      assistants = await r.assistants();
-      connections = await r.connections();
-      await _restoreCredentials();
-      profile = await r.profile();
-      if (assistants.isEmpty) {
+      var restoredAssistants = await r.assistants();
+      final restoredConnections = await r.connections();
+      final restoredProfile = await r.profile();
+      if (restoredAssistants.isEmpty) {
         final initial = Assistant(id: newId(), name: 'ServLlama');
         await r.saveAssistant(initial);
-        assistants = [initial];
+        restoredAssistants = [initial];
       }
       final savedId = await r.preferences.getString('v2.activeAssistant');
-      activeId ??= savedId;
-      if (!assistants.any((a) => a.id == activeId)) {
-        activeId = assistants.first.id;
+      final restoredId =
+          restoredAssistants.any((a) => a.id == (activeId ?? savedId))
+          ? activeId ?? savedId!
+          : restoredAssistants.first.id;
+      if (savedId != restoredId) {
+        await r.preferences.setString('v2.activeAssistant', restoredId);
       }
-      if (savedId != activeId) {
-        await r.preferences.setString('v2.activeAssistant', activeId!);
-      }
-      assets = await models.listAssets(reconcile: reconcileAssets);
+      final restoredAssets = await models.listAssets(
+        reconcile: reconcileAssets,
+      );
       await r.clearMissingTargets();
-      assistants = await r.assistants();
+      restoredAssistants = await r.assistants();
+      if (_disposed) return;
+      assistants = restoredAssistants;
+      connections = restoredConnections;
+      profile = restoredProfile;
+      activeId = restoredId;
+      assets = restoredAssets;
+      _pruneCredentials();
       error = null;
       loaded = true;
       _assetsReconciled = reconcileAssets;
@@ -76,6 +102,7 @@ class AssistantProvider extends ChangeNotifier {
   }
 
   Future<void> select(String id) async {
+    await _requireLoaded();
     if (!assistants.any((a) => a.id == id)) return;
     await (await repository).preferences.setString('v2.activeAssistant', id);
     activeId = id;
@@ -89,6 +116,7 @@ class AssistantProvider extends ChangeNotifier {
   }
 
   Future<void> save(Assistant a, {int? expectedRevision}) async {
+    await _requireLoaded();
     await (await repository).saveAssistantEdit(
       a,
       expectedRevision: expectedRevision,
@@ -105,6 +133,7 @@ class AssistantProvider extends ChangeNotifier {
 
   Future<Assistant> updateAssistant(String id, Map<String, dynamic> changes) {
     final result = _assistantUpdateQueue.then((_) async {
+      await _requireLoaded();
       final updated = await (await repository).updateAssistant(id, changes);
       assistants = await (await repository).assistants();
       await AgentToolService.current?.revalidate();
@@ -130,6 +159,7 @@ class AssistantProvider extends ChangeNotifier {
   }
 
   Future<void> setChatTarget(String id, ChatTarget? target) async {
+    await _requireLoaded();
     await (await repository).setChatTarget(id, target);
     assistants = await (await repository).assistants();
     notifyListeners();
@@ -138,8 +168,13 @@ class AssistantProvider extends ChangeNotifier {
   Future<void> duplicate(Assistant a) =>
       save(a.changed({'id': newId(), 'revision': 1, 'name': '${a.name} (2)'}));
   Future<void> saveConnection(AiConnection c, {String? key}) async {
+    await _requireLoaded();
     try {
-      await (await repository).saveConnection(c, newSecret: key);
+      final saved = await (await repository).saveConnection(c, newSecret: key);
+      if (!_disposed && key?.isNotEmpty == true && saved.secretRef != null) {
+        // The repository already verified the durable write before commit.
+        _credentials[saved.secretRef!] = key!;
+      }
       _logger.event(
         'client.connection.saved',
         channel: LogChannel.client,
@@ -155,7 +190,7 @@ class AssistantProvider extends ChangeNotifier {
       rethrow;
     } finally {
       connections = await (await repository).connections();
-      await _restoreCredentials();
+      _pruneCredentials();
       assistants = await (await repository).assistants();
       await AgentToolService.current?.revalidate();
       notifyListeners();
@@ -163,6 +198,7 @@ class AssistantProvider extends ChangeNotifier {
   }
 
   Future<void> deleteConnection(String id) async {
+    await _requireLoaded();
     try {
       await (await repository).deleteConnection(id);
       _logger.event(
@@ -180,7 +216,7 @@ class AssistantProvider extends ChangeNotifier {
       rethrow;
     } finally {
       connections = await (await repository).connections();
-      await _restoreCredentials();
+      _pruneCredentials();
       assistants = await (await repository).assistants();
       await AgentToolService.current?.revalidate();
       notifyListeners();
@@ -188,6 +224,7 @@ class AssistantProvider extends ChangeNotifier {
   }
 
   Future<void> saveProfile(UserProfile p) async {
+    await _requireLoaded();
     await (await repository).saveProfile(p);
     _logger.event('client.profile.saved', channel: LogChannel.client);
     profile = p;
@@ -203,45 +240,45 @@ class AssistantProvider extends ChangeNotifier {
   String? cachedCredential(AiConnection c) =>
       c.secretRef == null ? '' : _credentials[c.secretRef];
 
-  Future<String> credential(AiConnection c) async {
+  final Map<String, Future<String>> _credentialReads = {};
+
+  Future<String> credential(AiConnection c) {
     final cached = cachedCredential(c);
-    if (cached != null) return cached;
-    final value = await (await repository).secrets.read(c.secretRef!) ?? '';
-    if (!_disposed) _credentials[c.secretRef!] = value;
-    return value;
+    if (cached != null) return Future.value(cached);
+    final ref = c.secretRef!;
+    return _credentialReads[ref] ??= _readCredential(ref);
   }
 
-  Future<void> _restoreCredentials() async {
+  Future<String> _readCredential(String ref) async {
+    try {
+      final value = await (await repository).secrets.read(ref);
+      if (value == null) {
+        // A missing persisted secret must not become an editable empty key.
+        throw StateError('Saved credential unavailable; retry or replace it');
+      }
+      if (!_disposed && _credentialReads.containsKey(ref)) {
+        _credentials[ref] = value;
+      }
+      return value;
+    } finally {
+      _credentialReads.remove(ref);
+    }
+  }
+
+  void _pruneCredentials() {
     final refs = connections
         .map((c) => c.secretRef)
         .whereType<String>()
         .toSet();
     _credentials.removeWhere((ref, _) => !refs.contains(ref));
-    await Future.wait(
-      connections.map((connection) async {
-        try {
-          await credential(connection);
-        } catch (error) {
-          // An unreadable credential is not an empty key, nor a reason to block
-          // unrelated local features. Its editor/request can retry the read.
-          _logger.event(
-            'client.credential.restore_failed',
-            channel: LogChannel.client,
-            level: LogLevel.error,
-            fields: {
-              'connection': connection.id,
-              ...AppLogger.errorFields(error),
-            },
-          );
-        }
-      }),
-    );
+    _credentialReads.removeWhere((ref, _) => !refs.contains(ref));
   }
 
   @override
   void dispose() {
     _disposed = true;
     _credentials.clear();
+    _credentialReads.clear();
     super.dispose();
   }
 
@@ -307,6 +344,7 @@ class AssistantProvider extends ChangeNotifier {
   }
 
   Future<void> _refreshAssets() async {
+    await _requireLoaded();
     final refreshed = await models.listAssets();
     final r = await repository;
     await r.clearMissingTargets();

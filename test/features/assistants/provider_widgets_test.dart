@@ -10,6 +10,7 @@ import 'package:servllama/core/providers/engine_runtime_provider.dart';
 import 'package:servllama/features/assistants/models/assistant.dart';
 import 'package:servllama/features/assistants/models/provider_presets.dart';
 import 'package:servllama/features/assistants/pages/connections_page.dart';
+import 'package:servllama/features/assistants/pages/profile_page.dart';
 import 'package:servllama/features/assistants/providers/assistant_provider.dart';
 import 'package:servllama/features/assistants/widgets/provider_model_picker.dart';
 import 'package:servllama/features/assistants/widgets/provider_model_sheet.dart';
@@ -38,6 +39,7 @@ const _local = ModelAsset(
 );
 
 class _Settings extends AssistantProvider {
+  Completer<void>? pendingSnapshot;
   List<String> discovered = ['kept', 'new', 'other'];
   bool failDiscovery = false, blockDiscovery = false;
   String? savedKey;
@@ -70,6 +72,18 @@ class _Settings extends AssistantProvider {
       ),
     ];
   }
+  @override
+  Future<void> load({bool reconcileAssets = true}) async {
+    await pendingSnapshot?.future;
+    connections = [_cloud];
+    profile = const UserProfile(
+      name: 'Restored identity',
+      description: 'Saved profile',
+    );
+    loaded = true;
+    notifyListeners();
+  }
+
   @override
   Future<void> refreshAssets() async {}
   @override
@@ -239,6 +253,42 @@ void main() {
     await tester.ensureVisible(finder);
     await tester.pumpAndSettle();
   }
+
+  testWidgets(
+    'early provider page distinguishes loading from an empty catalog',
+    (tester) async {
+      settings.loaded = false;
+      settings.connections = [];
+      settings.pendingSnapshot = Completer<void>();
+      await tester.pumpWidget(app(const ConnectionsPage()));
+      expect(find.byType(LinearProgressIndicator), findsOneWidget);
+      final add = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.add),
+      );
+      expect(add.onPressed, isNull);
+      expect(find.byKey(const Key('provider_cloud')), findsNothing);
+      settings.pendingSnapshot!.complete();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('provider_cloud')), findsOneWidget);
+      expect(find.byType(LinearProgressIndicator), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'early profile page restores fields before exposing an editable draft',
+    (tester) async {
+      settings.loaded = false;
+      settings.pendingSnapshot = Completer<void>();
+      await tester.pumpWidget(app(const ProfilePage()));
+      expect(find.byType(TextField), findsNothing);
+      settings.pendingSnapshot!.complete();
+      await tester.pumpAndSettle();
+      final name = tester.widget<TextField>(
+        find.byKey(const Key('profile_name')),
+      );
+      expect(name.controller!.text, 'Restored identity');
+    },
+  );
 
   testWidgets(
     'editor loads a stored key, reveals it on demand and keeps it unchanged',

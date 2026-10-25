@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:servllama/app/bootstrap/app_startup_state.dart';
+import 'package:servllama/app/providers/app_provider_scope.dart';
 import 'package:servllama/app/providers/app_locale_provider.dart';
 import 'package:servllama/app/providers/app_theme_mode_provider.dart';
 import 'package:servllama/app/providers/chat_timeout_provider.dart';
@@ -23,7 +23,7 @@ class AppStartupFixture {
   final library = _Library();
   final downloads = StartupDownloads();
   final chat = StartupChat();
-  late final startup = AppStartupState(
+  late final scope = AppProviderScope(
     locale: locale,
     theme: theme,
     timeout: timeout,
@@ -85,13 +85,19 @@ class StartupAssistants extends AssistantProvider {
     assistants = [const Assistant(id: 'a', name: 'Assistant')];
     activeId = 'a';
     loaded = true;
+    notifyListeners();
   }
 }
 
 class _Library extends ModelManagementProvider {
-  // Keep optional preparation pending while inspecting the first app frame.
+  bool importing = true;
+  int loads = 0;
   @override
-  bool get isImporting => true;
+  bool get isImporting => importing;
+  @override
+  Future<void> load() async {
+    loads++;
+  }
 }
 
 class StartupDownloads extends DownloadProvider {
@@ -118,5 +124,6 @@ class StartupChat extends ChatProvider {
   @override
   Future<void> load({bool preloadMessages = true}) async {
     historyLoads++;
+    await prepareDrafts();
   }
 }

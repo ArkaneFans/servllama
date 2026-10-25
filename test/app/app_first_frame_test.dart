@@ -5,11 +5,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/app/app.dart';
 import 'package:servllama/app/main_scaffold.dart';
-import 'package:servllama/app/bootstrap/app_startup_gate.dart';
 import 'package:servllama/app/bootstrap/bootstrap_gate.dart';
 import 'package:servllama/app/bootstrap/migration_flow_view.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
 import 'package:servllama/features/chat/providers/chat_provider.dart';
+import 'package:servllama/features/downloads/providers/model_discovery_provider.dart';
+import 'package:servllama/features/speech/services/speech_job_service.dart';
 
 import '../support/app_startup_fixture.dart';
 
@@ -17,66 +18,82 @@ void main() {
   Widget host({
     required Future<bool> Function() pendingMigration,
     required BootstrapInitializer bootstrap,
-    required Future<void> Function(BuildContext) prepare,
   }) => BootstrapGate(
     hasPendingMigration: pendingMigration,
     initialize: bootstrap,
     child: MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      home: AppStartupGate(
-        initialize: prepare,
-        child: const Text('Business ready'),
-      ),
+      home: const Text('Business ready'),
     ),
   );
 
-  testWidgets(
-    'prepared app sends its business first frame without a launch hold',
-    (tester) async {
-      final fixture = AppStartupFixture();
-      await fixture.startup.prepare();
-      await tester.pumpWidget(ServLlamaApp(startup: fixture.startup));
-      expect(tester.binding.sendFramesToEngine, isTrue);
-      expect(find.byType(MainScaffold), findsOneWidget);
-      expect(
-        tester.element(find.byType(MainScaffold)).read<ChatProvider>(),
-        same(fixture.chat),
-      );
-      expect(find.byType(MigrationFlowView), findsNothing);
-      expect(find.byType(AppStartupGate), findsNothing);
-      expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect(fixture.chat.draftLoads, 1);
-      await tester.pumpWidget(const SizedBox());
-      expect(tester.takeException(), isNull);
-    },
-  );
+  testWidgets('homepage paints while assistant restoration is blocked', (
+    tester,
+  ) async {
+    final fixture = AppStartupFixture();
+    final pending = Completer<void>();
+    fixture.assistants.pending = pending;
+    await tester.pumpWidget(ServLlamaApp(scope: fixture.scope));
+    expect(tester.binding.sendFramesToEngine, isTrue);
+    expect(find.byType(MainScaffold), findsOneWidget);
+    expect(
+      tester.element(find.byType(MainScaffold)).read<ChatProvider>(),
+      same(fixture.chat),
+    );
+    expect(find.byType(MigrationFlowView), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(fixture.assistants.loaded, isFalse);
+    expect(fixture.assistants.reconciliationModes, [false]);
+    await tester.pump();
+    expect(fixture.downloads.transferModes, [true]);
+    expect(fixture.chat.historyLoads, 1);
+    fixture.chat.updateDraft('typed before restoration');
+    pending.complete();
+    await tester.pumpAndSettle();
+    expect(fixture.chat.currentAssistantId, 'a');
+    expect(fixture.chat.currentDraft, 'typed before restoration');
+    expect(fixture.chat.canManageSessions, isTrue);
+    await tester.pumpWidget(const SizedBox());
+    expect(tester.takeException(), isNull);
+  });
 
-  testWidgets(
-    'app displays a captured snapshot failure without restarting preparation',
-    (tester) async {
-      final fixture = AppStartupFixture();
-      fixture.assistants.fail = true;
-      await expectLater(fixture.startup.prepare(), throwsStateError);
-      await tester.pumpWidget(ServLlamaApp(startup: fixture.startup));
-      await tester.pumpAndSettle();
-      expect(fixture.assistants.reconciliationModes, [false]);
-      expect(find.byType(MainScaffold), findsNothing);
-      expect(find.byType(AppStartupGate), findsOneWidget);
-      expect(tester.binding.sendFramesToEngine, isTrue);
-      fixture.assistants.fail = false;
-      final l = AppLocalizations.of(
-        tester.element(find.byType(AppStartupGate)),
-      )!;
-      await tester.tap(find.text(l.v2RetryStartup));
-      await tester.pumpAndSettle();
-      expect(fixture.assistants.reconciliationModes, [false, false]);
-      expect(find.byType(MainScaffold), findsOneWidget);
-      expect(fixture.chat.currentAssistantId, 'a');
-      await tester.pumpWidget(const SizedBox());
-      expect(tester.takeException(), isNull);
-    },
-  );
+  testWidgets('business load failure never closes the homepage', (
+    tester,
+  ) async {
+    final fixture = AppStartupFixture();
+    fixture.assistants.fail = true;
+    await tester.pumpWidget(ServLlamaApp(scope: fixture.scope));
+    await tester.pumpAndSettle();
+    expect(find.byType(MainScaffold), findsOneWidget);
+    expect(find.byType(MigrationFlowView), findsNothing);
+    expect(fixture.chat.canManageSessions, isFalse);
+    expect(tester.binding.sendFramesToEngine, isTrue);
+    await tester.pumpWidget(const SizedBox());
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('idle preparation does not initialize whole feature pages', (
+    tester,
+  ) async {
+    final fixture = AppStartupFixture();
+    fixture.library.importing = false;
+    await tester.pumpWidget(ServLlamaApp(scope: fixture.scope));
+    final context = tester.element(find.byType(MainScaffold));
+    final speech = context.read<SpeechJobService>();
+    final discovery = context.read<ModelDiscoveryProvider>();
+    for (var i = 0; i < 60; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(fixture.library.loads, 0);
+    expect(speech.ready, isFalse);
+    expect(discovery.catalog, isEmpty);
+    expect(discovery.searchResults, isEmpty);
+    expect(fixture.chat.historyLoads, 1);
+    expect(find.byType(MainScaffold), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('migration choice is visible before admission', (tester) async {
     var initialized = false;
@@ -86,7 +103,6 @@ void main() {
         bootstrap: (_, {required skipLegacyImport}) async {
           initialized = true;
         },
-        prepare: (_) async {},
       ),
     );
     await tester.pumpAndSettle();
@@ -96,30 +112,31 @@ void main() {
     expect(initialized, isFalse);
   });
 
-  testWidgets('visible migration keeps progress during business preparation', (
-    tester,
-  ) async {
-    final snapshots = Completer<void>();
-    await tester.pumpWidget(
-      host(
-        pendingMigration: () async => true,
-        bootstrap: (_, {required skipLegacyImport}) async {},
-        prepare: (_) => snapshots.future,
-      ),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('migration_start')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('migration_start_using')));
-    await tester.pump();
-    expect(tester.binding.sendFramesToEngine, isTrue);
-    expect(find.byType(MigrationFlowView), findsOneWidget);
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    expect(find.text('Business ready'), findsNothing);
-    snapshots.complete();
-    await tester.pumpAndSettle();
-    expect(find.text('Business ready'), findsOneWidget);
-  });
+  testWidgets(
+    'migration opens the business UI without an extra snapshot gate',
+    (tester) async {
+      final snapshots = Completer<void>();
+      await tester.pumpWidget(
+        host(
+          pendingMigration: () async => true,
+          bootstrap: (_, {required skipLegacyImport}) => snapshots.future,
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('migration_start')));
+      await tester.pump();
+      await tester.pump();
+      expect(tester.binding.sendFramesToEngine, isTrue);
+      expect(find.byType(MigrationFlowView), findsOneWidget);
+      expect(find.byType(LinearProgressIndicator), findsOneWidget);
+      expect(find.text('Business ready'), findsNothing);
+      snapshots.complete();
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('migration_start_using')));
+      await tester.pumpAndSettle();
+      expect(find.text('Business ready'), findsOneWidget);
+    },
+  );
 
   testWidgets('explicit startup retry keeps progress visible', (tester) async {
     final retry = Completer<void>();
@@ -131,7 +148,6 @@ void main() {
           if (++attempts == 1) return Future.error(StateError('fixture'));
           return retry.future;
         },
-        prepare: (_) async {},
       ),
     );
     await tester.pumpAndSettle();
@@ -148,7 +164,7 @@ void main() {
     expect(find.text('Business ready'), findsOneWidget);
   });
 
-  for (final failure in ['migration_check', 'admission', 'snapshots']) {
+  for (final failure in ['migration_check', 'admission']) {
     testWidgets(
       '$failure failure remains visible and retryable without a frame hold',
       (tester) async {
@@ -163,9 +179,6 @@ void main() {
             },
             bootstrap: (_, {required skipLegacyImport}) async {
               if (failure == 'admission' && fail) throw StateError('fixture');
-            },
-            prepare: (_) async {
-              if (failure == 'snapshots' && fail) throw StateError('fixture');
             },
           ),
         );
