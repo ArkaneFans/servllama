@@ -69,6 +69,9 @@ class _SpeechPageState extends State<SpeechPage> {
   void initState() {
     super.initState();
     text.text = widget.initialText ?? '';
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<SpeechJobService?>()?.initialize();
+    });
   }
 
   @override
@@ -130,7 +133,16 @@ class _SpeechPageState extends State<SpeechPage> {
         appBar: AppBar(title: Text(l.v2Speech)),
         body: Center(
           child: s?.loadError != null
-              ? Text(s!.loadError!)
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(s!.loadError!),
+                    TextButton(
+                      onPressed: s.initialize,
+                      child: Text(l.v2ToolRetryLoad),
+                    ),
+                  ],
+                )
               : const CircularProgressIndicator(),
         ),
       );

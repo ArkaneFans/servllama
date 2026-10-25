@@ -1851,6 +1851,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2ApiKey => 'API key';
 
   @override
+  String get v2CredentialLoadFailed =>
+      'Could not read the saved credential. Retry before saving.';
+
+  @override
   String get v2ShowApiKey => 'Show API key';
 
   @override

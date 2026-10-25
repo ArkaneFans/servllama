@@ -21,6 +21,7 @@ class ChatSessionRepository {
     AppDatabase? database,
     this.onMigrationProgress,
     this.skipLegacyImport = false,
+    this.retryCleanupOnOpen = true,
   }) : _directory = appSupportDirectory,
        _hive = hive ?? Hive,
        _injected = database;
@@ -35,6 +36,7 @@ class ChatSessionRepository {
   final AppDatabase? _injected;
   final void Function(LegacyMigrationProgress)? onMigrationProgress;
   final bool skipLegacyImport;
+  final bool retryCleanupOnOpen;
   Future<AppDatabase>? _ready;
   late OwnedFileCleanup _files;
   Future<AppDatabase> get database => _ready ??= _open();
@@ -52,7 +54,7 @@ class ChatSessionRepository {
       onProgress: onMigrationProgress,
     ).run(skipLegacyData: skipLegacyImport);
     _files = OwnedFileCleanup(db, directory);
-    await _files.retry();
+    if (retryCleanupOnOpen) await _files.retry();
     return db;
   }
 

@@ -39,6 +39,18 @@ class ChatConversationController extends ChangeNotifier {
   final Map<String, _InitialMessageLoad> _preloadLoads =
       <String, _InitialMessageLoad>{};
   Future<void> _preloadQueue = Future<void>.value();
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
 
   String? get selectedSessionId => _selectedSessionId;
   bool get isLoadingMessages => _isLoadingMessages;
@@ -180,7 +192,8 @@ class ChatConversationController extends ChangeNotifier {
         continue;
       }
       _preloadQueue = _preloadQueue.then((_) async {
-        if (_sessionList.findSession(session.id) == null ||
+        if (_disposed ||
+            _sessionList.findSession(session.id) == null ||
             _cachedInitialMessages(session) != null ||
             _activeInitialMessageLoad(session) != null) {
           return;
@@ -190,6 +203,13 @@ class ChatConversationController extends ChangeNotifier {
         } catch (_) {}
       });
     }
+  }
+
+  Future<void> warmUpSession(String id) async {
+    if (_disposed) return;
+    final session = _sessionList.findSession(id);
+    if (session == null || id == _selectedSessionId) return;
+    await _initialMessagesForSession(session);
   }
 
   Future<void> _loadMessagesForSession(
@@ -393,7 +413,9 @@ class ChatConversationController extends ChangeNotifier {
           textBudget: initialTextBudget,
         )
         .then((messages) {
-          _storeInitialMessages(session.id, signature, messages);
+          if (!_disposed) {
+            _storeInitialMessages(session.id, signature, messages);
+          }
           return messages;
         })
         .whenComplete(() {

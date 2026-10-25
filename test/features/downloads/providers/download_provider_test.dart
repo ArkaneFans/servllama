@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/core/errors/model_operation_exception.dart';
 import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/core/models/inference_engine.dart';
+import 'package:servllama/core/models/library_model.dart';
 import 'package:servllama/core/models/model_descriptor.dart';
 import 'package:servllama/core/repositories/local_model_repository.dart';
 import 'package:servllama/core/repositories/unified_model_repository.dart';
@@ -45,6 +46,88 @@ void main() {
         await tempDirectory.delete(recursive: true);
       }
     });
+
+    test(
+      'startup restores task metadata without starting network work',
+      () async {
+        final repository = _MemoryTaskRepository([
+          _record(
+            stagingDirPath: tempDirectory.path,
+            status: DownloadStatus.running,
+          ),
+        ]);
+        final downloads = _BlockingDownloadService();
+        final provider = DownloadProvider(
+          taskRepository: repository,
+          downloadService: downloads,
+          settingsStore: _MemorySettingsStore(),
+          localModelRepository: _FakeLocalModelRepository(),
+          logger: AppLogger(),
+        );
+        await Future.wait([
+          provider.load(startTransfers: false),
+          provider.load(startTransfers: false),
+        ]);
+        await Future<void>.delayed(Duration.zero);
+        expect(repository.listCalls, 1);
+        expect(provider.activeTaskCount, 1);
+        expect(provider.tasks.single.status, DownloadStatus.queued);
+        expect(downloads.callCount, 0);
+        provider.resumeRestoredTransfers();
+        provider.resumeRestoredTransfers();
+        await downloads.started.future;
+        await provider.load();
+        expect(repository.listCalls, 1);
+        expect(downloads.callCount, 1);
+        downloads.release.complete();
+        await _waitFor(() => provider.tasks.isEmpty);
+        provider.dispose();
+      },
+    );
+
+    test(
+      'startup restores name reservations without scanning; commit rechecks collisions',
+      () async {
+        final names = _TrackedNameRepository();
+        final coordinator = ModelNameCoordinator(unifiedRepository: names);
+        final repository = _MemoryTaskRepository([
+          _record(
+            stagingDirPath: tempDirectory.path,
+            status: DownloadStatus.running,
+          ),
+        ]);
+        final downloads = _BlockingDownloadService();
+        final local = _FakeLocalModelRepository();
+        final provider = DownloadProvider(
+          taskRepository: repository,
+          downloadService: downloads,
+          settingsStore: _MemorySettingsStore(),
+          localModelRepository: local,
+          modelNameCoordinator: coordinator,
+          logger: AppLogger(),
+        );
+        addTearDown(provider.dispose);
+        await provider.load(startTransfers: false);
+        expect(names.inventoryReads, 0);
+        expect(names.storageChecks, 0);
+        expect(provider.tasks.single.record.modelName, 'model');
+        final competing = await coordinator.reserveAvailable(
+          ownerId: 'import',
+          requestedName: 'MODEL',
+        );
+        expect(competing.name, 'MODEL (2)');
+        await coordinator.release('import');
+        // The installed directory became occupied outside the current queue.
+        names.occupied = true;
+        provider.resumeRestoredTransfers();
+        await downloads.started.future;
+        downloads.release.complete();
+        await _waitFor(() => provider.tasks.isEmpty);
+        expect(names.inventoryReads, greaterThan(0));
+        expect(names.storageChecks, greaterThan(0));
+        expect(local.adoptedNames, ['model (2)']);
+      },
+    );
 
     test('load is idempotent while a transfer is running', () async {
       final record = _record(
@@ -559,6 +642,7 @@ class _FakeLocalModelRepository extends LocalModelRepository {
   }) async => false;
 
   final List<String> adoptedMmprojModelIds = <String>[];
+  final List<String> adoptedNames = <String>[];
 
   @override
   Future<ModelDescriptor> adoptDownloadedModel({
@@ -570,6 +654,7 @@ class _FakeLocalModelRepository extends LocalModelRepository {
     String? repoId,
     String? revision,
   }) async {
+    adoptedNames.add(modelName);
     return ModelDescriptor(
       id: 'model',
       modelName: modelName,
@@ -600,6 +685,26 @@ class _FakeLocalModelRepository extends LocalModelRepository {
       importedAt: DateTime(2026),
       mmprojFilePath: mmprojFile.path,
     );
+  }
+}
+
+class _TrackedNameRepository extends UnifiedModelRepository {
+  int inventoryReads = 0, storageChecks = 0;
+  bool occupied = false;
+
+  @override
+  Future<List<LibraryModel>> listModels() async {
+    inventoryReads++;
+    return [];
+  }
+
+  @override
+  Future<bool> isStorageNameOccupied(
+    String name, {
+    String? excludingLibraryId,
+  }) async {
+    storageChecks++;
+    return occupied && name.toLowerCase() == 'model';
   }
 }
 

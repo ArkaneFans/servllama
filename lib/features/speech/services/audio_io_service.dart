@@ -34,6 +34,9 @@ class AudioIoService extends ChangeNotifier with WidgetsBindingObserver {
   Duration get recordingElapsed => _recordingWatch?.elapsed ?? Duration.zero;
   ProcessingState? _lastPlaybackState;
   bool get playing => _player?.playing ?? false;
+  // just_audio can retain play intent after reaching the end of the stream.
+  bool get playbackActive =>
+      playing && _player?.processingState != ProcessingState.completed;
   bool get recordingBusy => _starting || _stopping != null;
   double get playbackSpeed => _player?.speed ?? 1;
   Future<String?> get recordingFinished =>

@@ -79,6 +79,29 @@ void main() {
       expect(provider.isLoading, isFalse);
     });
 
+    test(
+      'initial loads share completion and route visits reuse the snapshot',
+      () async {
+        final repository = _StrictUnifiedRepository();
+        final provider = ModelManagementProvider(
+          repository: FakeLocalModelRepository(),
+          unifiedRepository: repository,
+        );
+        addTearDown(provider.dispose);
+        final first = provider.load();
+        final second = provider.load();
+        expect(identical(first, second), isTrue);
+        await second;
+        expect(provider.libraryModels, hasLength(2));
+        var notifications = 0;
+        provider.addListener(() => notifications++);
+        await provider.load();
+        expect(notifications, 0);
+        await provider.refresh();
+        expect(notifications, 1);
+      },
+    );
+
     test('importModel keeps list unchanged when picker is cancelled', () async {
       final repository = FakeLocalModelRepository();
       final provider = ModelManagementProvider(

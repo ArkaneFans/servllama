@@ -1,5 +1,5 @@
-import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:servllama/core/security/secret_store.dart';
 import 'package:servllama/core/storage/download_prefs_keys.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
 import 'package:servllama/features/downloads/models/model_hub.dart';
@@ -76,15 +76,16 @@ class DownloadSettingsStore {
   DownloadSettingsStore({
     KvStorage? kvStorage,
     FlutterSecureStorage? secureStorage,
+    SecretStore? secrets,
   }) : _kvStorage = kvStorage ?? KvStorage.instance,
-       _secureStorage =
-           secureStorage ??
-           const FlutterSecureStorage(
-             aOptions: AndroidOptions(encryptedSharedPreferences: true),
-           );
+       _secrets =
+           secrets ??
+           (secureStorage == null
+               ? SecretStore.instance
+               : SecretStore(storage: secureStorage));
 
   final KvStorage _kvStorage;
-  final FlutterSecureStorage _secureStorage;
+  final SecretStore _secrets;
 
   static const String _hfTokenKey = 'servllama.download.hf_token';
   static const String _modelScopeTokenKey = 'servllama.download.ms_token';
@@ -137,24 +138,15 @@ class DownloadSettingsStore {
       .setString(DownloadPrefsKeys.preferredSource, source.storageValue);
 
   Future<String> _loadCredential(String key, String legacyKey) async {
-    try {
-      final value = await _secureStorage.read(key: key);
-      if (value != null) {
-        return value;
-      }
-    } on MissingPluginException catch (_) {
-      return '';
-    } on PlatformException catch (_) {}
+    final value = await _secrets.read(key);
+    if (value != null) return value;
 
     final legacy = await _kvStorage.getString(legacyKey) ?? '';
     if (legacy.isEmpty) {
       return '';
     }
-    try {
-      await _secureStorage.write(key: key, value: legacy);
-      await _kvStorage.remove(legacyKey);
-    } on MissingPluginException catch (_) {
-    } on PlatformException catch (_) {}
+    await _secrets.write(key, legacy);
+    await _kvStorage.remove(legacyKey);
     return legacy;
   }
 
@@ -163,16 +155,11 @@ class DownloadSettingsStore {
     String legacyKey,
     String value,
   ) async {
-    try {
-      if (value.isEmpty) {
-        await _secureStorage.delete(key: key);
-      } else {
-        await _secureStorage.write(key: key, value: value);
-      }
-      await _kvStorage.remove(legacyKey);
-    } on MissingPluginException catch (_) {
-      // Widget tests and unsupported platforms keep the in-memory provider
-      // value without falling back to plaintext preferences.
+    if (value.isEmpty) {
+      await _secrets.delete(key);
+    } else {
+      await _secrets.write(key, value);
     }
+    await _kvStorage.remove(legacyKey);
   }
 }

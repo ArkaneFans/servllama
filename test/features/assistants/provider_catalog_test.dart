@@ -1,8 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/core/database/app_database.dart';
 import 'package:servllama/core/security/secret_store.dart';
+import 'package:servllama/core/models/model_asset.dart';
+import 'package:servllama/core/repositories/unified_model_repository.dart';
+import 'package:servllama/core/storage/kv_storage.dart';
 import 'package:servllama/features/assistants/models/assistant.dart';
 import 'package:servllama/features/assistants/models/provider_presets.dart';
 import 'package:servllama/features/assistants/repositories/assistant_repository.dart';
@@ -11,8 +15,16 @@ import 'package:servllama/features/chat/models/chat_run_config.dart';
 
 class _Secrets extends SecretStore {
   final values = <String, String>{};
+  int reads = 0;
+  bool failReads = false;
+  Completer<String?>? pending;
   @override
-  Future<String?> read(String key) async => values[key];
+  Future<String?> read(String key) async {
+    reads++;
+    if (failReads) throw StateError('fixture secure storage unavailable');
+    return pending?.future ?? values[key];
+  }
+
   @override
   Future<void> write(String key, String value) async {
     values[key] = value;
@@ -21,6 +33,23 @@ class _Secrets extends SecretStore {
   @override
   Future<void> delete(String key) async {
     values.remove(key);
+  }
+}
+
+class _EmptyAssets extends UnifiedModelRepository {
+  @override
+  Future<List<ModelAsset>> listAssets({bool reconcile = true}) async => [];
+}
+
+class _TrackedAssets extends UnifiedModelRepository {
+  final modes = <bool>[];
+  Completer<List<ModelAsset>>? pending;
+  List<ModelAsset> current = [];
+
+  @override
+  Future<List<ModelAsset>> listAssets({bool reconcile = true}) async {
+    modes.add(reconcile);
+    return pending == null ? current : await pending!.future;
   }
 }
 
@@ -41,6 +70,203 @@ void main() {
     repository = AssistantRepository(db, secrets: secrets);
   });
   tearDown(() => db.close());
+
+  test(
+    'initial demand is single flight and an early save waits for it',
+    () async {
+      final models = _TrackedAssets()..pending = Completer<List<ModelAsset>>();
+      final provider = AssistantProvider(
+        repository: repository,
+        models: models,
+      );
+      addTearDown(provider.dispose);
+      final initial = provider.ensureLoaded();
+      expect(identical(initial, provider.ensureLoaded()), isTrue);
+      final saving = provider.saveConnection(custom, key: 'fixture-key');
+      await Future<void>.delayed(Duration.zero);
+      expect(provider.loaded, isFalse);
+      expect(
+        (await repository.connections()).any((c) => c.id == custom.id),
+        isFalse,
+      );
+      models.pending!.complete([]);
+      await Future.wait([initial, saving]);
+      expect(models.modes, [false]);
+      expect(provider.connection(custom.id)!.models, ['kept']);
+      expect(
+        provider.cachedCredential(provider.connection(custom.id)!),
+        'fixture-key',
+      );
+    },
+  );
+
+  test(
+    'credential demand coalesces and missing storage is never cached empty',
+    () async {
+      final saved = await repository.saveConnection(
+        custom,
+        newSecret: 'fixture-key',
+      );
+      final provider = AssistantProvider(
+        repository: repository,
+        models: _EmptyAssets(),
+      );
+      addTearDown(provider.dispose);
+      await provider.ensureLoaded();
+      secrets.pending = Completer<String?>();
+      final first = provider.credential(saved);
+      expect(identical(first, provider.credential(saved)), isTrue);
+      secrets.pending!.complete(null);
+      await expectLater(first, throwsStateError);
+      expect(provider.cachedCredential(saved), isNull);
+      secrets.pending = null;
+      expect(await provider.credential(saved), 'fixture-key');
+      expect(secrets.reads, 2);
+    },
+  );
+
+  test(
+    'light startup restores targets without secure-storage or inventory reads',
+    () async {
+      final saved = await repository.saveConnection(
+        custom,
+        newSecret: 'fixture-key',
+      );
+      await repository.saveAssistant(
+        const Assistant(
+          id: 'a',
+          name: 'A',
+          chatTarget: ChatTarget.remote('custom', 'kept'),
+        ),
+      );
+      final models = _TrackedAssets();
+      final provider = AssistantProvider(
+        repository: repository,
+        models: models,
+      );
+      addTearDown(provider.dispose);
+      await provider.load(reconcileAssets: false);
+      expect(models.modes, [false]);
+      expect(provider.cachedCredential(saved), isNull);
+      expect(secrets.reads, 0);
+      expect(provider.active!.chatTarget!.modelId, 'kept');
+      expect(provider.resolveTarget(provider.active!.chatTarget), isNotNull);
+      models.pending = Completer<List<ModelAsset>>();
+      final refresh = provider.ensureAssetsReconciled();
+      expect(identical(refresh, provider.ensureAssetsReconciled()), isTrue);
+      await Future<void>.delayed(Duration.zero);
+      expect(models.modes, [false, true]);
+      models.pending!.complete([]);
+      await refresh;
+      await provider.ensureAssetsReconciled();
+      expect(models.modes, [false, true]);
+      expect(provider.active!.chatTarget!.modelId, 'kept');
+      expect(await provider.credential(saved), 'fixture-key');
+    },
+  );
+
+  test(
+    'explicit asset refresh reads after an older in-flight prefetch',
+    () async {
+      final models = _TrackedAssets();
+      final provider = AssistantProvider(
+        repository: repository,
+        models: models,
+      );
+      addTearDown(provider.dispose);
+      await provider.load(reconcileAssets: false);
+      final pending = Completer<List<ModelAsset>>();
+      models.pending = pending;
+      final warmup = provider.ensureAssetsReconciled();
+      await Future<void>.delayed(Duration.zero);
+      final explicit = provider.refreshAssets();
+      const fresh = ModelAsset(
+        id: 'fresh',
+        kind: AssetKind.llm,
+        engine: 'mnn',
+        runtimeId: 'model',
+        storageOwner: 'mnn',
+        path: '',
+        name: 'Fresh',
+        revision: '1',
+      );
+      models.pending = null;
+      models.current = [fresh];
+      pending.complete([]);
+      await Future.wait([warmup, explicit]);
+      expect(models.modes, [false, true, true]);
+      expect(provider.assets.single.id, 'fresh');
+    },
+  );
+
+  test(
+    'credential failure preserves settings and stays retryable instead of caching an empty key',
+    () async {
+      final saved = await repository.saveConnection(
+        custom,
+        newSecret: 'fixture-key',
+      );
+      secrets.failReads = true;
+      final provider = AssistantProvider(
+        repository: repository,
+        models: _EmptyAssets(),
+      );
+      addTearDown(provider.dispose);
+      await provider.load();
+      expect(provider.loaded, isTrue);
+      expect(provider.connection(custom.id)!.secretRef, saved.secretRef);
+      expect(provider.cachedCredential(saved), isNull);
+      await expectLater(provider.credential(saved), throwsStateError);
+      secrets.failReads = false;
+      expect(await provider.credential(saved), 'fixture-key');
+      expect(provider.cachedCredential(saved), 'fixture-key');
+    },
+  );
+
+  test(
+    'demand credential reads cache verified keys and survive process recreation',
+    () async {
+      var saved = await repository.saveConnection(
+        custom,
+        newSecret: 'fixture-first',
+      );
+      final provider = AssistantProvider(
+        repository: repository,
+        models: _EmptyAssets(),
+      );
+      await provider.load();
+      expect(provider.loaded, isTrue);
+      expect(provider.cachedCredential(saved), isNull);
+      expect(await provider.credential(saved), 'fixture-first');
+      final reads = secrets.reads;
+      expect(await provider.credential(saved), 'fixture-first');
+      expect(secrets.reads, reads);
+      await provider.saveConnection(saved, key: 'fixture-second');
+      saved = provider.connection(custom.id)!;
+      expect(provider.cachedCredential(saved), 'fixture-second');
+      provider.dispose();
+      final restored = AssistantProvider(
+        repository: AssistantRepository(
+          db,
+          secrets: secrets,
+          preferences: KvStorage(),
+        ),
+        models: _EmptyAssets(),
+      );
+      addTearDown(restored.dispose);
+      await restored.load();
+      expect(
+        await restored.credential(restored.connection(custom.id)!),
+        'fixture-second',
+      );
+      expect(
+        jsonEncode(
+          (await repository.connections()).map((c) => c.toJson()).toList(),
+        ),
+        isNot(contains('fixture-second')),
+      );
+    },
+  );
 
   test(
     'old capability flags become per-model settings and save without stale entries',

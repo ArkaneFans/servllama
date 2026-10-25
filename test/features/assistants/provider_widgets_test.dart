@@ -10,6 +10,7 @@ import 'package:servllama/core/providers/engine_runtime_provider.dart';
 import 'package:servllama/features/assistants/models/assistant.dart';
 import 'package:servllama/features/assistants/models/provider_presets.dart';
 import 'package:servllama/features/assistants/pages/connections_page.dart';
+import 'package:servllama/features/assistants/pages/profile_page.dart';
 import 'package:servllama/features/assistants/providers/assistant_provider.dart';
 import 'package:servllama/features/assistants/widgets/provider_model_picker.dart';
 import 'package:servllama/features/assistants/widgets/provider_model_sheet.dart';
@@ -38,10 +39,14 @@ const _local = ModelAsset(
 );
 
 class _Settings extends AssistantProvider {
+  Completer<void>? pendingSnapshot;
   List<String> discovered = ['kept', 'new', 'other'];
   bool failDiscovery = false, blockDiscovery = false;
   String? savedKey;
   CancelToken? discoveryToken;
+  String? hydratedKey;
+  Completer<String>? pendingCredential;
+  int credentialReads = 0;
   _Settings() {
     loaded = true;
     connections = [
@@ -67,6 +72,18 @@ class _Settings extends AssistantProvider {
       ),
     ];
   }
+  @override
+  Future<void> load({bool reconcileAssets = true}) async {
+    await pendingSnapshot?.future;
+    connections = [_cloud];
+    profile = const UserProfile(
+      name: 'Restored identity',
+      description: 'Saved profile',
+    );
+    loaded = true;
+    notifyListeners();
+  }
+
   @override
   Future<void> refreshAssets() async {}
   @override
@@ -99,8 +116,15 @@ class _Settings extends AssistantProvider {
   }
 
   @override
-  Future<String> credential(AiConnection c) async =>
-      c.secretRef == null ? '' : 'stored-secret';
+  String? cachedCredential(AiConnection c) =>
+      c.secretRef == null ? '' : hydratedKey;
+
+  @override
+  Future<String> credential(AiConnection c) async {
+    credentialReads++;
+    return pendingCredential?.future ??
+        (c.secretRef == null ? '' : 'stored-secret');
+  }
 }
 
 class _Runtime extends Fake
@@ -231,6 +255,42 @@ void main() {
   }
 
   testWidgets(
+    'early provider page distinguishes loading from an empty catalog',
+    (tester) async {
+      settings.loaded = false;
+      settings.connections = [];
+      settings.pendingSnapshot = Completer<void>();
+      await tester.pumpWidget(app(const ConnectionsPage()));
+      expect(find.byType(LinearProgressIndicator), findsOneWidget);
+      final add = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.add),
+      );
+      expect(add.onPressed, isNull);
+      expect(find.byKey(const Key('provider_cloud')), findsNothing);
+      settings.pendingSnapshot!.complete();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('provider_cloud')), findsOneWidget);
+      expect(find.byType(LinearProgressIndicator), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'early profile page restores fields before exposing an editable draft',
+    (tester) async {
+      settings.loaded = false;
+      settings.pendingSnapshot = Completer<void>();
+      await tester.pumpWidget(app(const ProfilePage()));
+      expect(find.byType(TextField), findsNothing);
+      settings.pendingSnapshot!.complete();
+      await tester.pumpAndSettle();
+      final name = tester.widget<TextField>(
+        find.byKey(const Key('profile_name')),
+      );
+      expect(name.controller!.text, 'Restored identity');
+    },
+  );
+
+  testWidgets(
     'editor loads a stored key, reveals it on demand and keeps it unchanged',
     (tester) async {
       await tester.pumpWidget(app(editorLauncher()));
@@ -256,6 +316,63 @@ void main() {
       expect(settings.savedKey, isNull);
     },
   );
+
+  testWidgets('a restored credential is present on the first editor frame', (
+    tester,
+  ) async {
+    settings.hydratedKey = 'stored-secret';
+    await tester.pumpWidget(app(const ConnectionEditor(connection: _cloud)));
+    final field = tester.widget<TextField>(
+      find.byKey(const Key('provider_key')),
+    );
+    expect(field.controller!.text, 'stored-secret');
+    expect(field.obscureText, isTrue);
+    expect(
+      field.decoration!.floatingLabelBehavior,
+      FloatingLabelBehavior.always,
+    );
+    expect(settings.credentialReads, 0);
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(field.controller!.text, 'stored-secret');
+  });
+
+  testWidgets('failed credential recovery cannot silently save an empty key', (
+    tester,
+  ) async {
+    settings.pendingCredential = Completer<String>();
+    await tester.pumpWidget(app(const ConnectionEditor(connection: _cloud)));
+    final field = find.byKey(const Key('provider_key'));
+    expect(tester.widget<TextField>(field).enabled, isFalse);
+    await revealConfigField(
+      tester,
+      find.byKey(const Key('provider_save_button')),
+    );
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const Key('provider_save_button')))
+          .onPressed,
+      isNull,
+    );
+    settings.pendingCredential!.completeError(
+      StateError('fixture storage unavailable'),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(field).decoration!.errorText, isNotNull);
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const Key('provider_save_button')))
+          .onPressed,
+      isNull,
+    );
+    expect(settings.savedKey, isNull);
+    settings.pendingCredential = Completer<String>()..complete('stored-secret');
+    await tester.ensureVisible(find.text('Retry'));
+    await tester.tap(find.text('Retry'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(field).enabled, isTrue);
+    expect(tester.widget<TextField>(field).controller!.text, 'stored-secret');
+    expect(tester.widget<TextField>(field).decoration!.errorText, isNull);
+  });
 
   testWidgets(
     'model capability edits persist at once while configuration keeps a draft',

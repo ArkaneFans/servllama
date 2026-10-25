@@ -32,6 +32,10 @@ class ServerConfigPage extends StatelessWidget {
       );
     }
 
+    if (context.read<ServerConfigProvider?>() != null) {
+      return const _ServerConfigView();
+    }
+
     return ChangeNotifierProvider<ServerConfigProvider>(
       create: (_) => ServerConfigProvider(),
       child: const _ServerConfigView(),
@@ -58,11 +62,7 @@ class _ServerConfigViewState extends State<_ServerConfigView> {
       if (!mounted) {
         return;
       }
-      context.read<EngineRuntimeProvider>().setEndpoint(
-        host: configProvider.host,
-        port: configProvider.port,
-        apiKey: configProvider.apiKey,
-      );
+      await _syncEndpoint(context);
     });
   }
 
@@ -143,7 +143,7 @@ class _ServerConfigViewState extends State<_ServerConfigView> {
                                     if (!context.mounted) {
                                       return;
                                     }
-                                    _syncEndpoint(context);
+                                    await _syncEndpoint(context);
                                   },
                                 ),
                                 OutlinedTextSetting(
@@ -162,7 +162,7 @@ class _ServerConfigViewState extends State<_ServerConfigView> {
                                       if (!context.mounted) {
                                         return;
                                       }
-                                      _syncEndpoint(context);
+                                      await _syncEndpoint(context);
                                     }
                                   },
                                 ),
@@ -175,7 +175,7 @@ class _ServerConfigViewState extends State<_ServerConfigView> {
                                   onChanged: (value) async {
                                     await provider.updateApiKey(value);
                                     if (context.mounted) {
-                                      _syncEndpoint(context);
+                                      await _syncEndpoint(context);
                                     }
                                   },
                                 ),
@@ -392,15 +392,17 @@ class _ServerConfigViewState extends State<_ServerConfigView> {
     if (!context.mounted) {
       return;
     }
-    _syncEndpoint(context);
+    await _syncEndpoint(context);
   }
 
-  void _syncEndpoint(BuildContext context) {
+  Future<void> _syncEndpoint(BuildContext context) async {
     final configProvider = context.read<ServerConfigProvider>();
+    final runtime = context.read<EngineRuntimeProvider>();
+    await runtime.ensureRestored();
     if (!context.mounted) {
       return;
     }
-    context.read<EngineRuntimeProvider>().setEndpoint(
+    runtime.setEndpoint(
       host: configProvider.host,
       port: configProvider.port,
       apiKey: configProvider.apiKey,

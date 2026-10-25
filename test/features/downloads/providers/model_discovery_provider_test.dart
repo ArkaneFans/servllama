@@ -12,6 +12,32 @@ import 'package:servllama/features/downloads/services/model_hub_client.dart';
 void main() {
   group('ModelDiscoveryProvider', () {
     test(
+      'local preparation is reusable and never waits on or starts hub requests',
+      () async {
+        var requests = 0;
+        final provider = ModelDiscoveryProvider(
+          catalogService: _EmptyCatalogService(),
+          capabilityService: _UnknownCapabilityService(),
+          settingsStore: _MemoryDownloadSettingsStore(),
+          huggingFaceClient: _FakeHubClient(
+            source: ModelHubSource.huggingFace,
+            onSearch: (query, format, token, sort) async {
+              requests++;
+              return HubSearchPage(items: const []);
+            },
+          ),
+          modelScopeClient: _emptyModelScopeClient(),
+        );
+        addTearDown(provider.dispose);
+        await Future.wait([provider.prepare(), provider.prepare()]);
+        expect(provider.isLoadingCatalog, isFalse);
+        expect(requests, 0);
+        await provider.load();
+        await provider.load();
+        expect(requests, 1);
+      },
+    );
+    test(
       'load performs an empty-query search for the current source',
       () async {
         final calls = <_SearchCall>[];

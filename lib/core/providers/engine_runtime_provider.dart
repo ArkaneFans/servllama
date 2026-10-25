@@ -145,7 +145,16 @@ class EngineRuntimeProvider extends ChangeNotifier {
   /// active engine listens on.
   String get baseUrl => 'http://127.0.0.1:$_port';
 
-  Future<void> restore() async {
+  bool _restored = false;
+  Future<void>? _restoring;
+
+  Future<void> ensureRestored() =>
+      _restoring ?? (_restored ? Future<void>.value() : restore());
+
+  Future<void> restore() =>
+      _restoring ??= _restore().whenComplete(() => _restoring = null);
+
+  Future<void> _restore() async {
     final storedEngine = await _kvStorage.getString(
       EnginePrefsKeys.activeEngine,
     );
@@ -159,10 +168,14 @@ class EngineRuntimeProvider extends ChangeNotifier {
 
     await _loadEndpoint();
 
+    if (_disposed) return;
     final adapter = _adapters[engine]!;
     try {
       await adapter.prepare();
+      if (_disposed) return;
     } on EngineAdapterException catch (error) {
+      if (_disposed) return;
+      _restored = true;
       _state = EngineRuntimeState(
         engine: engine,
         status: EngineRuntimeStatus.error,
@@ -171,6 +184,7 @@ class EngineRuntimeProvider extends ChangeNotifier {
       notifyListeners();
       return;
     }
+    _restored = true;
     final running = adapter.isRunning;
     final hasResources = adapter.hasResources;
     if (hasResources) {
@@ -212,6 +226,8 @@ class EngineRuntimeProvider extends ChangeNotifier {
   /// Re-reads the configured endpoint. The server config page persists
   /// immediately, so the runtime picks the change up on the next visit.
   Future<void> refresh() async {
+    await ensureRestored();
+    if (_disposed) return;
     if (!isRunning && !isBusy) await _loadEndpoint();
     final adapter = _adapters[_state.engine]!;
     if (!_state.isBusy && adapter.isRunning != _state.isRunning) {
@@ -248,6 +264,8 @@ class EngineRuntimeProvider extends ChangeNotifier {
   }
 
   Future<void> switchEngine(InferenceEngine engine) async {
+    await ensureRestored();
+    if (_disposed) return;
     if (engine == _state.engine) {
       return;
     }
@@ -273,6 +291,8 @@ class EngineRuntimeProvider extends ChangeNotifier {
   /// Records the model to use without touching the runtime. Used by the
   /// server page while idle; while running, use [activateModel].
   Future<void> selectModel(String? modelId) async {
+    await ensureRestored();
+    if (_disposed) return;
     final engine = _state.engine;
     _selectedModelIds[engine] = modelId;
     final key = EnginePrefsKeys.selectedModel(engine.storageValue);
@@ -295,6 +315,8 @@ class EngineRuntimeProvider extends ChangeNotifier {
     required String oldModelId,
     required String newModelId,
   }) async {
+    await ensureRestored();
+    if (_disposed) return;
     if (_selectedModelIds[engine] != oldModelId) {
       return;
     }
@@ -307,6 +329,8 @@ class EngineRuntimeProvider extends ChangeNotifier {
   }
 
   Future<void> toggle() async {
+    await ensureRestored();
+    if (_disposed) return;
     if (_state.status == EngineRuntimeStatus.preparing) {
       await cancel();
       return;
@@ -322,6 +346,8 @@ class EngineRuntimeProvider extends ChangeNotifier {
   }
 
   Future<void> start({bool publish = true}) async {
+    await ensureRestored();
+    if (_disposed) return;
     if (_state.isBusy ||
         _state.isRunning ||
         _adapters.values.any((a) => a.hasResources)) {
@@ -386,6 +412,8 @@ class EngineRuntimeProvider extends ChangeNotifier {
   }
 
   Future<void> stop() async {
+    await ensureRestored();
+    if (_disposed) return;
     if (!canStop) {
       return;
     }
@@ -492,6 +520,8 @@ class EngineRuntimeProvider extends ChangeNotifier {
   /// runtime if it is down; otherwise replaces the running engine's resident
   /// model using the lifecycle its adapter owns.
   Future<void> activateModel(String modelId) async {
+    await ensureRestored();
+    if (_disposed) return;
     if (_state.isBusy) {
       return;
     }

@@ -43,6 +43,9 @@ class AppLogger {
   final int maxEntries;
 
   LogSink _sink = const NoopLogSink();
+  Future<void>? _historyLoad;
+  bool _historyLoaded = false;
+  int _historyEpoch = 0;
 
   // One application-wide bound, independent of how many channels exist.
   final ListQueue<AppLogEntry> _entries = ListQueue<AppLogEntry>();
@@ -174,30 +177,71 @@ class AppLogger {
 
   void attachSink(LogSink sink) {
     _sink = sink;
+    _historyEpoch++;
+    _historyLoaded = false;
+    _historyLoad = null;
   }
 
   void restore(List<AppLogEntry> entries) {
-    for (final entry in entries) {
-      _cache(
-        AppLogEntry(
-          timestamp: entry.timestamp,
-          channel: entry.channel,
-          level: entry.level,
-          message: _sanitizeMessage(entry.message),
-        ),
-      );
+    final live = _entries.toList();
+    Object identity(AppLogEntry e) =>
+        (e.timestamp.millisecondsSinceEpoch, e.channel, e.level, e.message);
+    final liveKeys = live.map(identity).toSet();
+    final historical = entries.map(
+      (entry) => AppLogEntry(
+        timestamp: entry.timestamp,
+        channel: entry.channel,
+        level: entry.level,
+        message: _sanitizeMessage(entry.message),
+      ),
+    );
+    final merged = [
+      for (final entry in historical)
+        if (!liveKeys.contains(identity(entry))) entry,
+      ...live,
+    ]..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    _entries.clear();
+    for (final entry in merged) {
+      _cache(entry);
     }
+  }
+
+  /// Idle preparation and an early Logs route join the same persisted read.
+  Future<void> ensureHistoryLoaded() {
+    if (_historyLoaded) return Future<void>.value();
+    if (_historyLoad != null) return _historyLoad!;
+    late final Future<void> loading;
+    loading = _restoreHistory().whenComplete(() {
+      if (identical(_historyLoad, loading)) _historyLoad = null;
+    });
+    return _historyLoad = loading;
+  }
+
+  Future<void> _restoreHistory() async {
+    final epoch = _historyEpoch;
+    final entries = await _sink.loadRecent(maxEntries);
+    if (epoch != _historyEpoch) return;
+    restore(entries);
+    _historyLoaded = true;
   }
 
   Future<void> flushSink() => _sink.flush();
 
-  Future<void> clearPersisted() => _sink.clear();
+  Future<void> clearPersisted() {
+    _historyEpoch++;
+    _historyLoaded = true;
+    return _sink.clear();
+  }
 
   void clearChannel(LogChannel channel) {
+    _historyEpoch++;
+    _historyLoaded = true;
     _entries.removeWhere((entry) => entry.channel == channel);
   }
 
   void dispose() {
+    _historyEpoch++;
+    _historyLoaded = true;
     for (final controller in _controllers.values) {
       controller.close();
     }

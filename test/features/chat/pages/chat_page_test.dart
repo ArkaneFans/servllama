@@ -258,7 +258,7 @@ void main() {
           settingsLoader: _FixedServerLaunchSettingsLoader(),
           kvStorage: KvStorage(),
         );
-        await serverProvider.selectModel('alpha');
+        await tester.runAsync(() => serverProvider.selectModel('alpha'));
         await tester.runAsync(() => serverProvider.start());
         chatProvider.updateServerState(
           baseUrl: serverProvider.baseUrl,
@@ -399,7 +399,7 @@ void main() {
         settingsLoader: _FixedServerLaunchSettingsLoader(),
         kvStorage: KvStorage(),
       );
-      await serverProvider.selectModel('alpha');
+      await tester.runAsync(() => serverProvider.selectModel('alpha'));
       addTearDown(() {
         serverProvider.dispose();
         serverService.dispose();
@@ -1783,10 +1783,14 @@ void main() {
         settingsLoader: _FixedServerLaunchSettingsLoader(),
         kvStorage: KvStorage(),
       );
-      await serverProvider.selectModel('alpha');
-      await serverProvider.switchEngine(InferenceEngine.mnn);
-      await serverProvider.selectModel('mnn-default');
-      await serverProvider.switchEngine(InferenceEngine.llamaCpp);
+      await tester.runAsync(() => serverProvider.selectModel('alpha'));
+      await tester.runAsync(
+        () => serverProvider.switchEngine(InferenceEngine.mnn),
+      );
+      await tester.runAsync(() => serverProvider.selectModel('mnn-default'));
+      await tester.runAsync(
+        () => serverProvider.switchEngine(InferenceEngine.llamaCpp),
+      );
       addTearDown(() {
         serverProvider.dispose();
         serverService.dispose();

@@ -25,6 +25,25 @@ void main() {
     MnnEnginePlatform.instance = originalPlatform;
   });
 
+  test(
+    'ownership restore does not initialize native libraries or load a model',
+    () async {
+      platform.initialModel = _model(MnnBackend.cpu);
+      platform.initializeBlocker = Completer<void>();
+      final adapter = MnnEngineAdapter(
+        settingsLoader: _FixedSettingsLoader(const ServerLaunchSettings()),
+      );
+      addTearDown(adapter.dispose);
+      await adapter.prepare();
+      await adapter.prepare();
+      expect(platform.initializeCalls, 0);
+      expect(platform.snapshotCalls, 1);
+      expect(adapter.hasResources, isTrue);
+      expect(platform.requestedOptions, isEmpty);
+      expect(platform.startServerCalls, 0);
+    },
+  );
+
   test('uses the native bind as the only port decision', () async {
     final adapter = MnnEngineAdapter(
       settingsLoader: _FixedSettingsLoader(
@@ -351,6 +370,7 @@ class _FakeMnnPlatform extends MnnEnginePlatform {
   int checkPortCalls = 0;
   int startServerCalls = 0;
   int snapshotCalls = 0;
+  int initializeCalls = 0;
   int unloadModelCalls = 0;
   MnnEngineException? startError;
   MnnEngineException? loadError;
@@ -370,6 +390,7 @@ class _FakeMnnPlatform extends MnnEnginePlatform {
 
   @override
   Future<MnnEngineInfo> initialize() async {
+    initializeCalls++;
     await initializeBlocker?.future;
     return const MnnEngineInfo(
       pluginVersion: '0.1.0',

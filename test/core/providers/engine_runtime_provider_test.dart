@@ -7,6 +7,7 @@ import 'package:servllama/core/models/inference_engine.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/providers/engine_runtime_provider.dart';
 import 'package:servllama/core/runtime/resource_coordinator.dart';
+import 'package:servllama/core/storage/kv_storage.dart';
 import 'package:servllama/core/services/engines/inference_engine_adapter.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
 
@@ -19,6 +20,40 @@ void main() {
         'flutter.server.foreground_notification_permission_prompted': true,
       });
     });
+
+    for (final resident in [false, true]) {
+      test(
+        'early start joins restoration and respects ownership (resident=$resident)',
+        () async {
+          SharedPreferences.setMockInitialValues({
+            'engine.active': 'mnn',
+            'engine.mnn.selected_model': 'saved-model',
+          });
+          final blocker = Completer<void>();
+          final mnn = _FakeEngineAdapter(
+            InferenceEngine.mnn,
+            prepareBlocker: blocker,
+          )..resident = resident;
+          final llama = _FakeEngineAdapter(InferenceEngine.llamaCpp);
+          final provider = _provider(llama: llama, mnn: mnn);
+          addTearDown(provider.dispose);
+          final restored = provider.ensureRestored();
+          expect(identical(restored, provider.ensureRestored()), isTrue);
+          final starting = provider.startPrivate();
+          await Future<void>.delayed(Duration.zero);
+          expect(mnn.startCount, 0);
+          expect(llama.startCount, 0);
+          blocker.complete();
+          await Future.wait([restored, starting]);
+          expect(provider.activeEngine, InferenceEngine.mnn);
+          expect(provider.selectedModelId, 'saved-model');
+          expect(mnn.startCount, resident ? 0 : 1);
+          expect(provider.resources.isFree(LocalResourceDomain.llm), isFalse);
+          await provider.stop();
+          expect(provider.resources.isFree(LocalResourceDomain.llm), isTrue);
+        },
+      );
+    }
 
     test(
       'model selection enables start and reaches ready with active model',
@@ -495,6 +530,7 @@ EngineRuntimeProvider _provider({
   ServerLaunchSettingsLoader? settingsLoader,
 }) {
   return EngineRuntimeProvider(
+    kvStorage: KvStorage(),
     llamaCppAdapter: llama,
     mnnAdapter: mnn,
     settingsLoader: settingsLoader ?? _FixedSettingsLoader(),
@@ -506,10 +542,12 @@ class _FixedSettingsLoader extends ServerLaunchSettingsLoader {
   _FixedSettingsLoader({this.loadBlocker});
 
   final Completer<void>? loadBlocker;
+  int loads = 0;
 
   @override
   Future<ServerLaunchSettings> load() async {
-    await loadBlocker?.future;
+    // Block explicit starts, not the lightweight initial status restoration.
+    if (++loads > 1) await loadBlocker?.future;
     return const ServerLaunchSettings();
   }
 }

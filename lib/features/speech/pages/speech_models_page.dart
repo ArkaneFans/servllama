@@ -9,7 +9,7 @@ import 'package:servllama/features/speech/services/speech_job_service.dart';
 import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/widgets/async_action.dart';
 
-class SpeechModelsPage extends StatelessWidget {
+class SpeechModelsPage extends StatefulWidget {
   const SpeechModelsPage({
     super.key,
     this.embedded = false,
@@ -17,6 +17,23 @@ class SpeechModelsPage extends StatelessWidget {
   });
   final bool embedded;
   final bool downloadsOnly;
+
+  @override
+  State<SpeechModelsPage> createState() => _SpeechModelsPageState();
+}
+
+class _SpeechModelsPageState extends State<SpeechModelsPage> {
+  bool get embedded => widget.embedded;
+  bool get downloadsOnly => widget.downloadsOnly;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<SpeechJobService?>()?.initialize();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = context.watch<SpeechJobService?>(), l = context.l10n;
@@ -24,7 +41,16 @@ class SpeechModelsPage extends StatelessWidget {
       return Center(
         child: s?.loadError == null
             ? const CircularProgressIndicator()
-            : Text(s!.loadError!),
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(s!.loadError!),
+                  TextButton(
+                    onPressed: s.initialize,
+                    child: Text(l.v2ToolRetryLoad),
+                  ),
+                ],
+              ),
       );
     }
     final m = s.models;

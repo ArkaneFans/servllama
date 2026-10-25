@@ -24,6 +24,17 @@ class ModelNameCoordinator {
   final Map<String, String> _reservations = <String, String>{};
   Future<void> _operationTail = Future<void>.value();
 
+  /// Restore pending display names without inspecting model directories.
+  /// Allocation/commit still revalidates against the authoritative stores.
+  Future<void> restoreReservations(Map<String, String> names) {
+    return _synchronized(() async {
+      for (final name in names.values) {
+        _unifiedRepository.validateName(name);
+      }
+      _reservations.addAll(names);
+    });
+  }
+
   Future<AllocatedModelName> reserveAvailable({
     required String ownerId,
     required String requestedName,

@@ -48,6 +48,7 @@ class SpeechJobService extends ChangeNotifier {
   final Set<String> _deleting = {};
   Future<void> _writes = Future.value();
   Future<void>? _drainOperation;
+  Future<void>? _initializing;
 
   /// Waits for current native cleanup and queued persistence, without starting
   /// blocked jobs. Useful when tearing down the process-owned services.
@@ -61,8 +62,25 @@ class SpeechJobService extends ChangeNotifier {
     Directory? storageRoot,
     AppDatabase? database,
     bool configureAudio = true,
+  }) {
+    if (_disposed || ready) return Future<void>.value();
+    return _initializing ??= _initialize(
+      storageRoot: storageRoot,
+      database: database,
+      configureAudio: configureAudio,
+    ).whenComplete(() => _initializing = null);
+  }
+
+  Future<void> _initialize({
+    Directory? storageRoot,
+    AppDatabase? database,
+    required bool configureAudio,
   }) async {
+    SpeechModelService? preparedModels;
+    AudioIoService? preparedAudio;
     try {
+      loadError = null;
+      _changed();
       final storage = storageRoot ?? await getApplicationSupportDirectory();
       await storage.create(recursive: true);
       root = Directory(await storage.resolveSymbolicLinks());
@@ -70,14 +88,14 @@ class SpeechJobService extends ChangeNotifier {
       _files = OwnedFileCleanup(repository.db, root);
       await repository.recover();
       await _files.retry();
-      models = SpeechModelService(
+      preparedModels = models = SpeechModelService(
         UnifiedModelRepository(database: repository.db),
         repository,
         root,
         resources: resources,
         logger: _logger,
       );
-      audio = AudioIoService(root, logger: _logger);
+      preparedAudio = audio = AudioIoService(root, logger: _logger);
       await models.load();
       if (configureAudio) await audio.initialize();
       final prefs = await SharedPreferences.getInstance();
@@ -85,9 +103,11 @@ class SpeechJobService extends ChangeNotifier {
       ttsId = prefs.getString('v2/speech/tts');
       jobs = await repository.jobs();
       voices = await repository.voices();
+      if (_disposed) return;
       resources.addListener(_wake);
       models.addListener(_changed);
       audio.addListener(_changed);
+      loadError = null;
       ready = true;
       _logger.event(
         'speech.initialized',
@@ -102,6 +122,11 @@ class SpeechJobService extends ChangeNotifier {
         level: LogLevel.error,
         fields: AppLogger.errorFields(e),
       );
+    } finally {
+      if (!ready) {
+        preparedAudio?.dispose();
+        preparedModels?.dispose();
+      }
     }
     _changed();
   }

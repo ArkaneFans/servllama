@@ -19,18 +19,30 @@ class ChatTimeoutProvider extends ChangeNotifier {
   bool get hasLoaded => _hasLoaded;
   Duration get timeout => Duration(seconds: _timeoutSeconds);
 
-  Future<void> load() async {
+  Future<void>? _loadFuture;
+  bool _disposed = false;
+
+  Future<void> load() => _hasLoaded
+      ? Future<void>.value()
+      : _loadFuture ??= _load().whenComplete(() => _loadFuture = null);
+
+  Future<void> _load() async {
     if (_hasLoaded) {
       return;
     }
 
-    final storedValue = await _kvStorage.getInt(AppPrefsKeys.chatTimeoutSeconds);
+    final storedValue = await _kvStorage.getInt(
+      AppPrefsKeys.chatTimeoutSeconds,
+    );
+    if (_disposed) return;
     _timeoutSeconds = _normalizeTimeoutSeconds(storedValue);
     _hasLoaded = true;
     notifyListeners();
   }
 
   Future<void> updateTimeoutSeconds(int value) async {
+    await load();
+    if (_disposed) return;
     final nextValue = _normalizeTimeoutSeconds(value);
     if (_timeoutSeconds == nextValue) {
       return;
@@ -39,6 +51,17 @@ class ChatTimeoutProvider extends ChangeNotifier {
     _timeoutSeconds = nextValue;
     await _kvStorage.setInt(AppPrefsKeys.chatTimeoutSeconds, _timeoutSeconds);
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
   }
 
   static int _normalizeTimeoutSeconds(int? value) {

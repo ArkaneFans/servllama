@@ -4,7 +4,13 @@ import 'package:servllama/core/security/log_redactor.dart';
 /// Credentials never belong in application JSON, exports or Preferences.
 class SecretStore {
   SecretStore({FlutterSecureStorage? storage})
-    : _storage = storage ?? const FlutterSecureStorage();
+    : _storage =
+          storage ??
+          const FlutterSecureStorage(
+            // All credentials share this mode and namespace. Mixing modes
+            // moves keys between stores that other readers can no longer see.
+            aOptions: AndroidOptions(encryptedSharedPreferences: true),
+          );
   static final instance = SecretStore();
   final FlutterSecureStorage _storage;
   Future<String?> read(String key) async {

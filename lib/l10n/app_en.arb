@@ -992,6 +992,7 @@
   "v2Protocol": "Protocol",
   "v2BaseUrl": "API base URL",
   "v2ApiKey": "API key",
+  "v2CredentialLoadFailed": "Could not read the saved credential. Retry before saving.",
   "v2ShowApiKey": "Show API key",
   "v2HideApiKey": "Hide API key",
   "v2ApiPath": "API path",

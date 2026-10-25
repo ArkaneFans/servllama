@@ -18,6 +18,7 @@ class AppLogsProvider extends ChangeNotifier {
     }
     _logs.sort((left, right) => left.timestamp.compareTo(right.timestamp));
     _trim();
+    unawaited(_restoreHistory());
   }
 
   final AppLogger _logger;
@@ -33,6 +34,32 @@ class AppLogsProvider extends ChangeNotifier {
   final List<StreamSubscription<AppLogEntry>> _subscriptions =
       <StreamSubscription<AppLogEntry>>[];
   Timer? _pendingNotify;
+  bool _disposed = false;
+
+  Future<void> _restoreHistory() async {
+    try {
+      await _logger.ensureHistoryLoaded();
+      if (_disposed) return;
+      final restored = [
+        for (final channel in _channels) ..._logger.entriesFor(channel),
+      ]..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      final bounded = restored.length > maxEntries
+          ? restored.sublist(restored.length - maxEntries)
+          : restored;
+      if (listEquals(_logs, bounded)) return;
+      _logs
+        ..clear()
+        ..addAll(bounded);
+      notifyListeners();
+    } catch (error) {
+      if (_disposed) return;
+      _logger.event(
+        'logging.history_unavailable',
+        level: LogLevel.warning,
+        fields: AppLogger.errorFields(error),
+      );
+    }
+  }
 
   List<AppLogEntry> get logs => List<AppLogEntry>.unmodifiable(_logs);
   int get count => _logs.length;
@@ -103,6 +130,7 @@ class AppLogsProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _pendingNotify?.cancel();
     _pendingNotify = null;
     for (final subscription in _subscriptions) {

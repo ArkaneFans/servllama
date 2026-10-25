@@ -15,20 +15,41 @@ import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/core/logging/file_log_sink.dart';
 import 'package:servllama/core/services/native_licenses.dart';
 import 'package:servllama/app/bootstrap/bootstrap_gate.dart';
+import 'package:servllama/app/bootstrap/startup_task.dart';
 
 Future<void> main() async {
+  final startupWatch = Stopwatch()..start();
   WidgetsFlutterBinding.ensureInitialized();
   registerNativeLicenses();
   FlutterForegroundTask.initCommunicationPort();
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  await _initLogging();
-  runApp(
-    BootstrapGate(
-      hasPendingMigration: _hasPendingLegacyMigration,
-      initialize: _initializeBusiness,
-      child: const ServLlamaApp(),
-    ),
-  );
+  await StartupTask('log_sink', _initLogging).run(phase: 'admission');
+  bool? pendingMigration;
+  Object? admissionError;
+  try {
+    pendingMigration = await _hasPendingLegacyMigration();
+    if (!pendingMigration) {
+      await _initializeBusiness((_) {}, skipLegacyImport: false);
+    }
+  } catch (error) {
+    admissionError = error;
+  }
+  if (pendingMigration != false || admissionError != null) {
+    runApp(
+      BootstrapGate(
+        initialPendingMigration: pendingMigration,
+        initialError: admissionError,
+        hasPendingMigration: _hasPendingLegacyMigration,
+        initialize: _initializeBusiness,
+        child: ServLlamaApp(startupWatch: startupWatch),
+      ),
+    );
+    return;
+  }
+
+  // Only database admission precedes the homepage, as on main. Business
+  // providers restore independently; Flutter owns first-frame delivery.
+  runApp(ServLlamaApp(startupWatch: startupWatch));
 }
 
 Future<bool> _hasPendingLegacyMigration() async {
@@ -43,12 +64,22 @@ Future<void> _initializeBusiness(
   final watch = Stopwatch()..start();
   AppLogger.instance.event('app.initialize.started');
   try {
-    await ChatSessionRepository(
-      onMigrationProgress: report,
-      skipLegacyImport: skipLegacyImport,
-    ).warmUpMessageStore();
-    await GenerationRunRepository(await AppDatabase.shared()).recover();
-    await AgentToolService.create();
+    await StartupTask(
+      'message_store',
+      () => ChatSessionRepository(
+        onMigrationProgress: report,
+        skipLegacyImport: skipLegacyImport,
+        retryCleanupOnOpen: false,
+      ).warmUpMessageStore(),
+    ).run(phase: 'admission');
+    await StartupTask(
+      'run_recovery',
+      () async => GenerationRunRepository(await AppDatabase.shared()).recover(),
+    ).run(phase: 'admission');
+    await StartupTask(
+      'tool_recovery',
+      AgentToolService.create,
+    ).run(phase: 'admission');
     AppLogger.instance.event(
       'app.initialize.completed',
       fields: {'elapsed_ms': watch.elapsedMilliseconds},
@@ -70,9 +101,6 @@ Future<void> _initLogging() async {
   try {
     final sink = await FileLogSink.open();
     AppLogger.instance.attachSink(sink);
-    AppLogger.instance.restore(
-      await sink.loadRecent(AppLogger.defaultMaxEntries),
-    );
     // Retained by WidgetsBinding as an observer; flushes on background/exit.
     AppLifecycleListener(
       onPause: () => unawaited(sink.flush()),

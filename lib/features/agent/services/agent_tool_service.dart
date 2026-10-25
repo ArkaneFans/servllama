@@ -46,7 +46,6 @@ class AgentToolService extends ChangeNotifier {
     );
     await s.repository.recover();
     current = s;
-    unawaited(s.mcp.start());
     return s;
   }
 
@@ -158,17 +157,42 @@ class AgentToolService extends ChangeNotifier {
 
   Future<SkillRecord?> importSkillFromFile() async {
     final skill = await skills.pickAndImport();
-    if (skill != null) notifyListeners();
+    if (skill != null) {
+      await loadSkills();
+      notifyListeners();
+    }
     return skill;
   }
 
   Future<SkillRecord> importSkillFromText(String markdown) async {
     final skill = await skills.importMarkdown(markdown);
+    await loadSkills();
     notifyListeners();
     return skill;
   }
 
-  Future<List<SkillRecord>> loadSkills() => skills.list();
+  List<SkillRecord>? cachedSkills;
+  Future<List<SkillRecord>>? _loadingSkills;
+
+  Future<List<SkillRecord>> ensureSkillsLoaded() =>
+      _loadingSkills ??
+      (cachedSkills != null ? Future.value(cachedSkills!) : loadSkills());
+
+  Future<List<SkillRecord>> loadSkills() {
+    // Explicit refreshes may follow a committed import/edit. They must read
+    // after an older prefetch, not reuse its potentially stale snapshot.
+    late final Future<List<SkillRecord>> loading;
+    loading = (_loadingSkills ?? Future.value(const <SkillRecord>[]))
+        .then((_) {}, onError: (Object _) {})
+        .then((_) => _readSkills())
+        .whenComplete(() {
+          if (identical(_loadingSkills, loading)) _loadingSkills = null;
+        });
+    return _loadingSkills = loading;
+  }
+
+  Future<List<SkillRecord>> _readSkills() async =>
+      cachedSkills = List.unmodifiable(await skills.list());
 
   Future<SkillDetails> loadSkillDetails(SkillRecord skill) =>
       skills.details(skill);
@@ -181,6 +205,7 @@ class AgentToolService extends ChangeNotifier {
   Future<SkillRecord> updateSkill(SkillRecord skill, String markdown) async {
     final updated = await skills.updateMarkdown(skill, markdown);
     await revalidate();
+    await loadSkills();
     notifyListeners();
     return updated;
   }
@@ -188,6 +213,7 @@ class AgentToolService extends ChangeNotifier {
   Future<SkillRecord> setSkillEnabled(SkillRecord skill, bool enabled) async {
     final updated = await skills.setEnabled(skill, enabled);
     await revalidate();
+    await loadSkills();
     notifyListeners();
     return updated;
   }
@@ -201,6 +227,7 @@ class AgentToolService extends ChangeNotifier {
     } finally {
       // A filesystem cleanup failure must not postpone committed revocation.
       await revalidate();
+      await loadSkills();
       notifyListeners();
     }
   }

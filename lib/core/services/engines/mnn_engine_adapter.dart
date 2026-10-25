@@ -71,7 +71,8 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
       final settings = await _settingsLoader.loadForRuntime();
       _logsEnabled = settings.logEnabled;
       _minimumLogLevel = settings.logLevel;
-      await _engine.initialize();
+      // Restoring ownership needs only the existing service snapshot. Loading
+      // the native libraries is a demand-driven engine operation, not startup.
       for (final entry in await _engine.getLogSnapshot()) {
         _recordLog(entry);
       }
@@ -115,6 +116,15 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
     required RuntimePhaseCallback onPhase,
   }) async {
     await prepare();
+    _throwIfCancelled();
+    try {
+      await _engine.initialize();
+    } on MnnEngineException catch (error) {
+      throw EngineAdapterException(
+        EngineRuntimeErrorKind.engineUnavailable,
+        detail: error.message,
+      );
+    }
     _throwIfCancelled();
     final settings = await _settingsLoader.loadForRuntime();
     _throwIfCancelled();

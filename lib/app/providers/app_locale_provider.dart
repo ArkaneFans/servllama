@@ -31,12 +31,20 @@ class AppLocaleProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> load() async {
+  Future<void>? _loadFuture;
+  bool _disposed = false;
+
+  Future<void> load() => _hasLoaded
+      ? Future<void>.value()
+      : _loadFuture ??= _load().whenComplete(() => _loadFuture = null);
+
+  Future<void> _load() async {
     if (_hasLoaded) {
       return;
     }
 
     final storedValue = await _kvStorage.getString(AppPrefsKeys.localeMode);
+    if (_disposed) return;
     _localeMode = _localeModeFromStorage(storedValue);
     _syncGlobalL10n();
     _hasLoaded = true;
@@ -44,6 +52,8 @@ class AppLocaleProvider extends ChangeNotifier {
   }
 
   Future<void> updateLocaleMode(AppLocaleMode value) async {
+    await load();
+    if (_disposed) return;
     if (_localeMode == value) {
       return;
     }
@@ -59,6 +69,17 @@ class AppLocaleProvider extends ChangeNotifier {
 
   void _syncGlobalL10n() {
     AppL10nService.instance.setLocale(locale);
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
   }
 
   static String _localeModeToStorage(AppLocaleMode value) {

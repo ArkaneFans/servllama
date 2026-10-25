@@ -64,6 +64,8 @@ class McpConnectionManager extends ChangeNotifier {
     return future;
   }
 
+  Future<void> ensureLoaded() => _loaded ? Future.value() : load();
+
   Future<void> _load() async {
     final records = await _repository.servers();
     if (_disposed) return;
@@ -89,7 +91,7 @@ class McpConnectionManager extends ChangeNotifier {
     if (_disposed) return;
     _started = true;
     try {
-      await load();
+      await ensureLoaded();
     } catch (error) {
       _logger.event(
         'agent.mcp.manager_load_failed',

@@ -1755,6 +1755,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2ApiKey => 'API Key';
 
   @override
+  String get v2CredentialLoadFailed => '无法读取已保存的凭据，请重试后再保存。';
+
+  @override
   String get v2ShowApiKey => '显示 API Key';
 
   @override

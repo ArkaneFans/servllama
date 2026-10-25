@@ -62,6 +62,8 @@ class ModelManagementProvider extends ChangeNotifier {
   bool _isImportingMmproj = false;
   bool _isRenaming = false;
   Future<void>? _modelRefreshInFlight;
+  Future<void>? _loadFuture;
+  bool _hasLoaded = false;
   String? _deletingModelId;
   String? _importingMmprojModelId;
   String? _renamingModelId;
@@ -111,16 +113,18 @@ class ModelManagementProvider extends ChangeNotifier {
     super.notifyListeners();
   }
 
-  Future<void> load() async {
-    if (_isLoading) {
-      return;
-    }
+  Future<void> load() {
+    if (_hasLoaded) return Future<void>.value();
+    return _loadFuture ??= _loadOnce().whenComplete(() => _loadFuture = null);
+  }
 
+  Future<void> _loadOnce() async {
     _isLoading = true;
     notifyListeners();
 
     try {
       await _refreshModelLists();
+      _hasLoaded = true;
     } catch (error, stackTrace) {
       _models = <ModelDescriptor>[];
       _libraryModels = <LibraryModel>[];
@@ -142,6 +146,7 @@ class ModelManagementProvider extends ChangeNotifier {
   Future<void> refresh() async {
     try {
       await _refreshModelLists();
+      _hasLoaded = true;
       notifyListeners();
     } catch (error, stackTrace) {
       _logger.error(
