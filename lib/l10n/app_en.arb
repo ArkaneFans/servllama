@@ -25,6 +25,7 @@
   "v2SkillsEmptyHint": "Tap + in the upper-right corner to import one",
   "v2LocalTools": "Local tools",
   "v2AssistantManagement": "Assistants",
+  "v2AssistantDefaultName": "AI Assistant",
   "v2AssistantAddTitle": "New assistant",
   "v2AssistantNameRequired": "Enter an assistant name",
   "v2AssistantSearchHint": "Search assistants",

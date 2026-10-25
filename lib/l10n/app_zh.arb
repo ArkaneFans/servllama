@@ -25,6 +25,7 @@
   "v2SkillsEmptyHint": "点击右上角 + 导入",
   "v2LocalTools": "本地工具",
   "v2AssistantManagement": "助手",
+  "v2AssistantDefaultName": "AI 助手",
   "v2AssistantAddTitle": "新建助手",
   "v2AssistantNameRequired": "请输入助手名称",
   "v2AssistantSearchHint": "搜索助手",

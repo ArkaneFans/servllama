@@ -47,8 +47,10 @@ class AppStartupFixture {
 }
 
 class _Locale extends AppLocaleProvider {
+  Completer<void>? pending;
+
   @override
-  Future<void> load() async {}
+  Future<void> load() async => await pending?.future;
 }
 
 class _Theme extends AppThemeModeProvider {

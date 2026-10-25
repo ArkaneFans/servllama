@@ -1,11 +1,15 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:servllama/app/providers/app_locale_provider.dart';
 import 'package:servllama/core/database/app_database.dart';
 import 'package:servllama/core/models/model_asset.dart';
 import 'package:servllama/core/repositories/unified_model_repository.dart';
 import 'package:servllama/core/security/secret_store.dart';
+import 'package:servllama/core/services/app_l10n_service.dart';
+import 'package:servllama/core/storage/app_prefs_keys.dart';
 import 'package:servllama/core/storage/kv_storage.dart';
 import 'package:servllama/features/assistants/models/assistant.dart';
 import 'package:servllama/features/assistants/providers/assistant_provider.dart';
@@ -40,11 +44,24 @@ class _MemoryPreferences extends KvStorage {
   }
 }
 
+class _PendingLocalePreferences extends _MemoryPreferences {
+  final pending = Completer<String?>();
+  int reads = 0;
+
+  @override
+  Future<String?> getString(String key) {
+    if (key != AppPrefsKeys.localeMode) return super.getString(key);
+    reads++;
+    return pending.future;
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late AppDatabase db;
   late AssistantRepository repository;
   late AssistantProvider provider;
+  Locale? previousLocale;
   const a = Assistant(id: 'a', name: 'A');
   const b = Assistant(id: 'b', name: 'B');
   const connection = AiConnection(
@@ -55,6 +72,7 @@ void main() {
     models: ['model'],
   );
   setUp(() async {
+    previousLocale = AppL10nService.instance.appLocale;
     db = AppDatabase.memory();
     repository = AssistantRepository(db, preferences: _MemoryPreferences());
     provider = AssistantProvider(repository: repository, models: _NoModels());
@@ -65,6 +83,7 @@ void main() {
   tearDown(() async {
     provider.dispose();
     await db.close();
+    AppL10nService.instance.setLocale(previousLocale);
   });
   ChatRunConfig config(Assistant assistant) => ChatRunConfig(
     assistant: assistant,
@@ -73,6 +92,140 @@ void main() {
     modelId: 'model',
     isLocal: false,
   );
+
+  for (final (language, expected) in [
+    ('zh', 'AI 助手'),
+    ('en', 'AI Assistant'),
+  ]) {
+    test('first load persists one localized assistant ($language)', () async {
+      AppL10nService.instance.setLocale(Locale(language));
+      final freshDb = AppDatabase.memory();
+      final freshRepository = AssistantRepository(
+        freshDb,
+        preferences: _MemoryPreferences(),
+      );
+      final freshProvider = AssistantProvider(
+        repository: freshRepository,
+        models: _NoModels(),
+      );
+      addTearDown(() async {
+        freshProvider.dispose();
+        await freshDb.close();
+      });
+
+      await freshProvider.ensureLoaded();
+      final initial = freshProvider.assistants.single;
+      expect(initial.name, expected);
+      expect(freshProvider.activeId, initial.id);
+      expect((await freshRepository.assistants()).single.name, expected);
+      AppL10nService.instance.setLocale(Locale(language == 'zh' ? 'en' : 'zh'));
+      await freshProvider.load();
+      expect(freshProvider.assistants.single.id, initial.id);
+      expect(freshProvider.active?.name, expected);
+    });
+  }
+
+  test(
+    'first-use seeding joins delayed locale restoration before saving',
+    () async {
+      final prefs = _PendingLocalePreferences();
+      final locale = AppLocaleProvider(kvStorage: prefs);
+      addTearDown(locale.dispose);
+      AppL10nService.instance.setLocale(const Locale('en'));
+      final freshDb = AppDatabase.memory();
+      final freshRepository = AssistantRepository(
+        freshDb,
+        preferences: _MemoryPreferences(),
+      );
+      final resolvingName = Completer<void>();
+      final freshProvider = AssistantProvider(
+        repository: freshRepository,
+        models: _NoModels(),
+        loadDefaultName: () async {
+          resolvingName.complete();
+          await locale.load();
+          return AppL10nService.instance.current.v2AssistantDefaultName;
+        },
+      );
+      addTearDown(() async {
+        freshProvider.dispose();
+        await freshDb.close();
+      });
+
+      final restoringLocale = locale.load();
+      final first = freshProvider.ensureLoaded();
+      expect(identical(first, freshProvider.ensureLoaded()), isTrue);
+      await resolvingName.future;
+      expect(freshProvider.loaded, isFalse);
+      expect(await freshRepository.assistants(), isEmpty);
+      prefs.pending.complete('zh');
+      await Future.wait([restoringLocale, first]);
+      expect(prefs.reads, 1);
+      expect(freshProvider.active?.name, 'AI 助手');
+      expect((await freshRepository.assistants()).single.name, 'AI 助手');
+    },
+  );
+
+  test(
+    'existing assistants never resolve or overwrite the default label',
+    () async {
+      final restored = AssistantProvider(
+        repository: repository,
+        models: _NoModels(),
+        loadDefaultName: () => throw StateError('must not resolve a default'),
+      );
+      addTearDown(restored.dispose);
+      await restored.ensureLoaded();
+      expect(restored.loaded, isTrue);
+      expect(restored.error, isNull);
+      expect(
+        restored.assistants.map((v) => v.name),
+        unorderedEquals(['A', 'B']),
+      );
+    },
+  );
+
+  test(
+    'disposal while resolving the default name does not create an assistant',
+    () async {
+      final freshDb = AppDatabase.memory();
+      final freshRepository = AssistantRepository(
+        freshDb,
+        preferences: _MemoryPreferences(),
+      );
+      final pendingName = Completer<String>();
+      final resolvingName = Completer<void>();
+      final freshProvider = AssistantProvider(
+        repository: freshRepository,
+        models: _NoModels(),
+        loadDefaultName: () {
+          resolvingName.complete();
+          return pendingName.future;
+        },
+      );
+      addTearDown(freshDb.close);
+      final loading = freshProvider.ensureLoaded();
+      await resolvingName.future;
+      freshProvider.dispose();
+      pendingName.complete('AI Assistant');
+      await loading;
+      expect(await freshRepository.assistants(), isEmpty);
+    },
+  );
+
+  test('default label does not overwrite existing assistant names', () async {
+    const existing = Assistant(id: 'existing', name: 'ServLlama');
+    await repository.saveAssistant(existing);
+    await provider.load();
+    expect(
+      provider.assistants.firstWhere((v) => v.id == existing.id).name,
+      existing.name,
+    );
+    expect(
+      provider.assistants.map((v) => v.name),
+      unorderedEquals(['A', 'B', 'ServLlama']),
+    );
+  });
 
   test('new profiles stay empty without an initialization write', () async {
     expect(provider.profile.name, isEmpty);

@@ -6,6 +6,7 @@ import 'package:servllama/core/models/model_asset.dart';
 import 'package:servllama/core/repositories/unified_model_repository.dart';
 import 'package:dio/dio.dart';
 import 'package:servllama/core/security/log_redactor.dart';
+import 'package:servllama/core/services/app_l10n_service.dart';
 import 'package:servllama/core/utils/new_id.dart';
 import 'package:servllama/features/assistants/models/assistant.dart';
 import 'package:servllama/features/assistants/repositories/assistant_repository.dart';
@@ -16,10 +17,15 @@ class AssistantProvider extends ChangeNotifier {
     AssistantRepository? repository,
     UnifiedModelRepository? models,
     AppLogger? logger,
+    Future<String> Function()? loadDefaultName,
   }) : _repository = repository,
        _logger = logger ?? AppLogger.instance,
+       _loadDefaultName =
+           loadDefaultName ??
+           (() async => AppL10nService.instance.current.v2AssistantDefaultName),
        models = models ?? UnifiedModelRepository();
   final AppLogger _logger;
+  final Future<String> Function() _loadDefaultName;
   AssistantRepository? _repository;
   final UnifiedModelRepository models;
   List<Assistant> assistants = [];
@@ -61,7 +67,9 @@ class AssistantProvider extends ChangeNotifier {
       final restoredConnections = await r.connections();
       final restoredProfile = await r.profile();
       if (restoredAssistants.isEmpty) {
-        final initial = Assistant(id: newId(), name: 'ServLlama');
+        final name = await _loadDefaultName();
+        if (_disposed) return;
+        final initial = Assistant(id: newId(), name: name);
         await r.saveAssistant(initial);
         restoredAssistants = [initial];
       }

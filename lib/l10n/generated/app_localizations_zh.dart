@@ -68,6 +68,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2AssistantManagement => '助手';
 
   @override
+  String get v2AssistantDefaultName => 'AI 助手';
+
+  @override
   String get v2AssistantAddTitle => '新建助手';
 
   @override

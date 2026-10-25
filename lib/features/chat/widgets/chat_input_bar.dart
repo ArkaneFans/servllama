@@ -70,7 +70,7 @@ class ChatInputBar extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(2, 8, 2, 12),
+        padding: const EdgeInsets.fromLTRB(2, 8, 2, 4),
         child: Material(
           key: const Key('chat_composer_surface'),
           color: c.surfaceContainerLowest,

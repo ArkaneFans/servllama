@@ -3,6 +3,7 @@ import 'package:servllama/app/providers/app_theme_mode_provider.dart';
 import 'package:servllama/app/providers/chat_timeout_provider.dart';
 import 'package:servllama/core/providers/engine_runtime_provider.dart';
 import 'package:servllama/core/providers/model_management_provider.dart';
+import 'package:servllama/core/services/app_l10n_service.dart';
 import 'package:servllama/features/assistants/providers/assistant_provider.dart';
 import 'package:servllama/features/chat/providers/chat_provider.dart';
 import 'package:servllama/features/chat/repositories/chat_session_repository.dart';
@@ -24,7 +25,16 @@ class AppProviderScope {
        theme = theme ?? AppThemeModeProvider(),
        timeout = timeout ?? ChatTimeoutProvider() {
     this.runtime = runtime ?? EngineRuntimeProvider();
-    this.assistants = assistants ?? AssistantProvider();
+    this.assistants =
+        assistants ??
+        AssistantProvider(
+          loadDefaultName: () async {
+            // Only first-use seeding needs the restored language. Existing
+            // assistant snapshots and the homepage never wait for this label.
+            await this.locale.load();
+            return AppL10nService.instance.current.v2AssistantDefaultName;
+          },
+        );
     this.library =
         library ??
         ModelManagementProvider(

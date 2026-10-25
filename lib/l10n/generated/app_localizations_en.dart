@@ -75,6 +75,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2AssistantManagement => 'Assistants';
 
   @override
+  String get v2AssistantDefaultName => 'AI Assistant';
+
+  @override
   String get v2AssistantAddTitle => 'New assistant';
 
   @override

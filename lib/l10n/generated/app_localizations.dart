@@ -212,6 +212,12 @@ abstract class AppLocalizations {
   /// **'Assistants'**
   String get v2AssistantManagement;
 
+  /// No description provided for @v2AssistantDefaultName.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Assistant'**
+  String get v2AssistantDefaultName;
+
   /// No description provided for @v2AssistantAddTitle.
   ///
   /// In en, this message translates to:

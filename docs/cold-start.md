@@ -37,6 +37,11 @@ its restored fields together; a provider/profile page entered early shows only
 its own loading/retry state and does not expose empty editable settings as if
 restoration had completed. A module failure does not close unrelated routes.
 
+Only first-use assistant seeding joins locale restoration to resolve its name
+from ARB. Existing assistant snapshots do not wait for that label, and the
+homepage remains ungated. The localized initial name is persisted as ordinary
+editable assistant data; language changes never rename existing assistants.
+
 Provider keys are read only on editor/request demand. Those reads share a
 single flight per secret reference. Verified saves populate the process-local
 cache, while rotated/deleted references invalidate old cache entries. Missing

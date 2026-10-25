@@ -58,6 +58,24 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('homepage paints while locale restoration is blocked', (
+    tester,
+  ) async {
+    final fixture = AppStartupFixture();
+    final pending = Completer<void>();
+    fixture.locale.pending = pending;
+    await tester.pumpWidget(ServLlamaApp(scope: fixture.scope));
+    await tester.pump();
+    expect(tester.binding.sendFramesToEngine, isTrue);
+    expect(find.byType(MainScaffold), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(fixture.assistants.loaded, isTrue);
+    pending.complete();
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox());
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('business load failure never closes the homepage', (
     tester,
   ) async {
