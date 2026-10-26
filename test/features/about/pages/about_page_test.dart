@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/core/services/app_info_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:servllama/features/about/pages/about_page.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
 import 'package:servllama/shared/widgets/settings_menu_tile.dart';
@@ -14,47 +11,14 @@ import 'package:servllama/shared/widgets/settings_section.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  setUp(() {
-    SharedPreferences.setMockInitialValues(<String, Object>{});
-    PackageInfo.setMockInitialValues(
-      appName: 'ServLlama',
-      packageName: 'com.arkanefans.servllama',
-      version: '1.1.0',
-      buildNumber: '9',
-      buildSignature: '',
-    );
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('com.arkanefans.mnn_engine/methods'),
-          (call) async {
-            if (call.method != 'initialize') {
-              return null;
-            }
-            return <String, Object?>{
-              'pluginVersion': '0.0.2',
-              'mnnVersion': '3.2.0',
-              'mnnCommit': 'abcdef123456',
-              'abi': 'arm64-v8a',
-              'androidApiLevel': 36,
-              'ndkVersion': '27.0',
-              'nativeLibraryLoaded': true,
-              'testRootPath': '/tmp',
-            };
-          },
-        );
-  });
-
-  tearDown(() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('com.arkanefans.mnn_engine/methods'),
-          null,
-        );
-  });
+  const info = AppInfo(
+    app: '2.0.0 / 15',
+    llamaCpp: 'llama-test-build',
+    mnn: '3.6.1 \u00b7 abcdef1234',
+  );
 
   Future<void> pumpAbout(WidgetTester tester) async {
-    final service = AppInfoService();
-    await tester.runAsync(service.load);
+    final service = AppInfoService()..cached = info;
     await tester.pumpWidget(
       Provider.value(value: service, child: const _TestHost()),
     );
@@ -71,13 +35,13 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('\u7248\u672c'), findsOneWidget);
-    expect(find.text('1.1.0 / 9'), findsOneWidget);
+    expect(find.text(info.app), findsOneWidget);
     expect(find.text('\u7cfb\u7edf'), findsOneWidget);
     expect(find.text('Android'), findsOneWidget);
     expect(find.text('llama.cpp'), findsOneWidget);
-    expect(find.text('v0.4.1'), findsOneWidget);
+    expect(find.text(info.llamaCpp), findsOneWidget);
     expect(find.text('MNN \u7248\u672c'), findsOneWidget);
-    expect(find.text('3.2.0 \u00b7 abcdef1234'), findsOneWidget);
+    expect(find.text(info.mnn), findsOneWidget);
     expect(find.text('\u5728 GitHub \u4e0a\u70b9\u4eae Star'), findsOneWidget);
     expect(find.text('\u5f00\u6e90\u8bb8\u53ef'), findsOneWidget);
     final l10n = AppLocalizations.of(tester.element(find.byType(AboutPage)))!;
@@ -108,7 +72,7 @@ void main() {
   testWidgets('tapping version copies it', (tester) async {
     await pumpAbout(tester);
 
-    expect(find.text('1.1.0 / 9'), findsOneWidget);
+    expect(find.text(info.app), findsOneWidget);
     await tester.tap(find.byKey(const Key('about_version_tile')));
     await tester.pump();
 
