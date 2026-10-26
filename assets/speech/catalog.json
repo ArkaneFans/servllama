@@ -116,34 +116,44 @@
   },
   {
     "schemaVersion": 1,
-    "recipe": "crispQwenTts",
-    "name": "Qwen3-TTS 0.6B Base · CrispASR",
-    "revision": "94072f5c394b4dc4d98e97cc874800dde6ecacda",
-    "sourceUrl": "https://huggingface.co/cstr/qwen3-tts-0.6b-base-GGUF",
-    "license": "Apache-2.0 (model, codec and default-voice repository cards).",
+    "recipe": "crispCosyVoiceTts",
+    "name": "CosyVoice3 0.5B Q4_K · CrispASR",
+    "revision": "aa0ea5eb7279bcf54668bcbaa7348019de7d7178",
+    "sourceUrl": "https://huggingface.co/cstr/cosyvoice3-0.5b-2512-GGUF",
+    "license": "Apache-2.0 (upstream and converted models); bundled FLEURS voice prompts: CC-BY-4.0.",
     "config": {
-      "model": "qwen3-tts-12hz-0.6b-base-q8_0.gguf",
-      "codec": "qwen3-tts-tokenizer-12hz.gguf",
-      "voice": "qwen3-tts-voice-default.gguf"
+      "model": "cosyvoice3-llm-q4_k.gguf",
+      "flow": "cosyvoice3-flow-q8_0.gguf",
+      "vocoder": "cosyvoice3-hift-f16.gguf",
+      "voices": "cosyvoice3-voices.gguf",
+      "languages": [
+        "zh", "en", "ja", "ko", "yue", "fr", "de", "es", "pt", "it", "ru"
+      ]
     },
     "files": [
       {
-        "path": "qwen3-tts-12hz-0.6b-base-q8_0.gguf",
-        "bytes": 985716544,
-        "sha256": "6162637048fff8ca7f7a16bebc8a62ea8181f4aec4f160894955dee5b87c1961",
-        "url": "https://huggingface.co/cstr/qwen3-tts-0.6b-base-GGUF/resolve/94072f5c394b4dc4d98e97cc874800dde6ecacda/qwen3-tts-12hz-0.6b-base-q8_0.gguf"
+        "path": "cosyvoice3-llm-q4_k.gguf",
+        "bytes": 383891200,
+        "sha256": "33d899490108bce896c3448bca40ebd994daa125ce0b118e6267f6b84fc09530",
+        "url": "https://huggingface.co/cstr/cosyvoice3-0.5b-2512-GGUF/resolve/aa0ea5eb7279bcf54668bcbaa7348019de7d7178/cosyvoice3-llm-q4_k.gguf"
       },
       {
-        "path": "qwen3-tts-tokenizer-12hz.gguf",
-        "bytes": 358453280,
-        "sha256": "70dc95dbfdd9aa5d9d406236ff771d061bf17b0cda02a72513953355606e719b",
-        "url": "https://huggingface.co/cstr/qwen3-tts-tokenizer-12hz-GGUF/resolve/344e279551177654762e5c7d39e217834325f222/qwen3-tts-tokenizer-12hz.gguf"
+        "path": "cosyvoice3-flow-q8_0.gguf",
+        "bytes": 360751936,
+        "sha256": "ab264405ca243baf9aa2f2f26959d213d3e3ca9fb204db2a0b582ed2ca243d86",
+        "url": "https://huggingface.co/cstr/cosyvoice3-0.5b-2512-GGUF/resolve/aa0ea5eb7279bcf54668bcbaa7348019de7d7178/cosyvoice3-flow-q8_0.gguf"
       },
       {
-        "path": "qwen3-tts-voice-default.gguf",
-        "bytes": 11104,
-        "sha256": "031c1b7f397b5f11db237dd39671042f994f1dd6b55369b64e4e72bc723efb28",
-        "url": "https://huggingface.co/cstr/qwen3-tts-voices-GGUF/resolve/6ee1102f782cab1f17842983044ac51cf57884d8/qwen3-tts-voice-default.gguf"
+        "path": "cosyvoice3-hift-f16.gguf",
+        "bytes": 41601888,
+        "sha256": "6df249e52901714f30f9bb163ff47cedfa56f6df3385567b657610eeb8b8cfd3",
+        "url": "https://huggingface.co/cstr/cosyvoice3-0.5b-2512-GGUF/resolve/aa0ea5eb7279bcf54668bcbaa7348019de7d7178/cosyvoice3-hift-f16.gguf"
+      },
+      {
+        "path": "cosyvoice3-voices.gguf",
+        "bytes": 665472,
+        "sha256": "73b5cac894d8e715d418d0228d2878ad6e836a809ccb85799ff08ae5f63ac6a2",
+        "url": "https://huggingface.co/cstr/cosyvoice3-0.5b-2512-GGUF/resolve/aa0ea5eb7279bcf54668bcbaa7348019de7d7178/cosyvoice3-voices.gguf"
       }
     ]
   }

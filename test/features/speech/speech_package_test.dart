@@ -95,6 +95,31 @@ void main() {
     );
     expect(h.service.models.assets.single.state, 'missing');
   });
+  test('CosyVoice imports and verifies all four native companions', () async {
+    final archive = Archive()
+      ..add(
+        ArchiveFile.string(
+          'speech-package.json',
+          jsonEncode(SpeechHarness.cosyPackage().toJson()),
+        ),
+      );
+    for (final entry in SpeechHarness.cosyFixtureFiles.entries) {
+      archive.add(ArchiveFile.bytes(entry.key, entry.value));
+    }
+    final source = await File(
+      '${h.directory.path}/cosy.zip',
+    ).writeAsBytes(ZipEncoder().encode(archive));
+    final asset = await h.service.models.importArchive(source.path);
+    expect(asset.isReady, isTrue);
+    await h.service.models.validate(asset);
+
+    final voices = File('${asset.path}/cosyvoice3-voices.gguf');
+    await voices.writeAsBytes([0, 0, 0, 0, 4]);
+    await expectLater(
+      h.service.models.validate(asset, hashes: false),
+      throwsFormatException,
+    );
+  });
   test(
     'ZIP traversal is rejected before any write outside owned model storage',
     () async {

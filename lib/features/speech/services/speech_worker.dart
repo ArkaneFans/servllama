@@ -173,9 +173,7 @@ class SpeechWorker {
           file('model'),
           nThreads: 2,
           useGpu: false,
-          backend: manifest.recipe == SpeechRecipe.crispWhisper
-              ? 'whisper'
-              : 'qwen3-tts',
+          backend: manifest.recipe.crispBackend,
           libPath: 'libservllama_crispasr.so',
         );
         if (manifest.recipe.canClone) {

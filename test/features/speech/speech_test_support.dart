@@ -114,6 +114,43 @@ class SpeechHarness {
     return asset;
   }
 
+  static final cosyFixtureFiles = {
+    'cosyvoice3-llm-q4_k.gguf': [...'GGUF'.codeUnits, 1],
+    'cosyvoice3-flow-q8_0.gguf': [...'GGUF'.codeUnits, 2],
+    'cosyvoice3-hift-f16.gguf': [...'GGUF'.codeUnits, 3],
+    'cosyvoice3-voices.gguf': [...'GGUF'.codeUnits, 4],
+  };
+  static SpeechPackage cosyPackage() => SpeechPackage(
+    recipe: SpeechRecipe.crispCosyVoiceTts,
+    name: 'CosyVoice fixture',
+    revision: 'cosy-fixture',
+    files: cosyFixtureFiles.entries
+        .map(
+          (e) => SpeechFile(
+            path: e.key,
+            bytes: e.value.length,
+            sha256: sha256.convert(e.value).toString(),
+          ),
+        )
+        .toList(),
+    config: {
+      'model': 'cosyvoice3-llm-q4_k.gguf',
+      'flow': 'cosyvoice3-flow-q8_0.gguf',
+      'vocoder': 'cosyvoice3-hift-f16.gguf',
+      'voices': 'cosyvoice3-voices.gguf',
+    },
+  );
+  Future<ModelAsset> cosyModel() async {
+    final asset = await service.models.createAsset(
+      cosyPackage(),
+      state: 'ready',
+    );
+    for (final e in cosyFixtureFiles.entries) {
+      await File(p.join(asset.path, e.key)).writeAsBytes(e.value);
+    }
+    return asset;
+  }
+
   Future<void> close() async {
     for (final job in service.jobs.where((j) => j.state.active).toList()) {
       await service.cancel(job.id);

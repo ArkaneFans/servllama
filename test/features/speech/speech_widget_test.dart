@@ -117,6 +117,41 @@ void main() {
   });
 
   testWidgets(
+    'CosyVoice uses the default voice and retains marking disclosure',
+    (tester) async {
+      await tester.runAsync(() async {
+        final asset = await h.cosyModel();
+        await h.service.select(AssetKind.tts, asset.id);
+      });
+      tallScreen(tester);
+      await tester.pumpWidget(
+        app(
+          const SpeechPage(
+            initialKind: AssetKind.tts,
+            initialText: 'CosyVoice preview',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final l = AppLocalizations.of(tester.element(find.byType(SpeechPage)))!;
+      expect(find.text(l.v2CrispMarking), findsOneWidget);
+      expect(find.text(l.v2Voice), findsNothing);
+      expect(find.text(l.v2SpeakerId), findsNothing);
+      expect(find.text(l.v2SynthesisSpeed), findsNothing);
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(const Key('speech_start_tts')));
+        await until(() => h.workers.isNotEmpty);
+        await h.workers.single.started.future;
+      });
+      final snapshot = h.workers.single.received!;
+      expect(snapshot['package']['recipe'], 'crispCosyVoiceTts');
+      expect(snapshot['voice'], isNull);
+      expect(snapshot['speed'], 1);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
+  testWidgets(
     'TTS stays inline, prevents duplicates and preserves frozen text across tabs',
     (tester) async {
       await tester.runAsync(() async {

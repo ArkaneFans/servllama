@@ -1,7 +1,13 @@
 import 'dart:convert';
 import 'package:servllama/core/models/model_asset.dart';
 
-enum SpeechRecipe { sherpaWhisper, sherpaVits, crispWhisper, crispQwenTts }
+enum SpeechRecipe {
+  sherpaWhisper,
+  sherpaVits,
+  crispWhisper,
+  crispQwenTts,
+  crispCosyVoiceTts,
+}
 
 extension SpeechRecipeInfo on SpeechRecipe {
   AssetKind get kind => switch (this) {
@@ -9,6 +15,12 @@ extension SpeechRecipeInfo on SpeechRecipe {
     _ => AssetKind.tts,
   };
   String get engine => name.startsWith('sherpa') ? 'sherpa_onnx' : 'crispasr';
+  String? get crispBackend => switch (this) {
+    SpeechRecipe.crispWhisper => 'whisper',
+    SpeechRecipe.crispQwenTts => 'qwen3-tts',
+    SpeechRecipe.crispCosyVoiceTts => 'cosyvoice3-tts',
+    _ => null,
+  };
   bool get canClone => this == SpeechRecipe.crispQwenTts;
   bool get synthesisSpeed => this == SpeechRecipe.sherpaVits;
   List<String> get requiredRoles => switch (this) {
@@ -16,6 +28,7 @@ extension SpeechRecipeInfo on SpeechRecipe {
     SpeechRecipe.sherpaVits => ['model', 'tokens', 'lexicon'],
     SpeechRecipe.crispWhisper => ['model'],
     SpeechRecipe.crispQwenTts => ['model', 'codec', 'voice'],
+    SpeechRecipe.crispCosyVoiceTts => ['model', 'flow', 'vocoder', 'voices'],
   };
 }
 
@@ -120,6 +133,21 @@ class SpeechPackage {
     for (final role in recipe.requiredRoles) {
       if (config[role] is! String || !exactNames.contains(config[role])) {
         throw FormatException('Missing model dependency: $role');
+      }
+    }
+    if (recipe == SpeechRecipe.crispCosyVoiceTts) {
+      // CrispASR discovers these companions by fixed names beside the LLM.
+      final model = config['model'] as String;
+      final prefix = model.substring(0, model.lastIndexOf('/') + 1);
+      const companions = {
+        'flow': 'cosyvoice3-flow-q8_0.gguf',
+        'vocoder': 'cosyvoice3-hift-f16.gguf',
+        'voices': 'cosyvoice3-voices.gguf',
+      };
+      for (final entry in companions.entries) {
+        if (config[entry.key] != '$prefix${entry.value}') {
+          throw FormatException('Invalid CosyVoice companion: ${entry.key}');
+        }
       }
     }
     for (final rule in config['rules'] as List? ?? []) {

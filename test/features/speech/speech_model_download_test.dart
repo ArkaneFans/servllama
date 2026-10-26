@@ -14,6 +14,70 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test(
+    'CosyVoice downloads all companions before publishing a ready asset',
+    () async {
+      final harness = SpeechHarness();
+      await harness.initialize();
+      const channel = MethodChannel(
+        'com.arkanefans.servllama/download_environment',
+      );
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(channel, (_) async => 1 << 30);
+      final settings = DownloadSettingsStore(kvStorage: KvStorage());
+      await settings.saveHuggingFaceRoute(HuggingFaceRoute.official);
+      final requests = <Uri>[];
+      final dio = Dio();
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (request, handler) {
+            requests.add(request.uri);
+            handler.resolve(
+              Response(
+                requestOptions: request,
+                statusCode: 200,
+                data: ResponseBody.fromBytes(
+                  SpeechHarness.cosyFixtureFiles[request
+                      .uri
+                      .pathSegments
+                      .last]!,
+                  200,
+                ),
+              ),
+            );
+          },
+        ),
+      );
+      final service = SpeechModelService(
+        harness.service.models.models,
+        harness.service.models.repository,
+        harness.service.root,
+        downloader: ModelDownloadService(dio: dio),
+        downloadSettings: settings,
+      );
+      addTearDown(() async {
+        service.dispose();
+        dio.close();
+        messenger.setMockMethodCallHandler(channel, null);
+        await harness.close();
+      });
+      final json = SpeechHarness.cosyPackage().toJson();
+      for (final file in json['files'] as List) {
+        file['url'] =
+            'https://huggingface.co/test/cosyvoice/resolve/pinned/${file['path']}';
+      }
+      final asset = await service.createAsset(SpeechPackage.fromJson(json));
+      await service.resume(asset);
+      expect(
+        requests.map((uri) => uri.pathSegments.last),
+        SpeechHarness.cosyFixtureFiles.keys,
+      );
+      expect((await service.models.asset(asset.id))!.isReady, isTrue);
+      await service.validate(asset);
+    },
+  );
+
+  test(
     'speech retry reads the selected route and keeps pinned metadata',
     () async {
       final harness = SpeechHarness();

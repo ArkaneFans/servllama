@@ -298,7 +298,7 @@ class _SpeechPageState extends State<SpeechPage> {
                             onChanged: (v) => setState(() => speed = v),
                           ),
                         ],
-                        if (recipe?.canClone == true)
+                        if (recipe?.engine == 'crispasr')
                           Text(
                             l.v2CrispMarking,
                             style: Theme.of(context).textTheme.bodySmall,

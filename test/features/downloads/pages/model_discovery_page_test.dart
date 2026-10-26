@@ -60,7 +60,7 @@ void main() {
     await tester.tap(find.text('不超过 200 MiB'));
     await tester.tap(find.widgetWithText(FilterChip, '声音克隆'));
     await tester.pumpAndSettle();
-    expect(find.byType(SpeechCatalogCard), findsOneWidget);
+    expect(find.byType(SpeechCatalogCard), findsNothing);
     await tester.tap(find.text('重置筛选'));
     await tester.pumpAndSettle();
     expect(find.byType(SpeechCatalogCard), findsNWidgets(4));
