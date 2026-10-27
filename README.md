@@ -1,127 +1,147 @@
 <div align="center">
   <img src="assets/app_icon.svg" alt="ServLlama icon" width="112" />
   <h1>ServLlama</h1>
-  <p><strong>Turn your phone into a powerful local LLM server with one tap</strong></p>
-
+  <p><strong>An Android AI app supporting local and cloud models</strong></p>
   <p>
     <a href="https://github.com/ArkaneFans/Servllama/releases/latest">
       <img alt="Download the latest release" src="https://img.shields.io/badge/Download-Latest_Release-3DDC84?style=for-the-badge&logo=android&logoColor=white" />
     </a>
   </p>
 
-<p align="center">
-  <strong>English</strong> |
-  <a href="./README_ZH.md">简体中文</a>
-</p>
-
-<p align="center">
-  <table>
-    <tr>
-      <td><img src="docs/Screenshot1.jpg" width="280"></td>
-      <td><img src="docs/Screenshot2.jpg" width="280"></td>
-      <td><img src="docs/Screenshot3.jpg" width="280"></td>
-      <td><img src="docs/Screenshot4.jpg" width="280"></td>
-    </tr>
-  </table>
-</p>
-
+  <p><strong>English</strong> | <a href="README_ZH.md">简体中文</a></p>
+  <p>
+    <a href="#quick-start">Quick Start</a> &middot;
+    <a href="#features">Features</a> &middot;
+    <a href="https://github.com/ArkaneFans/Servllama/issues">Feedback</a>
+  </p>
 </div>
 
 ## Overview
 
-ServLlama turns your Android device into a self-contained local LLM server, combining model discovery and downloads, switching between the llama.cpp and MNN inference engines, server controls, log viewing, and chat in a single app. Model inference runs directly on the device, and other apps on the same phone or local network can call it through an OpenAI-compatible API.
+ServLlama is an open-source Android AI app that integrates local models and cloud providers in one place. You can chat offline with models on your device, or connect your own API service. ServLlama can also turn your phone into an OpenAI-compatible local LLM server for other apps on the same device or local network. The Voice Workshop provides offline transcription and speech synthesis.
 
-## Features
+## Screenshots
 
-- Dual inference engines: run GGUF models with [llama.cpp](https://github.com/ggml-org/llama.cpp) or MNN models with [MNN](https://github.com/alibaba/MNN).
-- In-app model discovery: browse featured models, or search Hugging Face and ModelScope at the same time.
-- Reliable download management: download GGUF / MNN models with support for pausing, resuming, retrying, and switching sources; tasks persist across page and app state changes.
-- OpenAI-compatible API serving: core support for `GET /v1/models` and `POST /v1/chat/completions`, including streaming responses and optional API-key authentication, with the service kept alive in the background (if the service drops after the app goes to the background, see Usage Notes).
-- Complete chat experience: streaming output, collapsible reasoning, Markdown and code blocks, image input for compatible vision models, message editing and regeneration, and conversation history and search.
-- Practical server controls: switch between local-only and LAN access, configure the port and API key, tune llama.cpp inference parameters, and view, filter, copy, or export logs.
-- Android integration: foreground service notifications, light and dark themes, and Chinese and English interfaces.
+<p align="center">
+  <img src="docs/Screenshot1.jpg" alt="ServLlama screenshot 1" width="220" />
+  <img src="docs/Screenshot2.jpg" alt="ServLlama screenshot 2" width="220" />
+  <img src="docs/Screenshot3.jpg" alt="ServLlama screenshot 3" width="220" />
+  <img src="docs/Screenshot4.jpg" alt="ServLlama screenshot 4" width="220" />
+</p>
 
-## Inference Engines
+## Download
 
-| Engine | Model format | Compatibility / ecosystem |
-| --- | --- | --- |
-| llama.cpp | A single `.gguf` file, with an optional `mmproj` file for vision | GGUF is the most widely adopted format for community model distribution — most popular open-source models on Hugging Face ship ready-made quantized GGUF builds, so choices are plentiful. |
-| MNN | MNN model | Open-sourced and actively maintained by Alibaba, with deep optimization for mobile ARM CPU / GPU and strong performance; models must be exported through the MNN conversion toolchain. |
+Download the APK from [GitHub Releases](https://github.com/ArkaneFans/Servllama/releases/latest).
 
-Both engines require a model to be selected before startup. Only one engine runs at a time and owns the configured server port. Both engines expose the core endpoints above; other llama-server-specific features are available only while the llama.cpp engine is active.
+| Requirement | Supported |
+| --- | --- |
+| Platform | Android 9 (API 28) or later |
+| Device architecture | 64-bit ARM (`arm64-v8a`) |
+| Local models | Enough storage and memory for the models you choose |
 
-Use the Vision control on a GGUF download card to choose whether to download a projector with the model. Model settings let you open the original repository, download or delete projector versions, and select one installed version to use. Turning vision off keeps the files. Deleting the selected version selects another installed version, or turns vision off when none remain. Locally imported models support importing a compatible projector and toggling vision separately.
-
-## Requirements
-
-- Android 9 (API 28) or later
-- 64-bit ARM device (`arm64-v8a`)
-- Enough free storage and memory for the selected model
-
-Actual speed and memory usage depend on the model, quantization, context length, and device. Start with a smaller model if you are unsure what your phone can handle.
+Local LLMs and offline speech work without an internet connection after their models are installed. Cloud providers, web search, remote MCP services, and model downloads require network access. Start with a smaller local model if you are unsure what your phone can handle.
 
 ## Quick Start
 
-1. Download the latest APK from [GitHub Releases](https://github.com/ArkaneFans/Servllama/releases/latest) and install it.
-2. Open the model library. Download a model from Hugging Face or ModelScope, or import a local GGUF or MNN model.
-3. Choose an inference engine and model from the Chat or Server page.
-4. Start the server and chat in ServLlama, or copy the API Base URL into another AI client.
-5. For access from another device, select **Listen on all** in Server config and set an API key.
+After installing the app, choose a starting point below. You can use local and cloud models in the same app.
 
-The default server address is `http://127.0.0.1:8080`, which is accessible only from the Android device itself.
+### Chat with a cloud model
 
-## API
+1. Open **Settings → Providers**. Configure a preset provider or tap **+** to add your own service, then enter its API URL and API Key.
+2. Fetch the provider's model list or add a model manually, and make sure the provider is enabled.
+3. Select a model in the chat input bar and start a conversation. To keep different roles separate, create an assistant with its own instructions and model.
 
-Use the model ID returned by `/v1/models` in chat requests:
+Cloud chat does not require starting the local server.
 
-```bash
-curl http://<device-ip>:8080/v1/models
-```
+### Chat with a local model
 
-```bash
-curl -N http://<device-ip>:8080/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "your-model-id",
-    "messages": [{"role": "user", "content": "Hello"}],
-    "stream": true
-  }'
-```
+1. Open **Models** from the sidebar. Use **Discover** to download a GGUF or MNN model, or tap **+** to import a local model.
+2. Select the installed local model in the chat model picker. ServLlama loads it and starts the local service.
+3. Start chatting. For vision-capable GGUF models, also download or import a compatible projector (`mmproj`).
 
-If an API key is configured, add `-H "Authorization: Bearer <api-key>"`. For same-device clients, replace `<device-ip>` with `127.0.0.1`.
+### Use offline speech
 
-## Build from Source
+1. Open **Voice Workshop** from the sidebar, then open **Speech models** and install a transcription or speech synthesis model through **Discover**.
+2. Select the corresponding model. Record or import audio to transcribe it, or enter text to synthesize speech.
+3. Review the result, insert a transcript into a chat draft, or export text and audio.
 
-You need a Flutter SDK compatible with Dart 3.9, Android SDK, and JDK 17.
+## Features
 
-```bash
-git clone https://github.com/ArkaneFans/Servllama.git
-cd Servllama
-flutter pub get
-flutter build apk --release
-```
+### Chat and Assistants
 
-MNN native artifacts are provided by the `mnn_engine` package. llama-server is a prebuilt Snapdragon bundle (CPU variants + OpenCL + Hexagon) that is **not** stored in git. Copy the `.so` files into `android/app/src/main/jniLibs/arm64-v8a/` from a release extra, the GitHub Actions artifact, or a local WSL build before compiling the APK. See `patches/llama.cpp/README.md`.
+- **Local and cloud models:** support OpenAI-compatible, Anthropic, and Gemini APIs alongside on-device GGUF and MNN models.
+- **Your own assistants:** give each assistant a name, instructions, model, generation settings, and enabled tools.
+- **Conversation management:** streaming replies, collapsible reasoning, Markdown and code blocks, supported image input, conversation search, drafts, message editing, and reply versions.
 
-For development verification, run `flutter analyze` and `flutter test`.
+### Local Models and Serving
 
-The GitHub workflow `.github/workflows/build-llama-server-android.yml` builds that bundle. It checks out the selected llama.cpp tag, applies `patches/llama.cpp/0001-hexagon-skip-unsupported-devices.patch`, and compiles CPU variants, OpenCL, and Hexagon inside `ghcr.io/snapdragon-toolchain/arm64-android:v0.7`. The patch matches v0.4.1; other tags fail the job when it does not apply.
+- **Two inference engines:** [llama.cpp](https://github.com/ggml-org/llama.cpp) for GGUF files, and [MNN](https://github.com/alibaba/MNN) for complete MNN model directories.
+- **Model discovery and downloads:** browse featured models or search Hugging Face and ModelScope; pause, resume, retry, and switch download sources.
+- **Model management:** import, rename, delete, and configure installed models, including compatible vision projectors for GGUF models.
+- **A server on your phone:** publish a local model to other clients, with configurable ports, loopback or LAN access, optional API-key authentication, and foreground service notifications.
 
-## Usage Notes
+### Tools, Skills, and MCP
 
-- Listening on all network interfaces exposes the server to the current Wi-Fi, hotspot, and VPN networks. Use an API key and a trusted network.
-- Some Android vendors restrict long-running background services. If requests stop after the app enters the background, allow ServLlama to auto-start and run in the background, and disable battery optimization for it.
-- Models can consume several gigabytes of storage and memory. Choose models that fit your device.
+- **Built-in tools:** web search, current time, and questions that let the model ask you for clarification.
+- **Skills:** import Markdown or ZIP packages, or paste skill instructions, and enable them for an assistant. Skills provide instructions and resources; packaged scripts are not executed.
+- **Remote MCP:** connect HTTP/SSE MCP servers, discover their tools, and manage which tools an assistant can use. Tool calls have visible records and approval prompts where required.
 
-## Related Projects
+Tool use requires a model that supports tool calling. Local shell execution and stdio MCP servers are not supported.
 
-- [llama.cpp](https://github.com/ggml-org/llama.cpp)
-- [MNN](https://github.com/alibaba/MNN)
-- [mnn_engine](https://pub.dev/packages/mnn_engine)
+### Offline Voice Workshop
+
+- **Speech to text:** record or import audio, review and edit transcripts, and export TXT. Subtitle export is available when the model provides reliable timestamps.
+- **Text to speech:** synthesize text locally, preview the result, and export WAV audio.
+- **Chat integration:** insert transcribed text into a draft and read assistant replies aloud. Speech jobs keep their results and can run alongside a local LLM.
+
+### Everyday Use
+
+- **Local data:** conversations, drafts, configuration, and speech results are stored on your device; API credentials use secure storage.
+- **Appearance and navigation:** light and dark themes, Chinese and English interfaces, and a sidebar for assistants, history, models, services, and settings.
+- **Diagnostics:** view, filter, copy, and export application and runtime logs when troubleshooting.
+
+## Connect Another AI Client
+
+Open **Server**, choose the engine and model, and start the service. Use the address shown on that page when configuring another OpenAI-compatible client.
+
+| Client setting | Value |
+| --- | --- |
+| API Base URL on the same phone | `http://127.0.0.1:8080/v1` with the default port |
+| API Base URL on another device | `http://<phone-ip>:<port>/v1`; enable listening on all interfaces first |
+| API Key | The key configured for your local server, if authentication is enabled |
+| Model ID | The ID returned by `GET /v1/models` |
+
+Both engines support `GET /v1/models` and `POST /v1/chat/completions`, including streaming replies. Additional llama-server-specific endpoints depend on the active engine. Only one local LLM runs at a time; publishing a model for other clients and choosing a chat model are separate settings.
+
+## Architecture
+
+
+<p align="center">
+  <img src="docs/architecture.svg" alt="ServLlama architecture" width="100%" />
+</p>
+
+
+## Usage and Privacy Notes
+
+- **Local does not mean every feature is offline.** Cloud providers receive the conversation content you send to them; search and remote tools receive the inputs needed for their tasks. Choose services you trust.
+- **Speech stays local.** Transcription does not automatically upload the original audio or send a chat message. Speech synthesis and recognition are in-app features, not endpoints of the local LLM API.
+- **Protect LAN access.** Listening on all interfaces exposes your server to connected Wi-Fi, hotspot, and VPN networks. Set an API key and use a trusted network.
+- **Background limits still apply.** If Android stops the service, allow notifications, background activity, and auto-start where available, and review battery optimization settings.
+- **Models and devices differ.** Supported languages, vision, tools, GPU acceleration, and output quality depend on the model and device. Initial loading or GPU tuning can take time; try CPU or a higher-precision setting if output is unreliable. Downloaded models have their own licenses.
+
+## Feedback and Contribution
+
+Report bugs and suggestions through [GitHub Issues](https://github.com/ArkaneFans/Servllama/issues). Include your app version, phone model, Android version, model/backend, and reproduction steps. Remove API keys and private content before sharing logs.
+
+For source development, see [AGENTS.md](AGENTS.md). Native preparation is documented in [the llama.cpp build notes](patches/llama.cpp/README.md) and [the speech build script](tool/build_speech_native.ps1); the MNN plugin is maintained in [mnn_engine](https://github.com/ArkaneFans/mnn_engine). Detailed feature and technical documents live in [docs/engineering](docs/engineering).
+
+## Acknowledgements
+
+- [llama.cpp](https://github.com/ggml-org/llama.cpp), [MNN](https://github.com/alibaba/MNN), and [mnn_engine](https://github.com/ArkaneFans/mnn_engine) for local LLM inference.
+- [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) and [CrispASR](https://github.com/CrispStrobe/CrispASR) for offline speech.
+- [Kelivo](https://github.com/Chevey339/kelivo) and [RikkaHub](https://github.com/re-ovo/rikkahub) for inspiration in chat interaction and information organization.
+- [Linux DO Community](https://linux.do/).
 
 ## License
 
-ServLlama is released under the [GNU Affero General Public License v3.0](LICENSE).
-
----
-Acknowledgements [`Linux DO Community`](https://linux.do/).
+ServLlama is released under the [GNU Affero General Public License v3.0](LICENSE). Third-party components and models retain their respective licenses.
