@@ -23,10 +23,10 @@ ServLlama is an open-source Android AI app that integrates local models and clou
 ## Screenshots
 
 <p align="center">
-  <img src="docs/Screenshot1.jpg" alt="ServLlama screenshot 1" width="220" />
-  <img src="docs/Screenshot2.jpg" alt="ServLlama screenshot 2" width="220" />
-  <img src="docs/Screenshot3.jpg" alt="ServLlama screenshot 3" width="220" />
-  <img src="docs/Screenshot4.jpg" alt="ServLlama screenshot 4" width="220" />
+  <img src="docs/Screenshot1.jpg" alt="ServLlama screenshot 1" width="200" />
+  <img src="docs/Screenshot2.jpg" alt="ServLlama screenshot 2" width="200" />
+  <img src="docs/Screenshot3.jpg" alt="ServLlama screenshot 3" width="200" />
+  <img src="docs/Screenshot4.jpg" alt="ServLlama screenshot 4" width="200" />
 </p>
 
 ## Download
