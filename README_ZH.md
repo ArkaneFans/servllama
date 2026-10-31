@@ -23,10 +23,10 @@ ServLlama 是一款开源 Android AI 应用，将本地模型与云端供应商�
 ## 应用截图
 
 <p align="center">
-  <img src="docs/Screenshot1.jpg" alt="ServLlama 应用截图 1" width="220" />
-  <img src="docs/Screenshot2.jpg" alt="ServLlama 应用截图 2" width="220" />
-  <img src="docs/Screenshot3.jpg" alt="ServLlama 应用截图 3" width="220" />
-  <img src="docs/Screenshot4.jpg" alt="ServLlama 应用截图 4" width="220" />
+  <img src="docs/Screenshot1.jpg" alt="ServLlama 应用截图 1" width="200" />
+  <img src="docs/Screenshot2.jpg" alt="ServLlama 应用截图 2" width="200" />
+  <img src="docs/Screenshot3.jpg" alt="ServLlama 应用截图 3" width="200" />
+  <img src="docs/Screenshot4.jpg" alt="ServLlama 应用截图 4" width="200" />
 </p>
 
 ## 下载安装
