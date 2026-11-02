@@ -9,6 +9,72 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get chatContextChanged =>
+      'Send a message to measure the current context.';
+
+  @override
+  String get chatContextUsage => 'Context usage';
+
+  @override
+  String chatContextTokens(String used, String capacity) {
+    return '$used / $capacity tokens';
+  }
+
+  @override
+  String get chatContextActual => 'Backend token count';
+
+  @override
+  String get chatContextUnknownCapacity =>
+      'Context limit unavailable. No percentage is shown without backend data.';
+
+  @override
+  String get chatContextActualNote =>
+      'Latest response usage snapshot, including cached tokens; not cumulative billing. Drafts and changed conversations require a new measurement.';
+
+  @override
+  String get chatContextBackendCapacity =>
+      'Context limit reported by the running backend.';
+
+  @override
+  String get chatContextUnavailable => 'Token count unavailable';
+
+  @override
+  String get chatSpeedEstimated => 'estimated';
+
+  @override
+  String get chatTokenUnknown => 'unknown';
+
+  @override
+  String chatInputTokenUsage(String count, String cached) {
+    return 'Input $count (cached $cached)';
+  }
+
+  @override
+  String chatOutputTokenUsage(String count) {
+    return 'Output $count';
+  }
+
+  @override
+  String get settingsGenerationSpeed => 'Show generation stats';
+
+  @override
+  String get settingsGenerationSpeedSubtitle =>
+      'Show speeds, input/output tokens and cache hits below each reply';
+
+  @override
+  String chatPrefillSpeed(String speed) {
+    return 'Prefill $speed';
+  }
+
+  @override
+  String chatDecodeSpeed(String speed) {
+    return 'Decode $speed';
+  }
+
+  @override
+  String get chatSpeedUnavailable => 'Unavailable';
+
+  @override
   String get v2McpEmpty => 'No MCP servers yet';
 
   @override

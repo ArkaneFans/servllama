@@ -1,3 +1,4 @@
+import 'package:servllama/features/chat/models/generation_metrics.dart';
 import 'package:hive/hive.dart';
 import 'package:servllama/features/chat/models/message_author.dart';
 import 'package:servllama/features/chat/models/chat_message_version_record.dart';
@@ -23,6 +24,7 @@ class ChatMessageRecord {
     this.sessionId,
     this.runId,
     this.author,
+    this.generationMetrics,
     this.modelName,
     this.reasoningContent,
     this.imageFilePaths = const [],
@@ -47,6 +49,7 @@ class ChatMessageRecord {
 
   final String? runId;
   final MessageAuthor? author;
+  final GenerationMetrics? generationMetrics;
 
   @HiveField(4)
   final String? modelName;
@@ -70,6 +73,8 @@ class ChatMessageRecord {
   ChatMessageRecord withVersion(ChatMessageVersionRecord version, int index) =>
       copyWith(
         content: version.content,
+        generationMetrics: version.generationMetrics,
+        clearGenerationMetrics: version.generationMetrics == null,
         runId: version.runId,
         clearRunId: version.runId == null,
         author: version.author,
@@ -91,6 +96,8 @@ class ChatMessageRecord {
     String? sessionId,
     String? runId,
     MessageAuthor? author,
+    GenerationMetrics? generationMetrics,
+    bool clearGenerationMetrics = false,
     bool clearAuthor = false,
     bool clearRunId = false,
     bool clearSessionId = false,
@@ -112,6 +119,9 @@ class ChatMessageRecord {
       sessionId: clearSessionId ? null : sessionId ?? this.sessionId,
       runId: clearRunId ? null : runId ?? this.runId,
       author: clearAuthor ? null : author ?? this.author,
+      generationMetrics: clearGenerationMetrics
+          ? null
+          : generationMetrics ?? this.generationMetrics,
       modelName: clearModelName ? null : modelName ?? this.modelName,
       reasoningContent: clearReasoningContent
           ? null

@@ -11,6 +11,8 @@ Map<String, Object?> encodeMessage(ChatMessageRecord m) => {
   'runId': m.runId,
   if (m.author != null) 'author': m.author!.toJson(),
   'modelName': m.modelName,
+  if (m.generationMetrics != null)
+    'generationMetrics': m.generationMetrics!.toJson(),
   'reasoningContent': m.reasoningContent,
   'imageFilePaths': m.imageFilePaths,
   'versionIds': m.versionIds,
@@ -24,6 +26,8 @@ Map<String, Object?> encodeVersion(ChatMessageVersionRecord v) => {
   'content': v.content,
   'createdAt': v.createdAt.millisecondsSinceEpoch,
   'modelName': v.modelName,
+  if (v.generationMetrics != null)
+    'generationMetrics': v.generationMetrics!.toJson(),
   'reasoningContent': v.reasoningContent,
   'imageFilePaths': v.imageFilePaths,
 };

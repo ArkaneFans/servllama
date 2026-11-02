@@ -1,6 +1,7 @@
 import 'package:servllama/app/providers/app_locale_provider.dart';
 import 'package:servllama/app/providers/app_theme_mode_provider.dart';
 import 'package:servllama/app/providers/chat_timeout_provider.dart';
+import 'package:servllama/app/providers/chat_display_provider.dart';
 import 'package:servllama/core/providers/engine_runtime_provider.dart';
 import 'package:servllama/core/providers/model_management_provider.dart';
 import 'package:servllama/core/services/app_l10n_service.dart';
@@ -16,6 +17,7 @@ class AppProviderScope {
     AppLocaleProvider? locale,
     AppThemeModeProvider? theme,
     ChatTimeoutProvider? timeout,
+    ChatDisplayProvider? chatDisplay,
     EngineRuntimeProvider? runtime,
     AssistantProvider? assistants,
     ModelManagementProvider? library,
@@ -23,7 +25,8 @@ class AppProviderScope {
     ChatProvider? chat,
   }) : locale = locale ?? AppLocaleProvider(),
        theme = theme ?? AppThemeModeProvider(),
-       timeout = timeout ?? ChatTimeoutProvider() {
+       timeout = timeout ?? ChatTimeoutProvider(),
+       chatDisplay = chatDisplay ?? ChatDisplayProvider() {
     this.runtime = runtime ?? EngineRuntimeProvider();
     this.assistants =
         assistants ??
@@ -57,6 +60,7 @@ class AppProviderScope {
   final AppLocaleProvider locale;
   final AppThemeModeProvider theme;
   final ChatTimeoutProvider timeout;
+  final ChatDisplayProvider chatDisplay;
   late final EngineRuntimeProvider runtime;
   late final AssistantProvider assistants;
   late final ModelManagementProvider library;

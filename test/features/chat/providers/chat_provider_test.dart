@@ -677,15 +677,16 @@ void main() {
     test(
       'deleteMessage preserves an attachment outside the owned attachment directory',
       () async {
-        final attachment = File(
-          '${Directory.systemTemp.path}\\servllama_chat_provider_attachment.txt',
+        final externalDirectory = await Directory.systemTemp.createTemp(
+          'servllama_chat_provider_external_',
         );
-        await attachment.writeAsString('temp');
+        final attachment = File.fromUri(
+          externalDirectory.uri.resolve('attachment.txt'),
+        );
         addTearDown(() async {
-          if (await attachment.exists()) {
-            await attachment.delete();
-          }
+          await externalDirectory.delete(recursive: true);
         });
+        await attachment.writeAsString('temp');
 
         repository.sessions = <ChatSessionRecord>[
           _session(

@@ -42,7 +42,7 @@ void main() {
     'release schema is known to Drift and rejects dangling ownership',
     () async {
       expect(db.allTables.length, 17);
-      expect(db.schemaVersion, 1);
+      expect(db.schemaVersion, 2);
       expect(
         (await db.query(
           'PRAGMA foreign_keys',

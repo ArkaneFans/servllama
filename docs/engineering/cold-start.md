@@ -7,7 +7,7 @@
    admission failures use the existing visible `BootstrapGate` with explicit
    retry. Migration still precedes construction of business providers.
 2. `ServLlamaApp` immediately displays `MainScaffold`, as on main. Locale,
-   theme, timeout, runtime status and assistant/provider metadata restore
+   theme, timeout, chat display preferences, runtime status and assistant/provider metadata restore
    independently without a whole-app readiness future. `AppProviderScope`
    only composes the existing owners; it performs no I/O or readiness gating.
    `ChatPage` starts its draft/history read after the first frame, without
@@ -86,7 +86,7 @@ whether to reuse/stop a resident model. Restoration never loads model weights,
 starts an idle server, changes the assistant's target or replays a Run. MNN
 restoration reads service status, not `initializeEngine`. Explicit start and
 native cleanup retain the existing cancellation and resource-lease boundaries.
-Locale/theme/timeout edits similarly join their initial read, so an early edit
+Locale/theme/timeout/chat-display edits similarly join their initial read, so an early edit
 cannot later be overwritten by restoration.
 
 ## Background services and idle work

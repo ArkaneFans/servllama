@@ -130,6 +130,7 @@ class MessageRevisions extends Table {
   TextColumn get reasoningContent => text().nullable()();
   TextColumn get modelName => text().nullable()();
   TextColumn get author => text().nullable()();
+  TextColumn get generationMetrics => text().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -356,9 +357,17 @@ class AppDatabase extends _$AppDatabase {
   }();
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
   @override
   MigrationStrategy get migration => MigrationStrategy(
+    onUpgrade: (migrator, from, to) async {
+      if (from < 2) {
+        await migrator.addColumn(
+          messageRevisions,
+          messageRevisions.generationMetrics,
+        );
+      }
+    },
     beforeOpen: (_) async {
       await customStatement('PRAGMA foreign_keys = ON');
       await customStatement('PRAGMA busy_timeout = 5000');

@@ -17,6 +17,21 @@ import 'package:servllama/shared/widgets/bundled_svg_asset.dart';
 import '../support/app_startup_fixture.dart';
 
 void main() {
+  void expectNoStartupLoader(WidgetTester tester) {
+    // The context meter is intentional, determinate UI, not a startup spinner.
+    const meterKey = Key('chat_context_usage_progress');
+    final meter = find.byKey(meterKey);
+    expect(meter, findsOneWidget);
+    expect(tester.widget<CircularProgressIndicator>(meter).value, 0.0);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is CircularProgressIndicator && widget.key != meterKey,
+      ),
+      findsNothing,
+    );
+  }
+
   Widget host({
     required Future<bool> Function() pendingMigration,
     required BootstrapInitializer bootstrap,
@@ -44,7 +59,7 @@ void main() {
       same(fixture.chat),
     );
     expect(find.byType(MigrationFlowView), findsNothing);
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expectNoStartupLoader(tester);
     expect(fixture.assistants.loaded, isFalse);
     expect(fixture.assistants.reconciliationModes, [false]);
     await tester.pump();
@@ -70,7 +85,25 @@ void main() {
     await tester.pump();
     expect(tester.binding.sendFramesToEngine, isTrue);
     expect(find.byType(MainScaffold), findsOneWidget);
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expectNoStartupLoader(tester);
+    expect(fixture.assistants.loaded, isTrue);
+    pending.complete();
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox());
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('homepage paints while chat display restoration is blocked', (
+    tester,
+  ) async {
+    final fixture = AppStartupFixture();
+    final pending = Completer<void>();
+    fixture.chatDisplay.pending = pending;
+    await tester.pumpWidget(ServLlamaApp(scope: fixture.scope));
+    await tester.pump();
+    expect(tester.binding.sendFramesToEngine, isTrue);
+    expect(find.byType(MainScaffold), findsOneWidget);
+    expectNoStartupLoader(tester);
     expect(fixture.assistants.loaded, isTrue);
     pending.complete();
     await tester.pumpAndSettle();

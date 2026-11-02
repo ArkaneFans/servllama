@@ -1,3 +1,4 @@
+import 'package:servllama/features/chat/models/generation_metrics.dart';
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
@@ -104,6 +105,7 @@ class ChatRecordStore {
         content: m.content,
         createdAt: m.createdAt,
         modelName: m.modelName,
+        generationMetrics: m.generationMetrics,
         reasoningContent: m.reasoningContent,
         imageFilePaths: m.imageFilePaths,
       ),
@@ -149,10 +151,10 @@ class ChatRecordStore {
             [v.messageId],
           )).single.read<int>('next');
     await db.execute(
-      'INSERT INTO message_revisions(id,message_id,position,run_id,is_draft,created_at,content,reasoning_content,model_name,author) '
-      'VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET '
+      'INSERT INTO message_revisions(id,message_id,position,run_id,is_draft,created_at,content,reasoning_content,model_name,author,generation_metrics) '
+      'VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET '
       'is_draft=excluded.is_draft,content=excluded.content,reasoning_content=excluded.reasoning_content,'
-      'model_name=excluded.model_name,author=excluded.author,run_id=excluded.run_id,created_at=excluded.created_at',
+      'model_name=excluded.model_name,author=excluded.author,generation_metrics=excluded.generation_metrics,run_id=excluded.run_id,created_at=excluded.created_at',
       [
         v.id,
         v.messageId,
@@ -164,6 +166,9 @@ class ChatRecordStore {
         v.reasoningContent,
         v.modelName,
         v.author == null ? null : jsonEncode(v.author!.toJson()),
+        v.generationMetrics == null
+            ? null
+            : jsonEncode(v.generationMetrics!.toJson()),
       ],
     );
     await db.execute('DELETE FROM revision_attachments WHERE revision_id=?', [
@@ -229,6 +234,7 @@ class ChatRecordStore {
         runId: v.runId,
         author: v.author,
         modelName: v.modelName,
+        generationMetrics: v.generationMetrics,
         reasoningContent: v.reasoningContent,
         imageFilePaths: v.imageFilePaths,
         versionIds: ids[id]!,
@@ -257,6 +263,7 @@ class ChatRecordStore {
     List<String> images,
   ) {
     final author = r.readNullable<String>('author');
+    final metrics = r.readNullable<String>('generation_metrics');
     return ChatMessageVersionRecord(
       id: r.read<String>('id'),
       messageId: r.read<String>('message_id'),
@@ -264,6 +271,9 @@ class ChatRecordStore {
       content: r.read<String>('content'),
       createdAt: DateTime.fromMillisecondsSinceEpoch(r.read<int>('created_at')),
       modelName: r.readNullable<String>('model_name'),
+      generationMetrics: metrics == null
+          ? null
+          : GenerationMetrics.fromJson(jsonDecode(metrics)),
       reasoningContent: r.readNullable<String>('reasoning_content'),
       author: author == null
           ? null

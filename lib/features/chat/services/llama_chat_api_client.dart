@@ -1,3 +1,4 @@
+import 'package:servllama/features/chat/models/generation_metrics.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -69,6 +70,8 @@ class LlamaChatApiClient {
     required List<ChatMessageRecord> messages,
     required CancelToken cancelToken,
   }) async* {
+    final watch = Stopwatch()..start();
+    int? firstOutputUs;
     Response<ResponseBody> response;
     try {
       response = await _dio.post<ResponseBody>(
@@ -76,6 +79,7 @@ class LlamaChatApiClient {
         data: <String, dynamic>{
           'model': modelId,
           'stream': true,
+          'stream_options': {'include_usage': true},
           'messages': await _serializeMessages(messages),
         },
         cancelToken: cancelToken,
@@ -99,6 +103,44 @@ class LlamaChatApiClient {
       );
     }
 
+    if (response.headers
+            .value('content-type')
+            ?.toLowerCase()
+            .contains('application/json') ??
+        false) {
+      final decoded = jsonDecode(await _readResponseBody(body));
+      if (cancelToken.isCancelled) return;
+      if (decoded is! Map<String, dynamic>) {
+        throw const LlamaChatApiException('Invalid completion response');
+      }
+      final error = _messageFromBody(decoded);
+      if (decoded['error'] != null) {
+        throw LlamaChatApiException(error ?? 'Request failed');
+      }
+      final parsed = _parseSseLine('data: ${jsonEncode(decoded)}');
+      if (parsed?.delta != null && !parsed!.delta!.isEmpty) yield parsed.delta!;
+      if (!cancelToken.isCancelled &&
+          parsed?.successfulFinish == true &&
+          parsed?.metrics != null) {
+        yield ChatStreamDelta(generationMetrics: parsed!.metrics);
+      }
+      return;
+    }
+
+    GenerationMetrics? metrics;
+    var successfulFinish = false, unsuccessfulFinish = false;
+    GenerationMetrics? completedMetrics() {
+      final first = firstOutputUs;
+      return unsuccessfulFinish
+          ? null
+          : metrics?.withEstimates(
+              firstTokenMilliseconds: first == null ? null : first / 1000,
+              outputMilliseconds: first == null
+                  ? null
+                  : (watch.elapsedMicroseconds - first) / 1000,
+            );
+    }
+
     // A stateful decoder is required: multi-byte UTF-8 sequences can be
     // split across network chunks. LineSplitter also emits a trailing line
     // that lacks a final newline when the stream closes.
@@ -112,13 +154,39 @@ class LlamaChatApiClient {
         if (parsed == null) {
           continue;
         }
+        if (cancelToken.isCancelled) return;
         if (parsed.isDone) {
+          final result = completedMetrics();
+          if (result != null) yield ChatStreamDelta(generationMetrics: result);
           return;
         }
+        final usage = parsed.metrics;
+        if (parsed.hasTimings) {
+          metrics = (usage ?? const GenerationMetrics()).withUsage(
+            inputTokens: usage?.inputTokens ?? metrics?.inputTokens,
+            outputTokens: usage?.outputTokens ?? metrics?.outputTokens,
+            cachedInputTokens:
+                usage?.cachedInputTokens ?? metrics?.cachedInputTokens,
+          );
+        }
+        if (usage != null) {
+          metrics = (metrics ?? const GenerationMetrics()).withUsage(
+            inputTokens: usage.inputTokens,
+            outputTokens: usage.outputTokens,
+            cachedInputTokens: usage.cachedInputTokens,
+          );
+        }
+        if (parsed.unsuccessfulFinish) unsuccessfulFinish = true;
+        successfulFinish = parsed.successfulFinish || successfulFinish;
         final delta = parsed.delta;
         if (delta != null && !delta.isEmpty) {
+          firstOutputUs ??= watch.elapsedMicroseconds;
           yield delta;
         }
+      }
+      if (successfulFinish && metrics != null && !cancelToken.isCancelled) {
+        final result = completedMetrics();
+        if (result != null) yield ChatStreamDelta(generationMetrics: result);
       }
     } on DioException catch (error) {
       if (CancelToken.isCancel(error)) {
@@ -154,9 +222,21 @@ class LlamaChatApiClient {
       return null;
     }
 
+    if (decoded['error'] != null) {
+      throw LlamaChatApiException(
+        _messageFromBody(decoded) ?? 'Request failed',
+      );
+    }
+    final hasTimings = decoded.containsKey('timings');
+    final metrics = GenerationMetrics.fromResponse(
+      timings: decoded['timings'],
+      usage: decoded['usage'],
+    );
     final choices = decoded['choices'];
     if (choices is! List || choices.isEmpty) {
-      return null;
+      return metrics != null
+          ? _ParsedSseLine.delta(null, metrics: metrics, hasTimings: hasTimings)
+          : null;
     }
 
     final choice = choices.first;
@@ -190,12 +270,17 @@ class LlamaChatApiClient {
       }
     }
 
-    if (content.isEmpty && reasoningContent.isEmpty) {
-      return null;
-    }
-
     return _ParsedSseLine.delta(
       ChatStreamDelta(content: content, reasoningContent: reasoningContent),
+      metrics: metrics,
+      hasTimings: hasTimings,
+      successfulFinish: const {
+        'stop',
+        'length',
+      }.contains(normalized['finish_reason']),
+      unsuccessfulFinish:
+          normalized['finish_reason'] != null &&
+          !const {'stop', 'length'}.contains(normalized['finish_reason']),
     );
   }
 
@@ -336,10 +421,24 @@ class LlamaChatApiClient {
 }
 
 class _ParsedSseLine {
-  const _ParsedSseLine.done() : isDone = true, delta = null;
+  const _ParsedSseLine.done()
+    : isDone = true,
+      delta = null,
+      metrics = null,
+      hasTimings = false,
+      successfulFinish = true,
+      unsuccessfulFinish = false;
 
-  const _ParsedSseLine.delta(this.delta) : isDone = false;
+  const _ParsedSseLine.delta(
+    this.delta, {
+    this.metrics,
+    this.hasTimings = false,
+    this.successfulFinish = false,
+    this.unsuccessfulFinish = false,
+  }) : isDone = false;
 
   final bool isDone;
   final ChatStreamDelta? delta;
+  final GenerationMetrics? metrics;
+  final bool hasTimings, successfulFinish, unsuccessfulFinish;
 }

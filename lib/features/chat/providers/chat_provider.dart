@@ -2,6 +2,7 @@ import 'package:servllama/core/providers/engine_runtime_provider.dart';
 import 'package:servllama/features/assistants/models/assistant.dart';
 import 'package:servllama/features/assistants/providers/assistant_provider.dart';
 import 'package:servllama/features/chat/models/chat_run_config.dart';
+import 'package:servllama/features/chat/models/chat_context_usage.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:servllama/core/database/app_database.dart';
@@ -651,6 +652,99 @@ class ChatProvider extends ChangeNotifier {
   ChatModelOption? get currentModel =>
       hasAssistantContext ? _generation.targetModel : _models.currentModel;
   List<ChatMessageRecord> get visibleMessages => _conversation.visibleMessages;
+
+  /// Changes for all inputs that could make a backend measurement stale.
+  /// The indicator uses this as an async generation guard, not as stored data.
+  String get contextUsageKey => jsonEncode([
+    _bindingKey,
+    currentModelId,
+    selectedSession?.id,
+    selectedSession?.updatedAt.microsecondsSinceEpoch,
+    visibleMessagesRevision,
+    isLoadingMessages,
+    isSending,
+    currentDraft,
+    pendingImageAttachments,
+  ]);
+
+  /// Reads the complete current prefix, not the paginated UI message window.
+  /// No tokenizer/character heuristic, cumulative billing sum, or credentials
+  /// are needed to validate a completed response's actual context count.
+  Future<int?> loadCurrentContextTokens() async {
+    if (isSending ||
+        isLoadingMessages ||
+        currentDraft.isNotEmpty ||
+        pendingImageAttachments.isNotEmpty) {
+      return null;
+    }
+    final session = selectedSession;
+    if (session == null || session.messageIds.isEmpty) return null;
+    // The visible window always contains the tail after loading. Without an
+    // eligible measured response there is nothing to validate against history.
+    // Avoid passive full-history I/O for empty/legacy/edited conversations.
+    final candidate = visibleMessages.lastOrNull;
+    final metrics = candidate?.generationMetrics;
+    if (candidate?.id != session.messageIds.last ||
+        candidate?.role != ChatRole.assistant ||
+        metrics?.contextTokens == null ||
+        metrics?.contextKey == null) {
+      return null;
+    }
+    final config = _contextMeasurementConfiguration();
+    if (config == null ||
+        metrics!.modelId != config.modelId ||
+        metrics.connectionId != config.connection.id) {
+      return null;
+    }
+    final key = contextUsageKey;
+    final messages = await _repository.loadAllMessages(session);
+    if (_disposed || key != contextUsageKey || messages.isEmpty) return null;
+    return ChatContextUsage.currentTokens(
+      messages: messages,
+      modelId: config.modelId,
+      connectionId: config.connection.id,
+      expectedContextKey: ChatRunner.historyContextKey(
+        config,
+        messages.take(messages.length - 1).toList(growable: false),
+      ),
+    );
+  }
+
+  // Must mirror the generation snapshot, but never read credentials or start
+  // a model just to render a passive indicator. Unknown identity stays unknown.
+  ChatRunConfig? _contextMeasurementConfiguration() {
+    final assistant = currentAssistant, target = currentTarget;
+    final runtime = _runtime;
+    if (assistant == null || target == null || runtime == null) return null;
+    final remote = target.isRemote;
+    if (!remote &&
+        (!runtime.isRunning ||
+            runtime.activeModelId != targetAsset?.runtimeId ||
+            runtime.activeEngine.storageValue != targetAsset?.engine)) {
+      return null;
+    }
+    final connection = remote
+        ? _assistants?.connection(target.connectionId)
+        : AiConnection(
+            id: 'local',
+            name: runtime.activeEngine.displayName,
+            protocol: AiProtocol.openai,
+            baseUrl: '${runtime.baseUrl}/v1',
+          );
+    final modelId = remote
+        ? target.modelId
+        : runtime.activeModelName ?? targetAsset?.runtimeId;
+    if (connection == null || modelId == null) return null;
+    return ChatRunConfig(
+      assistant: Assistant.fromJson(assistant.toJson()),
+      connection: connection,
+      key: '',
+      modelId: modelId,
+      isLocal: !remote,
+      target: target,
+    );
+  }
+
   int get visibleMessagesRevision => _conversation.visibleMessagesRevision;
   List<ChatSessionRecord> get filteredSessions => _sessionList.filteredSessions;
   List<ChatSessionRecord> get assistantSessions => hasAssistantContext
