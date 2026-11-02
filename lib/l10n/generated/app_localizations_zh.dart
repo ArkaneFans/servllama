@@ -3169,4 +3169,59 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get chatWelcomeDescription => '今天想聊些什么？';
+
+  @override
+  String get modelAddTitle => '添加模型';
+
+  @override
+  String get modelCopyToApp => '将模型复制到 ServLlama';
+
+  @override
+  String get modelUseExternal => '使用外部模型';
+
+  @override
+  String get modelExternalHelp => '仅保存本地路径，不复制文件。移动或删除原文件后，加载可能失败。';
+
+  @override
+  String get modelExternalTag => '外部';
+
+  @override
+  String modelExternalAdded(String modelName) {
+    return '已添加外部模型：$modelName';
+  }
+
+  @override
+  String modelExternalAddFailed(String error) {
+    return '添加外部模型失败：$error';
+  }
+
+  @override
+  String modelExternalRemoved(String modelName) {
+    return '已移除模型引用：$modelName';
+  }
+
+  @override
+  String get modelExternalRemove => '移除引用';
+
+  @override
+  String get modelExternalRemoveHelp => '从 ServLlama 移除这条引用？不会删除原文件。';
+
+  @override
+  String get modelStoragePermissionRequired =>
+      '选择外部模型需要存储访问权限。Android 11 及以上请在系统设置中开启「允许管理所有文件」。';
+
+  @override
+  String get modelPickerStorageRoot => '内部存储';
+
+  @override
+  String get modelPickerParent => '上一级目录';
+
+  @override
+  String get modelPickerCannotRead => '无法读取此目录，请检查存储权限或选择其他目录。';
+
+  @override
+  String get modelPickerEmpty => '此目录中没有可选项目';
+
+  @override
+  String get modelPickerSelectDirectory => '使用此模型目录';
 }

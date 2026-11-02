@@ -10,7 +10,7 @@ class GgufModelStore {
   GgufModelStore(this.db);
   final AppDatabase db;
   static const _scope =
-      "kind='llm' AND engine='llama_cpp' AND storage_owner='app'";
+      "kind='llm' AND engine='llama_cpp' AND storage_owner IN ('app','external')";
 
   Future<List<ModelDescriptor>> list() async => (await db.query(
     "SELECT manifest FROM model_assets WHERE $_scope AND json_type(manifest,'\$.gguf')='object'",
@@ -46,12 +46,13 @@ class GgufModelStore {
     };
     await db.execute(
       'INSERT INTO model_assets(id,kind,engine,runtime_id,storage_owner,path,name,revision,state,manifest) '
-      "VALUES(?,'llm','llama_cpp',?,'app',?,?,?,'ready',?) "
-      'ON CONFLICT(id) DO UPDATE SET runtime_id=excluded.runtime_id,path=excluded.path,'
+      "VALUES(?,'llm','llama_cpp',?,?,?,?,?,'ready',?) "
+      'ON CONFLICT(id) DO UPDATE SET runtime_id=excluded.runtime_id,storage_owner=excluded.storage_owner,path=excluded.path,'
       'name=excluded.name,revision=excluded.revision,state=excluded.state,manifest=excluded.manifest',
       [
         previous?.read<String>('id') ?? newId(),
         model.modelName,
+        model.isExternal ? 'external' : 'app',
         model.storedFilePath,
         model.modelName,
         model.revision ?? 'local',

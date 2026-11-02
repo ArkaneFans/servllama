@@ -3351,4 +3351,62 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatWelcomeDescription => 'What’s on your mind today?';
+
+  @override
+  String get modelAddTitle => 'Add model';
+
+  @override
+  String get modelCopyToApp => 'Copy model to ServLlama';
+
+  @override
+  String get modelUseExternal => 'Use external model';
+
+  @override
+  String get modelExternalHelp =>
+      'Save the local path without copying files. Moving or deleting the source may cause loading to fail.';
+
+  @override
+  String get modelExternalTag => 'External';
+
+  @override
+  String modelExternalAdded(String modelName) {
+    return 'External model added: $modelName';
+  }
+
+  @override
+  String modelExternalAddFailed(String error) {
+    return 'Failed to add external model: $error';
+  }
+
+  @override
+  String modelExternalRemoved(String modelName) {
+    return 'Model reference removed: $modelName';
+  }
+
+  @override
+  String get modelExternalRemove => 'Remove reference';
+
+  @override
+  String get modelExternalRemoveHelp =>
+      'Remove this reference from ServLlama? The original files will not be deleted.';
+
+  @override
+  String get modelStoragePermissionRequired =>
+      'Allow storage access to select external models. On Android 11 or later, enable Allow access to manage all files in system settings.';
+
+  @override
+  String get modelPickerStorageRoot => 'Internal storage';
+
+  @override
+  String get modelPickerParent => 'Parent folder';
+
+  @override
+  String get modelPickerCannotRead =>
+      'Cannot read this folder. Check storage access or choose another folder.';
+
+  @override
+  String get modelPickerEmpty => 'No selectable items in this folder';
+
+  @override
+  String get modelPickerSelectDirectory => 'Use this model folder';
 }

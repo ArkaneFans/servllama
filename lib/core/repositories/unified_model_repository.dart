@@ -38,7 +38,7 @@ class UnifiedModelRepository {
     if (reconcile) {
       for (final m in await listModels()) {
         // LocalModelRepository commits GGUF details and asset metadata together.
-        if (m.engine == InferenceEngine.llamaCpp) continue;
+        if (m.engine == InferenceEngine.llamaCpp || m.isExternal) continue;
         final found = await db.query(
           'SELECT id FROM model_assets WHERE kind=? AND engine=? AND path=?',
           ['llm', m.engine.storageValue, m.storagePath],
@@ -65,7 +65,7 @@ class UnifiedModelRepository {
         );
       }
       final records = await db.query(
-        "SELECT id,path FROM model_assets WHERE kind='llm' AND state='ready'",
+        "SELECT id,path FROM model_assets WHERE kind='llm' AND state='ready' AND storage_owner!='external'",
       );
       for (final row in records) {
         if (await FileSystemEntity.type(row.read<String>('path')) ==
@@ -92,7 +92,7 @@ class UnifiedModelRepository {
     final db = database ?? await AppDatabase.shared();
     await db.execute(
       'INSERT INTO model_assets(id,kind,engine,runtime_id,storage_owner,path,name,revision,state,manifest) '
-      'VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET runtime_id=excluded.runtime_id,path=excluded.path,'
+      'VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET runtime_id=excluded.runtime_id,storage_owner=excluded.storage_owner,path=excluded.path,'
       'name=excluded.name,revision=excluded.revision,state=excluded.state,manifest=excluded.manifest',
       [
         a.id,
@@ -161,7 +161,9 @@ class UnifiedModelRepository {
         await _localModelRepository.deleteModel(rawIdOf(model.id));
         return;
       case InferenceEngine.mnn:
-        await _mnnEngine.deleteImportedModel(rawIdOf(model.id));
+        if (!model.isExternal) {
+          await _mnnEngine.deleteImportedModel(rawIdOf(model.id));
+        }
     }
     final db = database ?? await AppDatabase.shared();
     await db.transaction(() async {
@@ -197,10 +199,19 @@ class UnifiedModelRepository {
           sourceValue: descriptor.sourceValue,
           repoId: descriptor.repoId,
           revision: descriptor.revision,
+          isExternal: descriptor.isExternal,
         );
         await _renamedAsset(model, result);
         return result;
       case InferenceEngine.mnn:
+        if (model.isExternal) {
+          final db = database ?? await AppDatabase.shared();
+          await db.execute(
+            "UPDATE model_assets SET name=? WHERE engine='mnn' AND path=? AND storage_owner='external'",
+            [trimmedName, model.storagePath],
+          );
+          return (await externalMnnModel(model.runtimeId))!;
+        }
         final renamed = await _mnnEngine.renameImportedModel(
           model.runtimeId,
           trimmedName,
@@ -267,24 +278,93 @@ class UnifiedModelRepository {
             sourceValue: descriptor.sourceValue,
             repoId: descriptor.repoId,
             revision: descriptor.revision,
+            isExternal: descriptor.isExternal,
           ),
         )
         .toList(growable: false);
   }
 
   Future<List<LibraryModel>> _listMnnModels() async {
+    final external = await _listExternalMnnModels();
     try {
       final models = await _mnnEngine.listImportedModels();
-      return models
-          .map((model) => _libraryModelFromMnn(model))
-          .toList(growable: false);
+      return [...models.map(_libraryModelFromMnn), ...external];
     } catch (error) {
       // The plugin is unavailable on non-Android hosts and in widget tests;
       // an empty MNN section is the correct degraded view, not a failure.
       _logger.warning('读取 MNN 模型列表失败: $error', channel: LogChannel.model);
-      return const <LibraryModel>[];
+      return external;
     }
   }
+
+  Future<LibraryModel> addExternalMnnModel(String path, String name) async {
+    final db = database ?? await AppDatabase.shared();
+    final existing = await db.query(
+      "SELECT * FROM model_assets WHERE engine='mnn' AND path=? AND state='ready' AND storage_owner='external'",
+      [path],
+    );
+    if (existing.isNotEmpty) {
+      return _externalMnnFromAsset(ModelAsset.fromRow(existing.single));
+    }
+    final info = await _mnnEngine.getModelInfoFromPath(path);
+    final previous = await db.query(
+      "SELECT id FROM model_assets WHERE engine='mnn' AND path=?",
+      [path],
+    );
+    final asset = ModelAsset(
+      id: previous.isEmpty ? newId() : previous.single.read<String>('id'),
+      kind: AssetKind.llm,
+      engine: 'mnn',
+      runtimeId: info.modelId,
+      storageOwner: 'external',
+      path: path,
+      name: name,
+      revision: 'local',
+      manifest: {
+        'libraryId': libraryIdFor(InferenceEngine.mnn, info.modelId),
+        'images': info.supportsVision,
+        'tools': info.supportsToolCalling,
+        'importedAt': DateTime.now().millisecondsSinceEpoch,
+      },
+    );
+    await saveAsset(asset);
+    return _externalMnnFromAsset(asset);
+  }
+
+  Future<LibraryModel?> externalMnnModel(String runtimeId) async {
+    final db = database ?? AppDatabase.current;
+    if (db == null) return null;
+    final rows = await db.query(
+      "SELECT * FROM model_assets WHERE engine='mnn' AND storage_owner='external' AND state='ready' AND runtime_id=?",
+      [runtimeId],
+    );
+    return rows.isEmpty
+        ? null
+        : _externalMnnFromAsset(ModelAsset.fromRow(rows.single));
+  }
+
+  Future<List<LibraryModel>> _listExternalMnnModels() async {
+    final db = database ?? AppDatabase.current;
+    if (db == null) return const [];
+    return (await db.query(
+      "SELECT * FROM model_assets WHERE engine='mnn' AND storage_owner='external' AND state='ready'",
+    )).map((row) => _externalMnnFromAsset(ModelAsset.fromRow(row))).toList();
+  }
+
+  LibraryModel _externalMnnFromAsset(ModelAsset asset) => LibraryModel(
+    id: libraryIdFor(InferenceEngine.mnn, asset.runtimeId),
+    runtimeId: asset.runtimeId,
+    engine: InferenceEngine.mnn,
+    name: asset.name,
+    sizeBytes: 0,
+    importedAt: DateTime.fromMillisecondsSinceEpoch(
+      asset.manifest['importedAt'] as int,
+    ),
+    storagePath: asset.path,
+    supportsVision: asset.manifest['images'] == true,
+    supportsToolCalling: asset.manifest['tools'] == true,
+    isExternal: true,
+  );
 
   LibraryModel _libraryModelFromMnn(MnnModelInfo model) => LibraryModel(
     id: libraryIdFor(InferenceEngine.mnn, model.modelId),

@@ -11,6 +11,7 @@ import 'package:servllama/core/repositories/unified_model_repository.dart';
 import 'package:servllama/core/services/app_l10n_service.dart';
 import 'package:servllama/core/services/gguf_file_picker.dart';
 import 'package:servllama/core/services/model_name_coordinator.dart';
+import 'package:servllama/core/services/model_file_browser.dart';
 
 class ModelManagementProvider extends ChangeNotifier {
   ModelManagementProvider({
@@ -240,7 +241,54 @@ class ModelManagementProvider extends ChangeNotifier {
     }
   }
 
-  /// Deletes a model from whichever store owns it.
+  /// Registers an external path without taking ownership of its files.
+  Future<String?> addExternalModel(
+    InferenceEngine engine,
+    SelectedModelPath selected,
+  ) async {
+    if (_isImporting) return null;
+    _isImporting = true;
+    notifyListeners();
+    const reservationId = 'import:external';
+    try {
+      final requestedName = engine.usesDirectoryModels
+          ? selected.name
+          : LocalModelRepository.modelNameFromFileName(selected.name);
+      final allocation = await _nameCoordinator.reserveAvailable(
+        ownerId: reservationId,
+        requestedName: requestedName,
+      );
+      final String name;
+      if (engine == InferenceEngine.llamaCpp) {
+        name = (await _repository.addExternalModel(
+          PickedGgufFile(path: selected.path, fileName: selected.name),
+          modelName: allocation.name,
+          sizeBytes: selected.sizeBytes,
+        )).modelName;
+      } else {
+        name = (await _unifiedRepository.addExternalMnnModel(
+          selected.path,
+          allocation.name,
+        )).name;
+      }
+      await _refreshModelLists();
+      return _l10nService.current.modelExternalAdded(name);
+    } catch (error, stackTrace) {
+      _logger.error(
+        '添加外部模型失败',
+        channel: LogChannel.model,
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return _l10nService.current.modelExternalAddFailed(_describeError(error));
+    } finally {
+      await _nameCoordinator.release(reservationId);
+      _isImporting = false;
+      notifyListeners();
+    }
+  }
+
+  /// Deletes owned files, or only removes an external registration.
   Future<String> deleteLibraryModel(LibraryModel model) async {
     if (_deletingModelId != null) {
       return _l10nService.current.modelManagementDeleteBusy;
@@ -254,7 +302,9 @@ class ModelManagementProvider extends ChangeNotifier {
       await onModelDeleted?.call();
       await _refreshModelLists();
       _logger.info('模型删除成功: ${model.name}', channel: LogChannel.model);
-      return _l10nService.current.modelManagementDeleteSuccess(model.name);
+      return model.isExternal
+          ? _l10nService.current.modelExternalRemoved(model.name)
+          : _l10nService.current.modelManagementDeleteSuccess(model.name);
     } catch (error, stackTrace) {
       _logger.error(
         '删除模型失败',
@@ -361,7 +411,10 @@ class ModelManagementProvider extends ChangeNotifier {
     }
   }
 
-  Future<String?> importMmproj(String modelId) async {
+  Future<String?> importMmproj(
+    String modelId, {
+    PickedGgufFile? externalFile,
+  }) async {
     if (_isImportingMmproj) {
       return null;
     }
@@ -369,7 +422,12 @@ class ModelManagementProvider extends ChangeNotifier {
     var didStartImport = false;
 
     try {
-      final pickedFile = await _filePicker.pickSingleMmproj();
+      final isExternal = _models.any(
+        (model) => model.id == modelId && model.isExternal,
+      );
+      final pickedFile = isExternal
+          ? externalFile
+          : await _filePicker.pickSingleMmproj();
       if (pickedFile == null) {
         _logger.info('用户取消导入 mmproj', channel: LogChannel.model);
         return null;

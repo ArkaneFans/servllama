@@ -6046,6 +6046,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'What’s on your mind today?'**
   String get chatWelcomeDescription;
+
+  /// No description provided for @modelAddTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add model'**
+  String get modelAddTitle;
+
+  /// No description provided for @modelCopyToApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy model to ServLlama'**
+  String get modelCopyToApp;
+
+  /// No description provided for @modelUseExternal.
+  ///
+  /// In en, this message translates to:
+  /// **'Use external model'**
+  String get modelUseExternal;
+
+  /// No description provided for @modelExternalHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Save the local path without copying files. Moving or deleting the source may cause loading to fail.'**
+  String get modelExternalHelp;
+
+  /// No description provided for @modelExternalTag.
+  ///
+  /// In en, this message translates to:
+  /// **'External'**
+  String get modelExternalTag;
+
+  /// No description provided for @modelExternalAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'External model added: {modelName}'**
+  String modelExternalAdded(String modelName);
+
+  /// No description provided for @modelExternalAddFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to add external model: {error}'**
+  String modelExternalAddFailed(String error);
+
+  /// No description provided for @modelExternalRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Model reference removed: {modelName}'**
+  String modelExternalRemoved(String modelName);
+
+  /// No description provided for @modelExternalRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove reference'**
+  String get modelExternalRemove;
+
+  /// No description provided for @modelExternalRemoveHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this reference from ServLlama? The original files will not be deleted.'**
+  String get modelExternalRemoveHelp;
+
+  /// No description provided for @modelStoragePermissionRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow storage access to select external models. On Android 11 or later, enable Allow access to manage all files in system settings.'**
+  String get modelStoragePermissionRequired;
+
+  /// No description provided for @modelPickerStorageRoot.
+  ///
+  /// In en, this message translates to:
+  /// **'Internal storage'**
+  String get modelPickerStorageRoot;
+
+  /// No description provided for @modelPickerParent.
+  ///
+  /// In en, this message translates to:
+  /// **'Parent folder'**
+  String get modelPickerParent;
+
+  /// No description provided for @modelPickerCannotRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot read this folder. Check storage access or choose another folder.'**
+  String get modelPickerCannotRead;
+
+  /// No description provided for @modelPickerEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No selectable items in this folder'**
+  String get modelPickerEmpty;
+
+  /// No description provided for @modelPickerSelectDirectory.
+  ///
+  /// In en, this message translates to:
+  /// **'Use this model folder'**
+  String get modelPickerSelectDirectory;
 }
 
 class _AppLocalizationsDelegate

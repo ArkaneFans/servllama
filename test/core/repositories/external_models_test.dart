@@ -1,0 +1,138 @@
+import 'dart:io';
+
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:servllama/core/database/app_database.dart';
+import 'package:servllama/core/repositories/local_model_repository.dart';
+import 'package:servllama/core/repositories/unified_model_repository.dart';
+import 'package:servllama/core/services/gguf_file_picker.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  const channel = MethodChannel('com.arkanefans.mnn_engine/methods');
+  late AppDatabase db;
+  late Directory root;
+  late LocalModelRepository local;
+  late UnifiedModelRepository unified;
+  late List<String> calls;
+
+  setUp(() async {
+    db = AppDatabase.memory();
+    root = await Directory.systemTemp.createTemp('external_models_');
+    local = LocalModelRepository(
+      database: db,
+      appSupportDirectory: Directory('${root.path}/app'),
+    );
+    unified = UnifiedModelRepository(database: db, localModelRepository: local);
+    calls = [];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          calls.add(call.method);
+          if (call.method == 'listImportedModels') return <Object?>[];
+          if (call.method == 'getModelInfoFromPath') {
+            return {
+              'modelId': 'external-${'a' * 64}',
+              'supportsVision': true,
+              'supportsToolCalling': true,
+            };
+          }
+          throw StateError('Unexpected native operation: ${call.method}');
+        });
+  });
+
+  tearDown(() async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null);
+    await db.close();
+    await root.delete(recursive: true);
+  });
+
+  test(
+    'GGUF registration stores its original path and survives a missing file',
+    () async {
+      final path = '${root.path}/never-created.gguf';
+      final model = await local.addExternalModel(
+        PickedGgufFile(path: path, fileName: 'never-created.gguf'),
+        modelName: 'External',
+      );
+      expect(model.isExternal, isTrue);
+      expect((await local.listModels()).single.storedFilePath, path);
+      final assets = await unified.listAssets();
+      expect(assets.single.storageOwner, 'external');
+      expect(assets.single.isReady, isTrue);
+      expect(await Directory('${root.path}/app/models').exists(), isFalse);
+      final duplicate = await local.addExternalModel(
+        PickedGgufFile(path: path, fileName: 'never-created.gguf'),
+        modelName: 'Other',
+      );
+      expect(duplicate.id, model.id);
+    },
+  );
+
+  test(
+    'external GGUF rename and projector removal never modify source files',
+    () async {
+      final source = await File(
+        '${root.path}/model.gguf',
+      ).writeAsString('weights');
+      final projector = await File(
+        '${root.path}/mmproj.gguf',
+      ).writeAsString('projector');
+      final model = await local.addExternalModel(
+        PickedGgufFile(path: source.path, fileName: 'model.gguf'),
+        modelName: 'Original',
+      );
+      await local.importMmproj(
+        model.id,
+        PickedGgufFile(path: projector.path, fileName: 'mmproj.gguf'),
+      );
+      final renamed = await local.renameModel(model.id, 'Alias');
+      expect(renamed.storedFilePath, source.path);
+      expect(renamed.mmprojFilePath, projector.path);
+      await projector.delete();
+      expect((await local.listModels()).single.mmprojFilePath, projector.path);
+      await local.selectMmproj(model.id, projector.path);
+      await projector.writeAsString('projector');
+      await local.removeMmproj(model.id);
+      await local.deleteModel(model.id);
+      expect(await source.readAsString(), 'weights');
+      expect(await projector.readAsString(), 'projector');
+      expect(await local.listModels(), isEmpty);
+    },
+  );
+
+  test(
+    'missing GGUF does not trigger recursive cleanup of its external parent',
+    () async {
+      final sibling = await File('${root.path}/keep.txt').writeAsString('keep');
+      await local.addExternalModel(
+        PickedGgufFile(path: '${root.path}/gone.gguf', fileName: 'gone.gguf'),
+        modelName: 'Gone',
+      );
+      expect(await local.listModels(), hasLength(1));
+      expect(await sibling.readAsString(), 'keep');
+    },
+  );
+
+  test(
+    'external MNN is SQL-owned, survives missing paths and renames only its alias',
+    () async {
+      final path = '${root.path}/missing-mnn';
+      final model = await unified.addExternalMnnModel(path, 'MNN');
+      expect(model.isExternal, isTrue);
+      expect(model.supportsVision, isTrue);
+      expect(model.supportsToolCalling, isTrue);
+      expect((await unified.listModels()).single.storagePath, path);
+      expect((await unified.listAssets()).single.isReady, isTrue);
+      final renamed = await unified.renameModel(model, 'Alias');
+      expect(renamed.runtimeId, model.runtimeId);
+      expect(renamed.storagePath, path);
+      expect(renamed.name, 'Alias');
+      await unified.deleteModel(renamed);
+      expect(await unified.listModels(), isEmpty);
+      expect(calls, isNot(contains('renameImportedModel')));
+      expect(calls, isNot(contains('deleteImportedModel')));
+      expect(calls, isNot(contains('importModelFromPath')));
+    },
+  );
+}

@@ -21,6 +21,7 @@ import 'package:servllama/features/downloads/widgets/download_wifi_only_gate.dar
 import 'package:servllama/features/server/widgets/gguf_model_settings_sheet.dart';
 import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/widgets/engine_badge.dart';
+import 'package:servllama/features/server/pages/model_file_picker_page.dart';
 
 class ModelManagementPage extends StatelessWidget {
   const ModelManagementPage({super.key, this.provider, this.embedded = false});
@@ -100,6 +101,23 @@ class _ModelManagementViewState extends State<_ModelManagementView>
           () =>
               context.read<ModelManagementProvider>().importMnnModelDirectory(),
         );
+      case _AddModelChoice.externalGguf:
+      case _AddModelChoice.externalMnn:
+        final engine = choice == _AddModelChoice.externalGguf
+            ? InferenceEngine.llamaCpp
+            : InferenceEngine.mnn;
+        final selected = await ModelFilePickerPage.pick(
+          context,
+          directoriesOnly: engine.usesDirectoryModels,
+        );
+        if (selected == null || !context.mounted) return;
+        await _runImport(
+          context,
+          () => context.read<ModelManagementProvider>().addExternalModel(
+            engine,
+            selected,
+          ),
+        );
     }
   }
 
@@ -151,8 +169,16 @@ class _ModelManagementViewState extends State<_ModelManagementView>
       builder: (dialogContext) {
         final l10n = dialogContext.l10n;
         return AlertDialog(
-          title: Text(l10n.modelManagementDeleteDialogTitle),
-          content: Text(l10n.modelLibraryDeleteDialogContent(model.name)),
+          title: Text(
+            model.isExternal
+                ? l10n.modelExternalRemove
+                : l10n.modelManagementDeleteDialogTitle,
+          ),
+          content: Text(
+            model.isExternal
+                ? l10n.modelExternalRemoveHelp
+                : l10n.modelLibraryDeleteDialogContent(model.name),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -160,7 +186,9 @@ class _ModelManagementViewState extends State<_ModelManagementView>
             ),
             FilledButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: Text(l10n.commonDelete),
+              child: Text(
+                model.isExternal ? l10n.modelExternalRemove : l10n.commonDelete,
+              ),
             ),
           ],
         );
@@ -266,12 +294,23 @@ class _ModelManagementViewState extends State<_ModelManagementView>
                     ),
                   ],
                 ),
-          floatingActionButton: FloatingActionButton.extended(
+          floatingActionButton: FloatingActionButton(
             key: const Key('model_management_import_fab'),
             onPressed: provider.isImporting
                 ? null
                 : () => _openAddSheet(context),
-            icon: provider.isImporting
+            tooltip: l10n.modelAddTitle,
+            backgroundColor: isLight
+                ? colorScheme.primaryContainer
+                : colorScheme.primary,
+            foregroundColor: isLight
+                ? colorScheme.onPrimaryContainer
+                : colorScheme.onPrimary,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: provider.isImporting
                 ? SizedBox(
                     width: 18,
                     height: 18,
@@ -281,25 +320,6 @@ class _ModelManagementViewState extends State<_ModelManagementView>
                     ),
                   )
                 : const Icon(Icons.add_rounded),
-            label: Text(
-              provider.isImporting
-                  ? l10n.modelManagementImporting
-                  : l10n.localModelImport,
-            ),
-            backgroundColor: isLight
-                ? colorScheme.primaryContainer
-                : colorScheme.primary,
-            foregroundColor: isLight
-                ? colorScheme.onPrimaryContainer
-                : colorScheme.onPrimary,
-            elevation: 0,
-            extendedPadding: const EdgeInsets.symmetric(
-              horizontal: 18,
-              vertical: 2,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18),
-            ),
           ),
           body: provider.isLoading
               ? const Center(child: CircularProgressIndicator())
@@ -525,7 +545,7 @@ class _ModelManagementViewState extends State<_ModelManagementView>
 
 enum _LibraryFilter { all, llamaCpp, mnn, vision, tools }
 
-enum _AddModelChoice { ggufFile, mnnDirectory }
+enum _AddModelChoice { ggufFile, mnnDirectory, externalGguf, externalMnn }
 
 class _AddModelSheet extends StatefulWidget {
   const _AddModelSheet();
@@ -547,7 +567,7 @@ class _AddModelSheetState extends State<_AddModelSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              l.localModelImport,
+              l.modelAddTitle,
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 16),
@@ -575,12 +595,24 @@ class _AddModelSheetState extends State<_AddModelSheet> {
               title: Text(gguf ? l.modelAddGguf : l.modelAddMnnDir),
               subtitle: Text(gguf ? l.modelAddGgufDesc : l.modelAddMnnDirDesc),
             ),
-            Text(l.localModelImportHelp),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: () => Navigator.pop(context, choice),
-              icon: const Icon(Icons.file_open_outlined),
-              label: Text(l.localModelChooseImport),
+            ListTile(
+              key: const Key('model_add_copy'),
+              onTap: () => Navigator.pop(context, choice),
+              leading: const Icon(Icons.file_copy_outlined),
+              title: Text(l.modelCopyToApp),
+              subtitle: Text(l.localModelImportHelp),
+            ),
+            ListTile(
+              key: const Key('model_add_external'),
+              onTap: () => Navigator.pop(
+                context,
+                gguf
+                    ? _AddModelChoice.externalGguf
+                    : _AddModelChoice.externalMnn,
+              ),
+              leading: const Icon(Icons.folder_open_outlined),
+              title: Text(l.modelUseExternal),
+              subtitle: Text(l.modelExternalHelp),
             ),
           ],
         ),
@@ -876,8 +908,9 @@ class _LibraryModelCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${model.engine.displayName} · '
-                        '${FormatUtils.bytes(model.sizeBytes)}',
+                        model.isExternal && model.engine == InferenceEngine.mnn
+                            ? model.engine.displayName
+                            : '${model.engine.displayName} · ${FormatUtils.bytes(model.sizeBytes)}',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: colorScheme.onSurfaceVariant,
                         ),
@@ -887,11 +920,14 @@ class _LibraryModelCard extends StatelessWidget {
                 ),
               ],
             ),
-            if (model.supportsVision || model.supportsToolCalling) ...[
+            if (model.isExternal ||
+                model.supportsVision ||
+                model.supportsToolCalling) ...[
               const SizedBox(height: 10),
               Wrap(
                 spacing: 6,
                 children: [
+                  if (model.isExternal) _Tag(label: l10n.modelExternalTag),
                   if (model.supportsVision)
                     _Tag(label: l10n.modelCapabilityVision),
                   if (model.supportsToolCalling)
@@ -919,6 +955,8 @@ class _LibraryModelCard extends StatelessWidget {
                       ? l10n.modelLibraryActiveCannotDelete
                       : hasProjectorDownload
                       ? l10n.modelSettingsProjectorDownloadPending
+                      : model.isExternal
+                      ? l10n.modelExternalRemove
                       : l10n.modelManagementDeleteTooltip,
                   onPressed: isDeleting || isActive || hasProjectorDownload
                       ? null
@@ -1133,6 +1171,13 @@ class _MnnModelSettingsSheetState extends State<_MnnModelSettingsSheet> {
                   ],
                 ),
                 const SizedBox(height: 22),
+                if (model.isExternal) ...[
+                  SelectableText(
+                    model.storagePath,
+                    style: theme.textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 Text(
                   l10n.modelSettingsNameLabel,
                   style: theme.textTheme.titleSmall?.copyWith(

@@ -381,7 +381,9 @@ void main() {
       await tester.tap(find.byKey(const Key('model_management_import_fab')));
       await tester.pumpAndSettle();
       expect(find.text('下载模型'), findsNothing);
-      await tester.tap(find.text('选择并导入'));
+      expect(find.text('将模型复制到 ServLlama'), findsOneWidget);
+      expect(find.text('使用外部模型'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('model_add_copy')));
       await _settle(tester);
 
       expect(find.text('模型导入成功: picked'), findsOneWidget);

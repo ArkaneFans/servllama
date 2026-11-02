@@ -19,15 +19,16 @@ class LibraryModel {
     this.repoId,
     this.revision,
     this.warnings = const <String>[],
+    this.isExternal = false,
   });
 
   /// Key for library operations (rename, delete). Namespaced by engine because
-  /// the two stores generate ids independently. MNN renames change this key
-  /// because its directory name is also its native model id.
+  /// the two stores generate ids independently. Imported MNN renames change
+  /// this key; external models keep their identity when their alias changes.
   final String id;
 
-  /// Identifier the engine itself uses when asked to load this model. For both
-  /// engines this is the model directory name.
+  /// GGUF uses its API alias. Imported MNN uses its directory name; external
+  /// MNN uses a stable path-derived ID, independent of its display name.
   final String runtimeId;
 
   final InferenceEngine engine;
@@ -50,6 +51,7 @@ class LibraryModel {
   final String? revision;
 
   final List<String> warnings;
+  final bool isExternal;
 
   bool get canDownloadMmproj {
     if (engine != InferenceEngine.llamaCpp) {

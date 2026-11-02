@@ -54,6 +54,10 @@ class LocalModelRepository {
     final validModels = <ModelDescriptor>[];
 
     for (final descriptor in descriptors) {
+      if (descriptor.isExternal) {
+        validModels.add(descriptor);
+        continue;
+      }
       final currentFile = File(descriptor.storedFilePath);
       if (!await currentFile.exists()) {
         staleIds.add(descriptor.id);
@@ -174,6 +178,28 @@ class LocalModelRepository {
     }
   }
 
+  Future<ModelDescriptor> addExternalModel(
+    PickedGgufFile pickedFile, {
+    required String modelName,
+    int sizeBytes = 0,
+  }) async {
+    final store = await _store;
+    for (final model in await store.list()) {
+      if (model.storedFilePath == pickedFile.path) return model;
+    }
+    final descriptor = ModelDescriptor(
+      id: _generateModelId(),
+      modelName: modelName,
+      sizeBytes: sizeBytes,
+      storedDirectoryPath: File(pickedFile.path).parent.path,
+      storedFilePath: pickedFile.path,
+      importedAt: DateTime.now(),
+      isExternal: true,
+    );
+    await store.save(descriptor);
+    return descriptor;
+  }
+
   Future<ModelDescriptor> importMmproj(
     String modelId,
     PickedGgufFile pickedFile,
@@ -187,6 +213,24 @@ class LocalModelRepository {
     }
 
     final sourceFile = File(pickedFile.path);
+    if (descriptor.isExternal) {
+      if (!_isMmprojFileName(pickedFile.fileName)) {
+        throw const ModelOperationException(
+          ModelOperationErrorCode.unsupportedMmprojFile,
+        );
+      }
+      if (_sameFilePath(sourceFile.path, descriptor.storedFilePath)) {
+        throw const ModelOperationException(
+          ModelOperationErrorCode.mmprojSameAsModelFile,
+        );
+      }
+      final updated = descriptor.copyWith(
+        mmprojFilePath: sourceFile.path,
+        visionEnabled: true,
+      );
+      await store.save(updated);
+      return updated;
+    }
     if (!await sourceFile.exists()) {
       throw const ModelOperationException(
         ModelOperationErrorCode.selectedMmprojFileMissing,
@@ -256,7 +300,7 @@ class LocalModelRepository {
         final store = await _store;
         final descriptor = await _requireModel(store, modelId);
         if (!descriptor.availableMmprojs.containsValue(filePath) ||
-            !await File(filePath).exists()) {
+            (!descriptor.isExternal && !await File(filePath).exists())) {
           throw const ModelOperationException(
             ModelOperationErrorCode.selectedMmprojFileMissing,
           );
@@ -277,7 +321,7 @@ class LocalModelRepository {
           );
         }
         final file = File(filePath);
-        if (await file.exists()) {
+        if (!descriptor.isExternal && await file.exists()) {
           await file.delete();
         }
         files.removeWhere((_, path) => path == filePath);
@@ -336,6 +380,12 @@ class LocalModelRepository {
       throw const ModelOperationException(
         ModelOperationErrorCode.modelNameExists,
       );
+    }
+
+    if (descriptor.isExternal) {
+      final updated = descriptor.copyWith(modelName: trimmed);
+      await store.save(updated);
+      return updated;
     }
 
     final oldDir = Directory(descriptor.storedDirectoryPath);
@@ -597,8 +647,10 @@ class LocalModelRepository {
       );
     }
 
-    await _cleanupDirectory(descriptor.storedDirectoryPath);
     await store.remove(modelId);
+    if (!descriptor.isExternal) {
+      await _cleanupDirectory(descriptor.storedDirectoryPath);
+    }
   }
 
   Future<void> _cleanupDirectory(String directoryPath) async {

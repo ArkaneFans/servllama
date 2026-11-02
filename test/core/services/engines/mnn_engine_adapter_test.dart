@@ -8,6 +8,9 @@ import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/services/engines/inference_engine_adapter.dart';
 import 'package:servllama/core/services/engines/mnn_engine_adapter.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
+import 'package:servllama/core/database/app_database.dart';
+import 'package:servllama/core/models/model_asset.dart';
+import 'package:servllama/core/repositories/unified_model_repository.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -71,6 +74,37 @@ void main() {
     ]);
     expect(result.port, 8083);
   });
+
+  test(
+    'external MNN loads the SQL path without requiring files to exist',
+    () async {
+      final db = AppDatabase.memory();
+      addTearDown(db.close);
+      final repository = UnifiedModelRepository(database: db);
+      await repository.saveAsset(
+        const ModelAsset(
+          id: 'external-asset',
+          kind: AssetKind.llm,
+          engine: 'mnn',
+          runtimeId: 'external-id',
+          storageOwner: 'external',
+          path: '/missing/external-model',
+          name: 'Alias',
+          revision: 'local',
+          manifest: {'importedAt': 0},
+        ),
+      );
+      final adapter = MnnEngineAdapter(
+        modelRepository: repository,
+        settingsLoader: _FixedSettingsLoader(const ServerLaunchSettings()),
+      );
+      addTearDown(adapter.dispose);
+      await adapter.start(modelId: 'external-id', onPhase: (_) {});
+      expect(platform.externalPaths, ['/missing/external-model']);
+      expect(platform.externalNames, ['Alias']);
+      expect(platform.startServerCalls, 1);
+    },
+  );
 
   test(
     'stopping HTTP keeps residency until native unloading is acknowledged',
@@ -367,6 +401,8 @@ class _FixedSettingsLoader extends ServerLaunchSettingsLoader {
 }
 
 class _FakeMnnPlatform extends MnnEnginePlatform {
+  final externalPaths = <String>[];
+  final externalNames = <String?>[];
   int checkPortCalls = 0;
   int startServerCalls = 0;
   int snapshotCalls = 0;
@@ -440,6 +476,18 @@ class _FakeMnnPlatform extends MnnEnginePlatform {
       precision: options.precision,
       threadNum: options.threadNum,
     );
+  }
+
+  @override
+  Future<MnnModelInfo> loadModelFromPath(
+    String directoryPath, {
+    String? displayName,
+    MnnLoadOptions options = const MnnLoadOptions(),
+  }) async {
+    externalPaths.add(directoryPath);
+    externalNames.add(displayName);
+    if (loadError != null) throw loadError!;
+    return _model(options.backend);
   }
 
   @override

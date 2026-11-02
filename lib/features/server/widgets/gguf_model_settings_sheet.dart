@@ -16,6 +16,8 @@ import 'package:servllama/features/downloads/widgets/model_repository_link.dart'
 import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/l10n/runtime_labels.dart';
 import 'package:servllama/shared/widgets/engine_badge.dart';
+import 'package:servllama/features/server/pages/model_file_picker_page.dart';
+import 'package:servllama/core/services/gguf_file_picker.dart';
 
 class GgufModelSettingsSheet extends StatefulWidget {
   const GgufModelSettingsSheet({super.key, required this.descriptor});
@@ -109,6 +111,25 @@ class _GgufModelSettingsSheetState extends State<GgufModelSettingsSheet> {
     );
   }
 
+  Future<String?> _importProjector(
+    ModelDescriptor model,
+    ModelManagementProvider models,
+  ) async {
+    if (!model.isExternal) return models.importMmproj(model.id);
+    final selected = await ModelFilePickerPage.pick(
+      context,
+      directoriesOnly: false,
+    );
+    if (selected == null || !mounted) return null;
+    return models.importMmproj(
+      model.id,
+      externalFile: PickedGgufFile(
+        path: selected.path,
+        fileName: selected.name,
+      ),
+    );
+  }
+
   Future<void> _removeProjector(
     ModelDescriptor model,
     String path, {
@@ -120,7 +141,9 @@ class _GgufModelSettingsSheetState extends State<GgufModelSettingsSheet> {
       builder: (dialogContext) => AlertDialog(
         title: Text(l10n.modelSettingsRemoveMmproj),
         content: Text(
-          localImport
+          model.isExternal
+              ? l10n.modelExternalRemoveHelp
+              : localImport
               ? l10n.modelSettingsRemoveMmprojConfirm(model.modelName)
               : l10n.modelSettingsProjectorDeleteConfirm(
                   path.split(RegExp(r'[\\/]')).last,
@@ -286,6 +309,17 @@ class _GgufModelSettingsSheetState extends State<GgufModelSettingsSheet> {
                   ],
                 ),
                 const SizedBox(height: 24),
+                if (model.isExternal) ...[
+                  Text(
+                    l10n.modelExternalTag,
+                    style: theme.textTheme.labelMedium,
+                  ),
+                  SelectableText(
+                    model.storedFilePath,
+                    style: theme.textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 TextField(
                   key: const Key('model_settings_name_field'),
                   controller: _nameController,
@@ -474,7 +508,7 @@ class _GgufModelSettingsSheetState extends State<GgufModelSettingsSheet> {
                       onPressed: busy
                           ? null
                           : () async => _showMessage(
-                              await models.importMmproj(model.id),
+                              await _importProjector(model, models),
                             ),
                       icon: models.isImportingMmproj
                           ? const SizedBox.square(
