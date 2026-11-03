@@ -173,6 +173,7 @@ class UnifiedModelRepository {
       );
       await clearMissingLocalChatTargets(db);
     });
+    if (model.isExternal) await _clearExternalMnnCache(model.runtimeId);
   }
 
   Future<LibraryModel> renameModel(LibraryModel model, String newName) async {
@@ -207,10 +208,19 @@ class UnifiedModelRepository {
         if (model.isExternal) {
           final db = database ?? await AppDatabase.shared();
           await db.execute(
-            "UPDATE model_assets SET name=? WHERE engine='mnn' AND path=? AND storage_owner='external'",
-            [trimmedName, model.storagePath],
+            "UPDATE model_assets SET runtime_id=?,name=?,manifest=json_set(manifest,'\$.libraryId',?) "
+            "WHERE engine='mnn' AND path=? AND storage_owner='external'",
+            [
+              trimmedName,
+              trimmedName,
+              libraryIdFor(InferenceEngine.mnn, trimmedName),
+              model.storagePath,
+            ],
           );
-          return (await externalMnnModel(model.runtimeId))!;
+          if (trimmedName != model.runtimeId) {
+            await _clearExternalMnnCache(model.runtimeId);
+          }
+          return (await externalMnnModel(trimmedName))!;
         }
         final renamed = await _mnnEngine.renameImportedModel(
           model.runtimeId,
@@ -315,13 +325,14 @@ class UnifiedModelRepository {
       id: previous.isEmpty ? newId() : previous.single.read<String>('id'),
       kind: AssetKind.llm,
       engine: 'mnn',
-      runtimeId: info.modelId,
+      runtimeId: name,
       storageOwner: 'external',
       path: path,
       name: name,
       revision: 'local',
       manifest: {
-        'libraryId': libraryIdFor(InferenceEngine.mnn, info.modelId),
+        'libraryId': libraryIdFor(InferenceEngine.mnn, name),
+        'sizeBytes': info.sizeBytes,
         'images': info.supportsVision,
         'tools': info.supportsToolCalling,
         'importedAt': DateTime.now().millisecondsSinceEpoch,
@@ -356,7 +367,7 @@ class UnifiedModelRepository {
     runtimeId: asset.runtimeId,
     engine: InferenceEngine.mnn,
     name: asset.name,
-    sizeBytes: 0,
+    sizeBytes: asset.manifest['sizeBytes'] as int? ?? 0,
     importedAt: DateTime.fromMillisecondsSinceEpoch(
       asset.manifest['importedAt'] as int,
     ),
@@ -365,6 +376,20 @@ class UnifiedModelRepository {
     supportsToolCalling: asset.manifest['tools'] == true,
     isExternal: true,
   );
+
+  Future<void> _clearExternalMnnCache(String modelId) async {
+    try {
+      await _mnnEngine.clearMmapCache(modelId: modelId);
+    } catch (error, stackTrace) {
+      // Cache cleanup must not undo a committed rename/removal or skip selection updates.
+      _logger.warning(
+        '清理外部 MNN 缓存失败',
+        channel: LogChannel.model,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+  }
 
   LibraryModel _libraryModelFromMnn(MnnModelInfo model) => LibraryModel(
     id: libraryIdFor(InferenceEngine.mnn, model.modelId),

@@ -77,6 +77,7 @@ class _Assets extends UnifiedModelRepository {
 class _Runtime extends Fake implements EngineRuntimeProvider {
   bool running = false, published = false, residue = false;
   String? model;
+  String? label;
   InferenceEngine engine = InferenceEngine.mnn;
   final actions = <String>[];
   final started = Completer<void>();
@@ -104,7 +105,7 @@ class _Runtime extends Fake implements EngineRuntimeProvider {
   @override
   String? get activeModelId => running ? model : null;
   @override
-  String? get activeModelName => running ? model : null;
+  String? get activeModelName => running ? label ?? model : null;
   @override
   String? get selectedModelId => model;
   @override
@@ -960,6 +961,64 @@ void main() {
       },
     );
   }
+
+  test(
+    'local chat requests use the registered runtime ID, not the display label',
+    () async {
+      await chat.load();
+      runtime.model = 'local-runtime';
+      runtime.label = 'Different display label';
+      runtime.running = true;
+      await chat.selectTarget(local);
+      chat.updateServerState(
+        baseUrl: runtime.baseUrl,
+        isServerRunning: runtime.isRunning,
+        activeModelId: runtime.activeModelId,
+        activeModelName: runtime.activeModelName,
+      );
+      expect(chat.canSend, isTrue);
+      await chat.sendMessage('Hello local model');
+      expect(protocol.models, ['local-runtime']);
+      expect(chat.visibleMessages.last.content, 'Reply from local-runtime');
+    },
+  );
+
+  test(
+    'refreshing a renamed local model preserves the assistant target and conversation',
+    () async {
+      await chat.load();
+      await chat.selectTarget(local);
+      await chat.ensureConversation();
+      final conversationId = chat.selectedSession!.id;
+      final renamed = ModelAsset(
+        id: _Assets.local.id,
+        kind: AssetKind.llm,
+        engine: 'mnn',
+        runtimeId: 'Renamed MNN',
+        storageOwner: 'external',
+        path: _Assets.local.path,
+        name: 'Renamed MNN',
+        revision: 'fixture',
+      );
+      assets.entries = [renamed];
+      await assets.saveAsset(renamed);
+      await assistants.refreshAssets();
+      runtime.model = renamed.runtimeId;
+      runtime.running = true;
+      bind();
+      chat.updateServerState(
+        baseUrl: runtime.baseUrl,
+        isServerRunning: runtime.isRunning,
+        activeModelId: runtime.activeModelId,
+        activeModelName: runtime.activeModelName,
+      );
+      expect(chat.canSend, isTrue);
+      await chat.sendMessage('Hello renamed model');
+      expect(protocol.models, ['Renamed MNN']);
+      expect(chat.currentTarget?.assetId, _Assets.local.id);
+      expect(chat.selectedSession!.id, conversationId);
+    },
+  );
 
   test(
     'one local selection owns startup and rejects published switches before changing the target',

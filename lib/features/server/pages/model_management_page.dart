@@ -908,9 +908,7 @@ class _LibraryModelCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        model.isExternal && model.engine == InferenceEngine.mnn
-                            ? model.engine.displayName
-                            : '${model.engine.displayName} · ${FormatUtils.bytes(model.sizeBytes)}',
+                        '${model.engine.displayName} · ${FormatUtils.bytes(model.sizeBytes)}',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: colorScheme.onSurfaceVariant,
                         ),

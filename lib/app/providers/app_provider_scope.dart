@@ -39,7 +39,19 @@ class AppProviderScope {
         library ??
         ModelManagementProvider(
           onModelDeleted: this.assistants.refreshAssets,
-          onModelRenamed: this.runtime.handleModelRenamed,
+          onModelRenamed:
+              ({
+                required engine,
+                required oldModelId,
+                required newModelId,
+              }) async {
+                await this.runtime.handleModelRenamed(
+                  engine: engine,
+                  oldModelId: oldModelId,
+                  newModelId: newModelId,
+                );
+                await this.assistants.refreshAssets();
+              },
         );
     this.downloads =
         downloads ??

@@ -86,12 +86,12 @@ void main() {
           id: 'external-asset',
           kind: AssetKind.llm,
           engine: 'mnn',
-          runtimeId: 'external-id',
+          runtimeId: 'Alias',
           storageOwner: 'external',
           path: '/missing/external-model',
           name: 'Alias',
           revision: 'local',
-          manifest: {'importedAt': 0},
+          manifest: {'importedAt': 0, 'sizeBytes': 2048},
         ),
       );
       final adapter = MnnEngineAdapter(
@@ -99,9 +99,12 @@ void main() {
         settingsLoader: _FixedSettingsLoader(const ServerLaunchSettings()),
       );
       addTearDown(adapter.dispose);
-      await adapter.start(modelId: 'external-id', onPhase: (_) {});
+      final result = await adapter.start(modelId: 'Alias', onPhase: (_) {});
       expect(platform.externalPaths, ['/missing/external-model']);
       expect(platform.externalNames, ['Alias']);
+      expect(platform.externalIds, ['Alias']);
+      expect(result.activeModelId, 'Alias');
+      expect(result.activeModelName, 'Alias');
       expect(platform.startServerCalls, 1);
     },
   );
@@ -403,6 +406,7 @@ class _FixedSettingsLoader extends ServerLaunchSettingsLoader {
 class _FakeMnnPlatform extends MnnEnginePlatform {
   final externalPaths = <String>[];
   final externalNames = <String?>[];
+  final externalIds = <String?>[];
   int checkPortCalls = 0;
   int startServerCalls = 0;
   int snapshotCalls = 0;
@@ -481,13 +485,29 @@ class _FakeMnnPlatform extends MnnEnginePlatform {
   @override
   Future<MnnModelInfo> loadModelFromPath(
     String directoryPath, {
+    String? modelId,
     String? displayName,
     MnnLoadOptions options = const MnnLoadOptions(),
   }) async {
     externalPaths.add(directoryPath);
     externalNames.add(displayName);
+    externalIds.add(modelId);
     if (loadError != null) throw loadError!;
-    return _model(options.backend);
+    final id = modelId!;
+    return MnnModelInfo(
+      modelId: id,
+      modelKey: id,
+      displayName: displayName ?? id,
+      modelDirPath: directoryPath,
+      configPath: '$directoryPath/config.json',
+      sizeBytes: 2048,
+      importedAt: 0,
+      isActive: true,
+      backend: options.backend,
+      useMmap: options.useMmap,
+      precision: options.precision,
+      threadNum: options.threadNum,
+    );
   }
 
   @override

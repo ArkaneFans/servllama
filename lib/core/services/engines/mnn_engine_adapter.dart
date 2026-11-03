@@ -311,6 +311,7 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
           ? await _engine.loadModel(modelId, options: options)
           : await _engine.loadModelFromPath(
               external.storagePath,
+              modelId: external.runtimeId,
               displayName: external.name,
               options: options,
             );

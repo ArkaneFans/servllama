@@ -23,12 +23,12 @@ class LibraryModel {
   });
 
   /// Key for library operations (rename, delete). Namespaced by engine because
-  /// the two stores generate ids independently. Imported MNN renames change
-  /// this key; external models keep their identity when their alias changes.
+  /// the two stores generate ids independently. MNN renames change this key;
+  /// the corresponding SQLite asset ID remains stable.
   final String id;
 
-  /// GGUF uses its API alias. Imported MNN uses its directory name; external
-  /// MNN uses a stable path-derived ID, independent of its display name.
+  /// Engine/API model identifier. For GGUF and MNN it follows [name], including
+  /// rename; external model directory names are independent of this value.
   final String runtimeId;
 
   final InferenceEngine engine;

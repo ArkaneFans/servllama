@@ -8,11 +8,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/core/models/engine_runtime_state.dart';
 import 'package:servllama/core/models/inference_engine.dart';
+import 'package:servllama/core/models/library_model.dart';
 import 'package:servllama/core/models/model_descriptor.dart';
 import 'package:servllama/core/providers/engine_runtime_provider.dart';
 import 'package:servllama/core/providers/model_management_provider.dart';
 import 'package:servllama/core/services/app_l10n_service.dart';
 import 'package:servllama/core/repositories/local_model_repository.dart';
+import 'package:servllama/core/repositories/unified_model_repository.dart';
 import 'package:servllama/core/services/gguf_file_picker.dart';
 import 'package:servllama/features/downloads/models/download_task.dart';
 import 'package:servllama/features/downloads/models/download_task_view.dart';
@@ -227,6 +229,21 @@ void main() {
       expect(find.text('llama.cpp · 2.00 GB'), findsOneWidget);
       expect(find.byTooltip('设置'), findsOneWidget);
       expect(find.byTooltip('删除'), findsOneWidget);
+    });
+
+    testWidgets('shows the registered size for external MNN models', (
+      tester,
+    ) async {
+      final provider = ModelManagementProvider(
+        repository: FakeLocalModelRepository(),
+        unifiedRepository: _ExternalMnnLibraryRepository(),
+      );
+      addTearDown(provider.dispose);
+      await tester.pumpWidget(_host(provider));
+      await tester.pumpAndSettle();
+      expect(find.text('My MNN'), findsOneWidget);
+      expect(find.text('MNN · 2.00 GB'), findsOneWidget);
+      expect(find.text('外部'), findsOneWidget);
     });
 
     testWidgets('tapping a model card does not start the runtime', (
@@ -838,6 +855,22 @@ ModelDescriptor _descriptor({
     repoId: repoId,
     revision: revision,
   );
+}
+
+class _ExternalMnnLibraryRepository extends UnifiedModelRepository {
+  @override
+  Future<List<LibraryModel>> listModels() async => [
+    LibraryModel(
+      id: 'mnn:My MNN',
+      runtimeId: 'My MNN',
+      engine: InferenceEngine.mnn,
+      name: 'My MNN',
+      sizeBytes: 2147483648,
+      importedAt: DateTime(2026),
+      storagePath: '/external/original-folder',
+      isExternal: true,
+    ),
+  ];
 }
 
 Map<String, Object?> _mnnModelMap(String name) => <String, Object?>{

@@ -15,6 +15,8 @@ void main() {
   late LocalModelRepository local;
   late UnifiedModelRepository unified;
   late List<String> calls;
+  late List<String> clearedCaches;
+  PlatformException? cacheError;
 
   setUp(() async {
     db = AppDatabase.memory();
@@ -25,16 +27,24 @@ void main() {
     );
     unified = UnifiedModelRepository(database: db, localModelRepository: local);
     calls = [];
+    clearedCaches = [];
+    cacheError = null;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
           calls.add(call.method);
           if (call.method == 'listImportedModels') return <Object?>[];
           if (call.method == 'getModelInfoFromPath') {
             return {
-              'modelId': 'external-${'a' * 64}',
+              'modelId': 'source-folder',
+              'sizeBytes': 2048,
               'supportsVision': true,
               'supportsToolCalling': true,
             };
+          }
+          if (call.method == 'clearMmapCache') {
+            clearedCaches.add((call.arguments as Map)['modelId'] as String);
+            if (cacheError != null) throw cacheError!;
+            return {'sizeBytes': 0, 'cleared': true};
           }
           throw StateError('Unexpected native operation: ${call.method}');
         });
@@ -60,6 +70,7 @@ void main() {
       final assets = await unified.listAssets();
       expect(assets.single.storageOwner, 'external');
       expect(assets.single.isReady, isTrue);
+      expect(assets.single.runtimeId, assets.single.name);
       expect(await Directory('${root.path}/app/models').exists(), isFalse);
       final duplicate = await local.addExternalModel(
         PickedGgufFile(path: path, fileName: 'never-created.gguf'),
@@ -120,19 +131,50 @@ void main() {
       final path = '${root.path}/missing-mnn';
       final model = await unified.addExternalMnnModel(path, 'MNN');
       expect(model.isExternal, isTrue);
+      expect(model.runtimeId, 'MNN');
+      expect(model.sizeBytes, 2048);
       expect(model.supportsVision, isTrue);
       expect(model.supportsToolCalling, isTrue);
       expect((await unified.listModels()).single.storagePath, path);
-      expect((await unified.listAssets()).single.isReady, isTrue);
+      final asset = (await unified.listAssets()).single;
+      expect(asset.isReady, isTrue);
+      expect(asset.runtimeId, asset.name);
+      expect(asset.manifest['sizeBytes'], 2048);
       final renamed = await unified.renameModel(model, 'Alias');
-      expect(renamed.runtimeId, model.runtimeId);
+      expect(renamed.runtimeId, 'Alias');
+      expect(renamed.id, 'mnn:Alias');
+      expect((await unified.asset(asset.id))!.id, asset.id);
+      expect((await unified.asset(asset.id))!.runtimeId, 'Alias');
+      expect(
+        (await unified.asset(asset.id))!.manifest['libraryId'],
+        'mnn:Alias',
+      );
       expect(renamed.storagePath, path);
       expect(renamed.name, 'Alias');
+      expect(renamed.sizeBytes, 2048);
+      expect(await unified.externalMnnModel('MNN'), isNull);
+      expect(clearedCaches, ['MNN']);
       await unified.deleteModel(renamed);
       expect(await unified.listModels(), isEmpty);
       expect(calls, isNot(contains('renameImportedModel')));
       expect(calls, isNot(contains('deleteImportedModel')));
       expect(calls, isNot(contains('importModelFromPath')));
+      expect(clearedCaches, ['MNN', 'Alias']);
+    },
+  );
+
+  test(
+    'a failed cache cleanup does not roll back a committed external rename',
+    () async {
+      final model = await unified.addExternalMnnModel(
+        '${root.path}/source',
+        'Before',
+      );
+      cacheError = PlatformException(code: 'cache_clear_failed');
+      final renamed = await unified.renameModel(model, 'After');
+      expect(renamed.runtimeId, 'After');
+      expect((await unified.listModels()).single.name, 'After');
+      expect(clearedCaches, ['Before']);
     },
   );
 }

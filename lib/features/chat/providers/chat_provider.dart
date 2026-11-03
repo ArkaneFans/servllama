@@ -418,9 +418,7 @@ class ChatProvider extends ChangeNotifier {
     if (connection == null) {
       throw StateError('Connection missing; select another model');
     }
-    final modelId = remote
-        ? target.modelId!
-        : (runtime.activeModelName ?? targetAsset!.runtimeId);
+    final modelId = remote ? target.modelId! : targetAsset!.runtimeId;
     final key = remote ? connection.apiKey : runtime.apiKey;
     return ChatRunConfig(
       assistant: copy,
