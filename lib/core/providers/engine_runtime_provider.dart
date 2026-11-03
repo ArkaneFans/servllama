@@ -328,6 +328,17 @@ class EngineRuntimeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> handleModelDeleted({
+    required InferenceEngine engine,
+    required String modelId,
+  }) async {
+    await ensureRestored();
+    if (_disposed || _selectedModelIds[engine] != modelId) return;
+    _selectedModelIds[engine] = null;
+    await _kvStorage.remove(EnginePrefsKeys.selectedModel(engine.storageValue));
+    notifyListeners();
+  }
+
   Future<void> toggle() async {
     await ensureRestored();
     if (_disposed) return;

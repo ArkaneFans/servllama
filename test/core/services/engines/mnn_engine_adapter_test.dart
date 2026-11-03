@@ -17,15 +17,20 @@ void main() {
 
   late MnnEnginePlatform originalPlatform;
   late _FakeMnnPlatform platform;
+  late AppDatabase db;
+  late UnifiedModelRepository repository;
 
   setUp(() {
+    db = AppDatabase.memory();
+    repository = UnifiedModelRepository(database: db);
     originalPlatform = MnnEnginePlatform.instance;
     platform = _FakeMnnPlatform();
     MnnEnginePlatform.instance = platform;
   });
 
-  tearDown(() {
+  tearDown(() async {
     MnnEnginePlatform.instance = originalPlatform;
+    await db.close();
   });
 
   test(
@@ -34,6 +39,7 @@ void main() {
       platform.initialModel = _model(MnnBackend.cpu);
       platform.initializeBlocker = Completer<void>();
       final adapter = MnnEngineAdapter(
+        modelRepository: repository,
         settingsLoader: _FixedSettingsLoader(const ServerLaunchSettings()),
       );
       addTearDown(adapter.dispose);
@@ -49,6 +55,7 @@ void main() {
 
   test('uses the native bind as the only port decision', () async {
     final adapter = MnnEngineAdapter(
+      modelRepository: repository,
       settingsLoader: _FixedSettingsLoader(
         const ServerLaunchSettings(port: 8083),
       ),
@@ -113,6 +120,7 @@ void main() {
     'stopping HTTP keeps residency until native unloading is acknowledged',
     () async {
       final adapter = MnnEngineAdapter(
+        modelRepository: repository,
         settingsLoader: _FixedSettingsLoader(const ServerLaunchSettings()),
       );
       addTearDown(adapter.dispose);
@@ -132,6 +140,7 @@ void main() {
     'failed unloading retains residency until an explicit retry succeeds',
     () async {
       final adapter = MnnEngineAdapter(
+        modelRepository: repository,
         settingsLoader: _FixedSettingsLoader(const ServerLaunchSettings()),
       );
       addTearDown(adapter.dispose);
@@ -154,6 +163,7 @@ void main() {
 
   test('a server stop timeout prevents model unloading', () async {
     final adapter = MnnEngineAdapter(
+      modelRepository: repository,
       settingsLoader: _FixedSettingsLoader(const ServerLaunchSettings()),
     );
     addTearDown(adapter.dispose);
@@ -180,6 +190,7 @@ void main() {
       'Unloading failed',
     );
     final adapter = MnnEngineAdapter(
+      modelRepository: repository,
       settingsLoader: _FixedSettingsLoader(const ServerLaunchSettings()),
     );
     addTearDown(adapter.dispose);
@@ -204,6 +215,7 @@ void main() {
     () async {
       platform.initializeBlocker = Completer<void>();
       final adapter = MnnEngineAdapter(
+        modelRepository: repository,
         settingsLoader: _FixedSettingsLoader(const ServerLaunchSettings()),
       );
       addTearDown(adapter.dispose);
@@ -227,6 +239,7 @@ void main() {
       'Port 8083 is currently unavailable.',
     );
     final adapter = MnnEngineAdapter(
+      modelRepository: repository,
       settingsLoader: _FixedSettingsLoader(
         const ServerLaunchSettings(port: 8083),
       ),
@@ -249,6 +262,7 @@ void main() {
 
   test('passes the saved backend when loading a model', () async {
     final adapter = MnnEngineAdapter(
+      modelRepository: repository,
       settingsLoader: _FixedSettingsLoader(
         const ServerLaunchSettings(mnnBackend: MnnBackend.vulkan),
       ),
@@ -261,6 +275,7 @@ void main() {
   test('reloads a resident model when its requested backend changes', () async {
     platform.initialModel = _model(MnnBackend.cpu);
     final adapter = MnnEngineAdapter(
+      modelRepository: repository,
       settingsLoader: _FixedSettingsLoader(
         const ServerLaunchSettings(mnnBackend: MnnBackend.opencl),
       ),
@@ -274,6 +289,7 @@ void main() {
     'passes mmap, precision and thread settings when loading a model',
     () async {
       final adapter = MnnEngineAdapter(
+        modelRepository: repository,
         settingsLoader: _FixedSettingsLoader(
           const ServerLaunchSettings(
             mnnUseMmap: true,
@@ -297,6 +313,7 @@ void main() {
   test('reloads a resident model when mmap settings change', () async {
     platform.initialModel = _model(MnnBackend.cpu);
     final adapter = MnnEngineAdapter(
+      modelRepository: repository,
       settingsLoader: _FixedSettingsLoader(
         const ServerLaunchSettings(mnnUseMmap: true),
       ),
@@ -309,6 +326,7 @@ void main() {
   test('reuses a resident model only when its backend also matches', () async {
     platform.initialModel = _model(MnnBackend.opencl);
     final adapter = MnnEngineAdapter(
+      modelRepository: repository,
       settingsLoader: _FixedSettingsLoader(
         const ServerLaunchSettings(mnnBackend: MnnBackend.opencl),
       ),
@@ -324,6 +342,7 @@ void main() {
       'OpenCL driver unavailable',
     );
     final adapter = MnnEngineAdapter(
+      modelRepository: repository,
       settingsLoader: _FixedSettingsLoader(
         const ServerLaunchSettings(mnnBackend: MnnBackend.opencl),
       ),
@@ -352,6 +371,7 @@ void main() {
         'Transformer C4 export required',
       );
       final adapter = MnnEngineAdapter(
+        modelRepository: repository,
         settingsLoader: _FixedSettingsLoader(
           const ServerLaunchSettings(mnnBackend: MnnBackend.hexagon),
         ),

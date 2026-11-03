@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:path/path.dart' as p;
 import 'package:servllama/core/database/app_database.dart';
 import 'package:servllama/core/repositories/gguf_model_store.dart';
 import 'package:servllama/core/errors/model_operation_exception.dart';
@@ -26,6 +27,7 @@ class LocalModelRepository {
 
   final ModelStoragePaths _storagePaths;
   final AppDatabase? _database;
+  AppDatabase? get database => _database;
   final AppLogger _logger;
 
   Future<GgufModelStore> get _store async =>
@@ -50,63 +52,8 @@ class LocalModelRepository {
   Future<List<ModelDescriptor>> _listModels() async {
     final store = await _store;
     final descriptors = await store.list();
-    final staleIds = <String>[];
-    final validModels = <ModelDescriptor>[];
-
-    for (final descriptor in descriptors) {
-      if (descriptor.isExternal) {
-        validModels.add(descriptor);
-        continue;
-      }
-      final currentFile = File(descriptor.storedFilePath);
-      if (!await currentFile.exists()) {
-        staleIds.add(descriptor.id);
-        await _cleanupDirectory(descriptor.storedDirectoryPath);
-        _logger.warning(
-          '清理失效模型记录: ${descriptor.modelName}',
-          channel: LogChannel.model,
-        );
-        continue;
-      }
-
-      final projectors = descriptor.availableMmprojs;
-      final existingProjectors = <String, String>{};
-      for (final entry in projectors.entries) {
-        if (await File(entry.value).exists()) {
-          existingProjectors[entry.key] = entry.value;
-        }
-      }
-      if (existingProjectors.length != projectors.length) {
-        final selected =
-            existingProjectors.containsValue(descriptor.mmprojFilePath)
-            ? descriptor.mmprojFilePath
-            : (existingProjectors.isEmpty
-                  ? null
-                  : existingProjectors.values.first);
-        final patched = descriptor.copyWith(
-          mmprojFilePath: selected,
-          mmprojFiles: existingProjectors,
-          visionEnabled:
-              existingProjectors.isNotEmpty && descriptor.isVisionEnabled,
-        );
-        await store.save(patched);
-        validModels.add(patched);
-        continue;
-      }
-
-      validModels.add(descriptor);
-    }
-
-    if (staleIds.isNotEmpty) {
-      for (final id in staleIds) {
-        await store.remove(id);
-      }
-    }
-
-    validModels.sort(
-      (left, right) => right.importedAt.compareTo(left.importedAt),
-    );
-    return validModels;
+    descriptors.sort((a, b) => b.importedAt.compareTo(a.importedAt));
+    return descriptors;
   }
 
   Future<ModelDescriptor> importModel(
@@ -422,8 +369,7 @@ class LocalModelRepository {
     try {
       await store.save(updated);
     } catch (_) {
-      // Roll the directory back so the stale record does not point at a
-      // missing path (listModels would garbage-collect the model otherwise).
+      // Keep the original SQL path usable when committing the rename fails.
       if (didRenameDirectory) {
         await Directory(newDir.path).rename(oldDir.path);
       }
@@ -647,16 +593,25 @@ class LocalModelRepository {
       );
     }
 
-    await store.remove(modelId);
     if (!descriptor.isExternal) {
       await _cleanupDirectory(descriptor.storedDirectoryPath);
     }
+    await store.remove(modelId);
   }
 
   Future<void> _cleanupDirectory(String directoryPath) async {
     final directory = Directory(directoryPath);
     if (!await directory.exists()) {
       return;
+    }
+    final root = await _storagePaths.getModelsDirectory();
+    final resolved = p.normalize(await directory.resolveSymbolicLinks());
+    final expected = p.join(
+      await root.resolveSymbolicLinks(),
+      p.basename(directory.path),
+    );
+    if (!p.equals(resolved, expected)) {
+      throw StateError('Unexpected model storage path');
     }
     await directory.delete(recursive: true);
   }

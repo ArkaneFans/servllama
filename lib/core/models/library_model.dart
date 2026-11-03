@@ -22,9 +22,7 @@ class LibraryModel {
     this.isExternal = false,
   });
 
-  /// Key for library operations (rename, delete). Namespaced by engine because
-  /// the two stores generate ids independently. MNN renames change this key;
-  /// the corresponding SQLite asset ID remains stable.
+  /// Stable SQLite asset identity for library operations and references.
   final String id;
 
   /// Engine/API model identifier. For GGUF and MNN it follows [name], including

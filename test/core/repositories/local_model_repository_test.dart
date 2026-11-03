@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/core/database/app_database.dart';
+import 'package:servllama/core/repositories/gguf_model_store.dart';
 import 'package:servllama/core/errors/model_operation_exception.dart';
 import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/core/repositories/local_model_repository.dart';
@@ -144,6 +145,47 @@ void main() {
       );
     });
 
+    test('SQL delete failure keeps registration and retry skips files', () async {
+      final sourceFile = await _createSourceFile(sourceDirectory, 'retry.gguf');
+      final descriptor = await repository.importModel(
+        PickedGgufFile(path: sourceFile.path, fileName: 'retry.gguf'),
+      );
+      await db.execute(
+        "CREATE TRIGGER reject_model BEFORE DELETE ON model_assets BEGIN SELECT RAISE(ABORT,'fixture'); END",
+      );
+      await expectLater(
+        repository.deleteModel(descriptor.id),
+        throwsA(anything),
+      );
+      expect(await Directory(descriptor.storedDirectoryPath).exists(), isFalse);
+      expect((await repository.listModels()).single.id, descriptor.id);
+      await db.execute('DROP TRIGGER reject_model');
+      await repository.deleteModel(descriptor.id);
+      expect(await repository.listModels(), isEmpty);
+    });
+
+    test('deletion rejects an owned path outside private models', () async {
+      final sourceFile = await _createSourceFile(
+        sourceDirectory,
+        'outside.gguf',
+      );
+      final descriptor = await repository.importModel(
+        PickedGgufFile(path: sourceFile.path, fileName: 'outside.gguf'),
+      );
+      await GgufModelStore(db).save(
+        descriptor.copyWith(
+          storedDirectoryPath: sourceDirectory.path,
+          storedFilePath: sourceFile.path,
+        ),
+      );
+      await expectLater(
+        repository.deleteModel(descriptor.id),
+        throwsStateError,
+      );
+      expect(await sourceFile.exists(), isTrue);
+      expect(await repository.listModels(), hasLength(1));
+    });
+
     test('returns models sorted by imported time descending', () async {
       final firstFile = await _createSourceFile(sourceDirectory, 'first.gguf');
       final secondFile = await _createSourceFile(
@@ -167,7 +209,7 @@ void main() {
       ]);
     });
 
-    test('cleans stale metadata when backing file no longer exists', () async {
+    test('list reads SQL without cleaning missing model files', () async {
       final sourceFile = await _createSourceFile(sourceDirectory, 'stale.gguf');
       final descriptor = await repository.importModel(
         PickedGgufFile(path: sourceFile.path, fileName: 'stale.gguf'),
@@ -177,14 +219,16 @@ void main() {
 
       final models = await repository.listModels();
 
-      expect(models, isEmpty);
-      expect(await Directory(descriptor.storedDirectoryPath).exists(), isFalse);
+      expect(models.single.id, descriptor.id);
+      expect(await Directory(descriptor.storedDirectoryPath).exists(), isTrue);
       expect(
         (await db.query(
           "SELECT id FROM model_assets WHERE json_type(manifest,'\$.gguf')='object'",
         )).isEmpty,
-        isTrue,
+        isFalse,
       );
+      await repository.deleteModel(descriptor.id);
+      expect(await repository.listModels(), isEmpty);
     });
 
     test('imports mmproj into existing model directory', () async {
@@ -369,7 +413,7 @@ void main() {
       },
     );
 
-    test('listModels clears missing mmproj metadata', () async {
+    test('listModels preserves missing mmproj selection', () async {
       final modelFile = await _createSourceFile(sourceDirectory, 'vision.gguf');
       final mmprojFile = await _createSourceFile(
         sourceDirectory,
@@ -387,7 +431,11 @@ void main() {
       await File(withMmproj.mmprojFilePath!).delete();
       final models = await repository.listModels();
 
-      expect(models.single.mmprojFilePath, isNull);
+      expect(models.single.mmprojFilePath, withMmproj.mmprojFilePath);
+      await expectLater(
+        repository.selectMmproj(descriptor.id, withMmproj.mmprojFilePath!),
+        throwsA(isA<ModelOperationException>()),
+      );
     });
 
     test('adoptDownloadedModel persists hub source metadata', () async {

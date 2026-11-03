@@ -38,25 +38,14 @@ class AppProviderScope {
     this.library =
         library ??
         ModelManagementProvider(
-          onModelDeleted: this.assistants.refreshAssets,
-          onModelRenamed:
-              ({
-                required engine,
-                required oldModelId,
-                required newModelId,
-              }) async {
-                await this.runtime.handleModelRenamed(
-                  engine: engine,
-                  oldModelId: oldModelId,
-                  newModelId: newModelId,
-                );
-                await this.assistants.refreshAssets();
-              },
+          onAssetsChanged: this.assistants.refreshAssets,
+          onModelDeleted: this.runtime.handleModelDeleted,
+          onModelRenamed: this.runtime.handleModelRenamed,
         );
     this.downloads =
         downloads ??
         DownloadProvider(
-          onLibraryChanged: this.library.refresh,
+          onLibraryChanged: this.library.modelsCommitted,
           modelNameCoordinator: this.library.nameCoordinator,
         );
     this.chat =

@@ -466,6 +466,36 @@ void main() {
       expect(preferences.getString('engine.mnn.selected_model'), 'after');
     });
 
+    test('deletion clears only the matching saved engine selection', () async {
+      final provider = _provider(
+        llama: _FakeEngineAdapter(InferenceEngine.llamaCpp),
+        mnn: _FakeEngineAdapter(InferenceEngine.mnn),
+      );
+      addTearDown(provider.dispose);
+      await provider.selectModel('GGUF');
+      await provider.switchEngine(InferenceEngine.mnn);
+      await provider.selectModel('MNN');
+      await provider.handleModelDeleted(
+        engine: InferenceEngine.mnn,
+        modelId: 'other',
+      );
+      expect(provider.selectedModelId, 'MNN');
+      await provider.handleModelDeleted(
+        engine: InferenceEngine.llamaCpp,
+        modelId: 'GGUF',
+      );
+      expect(provider.selectedModelId, 'MNN');
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('engine.llama_cpp.selected_model'), isNull);
+      expect(prefs.getString('engine.mnn.selected_model'), 'MNN');
+      await provider.handleModelDeleted(
+        engine: InferenceEngine.mnn,
+        modelId: 'MNN',
+      );
+      expect(provider.selectedModelId, isNull);
+      expect(prefs.getString('engine.mnn.selected_model'), isNull);
+    });
+
     test('allows switching engines after startup failure cleanup', () async {
       final llama = _FakeEngineAdapter(
         InferenceEngine.llamaCpp,

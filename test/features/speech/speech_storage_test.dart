@@ -17,6 +17,43 @@ void main() {
   tearDown(() => h.close());
 
   test(
+    'model deletion removes files before SQL and retries missing files',
+    () async {
+      final asset = await h.model();
+      await h.db.execute(
+        "CREATE TRIGGER reject_model BEFORE DELETE ON model_assets BEGIN SELECT RAISE(ABORT,'fixture'); END",
+      );
+      await expectLater(h.service.models.delete(asset), throwsA(anything));
+      expect(await Directory(asset.path).exists(), isFalse);
+      expect((await h.service.models.models.asset(asset.id))!.state, 'ready');
+      await h.service.models.load();
+      expect((await h.service.models.models.asset(asset.id))!.state, 'ready');
+      await h.db.execute('DROP TRIGGER reject_model');
+      await h.service.models.delete(asset);
+      expect(await h.service.models.models.asset(asset.id), isNull);
+    },
+  );
+
+  test(
+    'loading the speech catalog does not resume old pending deletions',
+    () async {
+      final asset = await h.model();
+      await h.db.execute(
+        "UPDATE model_assets SET state='deleting' WHERE id=?",
+        [asset.id],
+      );
+      await h.service.models.load();
+      expect(await Directory(asset.path).exists(), isTrue);
+      expect(
+        (await h.service.models.models.asset(asset.id))!.state,
+        'deleting',
+      );
+      await h.service.models.delete(asset);
+      expect(await h.service.models.models.asset(asset.id), isNull);
+    },
+  );
+
+  test(
     'warmup and demand coalesce speech initialization without starting jobs',
     () async {
       final cold = SpeechJobService(

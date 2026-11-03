@@ -8,7 +8,7 @@ enum OwnedFileKind { chatAttachment, speechJob, voiceProfile }
 
 /// A small durable deletion queue for the three application-owned file stores.
 /// Enqueue with the record deletion transaction; retry after commit or startup.
-/// Model packages already have their own persisted deleting state.
+/// Model packages delete owned files before removing their registration.
 class OwnedFileCleanup {
   OwnedFileCleanup(this.db, this.root);
   final AppDatabase db;

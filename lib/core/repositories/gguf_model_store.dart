@@ -13,7 +13,7 @@ class GgufModelStore {
       "kind='llm' AND engine='llama_cpp' AND storage_owner IN ('app','external')";
 
   Future<List<ModelDescriptor>> list() async => (await db.query(
-    "SELECT manifest FROM model_assets WHERE $_scope AND json_type(manifest,'\$.gguf')='object'",
+    "SELECT manifest FROM model_assets WHERE $_scope AND state='ready' AND json_type(manifest,'\$.gguf')='object'",
   )).map((row) => _decode(row.read<String>('manifest'))).toList();
 
   Future<ModelDescriptor?> find(String id) async {
@@ -62,11 +62,16 @@ class GgufModelStore {
   });
 
   Future<void> remove(String id) => db.transaction(() async {
-    await db.execute(
-      "UPDATE model_assets SET state='missing',manifest=json_remove(manifest,'\$.gguf') "
-      "WHERE $_scope AND json_extract(manifest,'\$.gguf.id')=?",
+    final rows = await db.query(
+      "SELECT id FROM model_assets WHERE $_scope AND json_extract(manifest,'\$.gguf.id')=?",
       [id],
     );
-    await clearMissingLocalChatTargets(db);
+    await db.execute(
+      "DELETE FROM model_assets WHERE $_scope AND json_extract(manifest,'\$.gguf.id')=?",
+      [id],
+    );
+    for (final row in rows) {
+      await clearLocalChatTargetsForAsset(db, row.read<String>('id'));
+    }
   });
 }

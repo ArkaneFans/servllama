@@ -142,13 +142,10 @@ void main() {
       expect(asset.manifest['sizeBytes'], 2048);
       final renamed = await unified.renameModel(model, 'Alias');
       expect(renamed.runtimeId, 'Alias');
-      expect(renamed.id, 'mnn:Alias');
+      expect(renamed.id, asset.id);
       expect((await unified.asset(asset.id))!.id, asset.id);
       expect((await unified.asset(asset.id))!.runtimeId, 'Alias');
-      expect(
-        (await unified.asset(asset.id))!.manifest['libraryId'],
-        'mnn:Alias',
-      );
+      expect((await unified.asset(asset.id))!.name, 'Alias');
       expect(renamed.storagePath, path);
       expect(renamed.name, 'Alias');
       expect(renamed.sizeBytes, 2048);
@@ -156,6 +153,7 @@ void main() {
       expect(clearedCaches, ['MNN']);
       await unified.deleteModel(renamed);
       expect(await unified.listModels(), isEmpty);
+      expect(await unified.asset(asset.id), isNull);
       expect(calls, isNot(contains('renameImportedModel')));
       expect(calls, isNot(contains('deleteImportedModel')));
       expect(calls, isNot(contains('importModelFromPath')));

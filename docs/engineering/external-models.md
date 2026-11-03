@@ -40,8 +40,10 @@ capabilities are read as model metadata when registering/loading, without
 validating referenced files. Library refresh and startup use the persisted
 size instead of scanning external directories.
 
-Removal clears model selection references but preserves conversation history
-and source files. External rename updates the name and runtime ID while keeping
+Removal deletes the registration row and clears current model selection
+references while preserving conversation history and source files. Model-library
+IDs use the stable SQLite asset ID; engine-facing runtime IDs remain separate.
+External rename updates the name and runtime ID while keeping
 the SQLite asset ID and source path unchanged. Renaming/removing external MNN
 models clears their old private runtime caches; failed cache cleanup does not
 undo the committed record change. External GGUF
@@ -62,5 +64,11 @@ so former names remain clearable. Renames refresh saved runtime selections and
 assistant model snapshots. No hash-ID compatibility or data migration is added
 for this unreleased feature; older development references should be re-added.
 
-Tests cover absent external files, source-preserving operations, SQL indexing,
+The internal and external model library reads SQL directly. Private MNN imports
+and downloads register their metadata explicitly; old private models are added
+once by a separate startup registration step, independent of Hive migration. Library reads neither scan model folders
+nor check GGUF/projector existence. Private model deletion removes files first
+(skipping absent files), then removes the SQL row without a deletion state.
+
+Tests cover absent external files, source-preserving operations, SQL registration,
 native path dispatch, directory selection and the unchanged copy-import action.

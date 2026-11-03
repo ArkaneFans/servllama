@@ -1,3 +1,5 @@
+import 'package:servllama/core/database/app_database.dart';
+import 'package:servllama/core/repositories/gguf_model_store.dart';
 import 'package:servllama/core/services/llama_cpp_device_probe_service.dart';
 import 'package:servllama/core/models/llama_cpp_backend.dart';
 import 'dart:async';
@@ -179,7 +181,7 @@ void main() {
           initialModels: <ModelDescriptor>[_libraryDescriptor('alpha')],
         ),
       );
-      await library.load();
+      await tester.runAsync(library.load);
 
       final serverService = _FakeLlamaServerService();
       final serverProvider = EngineRuntimeProvider(
@@ -382,7 +384,7 @@ void main() {
           initialModels: <ModelDescriptor>[_libraryDescriptor('alpha')],
         ),
       );
-      await library.load();
+      await tester.runAsync(library.load);
 
       final serverService = _FakeLlamaServerService();
       final serverProvider = EngineRuntimeProvider(
@@ -460,7 +462,7 @@ void main() {
           ],
         ),
       );
-      await library.load();
+      await tester.runAsync(library.load);
 
       final serverService = _FakeLlamaServerService();
       final serverProvider = EngineRuntimeProvider(
@@ -1766,7 +1768,7 @@ void main() {
           initialModels: <ModelDescriptor>[_libraryDescriptor('alpha')],
         ),
       );
-      await library.load();
+      await tester.runAsync(library.load);
 
       final serverService = _FakeLlamaServerService();
       final serverProvider = EngineRuntimeProvider(
@@ -1891,7 +1893,7 @@ void main() {
             initialModels: <ModelDescriptor>[_libraryDescriptor('alpha')],
           ),
         );
-        await library.load();
+        await tester.runAsync(library.load);
 
         final serverService = _FakeLlamaServerService();
         final serverProvider = EngineRuntimeProvider(
@@ -2460,15 +2462,22 @@ ModelDescriptor _libraryDescriptor(String name) {
 }
 
 class FakeLocalModelRepository extends LocalModelRepository {
-  FakeLocalModelRepository({List<ModelDescriptor>? initialModels})
-    : _models = List<ModelDescriptor>.from(
-        initialModels ?? const <ModelDescriptor>[],
-      ),
-      super(appSupportDirectory: Directory.systemTemp);
+  factory FakeLocalModelRepository({List<ModelDescriptor>? initialModels}) =>
+      FakeLocalModelRepository._(initialModels ?? [], AppDatabase.memory());
+
+  FakeLocalModelRepository._(List<ModelDescriptor> initial, AppDatabase db)
+    : _models = List<ModelDescriptor>.from(initial),
+      super(database: db, appSupportDirectory: Directory.systemTemp) {
+    _seed = Future.wait(initial.map(GgufModelStore(db).save));
+    addTearDown(db.close);
+  }
 
   final List<ModelDescriptor> _models;
+  late final Future<void> _seed;
 
   @override
-  Future<List<ModelDescriptor>> listModels() async =>
-      List<ModelDescriptor>.from(_models);
+  Future<List<ModelDescriptor>> listModels() async {
+    await _seed;
+    return List<ModelDescriptor>.from(_models);
+  }
 }

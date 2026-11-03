@@ -57,7 +57,7 @@ import '../support/stub_engine_adapter.dart';
 
 class _Assets extends UnifiedModelRepository {
   @override
-  Future<List<ModelAsset>> listAssets({bool reconcile = true}) async => [];
+  Future<List<ModelAsset>> listAssets() async => [];
 }
 
 class _Models extends ModelManagementProvider {

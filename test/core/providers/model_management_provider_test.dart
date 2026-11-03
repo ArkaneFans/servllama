@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:servllama/core/database/app_database.dart';
+import 'package:servllama/core/repositories/gguf_model_store.dart';
 import 'package:servllama/core/errors/model_operation_exception.dart';
 import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/core/models/model_descriptor.dart';
@@ -57,6 +59,97 @@ void main() {
         code = 'invalid_model';
         expect(await provider.importMnnModelDirectory(), contains('fixture'));
         expect(provider.isImporting, isFalse);
+      },
+    );
+
+    for (final rejectSql in [false, true]) {
+      test(
+        'MNN import commits SQL before notification (rejectSql=$rejectSql)',
+        () async {
+          const channel = MethodChannel('com.arkanefans.mnn_engine/methods');
+          var deleted = '', changes = 0;
+          final local = FakeLocalModelRepository();
+          final catalog = UnifiedModelRepository(localModelRepository: local);
+          if (rejectSql) {
+            await local.db.execute(
+              "CREATE TRIGGER reject_model BEFORE INSERT ON model_assets BEGIN SELECT RAISE(ABORT,'fixture'); END",
+            );
+          }
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+              .setMockMethodCallHandler(channel, (call) async {
+                if (call.method == 'deleteImportedModel') {
+                  deleted = (call.arguments as Map)['modelId'] as String;
+                  return null;
+                }
+                expect(call.method, 'importModelDirectoryWithResult');
+                return {
+                  'requestedModelName': 'MNN',
+                  'model': {
+                    'modelId': 'MNN',
+                    'modelKey': 'MNN',
+                    'displayName': 'MNN',
+                    'modelDirPath': '/models/MNN',
+                    'configPath': '/models/MNN/config.json',
+                    'sizeBytes': 4096,
+                    'importedAt': 1,
+                    'isActive': false,
+                    'supportsVision': true,
+                  },
+                };
+              });
+          addTearDown(
+            () => TestDefaultBinaryMessengerBinding
+                .instance
+                .defaultBinaryMessenger
+                .setMockMethodCallHandler(channel, null),
+          );
+          final provider = ModelManagementProvider(
+            repository: local,
+            unifiedRepository: catalog,
+            onAssetsChanged: () async {
+              expect((await catalog.listModels()).single.sizeBytes, 4096);
+              changes++;
+            },
+          );
+          addTearDown(provider.dispose);
+          final result = await provider.importMnnModelDirectory();
+          if (rejectSql) {
+            expect(result, contains('fixture'));
+            expect(deleted, 'MNN');
+            expect(changes, 0);
+            expect(await catalog.listModels(), isEmpty);
+          } else {
+            expect(result, 'Model imported: MNN');
+            expect(deleted, isEmpty);
+            expect(changes, 1);
+            expect(provider.libraryModels.single.supportsVision, isTrue);
+          }
+          expect(provider.isImporting, isFalse);
+        },
+      );
+    }
+
+    test(
+      'notification failure keeps the committed import successful',
+      () async {
+        var changes = 0;
+        final provider = ModelManagementProvider(
+          repository: FakeLocalModelRepository(),
+          filePicker: FakeGgufFilePicker(
+            pickedFile: const PickedGgufFile(
+              path: 'C:\\mock\\model.gguf',
+              fileName: 'model.gguf',
+            ),
+          ),
+          onAssetsChanged: () async {
+            changes++;
+            throw StateError('fixture refresh failure');
+          },
+        );
+        addTearDown(provider.dispose);
+        expect(await provider.importModel(), 'Model imported: model');
+        expect(changes, 1);
+        expect(provider.libraryModels.single.name, 'model');
       },
     );
 
@@ -274,10 +367,11 @@ void main() {
       );
 
       await provider.load();
+      final assetId = provider.libraryModels.single.id;
       final future = provider.renameModel('m1', 'after');
 
       expect(provider.isRenaming, isTrue);
-      expect(provider.renamingModelId, 'm1');
+      expect(provider.renamingModelId, assetId);
 
       final message = await future;
 
@@ -285,6 +379,7 @@ void main() {
       expect(provider.isRenaming, isFalse);
       expect(provider.renamingModelId, isNull);
       expect(provider.models.single.modelName, 'after');
+      expect(provider.libraryModels.single.id, assetId);
     });
 
     test('manual rename still rejects a duplicate name', () async {
@@ -393,11 +488,18 @@ void main() {
 }
 
 class FakeLocalModelRepository extends LocalModelRepository {
-  FakeLocalModelRepository({List<ModelDescriptor>? initialModels})
-    : _models = List<ModelDescriptor>.from(
-        initialModels ?? const <ModelDescriptor>[],
-      ),
-      super(appSupportDirectory: Directory.systemTemp);
+  factory FakeLocalModelRepository({List<ModelDescriptor>? initialModels}) =>
+      FakeLocalModelRepository._(initialModels ?? [], AppDatabase.memory());
+  FakeLocalModelRepository._(List<ModelDescriptor> initial, this.db)
+    : _models = List<ModelDescriptor>.from(initial),
+      super(database: db, appSupportDirectory: Directory.systemTemp) {
+    _seed = Future.wait(
+      initial.map((model) => GgufModelStore(db).save(model)),
+    ).then((_) {});
+    addTearDown(db.close);
+  }
+  final AppDatabase db;
+  late final Future<void> _seed;
 
   final List<ModelDescriptor> _models;
   Completer<ModelDescriptor>? importCompleter;
@@ -409,8 +511,10 @@ class FakeLocalModelRepository extends LocalModelRepository {
   Object? removeMmprojError;
 
   @override
-  Future<List<ModelDescriptor>> listModels() async =>
-      List<ModelDescriptor>.from(_models);
+  Future<List<ModelDescriptor>> listModels() async {
+    await _seed;
+    return List<ModelDescriptor>.from(_models);
+  }
 
   @override
   Future<bool> isModelDirectoryOccupied(
@@ -434,6 +538,7 @@ class FakeLocalModelRepository extends LocalModelRepository {
     if (importCompleter != null) {
       final descriptor = await importCompleter!.future;
       _models.insert(0, descriptor);
+      await GgufModelStore(db).save(descriptor);
       return descriptor;
     }
 
@@ -443,6 +548,7 @@ class FakeLocalModelRepository extends LocalModelRepository {
       originalFileName: pickedFile.fileName,
     );
     _models.insert(0, descriptor);
+    await GgufModelStore(db).save(descriptor);
     return descriptor;
   }
 
@@ -452,6 +558,7 @@ class FakeLocalModelRepository extends LocalModelRepository {
       throw deleteError!;
     }
     _models.removeWhere((model) => model.id == modelId);
+    await GgufModelStore(db).remove(modelId);
   }
 
   @override
@@ -469,6 +576,7 @@ class FakeLocalModelRepository extends LocalModelRepository {
     final index = _models.indexWhere((model) => model.id == modelId);
     final updated = _models[index].copyWith(mmprojFilePath: pickedFile.path);
     _models[index] = updated;
+    await GgufModelStore(db).save(updated);
     return updated;
   }
 
@@ -481,6 +589,7 @@ class FakeLocalModelRepository extends LocalModelRepository {
     final index = _models.indexWhere((model) => model.id == modelId);
     final updated = _models[index].copyWith(mmprojFilePath: null);
     _models[index] = updated;
+    await GgufModelStore(db).save(updated);
     return updated;
   }
 
@@ -502,6 +611,7 @@ class FakeLocalModelRepository extends LocalModelRepository {
           : 'C:\\models\\$newName\\${current.mmprojFilePath!.split('\\').last}',
     );
     _models[index] = updated;
+    await GgufModelStore(db).save(updated);
     return updated;
   }
 

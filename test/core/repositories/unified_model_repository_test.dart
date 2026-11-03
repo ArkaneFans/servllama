@@ -2,8 +2,11 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mnn_engine/mnn_engine.dart';
+import 'package:servllama/core/database/app_database.dart';
 import 'package:servllama/core/errors/model_operation_exception.dart';
 import 'package:servllama/core/models/model_descriptor.dart';
+import 'package:servllama/core/repositories/gguf_model_store.dart';
 import 'package:servllama/core/repositories/local_model_repository.dart';
 import 'package:servllama/core/repositories/unified_model_repository.dart';
 import 'package:servllama/core/services/model_name_coordinator.dart';
@@ -11,207 +14,216 @@ import 'package:servllama/core/services/model_name_coordinator.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   const channel = MethodChannel('com.arkanefans.mnn_engine/methods');
-
-  tearDown(() {
+  late AppDatabase db;
+  late UnifiedModelRepository repository;
+  late List<String> calls;
+  setUp(() {
+    db = AppDatabase.memory();
+    repository = UnifiedModelRepository(
+      database: db,
+      localModelRepository: _Local(db),
+    );
+    calls = [];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          calls.add(call.method);
+          throw StateError('Unexpected native inventory read');
+        });
+  });
+  tearDown(() async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null);
+    await db.close();
   });
-
-  test('rejects an MNN name already used by a GGUF model', () async {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (call) async {
-          if (call.method == 'listImportedModels') {
-            return <Object?>[_mnnModelMap('mnn-model')];
-          }
-          return null;
-        });
-    final repository = UnifiedModelRepository(
-      localModelRepository: _FakeLocalModelRepository(<ModelDescriptor>[
-        _descriptor('Shared Name'),
-      ]),
-    );
-
-    await expectLater(
-      repository.ensureNameAvailable('shared name'),
-      throwsA(
-        isA<ModelOperationException>().having(
-          (error) => error.code,
-          'code',
-          ModelOperationErrorCode.modelNameExists,
-        ),
-      ),
-    );
-  });
-
-  test('rejects a GGUF name already used by an MNN model', () async {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (call) async {
-          if (call.method == 'listImportedModels') {
-            return <Object?>[_mnnModelMap('MNN Name')];
-          }
-          return null;
-        });
-    final repository = UnifiedModelRepository(
-      localModelRepository: _FakeLocalModelRepository(
-        const <ModelDescriptor>[],
-      ),
-    );
-
-    await expectLater(
-      repository.ensureNameAvailable('mnn name'),
-      throwsA(isA<ModelOperationException>()),
-    );
-  });
-
-  test('updates the library id when an MNN directory is renamed', () async {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (call) async {
-          switch (call.method) {
-            case 'listImportedModels':
-              return <Object?>[_mnnModelMap('before')];
-            case 'renameImportedModel':
-              final arguments = Map<Object?, Object?>.from(
-                call.arguments! as Map,
-              );
-              expect(arguments['modelId'], 'before');
-              expect(arguments['newName'], 'After model');
-              return _mnnModelMap('After model');
-          }
-          return null;
-        });
-    final repository = UnifiedModelRepository(
-      localModelRepository: _FakeLocalModelRepository(
-        const <ModelDescriptor>[],
-      ),
-    );
-    final model = (await repository.listModels()).single;
-
-    final renamed = await repository.renameModel(model, 'After model');
-
-    expect(renamed.id, 'mnn:After model');
-    expect(renamed.runtimeId, 'After model');
-    expect(renamed.name, 'After model');
-  });
+  Future<void> gguf(String name) => GgufModelStore(db).save(_descriptor(name));
+  Future<void> mnn(String name) async {
+    await repository.registerImportedMnnModel(_mnn(name));
+  }
 
   test(
-    'allocates the smallest case-insensitive suffix across stores',
+    'SQL lists missing files without native calls or metadata writes',
     () async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(channel, (call) async {
-            if (call.method == 'listImportedModels') {
-              return <Object?>[_mnnModelMap('Model (2)')];
-            }
-            return null;
-          });
-      final repository = UnifiedModelRepository(
-        localModelRepository: _FakeLocalModelRepository(<ModelDescriptor>[
-          _descriptor('MODEL'),
-          _descriptor('model (3)'),
-        ]),
+      await gguf('Vision');
+      await mnn('MNN');
+      final before = (await db.query(
+        'SELECT * FROM model_assets ORDER BY id',
+      )).map((r) => r.data).toList();
+      final models = await repository.listModels();
+      expect(models, hasLength(2));
+      expect(
+        models.map((m) => m.id).toSet(),
+        before.map((r) => r['id']).toSet(),
       );
-      final coordinator = ModelNameCoordinator(unifiedRepository: repository);
-
-      final allocation = await coordinator.reserveAvailable(
-        ownerId: 'import',
-        requestedName: 'model',
+      expect(models.firstWhere((m) => m.name == 'Vision').hasMmproj, isTrue);
+      expect(await repository.listAssets(), hasLength(2));
+      expect(calls, isEmpty);
+      expect(
+        (await db.query(
+          'SELECT * FROM model_assets ORDER BY id',
+        )).map((r) => r.data).toList(),
+        before,
       );
-
-      expect(allocation.name, 'model (4)');
-      expect(allocation.wasRenamed, isTrue);
     },
   );
-
-  test('reservations share the same namespace', () async {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (call) async {
-          if (call.method == 'listImportedModels') {
-            return const <Object?>[];
-          }
-          return null;
-        });
-    final coordinator = ModelNameCoordinator(
-      unifiedRepository: UnifiedModelRepository(
-        localModelRepository: _FakeLocalModelRepository(
-          const <ModelDescriptor>[],
+  test('rejects names already registered by either engine', () async {
+    await gguf('Shared Name');
+    await mnn('MNN Name');
+    for (final name in ['shared name', 'mnn name']) {
+      await expectLater(
+        repository.ensureNameAvailable(name),
+        throwsA(
+          isA<ModelOperationException>().having(
+            (e) => e.code,
+            'code',
+            ModelOperationErrorCode.modelNameExists,
+          ),
         ),
-      ),
-    );
-
-    await coordinator.reserveAvailable(
-      ownerId: 'download-1',
-      requestedName: 'Qwen',
-    );
-    final second = await coordinator.reserveAvailable(
-      ownerId: 'download-2',
-      requestedName: 'qwen',
-    );
-
-    expect(second.name, 'qwen (2)');
+      );
+    }
+    expect(calls, isEmpty);
   });
-
-  test('a committed name keeps priority over a pending reservation', () async {
+  test('MNN rename preserves SQL identity and import time', () async {
+    await mnn('before');
+    final original = (await repository.listModels()).single;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
-          if (call.method == 'listImportedModels') {
-            return <Object?>[_mnnModelMap('Qwen')];
-          }
-          return null;
+          expect(call.method, 'renameImportedModel');
+          expect((call.arguments as Map)['modelId'], 'before');
+          return _mnnMap('After model', importedAt: 99999);
         });
-    final coordinator = ModelNameCoordinator(
-      unifiedRepository: UnifiedModelRepository(
-        localModelRepository: _FakeLocalModelRepository(
-          const <ModelDescriptor>[],
-        ),
-      ),
+    final renamed = await repository.renameModel(original, 'After model');
+    expect(renamed.id, original.id);
+    expect(renamed.runtimeId, 'After model');
+    expect(renamed.importedAt, original.importedAt);
+    expect((await repository.asset(original.id))!.path, renamed.storagePath);
+  });
+  test('SQL rename failure restores the private directory name', () async {
+    await mnn('before');
+    final original = (await repository.listModels()).single;
+    await db.execute(
+      "CREATE TRIGGER reject_rename BEFORE UPDATE ON model_assets BEGIN SELECT RAISE(ABORT,'fixture'); END",
     );
+    final renames = <String>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          final args = call.arguments as Map;
+          renames.add('${args['modelId']}->${args['newName']}');
+          return _mnnMap(args['newName'] as String);
+        });
+    await expectLater(
+      repository.renameModel(original, 'after'),
+      throwsA(anything),
+    );
+    expect(renames, ['before->after', 'after->before']);
+    expect((await repository.asset(original.id))!.runtimeId, 'before');
+  });
+  test(
+    'internal deletion happens before SQL and can retry absent files',
+    () async {
+      await mnn('remove');
+      final original = (await repository.listModels()).single;
+      var deletes = 0;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+            expect(call.method, 'deleteImportedModel');
+            expect((call.arguments as Map)['modelId'], 'remove');
+            expect(await repository.asset(original.id), isNotNull);
+            deletes++;
+            return null;
+          });
+      await db.execute(
+        "CREATE TRIGGER reject_delete BEFORE DELETE ON model_assets BEGIN SELECT RAISE(ABORT,'fixture'); END",
+      );
+      await expectLater(repository.deleteModel(original), throwsA(anything));
+      expect((await repository.asset(original.id))!.state, 'ready');
+      await db.execute('DROP TRIGGER reject_delete');
+      await repository.deleteModel(original);
+      expect(deletes, 2);
+      expect(await repository.asset(original.id), isNull);
+    },
+  );
+  test('native deletion failure preserves registration', () async {
+    await mnn('keep');
+    final original = (await repository.listModels()).single;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          channel,
+          (_) async => throw PlatformException(code: 'fixture'),
+        );
+    await expectLater(
+      repository.deleteModel(original),
+      throwsA(isA<MnnEngineException>()),
+    );
+    expect((await repository.asset(original.id))!.state, 'ready');
+  });
+  test(
+    'allocates the smallest suffix from SQL and pending reservations',
+    () async {
+      await gguf('MODEL');
+      await mnn('Model (2)');
+      await gguf('model (3)');
+      final coordinator = ModelNameCoordinator(unifiedRepository: repository);
+      expect(
+        (await coordinator.reserveAvailable(
+          ownerId: 'one',
+          requestedName: 'model',
+        )).name,
+        'model (4)',
+      );
+      expect(
+        (await coordinator.reserveAvailable(
+          ownerId: 'two',
+          requestedName: 'MODEL',
+        )).name,
+        'MODEL (5)',
+      );
+    },
+  );
+  test('unregistered native commit has no virtual library ID', () async {
+    final coordinator = ModelNameCoordinator(unifiedRepository: repository);
     await coordinator.reserveAvailable(
       ownerId: 'download',
       requestedName: 'Qwen',
     );
-
-    final allocation = await coordinator.reserveCommitted(
+    final result = await coordinator.reserveCommitted(
       ownerId: 'import',
       requestedName: 'Qwen',
       committedName: 'Qwen',
-      excludingLibraryId: 'mnn:Qwen',
     );
-
-    expect(allocation.name, 'Qwen');
+    expect(result.name, 'Qwen');
+    expect(calls, isEmpty);
   });
 }
 
-class _FakeLocalModelRepository extends LocalModelRepository {
-  _FakeLocalModelRepository(this.models)
-    : super(appSupportDirectory: Directory.systemTemp);
-
-  final List<ModelDescriptor> models;
-
-  @override
-  Future<List<ModelDescriptor>> listModels() async => models;
-
+class _Local extends LocalModelRepository {
+  _Local(AppDatabase db)
+    : super(database: db, appSupportDirectory: Directory.systemTemp);
   @override
   Future<bool> isModelDirectoryOccupied(
-    String modelName, {
+    String name, {
     String? excludingModelId,
   }) async => false;
 }
 
 ModelDescriptor _descriptor(String name) => ModelDescriptor(
-  id: 'gguf-id',
+  id: 'gguf-$name',
   modelName: name,
-  sizeBytes: 1,
-  storedDirectoryPath: 'C:\\models\\$name',
-  storedFilePath: 'C:\\models\\$name\\model.gguf',
+  sizeBytes: 100,
+  storedDirectoryPath: '/missing/$name',
+  storedFilePath: '/missing/$name/model.gguf',
+  mmprojFilePath: '/missing/$name/mmproj.gguf',
   importedAt: DateTime(2026),
 );
-
-Map<String, Object?> _mnnModelMap(String name) => <String, Object?>{
+MnnModelInfo _mnn(String name) => MnnModelInfo.fromMap(_mnnMap(name));
+Map<String, Object?> _mnnMap(String name, {int importedAt = 1000}) => {
   'modelId': name,
   'modelKey': name,
   'displayName': name,
-  'modelDirPath': 'C:\\mnn\\models\\$name',
-  'configPath': 'C:\\mnn\\models\\$name\\config.json',
-  'sizeBytes': 1,
-  'importedAt': DateTime(2026).millisecondsSinceEpoch,
+  'modelDirPath': '/missing/mnn/$name',
+  'configPath': '/missing/mnn/$name/config.json',
+  'sizeBytes': 200,
+  'importedAt': importedAt,
+  'supportsVision': true,
+  'validationWarnings': ['fixture'],
   'isActive': false,
 };

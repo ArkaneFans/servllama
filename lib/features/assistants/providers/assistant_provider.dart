@@ -44,8 +44,7 @@ class AssistantProvider extends ChangeNotifier {
 
   /// Metadata only: route demand joins the same initial read as startup.
   Future<void> ensureLoaded() =>
-      _loadFuture ??
-      (loaded ? Future<void>.value() : load(reconcileAssets: false));
+      _loadFuture ?? (loaded ? Future<void>.value() : load());
 
   Future<void> _requireLoaded() async {
     await ensureLoaded();
@@ -54,11 +53,10 @@ class AssistantProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> load({bool reconcileAssets = true}) => _loadFuture ??= _load(
-    reconcileAssets: reconcileAssets,
-  ).whenComplete(() => _loadFuture = null);
+  Future<void> load() =>
+      _loadFuture ??= _load().whenComplete(() => _loadFuture = null);
 
-  Future<void> _load({required bool reconcileAssets}) async {
+  Future<void> _load() async {
     try {
       final r = await repository;
       await r.initializeProviders();
@@ -80,9 +78,7 @@ class AssistantProvider extends ChangeNotifier {
       if (savedId != restoredId) {
         await r.preferences.setString('v2.activeAssistant', restoredId);
       }
-      final restoredAssets = await models.listAssets(
-        reconcile: reconcileAssets,
-      );
+      final restoredAssets = await models.listAssets();
       await r.clearMissingTargets();
       restoredAssistants = await r.assistants();
       if (_disposed) return;
@@ -93,7 +89,6 @@ class AssistantProvider extends ChangeNotifier {
       assets = restoredAssets;
       error = null;
       loaded = true;
-      _assetsReconciled = reconcileAssets;
     } catch (e) {
       error = LogRedactor.redact(e.toString());
       _logger.event(
@@ -282,12 +277,7 @@ class AssistantProvider extends ChangeNotifier {
     }
   }
 
-  bool _assetsReconciled = false;
   Future<void>? _assetRefresh;
-
-  Future<void> ensureAssetsReconciled() =>
-      _assetRefresh ??
-      (_assetsReconciled ? Future<void>.value() : refreshAssets());
 
   Future<void> refreshAssets() {
     // A committed import/delete needs a fresh read after any older prefetch.
@@ -310,7 +300,6 @@ class AssistantProvider extends ChangeNotifier {
     final current = await r.assistants();
     assets = refreshed;
     assistants = current;
-    _assetsReconciled = true;
     await AgentToolService.current?.revalidate();
     notifyListeners();
   }

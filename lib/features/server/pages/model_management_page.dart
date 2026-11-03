@@ -10,7 +10,6 @@ import 'package:servllama/core/models/library_model.dart';
 import 'package:servllama/core/models/model_descriptor.dart';
 import 'package:servllama/core/providers/model_management_provider.dart';
 import 'package:servllama/core/providers/engine_runtime_provider.dart';
-import 'package:servllama/core/repositories/unified_model_repository.dart';
 import 'package:servllama/core/utils/format_utils.dart';
 import 'package:servllama/features/downloads/models/download_task_view.dart';
 import 'package:servllama/features/downloads/models/model_hub.dart';
@@ -215,9 +214,8 @@ class _ModelManagementViewState extends State<_ModelManagementView>
     if (model.engine != InferenceEngine.llamaCpp) {
       return null;
     }
-    final rawId = UnifiedModelRepository.rawIdOf(model.id);
     for (final descriptor in provider.models) {
-      if (descriptor.id == rawId) {
+      if (descriptor.storedFilePath == model.storagePath) {
         return descriptor;
       }
     }
@@ -429,9 +427,10 @@ class _ModelManagementViewState extends State<_ModelManagementView>
                                             downloads.tasks.any(
                                               (task) =>
                                                   task.targetModelId ==
-                                                  UnifiedModelRepository.rawIdOf(
-                                                    model.id,
-                                                  ),
+                                                  _descriptorFor(
+                                                    provider,
+                                                    model,
+                                                  )?.id,
                                             ),
                                         isDeleting:
                                             provider.deletingModelId ==
@@ -1094,13 +1093,6 @@ class _MnnModelSettingsSheetState extends State<_MnnModelSettingsSheet> {
   LibraryModel _currentModel(ModelManagementProvider provider) {
     for (final model in provider.libraryModels) {
       if (model.id == _currentLibraryId) {
-        return model;
-      }
-    }
-    for (final model in provider.libraryModels) {
-      if (model.engine == InferenceEngine.mnn &&
-          model.name == _nameController.text.trim()) {
-        _currentLibraryId = model.id;
         return model;
       }
     }

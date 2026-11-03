@@ -14,17 +14,17 @@ import 'package:servllama/features/chat/models/chat_run_config.dart';
 
 class _EmptyAssets extends UnifiedModelRepository {
   @override
-  Future<List<ModelAsset>> listAssets({bool reconcile = true}) async => [];
+  Future<List<ModelAsset>> listAssets() async => [];
 }
 
 class _TrackedAssets extends UnifiedModelRepository {
-  final modes = <bool>[];
+  int readCount = 0;
   Completer<List<ModelAsset>>? pending;
   List<ModelAsset> current = [];
 
   @override
-  Future<List<ModelAsset>> listAssets({bool reconcile = true}) async {
-    modes.add(reconcile);
+  Future<List<ModelAsset>> listAssets() async {
+    readCount++;
     return pending == null ? current : await pending!.future;
   }
 }
@@ -65,7 +65,7 @@ void main() {
       );
       models.pending!.complete([]);
       await Future.wait([initial, saving]);
-      expect(models.modes, [false]);
+      expect(models.readCount, 1);
       expect(provider.connection(custom.id)!.models, ['kept']);
       expect(provider.connection(custom.id)!.apiKey, 'fixture-key');
     },
@@ -103,20 +103,18 @@ void main() {
         models: models,
       );
       addTearDown(provider.dispose);
-      await provider.load(reconcileAssets: false);
-      expect(models.modes, [false]);
+      await provider.load();
+      expect(models.readCount, 1);
       expect(provider.connection(saved.id)!.apiKey, 'fixture-key');
       expect(provider.active!.chatTarget!.modelId, 'kept');
       expect(provider.resolveTarget(provider.active!.chatTarget), isNotNull);
       models.pending = Completer<List<ModelAsset>>();
-      final refresh = provider.ensureAssetsReconciled();
-      expect(identical(refresh, provider.ensureAssetsReconciled()), isTrue);
+      final refresh = provider.refreshAssets();
       await Future<void>.delayed(Duration.zero);
-      expect(models.modes, [false, true]);
+      expect(models.readCount, 2);
       models.pending!.complete([]);
       await refresh;
-      await provider.ensureAssetsReconciled();
-      expect(models.modes, [false, true]);
+      expect(models.readCount, 2);
       expect(provider.active!.chatTarget!.modelId, 'kept');
       expect(provider.connection(saved.id)!.apiKey, 'fixture-key');
     },
@@ -131,10 +129,10 @@ void main() {
         models: models,
       );
       addTearDown(provider.dispose);
-      await provider.load(reconcileAssets: false);
+      await provider.load();
       final pending = Completer<List<ModelAsset>>();
       models.pending = pending;
-      final warmup = provider.ensureAssetsReconciled();
+      final warmup = provider.refreshAssets();
       await Future<void>.delayed(Duration.zero);
       final explicit = provider.refreshAssets();
       const fresh = ModelAsset(
@@ -151,7 +149,7 @@ void main() {
       models.current = [fresh];
       pending.complete([]);
       await Future.wait([warmup, explicit]);
-      expect(models.modes, [false, true, true]);
+      expect(models.readCount, 3);
       expect(provider.assets.single.id, 'fresh');
     },
   );

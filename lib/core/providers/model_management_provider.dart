@@ -21,6 +21,7 @@ class ModelManagementProvider extends ChangeNotifier {
     MnnEngine? mnnEngine,
     ModelNameCoordinator? nameCoordinator,
     AppLogger? logger,
+    this.onAssetsChanged,
     this.onModelDeleted,
     Future<void> Function({
       required InferenceEngine engine,
@@ -41,7 +42,12 @@ class ModelManagementProvider extends ChangeNotifier {
         ModelNameCoordinator(unifiedRepository: _unifiedRepository);
   }
 
-  final Future<void> Function()? onModelDeleted;
+  final Future<void> Function()? onAssetsChanged;
+  final Future<void> Function({
+    required InferenceEngine engine,
+    required String modelId,
+  })?
+  onModelDeleted;
   final LocalModelRepository _repository;
   final UnifiedModelRepository _unifiedRepository;
   final GgufFilePicker _filePicker;
@@ -184,10 +190,6 @@ class ModelManagementProvider extends ChangeNotifier {
           ownerId: reservationId,
           requestedName: result.requestedModelName,
           committedName: model.modelKey,
-          excludingLibraryId: UnifiedModelRepository.libraryIdFor(
-            InferenceEngine.mnn,
-            model.modelId,
-          ),
         );
         if (allocation.name != model.modelKey) {
           model = await _mnnEngine.renameImportedModel(
@@ -195,6 +197,7 @@ class ModelManagementProvider extends ChangeNotifier {
             allocation.name,
           );
         }
+        await _unifiedRepository.registerImportedMnnModel(model);
       } catch (error) {
         try {
           await _mnnEngine.deleteImportedModel(model.modelId);
@@ -208,7 +211,7 @@ class ModelManagementProvider extends ChangeNotifier {
         }
         rethrow;
       }
-      await _refreshModelLists();
+      await _modelCommitted();
       _logger.info('MNN 模型导入成功: ${model.modelKey}', channel: LogChannel.model);
       return allocation.wasRenamed
           ? _l10nService.current.modelManagementImportAutoRenamed(
@@ -271,7 +274,7 @@ class ModelManagementProvider extends ChangeNotifier {
           allocation.name,
         )).name;
       }
-      await _refreshModelLists();
+      await _modelCommitted();
       return _l10nService.current.modelExternalAdded(name);
     } catch (error, stackTrace) {
       _logger.error(
@@ -299,8 +302,8 @@ class ModelManagementProvider extends ChangeNotifier {
 
     try {
       await _unifiedRepository.deleteModel(model);
-      await onModelDeleted?.call();
-      await _refreshModelLists();
+      await _notifyModelDeleted(model.engine, model.runtimeId);
+      await _modelCommitted();
       _logger.info('模型删除成功: ${model.name}', channel: LogChannel.model);
       return model.isExternal
           ? _l10nService.current.modelExternalRemoved(model.name)
@@ -348,7 +351,7 @@ class ModelManagementProvider extends ChangeNotifier {
         pickedFile,
         modelName: allocation.name,
       );
-      await _refreshModelLists();
+      await _modelCommitted();
       _logger.info(
         '模型导入成功: ${descriptor.modelName}',
         channel: LogChannel.model,
@@ -391,8 +394,8 @@ class ModelManagementProvider extends ChangeNotifier {
         (descriptor) => descriptor.id == modelId,
       );
       await _repository.deleteModel(modelId);
-      await onModelDeleted?.call();
-      await _refreshModelLists();
+      await _notifyModelDeleted(InferenceEngine.llamaCpp, model.modelName);
+      await _modelCommitted();
       _logger.info('模型删除成功: ${model.modelName}', channel: LogChannel.model);
       return _l10nService.current.modelManagementDeleteSuccess(model.modelName);
     } catch (error, stackTrace) {
@@ -439,7 +442,7 @@ class ModelManagementProvider extends ChangeNotifier {
       notifyListeners();
 
       final updated = await _repository.importMmproj(modelId, pickedFile);
-      await _refreshModelLists();
+      await _modelCommitted();
       _logger.info(
         'mmproj 导入成功: ${updated.modelName}',
         channel: LogChannel.model,
@@ -469,7 +472,7 @@ class ModelManagementProvider extends ChangeNotifier {
   Future<String?> removeMmproj(String modelId) async {
     try {
       final updated = await _repository.removeMmproj(modelId);
-      await _refreshModelLists();
+      await _modelCommitted();
       _logger.info(
         'mmproj 已移除: ${updated.modelName}',
         channel: LogChannel.model,
@@ -518,7 +521,7 @@ class ModelManagementProvider extends ChangeNotifier {
     notifyListeners();
     try {
       await operation();
-      await _refreshModelLists();
+      await _modelCommitted();
       return null;
     } catch (error, stackTrace) {
       _logger.error(
@@ -540,7 +543,11 @@ class ModelManagementProvider extends ChangeNotifier {
     LibraryModel? libraryModel;
     for (final model in _libraryModels) {
       if (model.engine == InferenceEngine.llamaCpp &&
-          UnifiedModelRepository.rawIdOf(model.id) == modelId) {
+          _models.any(
+            (descriptor) =>
+                descriptor.id == modelId &&
+                descriptor.storedFilePath == model.storagePath,
+          )) {
         libraryModel = model;
         break;
       }
@@ -562,9 +569,7 @@ class ModelManagementProvider extends ChangeNotifier {
     }
 
     _isRenaming = true;
-    _renamingModelId = model.engine == InferenceEngine.llamaCpp
-        ? UnifiedModelRepository.rawIdOf(model.id)
-        : model.id;
+    _renamingModelId = model.id;
     notifyListeners();
 
     try {
@@ -603,7 +608,7 @@ class ModelManagementProvider extends ChangeNotifier {
           );
         }
       }
-      await _refreshModelLists();
+      await _modelCommitted();
       _logger.info('模型重命名成功: ${updated.name}', channel: LogChannel.model);
       return _l10nService.current.modelManagementRenameSuccess(updated.name);
     } catch (error, stackTrace) {
@@ -620,6 +625,41 @@ class ModelManagementProvider extends ChangeNotifier {
       _isRenaming = false;
       _renamingModelId = null;
       notifyListeners();
+    }
+  }
+
+  /// Downloads and successful mutations share the same refresh notification.
+  Future<void> modelsCommitted() => _modelCommitted();
+
+  Future<void> _modelCommitted() async {
+    try {
+      await Future.wait([
+        refresh(),
+        if (onAssetsChanged != null) onAssetsChanged!(),
+      ]);
+    } catch (error, stackTrace) {
+      _logger.warning(
+        '刷新已提交的模型信息失败',
+        channel: LogChannel.model,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  Future<void> _notifyModelDeleted(
+    InferenceEngine engine,
+    String modelId,
+  ) async {
+    try {
+      await onModelDeleted?.call(engine: engine, modelId: modelId);
+    } catch (error, stackTrace) {
+      _logger.warning(
+        '清理已删除的模型选择失败',
+        channel: LogChannel.model,
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 
