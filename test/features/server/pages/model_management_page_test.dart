@@ -401,8 +401,22 @@ void main() {
       await tester.tap(find.byKey(const Key('model_management_import_fab')));
       await tester.pumpAndSettle();
       expect(find.text('下载模型'), findsNothing);
-      expect(find.text('将模型复制到 ServLlama'), findsOneWidget);
+      expect(find.text('将GGUF模型复制到应用'), findsOneWidget);
+      expect(find.text('llama.cpp 使用的单个 gguf 模型文件'), findsOneWidget);
       expect(find.text('使用外部模型'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(BottomSheet),
+          matching: find.byType(ListTile),
+        ),
+        findsNWidgets(2),
+      );
+      await tester.tap(find.text('MNN'));
+      await tester.pumpAndSettle();
+      expect(find.text('将MNN模型复制到应用'), findsOneWidget);
+      expect(find.text('MNN模型是独立的模型目录'), findsOneWidget);
+      await tester.tap(find.text('llama.cpp'));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('model_add_copy')));
       await _settle(tester);
 

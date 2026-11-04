@@ -1090,13 +1090,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modelAddGguf => 'Import a GGUF file';
 
   @override
-  String get modelAddGgufDesc => 'A single .gguf file for llama.cpp';
+  String get modelAddGgufDesc => 'A single GGUF model file for llama.cpp';
 
   @override
   String get modelAddMnnDir => 'Import an MNN directory';
 
   @override
-  String get modelAddMnnDirDesc => 'A whole model folder for the MNN engine';
+  String get modelAddMnnDirDesc =>
+      'An MNN model is a self-contained model directory';
 
   @override
   String get modelFormatExplainer =>
@@ -3356,7 +3357,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modelAddTitle => 'Add model';
 
   @override
-  String get modelCopyToApp => 'Copy model to ServLlama';
+  String get modelCopyGgufToApp => 'Copy GGUF model to app';
+
+  @override
+  String get modelCopyMnnToApp => 'Copy MNN model to app';
 
   @override
   String get modelUseExternal => 'Use external model';

@@ -586,20 +586,11 @@ class _AddModelSheetState extends State<_AddModelSheet> {
             ),
             const SizedBox(height: 16),
             ListTile(
-              leading: Icon(
-                gguf
-                    ? Icons.insert_drive_file_outlined
-                    : Icons.folder_open_rounded,
-              ),
-              title: Text(gguf ? l.modelAddGguf : l.modelAddMnnDir),
-              subtitle: Text(gguf ? l.modelAddGgufDesc : l.modelAddMnnDirDesc),
-            ),
-            ListTile(
               key: const Key('model_add_copy'),
               onTap: () => Navigator.pop(context, choice),
               leading: const Icon(Icons.file_copy_outlined),
-              title: Text(l.modelCopyToApp),
-              subtitle: Text(l.localModelImportHelp),
+              title: Text(gguf ? l.modelCopyGgufToApp : l.modelCopyMnnToApp),
+              subtitle: Text(gguf ? l.modelAddGgufDesc : l.modelAddMnnDirDesc),
             ),
             ListTile(
               key: const Key('model_add_external'),

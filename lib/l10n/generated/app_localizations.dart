@@ -2018,7 +2018,7 @@ abstract class AppLocalizations {
   /// No description provided for @modelAddGgufDesc.
   ///
   /// In en, this message translates to:
-  /// **'A single .gguf file for llama.cpp'**
+  /// **'A single GGUF model file for llama.cpp'**
   String get modelAddGgufDesc;
 
   /// No description provided for @modelAddMnnDir.
@@ -2030,7 +2030,7 @@ abstract class AppLocalizations {
   /// No description provided for @modelAddMnnDirDesc.
   ///
   /// In en, this message translates to:
-  /// **'A whole model folder for the MNN engine'**
+  /// **'An MNN model is a self-contained model directory'**
   String get modelAddMnnDirDesc;
 
   /// No description provided for @modelFormatExplainer.
@@ -6053,11 +6053,17 @@ abstract class AppLocalizations {
   /// **'Add model'**
   String get modelAddTitle;
 
-  /// No description provided for @modelCopyToApp.
+  /// No description provided for @modelCopyGgufToApp.
   ///
   /// In en, this message translates to:
-  /// **'Copy model to ServLlama'**
-  String get modelCopyToApp;
+  /// **'Copy GGUF model to app'**
+  String get modelCopyGgufToApp;
+
+  /// No description provided for @modelCopyMnnToApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy MNN model to app'**
+  String get modelCopyMnnToApp;
 
   /// No description provided for @modelUseExternal.
   ///

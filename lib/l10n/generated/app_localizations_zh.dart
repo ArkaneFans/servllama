@@ -1048,13 +1048,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modelAddGguf => '导入 GGUF 文件';
 
   @override
-  String get modelAddGgufDesc => 'llama.cpp 使用的单个 .gguf 文件';
+  String get modelAddGgufDesc => 'llama.cpp 使用的单个 gguf 模型文件';
 
   @override
   String get modelAddMnnDir => '导入 MNN 模型目录';
 
   @override
-  String get modelAddMnnDirDesc => 'MNN 引擎使用的整个模型目录';
+  String get modelAddMnnDirDesc => 'MNN模型是独立的模型目录';
 
   @override
   String get modelFormatExplainer => 'GGUF 是单个文件，MNN 模型是整个目录。卡片上的引擎徽标用于区分两者。';
@@ -3174,7 +3174,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modelAddTitle => '添加模型';
 
   @override
-  String get modelCopyToApp => '将模型复制到 ServLlama';
+  String get modelCopyGgufToApp => '将GGUF模型复制到应用';
+
+  @override
+  String get modelCopyMnnToApp => '将MNN模型复制到应用';
 
   @override
   String get modelUseExternal => '使用外部模型';
