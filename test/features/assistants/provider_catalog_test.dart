@@ -14,7 +14,7 @@ import 'package:servllama/features/chat/models/chat_run_config.dart';
 
 class _EmptyAssets extends UnifiedModelRepository {
   @override
-  Future<List<ModelAsset>> listAssets() async => [];
+  Future<List<ModelAsset>> listLlmAssets() async => [];
 }
 
 class _TrackedAssets extends UnifiedModelRepository {
@@ -23,7 +23,7 @@ class _TrackedAssets extends UnifiedModelRepository {
   List<ModelAsset> current = [];
 
   @override
-  Future<List<ModelAsset>> listAssets() async {
+  Future<List<ModelAsset>> listLlmAssets() async {
     readCount++;
     return pending == null ? current : await pending!.future;
   }

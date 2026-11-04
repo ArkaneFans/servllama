@@ -32,6 +32,25 @@ class UnifiedModelRepository {
   final AppDatabase? database;
 
   static const mnnInventoryMarker = 'mnnSqlInventoryComplete';
+  static const missingModelsCleanupMarker = 'legacyMissingLlmAssetsRemoved';
+
+  /// SQL-only admission cleanup for old soft-deleted language-model records.
+  Future<void> cleanupLegacyMissingModels() async {
+    final db = database ?? await AppDatabase.shared();
+    if (await db.metadata(missingModelsCleanupMarker) == '1') return;
+    await db.transaction(() async {
+      final rows = await db.query(
+        "SELECT id FROM model_assets WHERE kind='llm' AND state='missing'",
+      );
+      await db.execute(
+        "DELETE FROM model_assets WHERE kind='llm' AND state='missing'",
+      );
+      for (final row in rows) {
+        await clearLocalChatTargetsForAsset(db, row.read<String>('id'));
+      }
+      await db.setMetadata(missingModelsCleanupMarker, '1');
+    });
+  }
 
   /// Startup admission for old private MNN models, independent of Hive import.
   Future<void> registerLegacyMnnInventory({
@@ -91,11 +110,16 @@ class UnifiedModelRepository {
     );
   }
 
-  Future<List<LibraryModel>> listModels() async {
+  /// Ready local LLM registrations used by the library and chat selectors.
+  Future<List<ModelAsset>> listLlmAssets() async {
     final db = database ?? await AppDatabase.shared();
-    final models = (await db.query(
-      "SELECT * FROM model_assets WHERE kind='llm' AND state='ready'",
-    )).map((row) => _fromAsset(ModelAsset.fromRow(row))).toList();
+    return (await db.query(
+      "SELECT * FROM model_assets WHERE kind='llm' AND state='ready' ORDER BY name,id",
+    )).map(ModelAsset.fromRow).toList();
+  }
+
+  Future<List<LibraryModel>> listModels() async {
+    final models = (await listLlmAssets()).map(_fromAsset).toList();
     models.sort((a, b) {
       final time = b.importedAt.compareTo(a.importedAt);
       return time == 0 ? a.id.compareTo(b.id) : time;

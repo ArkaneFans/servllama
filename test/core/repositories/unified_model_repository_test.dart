@@ -6,6 +6,7 @@ import 'package:mnn_engine/mnn_engine.dart';
 import 'package:servllama/core/database/app_database.dart';
 import 'package:servllama/core/errors/model_operation_exception.dart';
 import 'package:servllama/core/models/model_descriptor.dart';
+import 'package:servllama/core/models/model_asset.dart';
 import 'package:servllama/core/repositories/gguf_model_store.dart';
 import 'package:servllama/core/repositories/local_model_repository.dart';
 import 'package:servllama/core/repositories/unified_model_repository.dart';
@@ -65,6 +66,54 @@ void main() {
       );
     },
   );
+  test(
+    'chat and library share ready LLM registrations without old tombstones',
+    () async {
+      await gguf('Ready GGUF');
+      await mnn('Ready MNN');
+      for (final a in [
+        const ModelAsset(
+          id: 'deleted-gguf',
+          kind: AssetKind.llm,
+          engine: 'llama_cpp',
+          runtimeId: 'Deleted GGUF',
+          storageOwner: 'app',
+          path: '/missing/old.gguf',
+          name: 'Deleted GGUF',
+          revision: 'local',
+          state: 'missing',
+        ),
+        const ModelAsset(
+          id: 'speech',
+          kind: AssetKind.tts,
+          engine: 'sherpa',
+          runtimeId: 'Speech',
+          storageOwner: 'app',
+          path: '/missing/speech',
+          name: 'Speech',
+          revision: 'local',
+        ),
+      ]) {
+        await repository.saveAsset(a);
+      }
+      final before = (await db.query(
+        'SELECT * FROM model_assets ORDER BY id',
+      )).map((r) => r.data).toList();
+      final assets = await repository.listLlmAssets();
+      final library = await repository.listModels();
+      expect(assets.map((a) => a.name), ['Ready GGUF', 'Ready MNN']);
+      expect(assets.map((a) => a.id).toSet(), library.map((m) => m.id).toSet());
+      expect(await repository.listAssets(), hasLength(4));
+      expect(
+        (await db.query(
+          'SELECT * FROM model_assets ORDER BY id',
+        )).map((r) => r.data).toList(),
+        before,
+      );
+      expect(calls, isEmpty);
+    },
+  );
+
   test('rejects names already registered by either engine', () async {
     await gguf('Shared Name');
     await mnn('MNN Name');

@@ -30,6 +30,8 @@ class AssistantProvider extends ChangeNotifier {
   final UnifiedModelRepository models;
   List<Assistant> assistants = [];
   List<AiConnection> connections = [];
+
+  /// Ready local LLM registrations from the shared model catalog query.
   List<ModelAsset> assets = [];
   UserProfile profile = const UserProfile();
   String? activeId, error;
@@ -78,7 +80,7 @@ class AssistantProvider extends ChangeNotifier {
       if (savedId != restoredId) {
         await r.preferences.setString('v2.activeAssistant', restoredId);
       }
-      final restoredAssets = await models.listAssets();
+      final restoredAssets = await models.listLlmAssets();
       await r.clearMissingTargets();
       restoredAssistants = await r.assistants();
       if (_disposed) return;
@@ -294,7 +296,7 @@ class AssistantProvider extends ChangeNotifier {
 
   Future<void> _refreshAssets() async {
     await _requireLoaded();
-    final refreshed = await models.listAssets();
+    final refreshed = await models.listLlmAssets();
     final r = await repository;
     await r.clearMissingTargets();
     final current = await r.assistants();

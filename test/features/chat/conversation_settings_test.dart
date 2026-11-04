@@ -66,7 +66,7 @@ class _Assets extends UnifiedModelRepository {
   List<ModelAsset> entries = [local];
   Completer<void>? lookup;
   @override
-  Future<List<ModelAsset>> listAssets() async => entries;
+  Future<List<ModelAsset>> listLlmAssets() async => entries;
   @override
   Future<ModelAsset?> asset(String id) async {
     await lookup?.future;

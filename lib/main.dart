@@ -70,9 +70,9 @@ Future<void> _initializeBusiness(
       skipLegacyImport: skipLegacyImport,
       retryCleanupOnOpen: false,
     ).warmUpMessageStore();
-    await UnifiedModelRepository(
-      database: await AppDatabase.shared(),
-    ).registerLegacyMnnInventory();
+    final models = UnifiedModelRepository(database: await AppDatabase.shared());
+    await models.registerLegacyMnnInventory();
+    await models.cleanupLegacyMissingModels();
     await GenerationRunRepository(await AppDatabase.shared()).recover();
     await AgentToolService.create();
     AppLogger.instance.event(

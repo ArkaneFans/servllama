@@ -20,7 +20,7 @@ class _Assets extends UnifiedModelRepository {
   final pending = Completer<List<ModelAsset>>();
 
   @override
-  Future<List<ModelAsset>> listAssets() =>
+  Future<List<ModelAsset>> listLlmAssets() =>
       pending.future;
 }
 

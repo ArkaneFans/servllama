@@ -1,6 +1,6 @@
 # SQL 驱动的本地模型库设计
 
-状态：已实施并完成主机验证（2026-11-03）。实施前源码基线：ServLlama `485dea1`，mnn_engine `d83e3fa`。
+状态：已实施并完成主机验证（2026-11-04）。实施前源码基线：ServLlama `485dea1`，mnn_engine `d83e3fa`。
 
 ## 1. 核心规则
 
@@ -33,8 +33,8 @@
 
 ## 3. 读取与刷新
 
-- `UnifiedModelRepository.listModels()` 查询 `kind='llm' AND state='ready'`，转换为 `LibraryModel`；数量和筛选使用该列表，沿用导入时间倒序。
-- `listAssets()` 只查询 SQL，保持返回全部种类和状态；取消 `reconcile` 参数及助手中对应的“已扫描”标记。
+- `listLlmAssets()` 统一查询 `kind='llm' AND state='ready'`，供助手/聊天选择器及模型库共用。聊天保留供应商分组、搜索和名称排序；`listModels()` 使用同一批记录转换为 `LibraryModel`，沿用导入时间倒序。
+- `listAssets()` 保留全部种类和状态，供语音等业务使用；助手/聊天使用 `listLlmAssets()`，不会展示旧的不可用语言模型登记。两者均为纯 SQL 查询。
 - `LocalModelRepository.listModels()` 直接读取 `GgufModelStore`，移除模型/mmproj 存在性检查和自动清理。
 - 保留 `ModelManagementProvider` 已有的 GGUF 详情集合与统一展示集合，以及串行刷新机制。两者都读 SQL，不为合并轻量查询增加返回类型或全局快照。
 - 页面按稳定资产 ID 定位模型，去掉 MNN 改名后按名称找回模型的逻辑。加载继续复用现有查找和引擎入口；修改操作从 SQL 取得当前记录。
@@ -93,6 +93,13 @@ Hive 与 MNN 分别提交。MNN 读取或写入失败时不标完成，也不撤
 
 扫描不调用 `initialize()`、加载权重或启动 HTTP/前台服务。完成登记后的普通启动、模型列表刷新和助手恢复只读 SQL。
 
+### 旧软删除记录清理
+
+旧 MNN 登记之后，启动单独执行 `cleanupLegacyMissingModels()`：在一个 SQL 事务内物理删除 `kind='llm' AND state='missing'` 的旧行、清除这些资产的当前助手引用，并写入 `legacyMissingLlmAssetsRemoved` 完成标记。空库存也标完成，失败不标完成，沿用启动重试；已有 MNN 登记和 Hive 迁移标记不受影响。
+
+先登记再清理，避免旧 `missing` 行被删后，其残留 MNN 目录又被当作新模型登记。清理只操作 SQL，保留模型文件、语音资产及历史快照，不增加文件扫描、清理队列或新页面。聊天查询本身只返回 `ready` 记录，清理前后都不会显示这些旧灰色条目。
+
+
 ## 6. 实施范围
 
 | 模块 | 改动 |
@@ -100,7 +107,7 @@ Hive 与 MNN 分别提交。MNN 读取或写入失败时不标完成，也不撤
 | 统一仓库、GGUF 仓库及 store | 纯 SQL 查询、MNN 登记、按资产 ID 修改和实际删除行 |
 | `LibraryModel`、模型页及 Provider | 使用稳定 SQL ID，去掉前缀解析和按名称重新定位；保留现有展示集合 |
 | 下载、助手、名称协调器及 `AppProviderScope` | 登记后完成操作、共用提交后刷新回调，SQL 名称检查，去掉库存 reconciliation 状态 |
-| `main` 与统一仓库 | 独立的一次性 MNN 登记与完成标记，Hive 保持原有迁移流程 |
+| `main` 与统一仓库 | 共用语言模型查询；独立的一次性 MNN 登记与旧软删除 SQL 清理，Hive 保持原有流程 |
 | 模型引用清理 | 删除事务清除活动选择，保留历史 |
 | 语音服务、插件 Kotlin 模型仓库 | 简化删除，缺文件可删除登记，移除自动续删 |
 
@@ -119,7 +126,7 @@ MNN 插件的独立扫描接口仍供其他消费者和诊断页使用，C++ 推
 
 已更新仓库、Provider、下载、助手、语音和迁移测试，改写依赖列表自动清理的用例。验证结果：
 
-- 两项目 `flutter analyze --no-pub` 均无问题；ServLlama 全量 Flutter 测试 950 项、插件 Flutter 测试 18 项均通过。
+- 两项目 `flutter analyze --no-pub` 均无问题；ServLlama 全量 Flutter 测试 955 项、插件 Flutter 测试 18 项均通过。
 - 插件 JVM 测试 97 项通过，Android 宿主 Kotlin 编译通过。
 - Release APK 构建成功：`com.arkanefans.servllama`，`2.0.0-alpha.2+16`，仅 `arm64-v8a`；签名验证通过。
 - `tool/verify_android_bundle.py` 审计通过：31 个原生库，所需库齐全，16 KiB ELF 对齐与固定原生产物校验通过。

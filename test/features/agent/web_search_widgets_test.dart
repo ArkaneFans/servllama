@@ -20,7 +20,7 @@ import 'package:servllama/l10n/generated/app_localizations.dart';
 
 class _NoModels extends UnifiedModelRepository {
   @override
-  Future<List<ModelAsset>> listAssets() async => [];
+  Future<List<ModelAsset>> listLlmAssets() async => [];
 }
 
 Widget app(Widget child) => MaterialApp(

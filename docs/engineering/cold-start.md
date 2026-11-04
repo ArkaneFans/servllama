@@ -3,9 +3,10 @@
 ## Three boundaries
 
 1. `main` admits business data before `runApp`: one-time credential migration,
-   1.x-to-2.0 Hive import, separate one-time MNN inventory registration, message
-   storage and interrupted Run/tool recovery. Hive migration uses the existing
-   migration choice and skip flow. MNN registration runs independently after
+   1.x-to-2.0 Hive import, separate one-time MNN inventory registration and SQL
+   cleanup of old soft-deleted LLM rows, message storage and interrupted Run/tool
+   recovery. Hive migration uses the existing choice and skip flow.
+   MNN registration runs independently after
    Hive admission; failures use the ordinary startup retry entry. All admission
    precedes construction of business providers.
 2. `ServLlamaApp` immediately displays `MainScaffold`, as on main. Locale,
@@ -27,7 +28,7 @@ just as main does. Fast homepage paint takes priority over an all-ready frame.
 
 ## Independent restoration and early interaction
 
-Assistant restoration and the model library read SQL model-asset rows, without
+Assistant restoration and the model library share the ready-LLM SQL query, without
 filesystem inventories or native initialization. After Hive admission, `main`
 invokes `UnifiedModelRepository.registerLegacyMnnInventory()` once under the
 independent `mnnSqlInventoryComplete` marker. This covers both 1.x upgrades and
@@ -35,8 +36,13 @@ existing 2.0 installations; it never reads Hive or enters the Hive migration UI.
 Skipping Hive import still admits old private MNN models. The step reads model
 metadata through the plugin, without initializing inference or starting serving.
 Rows and the MNN marker commit together, independently of Hive; failures leave
-registration pending for startup retry. Ordinary startup then only checks the
-completion marker. Missing/disabled SQL references are still validated. Model
+registration pending for startup retry. After MNN admission, startup removes old
+LLM rows with `state='missing'`, clears their current assistant references and
+commits the independent `legacyMissingLlmAssetsRemoved` marker in one SQL
+transaction. This cleanup preserves model files, speech registrations and
+history. Its order prevents residual MNN folders from restoring deleted entries.
+Ordinary startup then only checks the completion markers. Missing/disabled SQL
+references are still validated. Model
 mutations register their results before notifying existing providers to refresh;
 a saved row does not guarantee that files remain available or a model can load.
 
