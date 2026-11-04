@@ -15,6 +15,56 @@ Available devices:
       expect(result.hexagonDeviceName, 'HTP0');
     });
 
+    for (final diagnostic in <String>[
+      'ggml-hex: Hexagon arch v69 is under supported range, capping at v73',
+      'ggml-hex: failed to query HTP version (err -1) defaulting to v73',
+    ]) {
+      for (final diagnosticAfterListing in <bool>[false, true]) {
+        test(
+          'rejects placeholder HTP0: $diagnostic, stderr=$diagnosticAfterListing',
+          () {
+            const listing = '''
+Available devices:
+  GPUOpenCL: Adreno (8192 MiB, 7000 MiB free)
+  HTP0: Hexagon (0 MiB, 0 MiB free)
+''';
+            final output = diagnosticAfterListing
+                ? '$listing\n$diagnostic'
+                : '$diagnostic\n$listing';
+            final result = parseLlamaCppListDevices(output);
+            expect(result.hexagonAvailable, isFalse);
+            expect(
+              result.resolve(LlamaCppBackend.hexagon),
+              LlamaCppBackend.cpu,
+            );
+            expect(result.openclDeviceName, 'GPUOpenCL');
+            expect(
+              result.resolve(LlamaCppBackend.opencl),
+              LlamaCppBackend.opencl,
+            );
+            expect(result.rawOutput, output);
+          },
+        );
+      }
+    }
+
+    test(
+      'keeps a supported HTP when only the upper architecture is capped',
+      () {
+        const output = '''
+ggml-hex: Hexagon arch v89 is over supported range, capping at v85
+Available devices:
+  HTP0: Hexagon (0 MiB, 0 MiB free)
+''';
+        final result = parseLlamaCppListDevices(output);
+        expect(result.hexagonDeviceName, 'HTP0');
+        expect(
+          result.resolve(LlamaCppBackend.hexagon),
+          LlamaCppBackend.hexagon,
+        );
+      },
+    );
+
     test('treats an empty device list as CPU only', () {
       const output = '''
 Available devices:
@@ -54,7 +104,5 @@ Available devices:
       expect(both.resolve(LlamaCppBackend.opencl), LlamaCppBackend.opencl);
       expect(both.resolve(LlamaCppBackend.cpu), LlamaCppBackend.cpu);
     });
-
-
   });
 }

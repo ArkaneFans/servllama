@@ -712,9 +712,10 @@ packages:
   mnn_engine:
     dependency: "direct main"
     description:
-      path: "../mnn_engine"
-      relative: true
-    source: path
+      name: mnn_engine
+      sha256: aaeb9ae14c4d7b8669a6a017e25d85a0248ee1e73751a7378a28ae9f803ca977
+      url: "https://pub.flutter-io.cn"
+    source: hosted
     version: "0.2.0"
   nested:
     dependency: transitive

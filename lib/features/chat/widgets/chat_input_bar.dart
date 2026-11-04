@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:servllama/app/app_palette.dart';
 import 'package:servllama/features/chat/models/chat_model_icon_data.dart';
 import 'package:servllama/features/chat/widgets/chat_image_widgets.dart';
+import 'package:servllama/features/chat/widgets/chat_context_usage_ring.dart';
 import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/widgets/ai_identity_icon.dart';
 
@@ -27,6 +28,7 @@ class ChatInputBar extends StatelessWidget {
     required this.pendingImageAttachments,
     required this.onRemoveImageAttachment,
     this.modelIcon,
+    this.contextIndicator = const ChatContextUsageRing(),
   });
 
   final TextEditingController controller;
@@ -52,6 +54,8 @@ class ChatInputBar extends StatelessWidget {
   /// model's brand identity icon. Null keeps the fallback so an unconfigured
   /// conversation still shows a neutral picker affordance.
   final ChatModelIconData? modelIcon;
+
+  final Widget contextIndicator;
 
   @override
   Widget build(BuildContext context) {
@@ -217,6 +221,7 @@ class ChatInputBar extends StatelessWidget {
                         );
                       },
                     ),
+                    contextIndicator,
                   ],
                 ),
               ],

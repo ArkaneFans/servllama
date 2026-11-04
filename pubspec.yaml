@@ -99,6 +99,7 @@ flutter:
   assets:
     - assets/licenses/crispasr-native.txt
     - assets/licenses/llvm-native.txt
+    - assets/licenses/llama-cpp-native.txt
     - assets/speech/catalog.json
     - assets/bin/llama_server_manifest.json
     - assets/catalog/model_catalog.json

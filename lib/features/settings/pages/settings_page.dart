@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/app/providers/chat_timeout_provider.dart';
+import 'package:servllama/app/providers/chat_display_provider.dart';
+import 'package:servllama/shared/widgets/async_action.dart';
 import 'package:servllama/app/providers/app_locale_provider.dart';
 import 'package:servllama/app/providers/app_theme_mode_provider.dart';
 import 'package:servllama/app/bootstrap/migration_preview_page.dart';
@@ -33,6 +35,7 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final chatDisplay = context.watch<ChatDisplayProvider?>();
 
     return Consumer3<
       AppThemeModeProvider,
@@ -115,6 +118,32 @@ class SettingsPage extends StatelessWidget {
                           title: l10n.v2Mcp,
                           subtitle: l10n.settingsMcpSubtitle,
                           onTap: () => _push(context, const McpServersPage()),
+                        ),
+                        SettingsMenuTile(
+                          key: const Key('settings_generation_speed_tile'),
+                          icon: Icons.speed_rounded,
+                          title: l10n.settingsGenerationSpeed,
+                          subtitle: l10n.settingsGenerationSpeedSubtitle,
+                          onTap: chatDisplay == null
+                              ? null
+                              : () => runUiAction(
+                                  context,
+                                  () => chatDisplay.updateShowGenerationSpeed(
+                                    !chatDisplay.showGenerationSpeed,
+                                  ),
+                                ),
+                          trailing: Switch.adaptive(
+                            key: const Key('settings_generation_speed_switch'),
+                            value: chatDisplay?.showGenerationSpeed ?? false,
+                            onChanged: chatDisplay == null
+                                ? null
+                                : (value) => runUiAction(
+                                    context,
+                                    () => chatDisplay.updateShowGenerationSpeed(
+                                      value,
+                                    ),
+                                  ),
+                          ),
                         ),
                         SettingsMenuTile(
                           key: const Key('settings_chat_timeout_tile'),

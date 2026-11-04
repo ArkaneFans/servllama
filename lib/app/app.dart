@@ -96,6 +96,13 @@ class _ServLlamaAppState extends State<ServLlamaApp> {
           ),
           ChangeNotifierProvider(
             create: (_) {
+              _startTask('chat_display', _scope.chatDisplay.load);
+              return _scope.chatDisplay;
+            },
+            lazy: false,
+          ),
+          ChangeNotifierProvider(
+            create: (_) {
               _startTask('runtime_restore', _scope.runtime.ensureRestored);
               return _scope.runtime;
             },

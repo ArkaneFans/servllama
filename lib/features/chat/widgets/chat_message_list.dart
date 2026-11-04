@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:provider/provider.dart';
+import 'package:servllama/app/providers/chat_display_provider.dart';
 import 'package:servllama/features/agent/services/agent_tool_service.dart';
 import 'package:servllama/features/assistants/providers/assistant_provider.dart';
 import 'package:servllama/features/assistants/widgets/identity_avatar.dart';
@@ -177,6 +178,12 @@ class _MessageBubbleState extends State<_MessageBubble> {
     final footerColor = colorScheme.onSurfaceVariant;
     final canShowMessageActions = widget.canManageMessages && !isDraft;
     final showQuickActions = !isDraft;
+    final showGenerationSpeed =
+        !isUser &&
+        !isDraft &&
+        context.select<ChatDisplayProvider?, bool>(
+          (provider) => provider?.showGenerationSpeed ?? false,
+        );
 
     Widget buildFooter({required bool includeModelName}) {
       return Wrap(
@@ -274,6 +281,73 @@ class _MessageBubbleState extends State<_MessageBubble> {
           if (showFooter) ...[
             if (contentWidget != null) const SizedBox(height: 10),
             footer,
+          ],
+          if (showGenerationSpeed) ...[
+            const SizedBox(height: 4),
+            Wrap(
+              key: Key('chat_generation_speed_${message.id}'),
+              spacing: 10,
+              runSpacing: 2,
+              children: [
+                Text(
+                  l10n.chatPrefillSpeed(
+                    _formatSpeed(
+                      message.generationMetrics?.prefillTokensPerSecond,
+                      l10n.chatSpeedUnavailable,
+                      estimated:
+                          message.generationMetrics?.prefillIsEstimated ??
+                          false,
+                      estimatedLabel: l10n.chatSpeedEstimated,
+                    ),
+                  ),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: footerColor,
+                  ),
+                ),
+                Text(
+                  l10n.chatDecodeSpeed(
+                    _formatSpeed(
+                      message.generationMetrics?.decodeTokensPerSecond,
+                      l10n.chatSpeedUnavailable,
+                      estimated:
+                          message.generationMetrics?.decodeIsEstimated ?? false,
+                      estimatedLabel: l10n.chatSpeedEstimated,
+                    ),
+                  ),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: footerColor,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Wrap(
+              key: Key('chat_token_usage_${message.id}'),
+              spacing: 10,
+              runSpacing: 2,
+              children: [
+                Text(
+                  l10n.chatInputTokenUsage(
+                    message.generationMetrics?.inputTokens?.toString() ??
+                        l10n.chatTokenUnknown,
+                    message.generationMetrics?.cachedInputTokens?.toString() ??
+                        l10n.chatTokenUnknown,
+                  ),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: footerColor,
+                  ),
+                ),
+                Text(
+                  l10n.chatOutputTokenUsage(
+                    message.generationMetrics?.outputTokens?.toString() ??
+                        l10n.chatTokenUnknown,
+                  ),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: footerColor,
+                  ),
+                ),
+              ],
+            ),
           ],
         ],
       ),
@@ -373,7 +447,9 @@ class _MessageBubbleState extends State<_MessageBubble> {
                   ),
                 ),
               ],
-              if (contentWidget != null || showFooter) ...[
+              if (contentWidget != null ||
+                  showFooter ||
+                  showGenerationSpeed) ...[
                 if (hasReasoningContent) const SizedBox(height: 12),
                 assistantContentBody,
               ],
@@ -398,6 +474,17 @@ class _MessageBubbleState extends State<_MessageBubble> {
         ),
       ),
     );
+  }
+
+  String _formatSpeed(
+    double? value,
+    String unavailable, {
+    required bool estimated,
+    required String estimatedLabel,
+  }) {
+    if (value == null || !value.isFinite || value < 0) return unavailable;
+    final speed = '${value.toStringAsFixed(1)} tok/s';
+    return estimated ? '$speed ($estimatedLabel)' : speed;
   }
 
   String _formatTime(DateTime value) {

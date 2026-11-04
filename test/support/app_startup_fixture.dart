@@ -4,6 +4,7 @@ import 'package:servllama/app/providers/app_provider_scope.dart';
 import 'package:servllama/app/providers/app_locale_provider.dart';
 import 'package:servllama/app/providers/app_theme_mode_provider.dart';
 import 'package:servllama/app/providers/chat_timeout_provider.dart';
+import 'package:servllama/app/providers/chat_display_provider.dart';
 import 'package:servllama/core/models/inference_engine.dart';
 import 'package:servllama/core/providers/engine_runtime_provider.dart';
 import 'package:servllama/core/providers/model_management_provider.dart';
@@ -18,6 +19,7 @@ class AppStartupFixture {
   final locale = _Locale();
   final theme = _Theme();
   final timeout = _Timeout();
+  final chatDisplay = _ChatDisplay();
   final runtime = _Runtime();
   final assistants = StartupAssistants();
   final library = _Library();
@@ -27,6 +29,7 @@ class AppStartupFixture {
     locale: locale,
     theme: theme,
     timeout: timeout,
+    chatDisplay: chatDisplay,
     runtime: runtime,
     assistants: assistants,
     library: library,
@@ -41,6 +44,7 @@ class AppStartupFixture {
     assistants.dispose();
     runtime.dispose();
     timeout.dispose();
+    chatDisplay.dispose();
     theme.dispose();
     locale.dispose();
   }
@@ -61,6 +65,13 @@ class _Theme extends AppThemeModeProvider {
 class _Timeout extends ChatTimeoutProvider {
   @override
   Future<void> load() async {}
+}
+
+class _ChatDisplay extends ChatDisplayProvider {
+  Completer<void>? pending;
+
+  @override
+  Future<void> load() async => await pending?.future;
 }
 
 class _Runtime extends EngineRuntimeProvider {

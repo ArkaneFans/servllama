@@ -98,6 +98,108 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @chatContextChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Send a message to measure the current context.'**
+  String get chatContextChanged;
+
+  /// No description provided for @chatContextUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'Context usage'**
+  String get chatContextUsage;
+
+  /// No description provided for @chatContextTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'{used} / {capacity} tokens'**
+  String chatContextTokens(String used, String capacity);
+
+  /// No description provided for @chatContextActual.
+  ///
+  /// In en, this message translates to:
+  /// **'Backend token count'**
+  String get chatContextActual;
+
+  /// No description provided for @chatContextUnknownCapacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Context limit unavailable. No percentage is shown without backend data.'**
+  String get chatContextUnknownCapacity;
+
+  /// No description provided for @chatContextActualNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest response usage snapshot, including cached tokens; not cumulative billing. Drafts and changed conversations require a new measurement.'**
+  String get chatContextActualNote;
+
+  /// No description provided for @chatContextBackendCapacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Context limit reported by the running backend.'**
+  String get chatContextBackendCapacity;
+
+  /// No description provided for @chatContextUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Token count unavailable'**
+  String get chatContextUnavailable;
+
+  /// No description provided for @chatSpeedEstimated.
+  ///
+  /// In en, this message translates to:
+  /// **'estimated'**
+  String get chatSpeedEstimated;
+
+  /// No description provided for @chatTokenUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'unknown'**
+  String get chatTokenUnknown;
+
+  /// No description provided for @chatInputTokenUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'Input {count} (cached {cached})'**
+  String chatInputTokenUsage(String count, String cached);
+
+  /// No description provided for @chatOutputTokenUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'Output {count}'**
+  String chatOutputTokenUsage(String count);
+
+  /// No description provided for @settingsGenerationSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Show generation stats'**
+  String get settingsGenerationSpeed;
+
+  /// No description provided for @settingsGenerationSpeedSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show speeds, input/output tokens and cache hits below each reply'**
+  String get settingsGenerationSpeedSubtitle;
+
+  /// No description provided for @chatPrefillSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Prefill {speed}'**
+  String chatPrefillSpeed(String speed);
+
+  /// No description provided for @chatDecodeSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Decode {speed}'**
+  String chatDecodeSpeed(String speed);
+
+  /// No description provided for @chatSpeedUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Unavailable'**
+  String get chatSpeedUnavailable;
+
   /// No description provided for @v2McpEmpty.
   ///
   /// In en, this message translates to:
