@@ -17,6 +17,7 @@ class ModelDescriptor {
     this.revision,
     this.visionEnabled,
     this.mmprojFiles = const <String, String>{},
+    this.isExternal = false,
   });
 
   @HiveField(0)
@@ -61,6 +62,9 @@ class ModelDescriptor {
   @HiveField(11, defaultValue: <String, String>{})
   final Map<String, String> mmprojFiles;
 
+  /// SQLite-only ownership; the frozen Hive adapter remains legacy read-only.
+  final bool isExternal;
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'modelName': modelName,
@@ -74,6 +78,7 @@ class ModelDescriptor {
     'revision': revision,
     'visionEnabled': visionEnabled,
     'mmprojFiles': Map<String, String>.from(mmprojFiles),
+    'isExternal': isExternal,
   };
 
   factory ModelDescriptor.fromJson(Map<String, dynamic> json) =>
@@ -89,7 +94,10 @@ class ModelDescriptor {
         repoId: json['repoId'] as String?,
         revision: json['revision'] as String?,
         visionEnabled: json['visionEnabled'] as bool?,
-        mmprojFiles: Map<String, String>.from(json['mmprojFiles'] as Map),
+        mmprojFiles: Map<String, String>.from(
+          json['mmprojFiles'] as Map? ?? {},
+        ),
+        isExternal: json['isExternal'] as bool? ?? false,
       );
 
   bool get isVisionEnabled => visionEnabled ?? mmprojFilePath != null;
@@ -157,6 +165,7 @@ class ModelDescriptor {
       revision: nextRevision,
       visionEnabled: visionEnabled ?? this.visionEnabled,
       mmprojFiles: mmprojFiles ?? this.mmprojFiles,
+      isExternal: isExternal,
     );
   }
 }

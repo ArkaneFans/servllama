@@ -70,7 +70,7 @@ class _Settings extends AssistantProvider {
     ];
   }
   @override
-  Future<void> load({bool reconcileAssets = true}) async {
+  Future<void> load() async {
     await pendingSnapshot?.future;
     connections = [_cloud];
     profile = const UserProfile(

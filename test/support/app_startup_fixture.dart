@@ -77,11 +77,11 @@ class _Runtime extends EngineRuntimeProvider {
 class StartupAssistants extends AssistantProvider {
   Completer<void>? pending;
   bool fail = false;
-  final reconciliationModes = <bool>[];
+  int loadCount = 0;
 
   @override
-  Future<void> load({bool reconcileAssets = true}) async {
-    reconciliationModes.add(reconcileAssets);
+  Future<void> load() async {
+    loadCount++;
     await pending?.future;
     if (fail) throw StateError('fixture snapshot unavailable');
     assistants = [const Assistant(id: 'a', name: 'Assistant')];

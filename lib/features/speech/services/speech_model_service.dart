@@ -90,12 +90,8 @@ class SpeechModelService extends ChangeNotifier {
                 as List)
             .map((v) => SpeechPackage.fromJson(Map<String, dynamic>.from(v)))
             .toList();
-    for (final a in await models.listAssets(reconcile: false)) {
+    for (final a in await models.listAssets()) {
       if (a.kind == AssetKind.llm) continue;
-      if (a.state == 'deleting') {
-        await delete(a);
-        continue;
-      }
       if (['downloading', 'importing'].contains(a.state)) {
         await _state(a, 'paused');
         _event(
@@ -104,27 +100,14 @@ class SpeechModelService extends ChangeNotifier {
           fields: {'previous_state': a.state},
         );
       }
-      if (a.isReady) {
-        try {
-          await validate(a, hashes: false);
-        } catch (error) {
-          await _state(a, 'missing');
-          _event(
-            'speech.model.missing',
-            a,
-            level: LogLevel.warning,
-            fields: AppLogger.errorFields(error),
-          );
-        }
-      }
     }
     await refresh();
   }
 
   Future<void> refresh() async {
-    assets = (await models.listAssets(
-      reconcile: false,
-    )).where((a) => a.kind != AssetKind.llm).toList();
+    assets = (await models.listAssets())
+        .where((a) => a.kind != AssetKind.llm)
+        .toList();
     _changed();
   }
 
@@ -588,12 +571,9 @@ class SpeechModelService extends ChangeNotifier {
     if (_downloads.containsKey(a.id)) {
       throw StateError('Pause the download before deleting');
     }
-    await repository.db.transaction(() async {
-      if (await repository.usesAsset(a.id)) {
-        throw StateError('Cancel or finish jobs using this model first');
-      }
-      await _state(a, 'deleting');
-    });
+    if (await repository.usesAsset(a.id)) {
+      throw StateError('Cancel or finish jobs using this model first');
+    }
     final folder = _folder(a.id);
     if (await folder.exists()) {
       if (p.normalize(await folder.resolveSymbolicLinks()) !=

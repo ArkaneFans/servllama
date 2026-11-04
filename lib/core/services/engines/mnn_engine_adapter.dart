@@ -7,6 +7,7 @@ import 'package:servllama/core/models/inference_engine.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/services/engines/inference_engine_adapter.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
+import 'package:servllama/core/repositories/unified_model_repository.dart';
 
 /// Model-first lifecycle: MNN has to have a model resident before its Ktor
 /// server can bind, and it cannot swap models while serving. Swapping
@@ -17,9 +18,11 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
     MnnEngine? mnnEngine,
     ServerLaunchSettingsLoader? settingsLoader,
     AppLogger? logger,
+    UnifiedModelRepository? modelRepository,
   }) : _engine = mnnEngine ?? MnnEngine.instance,
        _settingsLoader = settingsLoader ?? ServerLaunchSettingsLoader(),
-       _logger = logger ?? AppLogger.instance {
+       _logger = logger ?? AppLogger.instance,
+       _modelRepository = modelRepository ?? UnifiedModelRepository() {
     _eventSubscription = _engine.events.listen(
       (event) => _applySnapshot(event.snapshot),
     );
@@ -29,6 +32,7 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
   final MnnEngine _engine;
   final ServerLaunchSettingsLoader _settingsLoader;
   final AppLogger _logger;
+  final UnifiedModelRepository _modelRepository;
   final StreamController<bool> _runningStateController =
       StreamController<bool>.broadcast();
 
@@ -302,7 +306,15 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
     }
     try {
       _nativeBusy = true;
-      final model = await _engine.loadModel(modelId, options: options);
+      final external = await _modelRepository.externalMnnModel(modelId);
+      final model = external == null
+          ? await _engine.loadModel(modelId, options: options)
+          : await _engine.loadModelFromPath(
+              external.storagePath,
+              modelId: external.runtimeId,
+              displayName: external.name,
+              options: options,
+            );
       _activeModel = model;
       _nativeBusy = false;
       return model;

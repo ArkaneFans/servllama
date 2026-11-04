@@ -43,6 +43,20 @@ and saved job snapshots. Replacing the catalog entry does not delete existing
 weights, change the user's selected TTS model, or rewrite previous jobs. Users
 can download CosyVoice3 and explicitly select it; no silent model fallback occurs.
 
+## Catalog and deletion
+
+Speech model catalog refresh reads the shared SQL registrations. Opening the
+catalog does not validate every installed model's files; execution still validates
+the selected package before native inference. Interrupted installation states
+retain the existing explicit resume flow.
+
+Model deletion checks residency and active jobs, deletes the owned model folder
+if present, then deletes its SQL row. It writes no `deleting` state and performs
+no automatic deletion on catalog startup. File or SQL failure is reported, and a
+manual retry follows the same sequence. Completed job snapshots and output files
+are preserved. Job/output deletion retains its separate transaction and durable
+file-cleanup mechanism.
+
 ## Verification
 
 Host coverage checks catalog metadata, recipe dispatch, GGUF validation,

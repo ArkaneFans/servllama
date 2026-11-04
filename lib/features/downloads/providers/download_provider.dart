@@ -43,6 +43,7 @@ class DownloadProvider extends ChangeNotifier {
     HuggingFaceRouteResolver? huggingFaceRouteResolver,
     Future<void> Function()? onLibraryChanged,
     ModelNameCoordinator? modelNameCoordinator,
+    UnifiedModelRepository? unifiedModelRepository,
   }) : _taskRepository = taskRepository ?? DownloadTaskRepository(),
        _downloadService = downloadService ?? ModelDownloadService(),
        _settingsStore = settingsStore ?? DownloadSettingsStore(),
@@ -57,7 +58,13 @@ class DownloadProvider extends ChangeNotifier {
        _huggingFaceRouteResolver =
            huggingFaceRouteResolver ?? HuggingFaceRouteResolver(),
        _onLibraryChanged = onLibraryChanged,
-       _modelNameCoordinator = modelNameCoordinator;
+       _modelNameCoordinator = modelNameCoordinator,
+       _unifiedModelRepository =
+           unifiedModelRepository ??
+           UnifiedModelRepository(
+             localModelRepository: localModelRepository,
+             mnnEngine: mnnEngine,
+           );
 
   final DownloadTaskRepository _taskRepository;
   final ModelDownloadService _downloadService;
@@ -71,6 +78,7 @@ class DownloadProvider extends ChangeNotifier {
   final HuggingFaceRouteResolver _huggingFaceRouteResolver;
   final Future<void> Function()? _onLibraryChanged;
   final ModelNameCoordinator? _modelNameCoordinator;
+  final UnifiedModelRepository _unifiedModelRepository;
 
   /// Host UI may attach a snackbar. Called after a task is in the library.
   void Function(String fileName)? onDownloadCompleted;
@@ -635,10 +643,6 @@ class DownloadProvider extends ChangeNotifier {
                   ownerId: _reservationId(record.id),
                   requestedName: record.requestedModelName,
                   committedName: importedModel.modelKey,
-                  excludingLibraryId: UnifiedModelRepository.libraryIdFor(
-                    InferenceEngine.mnn,
-                    importedModel.modelId,
-                  ),
                 );
           if (allocation.name != importedModel.modelKey) {
             importedModel = await _mnnEngine.renameImportedModel(
@@ -651,6 +655,7 @@ class DownloadProvider extends ChangeNotifier {
             await _taskRepository.save(record);
             notifyListeners();
           }
+          await _unifiedModelRepository.registerImportedMnnModel(importedModel);
         } catch (error) {
           try {
             await _mnnEngine.deleteImportedModel(importedModel.modelId);

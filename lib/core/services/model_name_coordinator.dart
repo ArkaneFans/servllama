@@ -13,9 +13,8 @@ class AllocatedModelName {
 }
 
 /// Serializes model-name allocation across imports, downloads and manual
-/// renames. Installed GGUF/MNN models remain authoritative in their own
-/// repositories; this coordinator adds short-lived reservations for work that
-/// has not reached either repository yet.
+/// renames. SQL provides installed names; short-lived reservations cover work
+/// that has not been registered yet.
 class ModelNameCoordinator {
   ModelNameCoordinator({required UnifiedModelRepository unifiedRepository})
     : _unifiedRepository = unifiedRepository;
@@ -104,7 +103,7 @@ class ModelNameCoordinator {
     required String ownerId,
     required String requestedName,
     required String committedName,
-    required String excludingLibraryId,
+    String? excludingLibraryId,
   }) {
     return _synchronized(() async {
       final requested = requestedName.trim();

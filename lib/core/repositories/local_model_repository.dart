@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:path/path.dart' as p;
 import 'package:servllama/core/database/app_database.dart';
 import 'package:servllama/core/repositories/gguf_model_store.dart';
 import 'package:servllama/core/errors/model_operation_exception.dart';
@@ -26,6 +27,7 @@ class LocalModelRepository {
 
   final ModelStoragePaths _storagePaths;
   final AppDatabase? _database;
+  AppDatabase? get database => _database;
   final AppLogger _logger;
 
   Future<GgufModelStore> get _store async =>
@@ -50,59 +52,8 @@ class LocalModelRepository {
   Future<List<ModelDescriptor>> _listModels() async {
     final store = await _store;
     final descriptors = await store.list();
-    final staleIds = <String>[];
-    final validModels = <ModelDescriptor>[];
-
-    for (final descriptor in descriptors) {
-      final currentFile = File(descriptor.storedFilePath);
-      if (!await currentFile.exists()) {
-        staleIds.add(descriptor.id);
-        await _cleanupDirectory(descriptor.storedDirectoryPath);
-        _logger.warning(
-          '清理失效模型记录: ${descriptor.modelName}',
-          channel: LogChannel.model,
-        );
-        continue;
-      }
-
-      final projectors = descriptor.availableMmprojs;
-      final existingProjectors = <String, String>{};
-      for (final entry in projectors.entries) {
-        if (await File(entry.value).exists()) {
-          existingProjectors[entry.key] = entry.value;
-        }
-      }
-      if (existingProjectors.length != projectors.length) {
-        final selected =
-            existingProjectors.containsValue(descriptor.mmprojFilePath)
-            ? descriptor.mmprojFilePath
-            : (existingProjectors.isEmpty
-                  ? null
-                  : existingProjectors.values.first);
-        final patched = descriptor.copyWith(
-          mmprojFilePath: selected,
-          mmprojFiles: existingProjectors,
-          visionEnabled:
-              existingProjectors.isNotEmpty && descriptor.isVisionEnabled,
-        );
-        await store.save(patched);
-        validModels.add(patched);
-        continue;
-      }
-
-      validModels.add(descriptor);
-    }
-
-    if (staleIds.isNotEmpty) {
-      for (final id in staleIds) {
-        await store.remove(id);
-      }
-    }
-
-    validModels.sort(
-      (left, right) => right.importedAt.compareTo(left.importedAt),
-    );
-    return validModels;
+    descriptors.sort((a, b) => b.importedAt.compareTo(a.importedAt));
+    return descriptors;
   }
 
   Future<ModelDescriptor> importModel(
@@ -174,6 +125,28 @@ class LocalModelRepository {
     }
   }
 
+  Future<ModelDescriptor> addExternalModel(
+    PickedGgufFile pickedFile, {
+    required String modelName,
+    int sizeBytes = 0,
+  }) async {
+    final store = await _store;
+    for (final model in await store.list()) {
+      if (model.storedFilePath == pickedFile.path) return model;
+    }
+    final descriptor = ModelDescriptor(
+      id: _generateModelId(),
+      modelName: modelName,
+      sizeBytes: sizeBytes,
+      storedDirectoryPath: File(pickedFile.path).parent.path,
+      storedFilePath: pickedFile.path,
+      importedAt: DateTime.now(),
+      isExternal: true,
+    );
+    await store.save(descriptor);
+    return descriptor;
+  }
+
   Future<ModelDescriptor> importMmproj(
     String modelId,
     PickedGgufFile pickedFile,
@@ -187,6 +160,24 @@ class LocalModelRepository {
     }
 
     final sourceFile = File(pickedFile.path);
+    if (descriptor.isExternal) {
+      if (!_isMmprojFileName(pickedFile.fileName)) {
+        throw const ModelOperationException(
+          ModelOperationErrorCode.unsupportedMmprojFile,
+        );
+      }
+      if (_sameFilePath(sourceFile.path, descriptor.storedFilePath)) {
+        throw const ModelOperationException(
+          ModelOperationErrorCode.mmprojSameAsModelFile,
+        );
+      }
+      final updated = descriptor.copyWith(
+        mmprojFilePath: sourceFile.path,
+        visionEnabled: true,
+      );
+      await store.save(updated);
+      return updated;
+    }
     if (!await sourceFile.exists()) {
       throw const ModelOperationException(
         ModelOperationErrorCode.selectedMmprojFileMissing,
@@ -256,7 +247,7 @@ class LocalModelRepository {
         final store = await _store;
         final descriptor = await _requireModel(store, modelId);
         if (!descriptor.availableMmprojs.containsValue(filePath) ||
-            !await File(filePath).exists()) {
+            (!descriptor.isExternal && !await File(filePath).exists())) {
           throw const ModelOperationException(
             ModelOperationErrorCode.selectedMmprojFileMissing,
           );
@@ -277,7 +268,7 @@ class LocalModelRepository {
           );
         }
         final file = File(filePath);
-        if (await file.exists()) {
+        if (!descriptor.isExternal && await file.exists()) {
           await file.delete();
         }
         files.removeWhere((_, path) => path == filePath);
@@ -338,6 +329,12 @@ class LocalModelRepository {
       );
     }
 
+    if (descriptor.isExternal) {
+      final updated = descriptor.copyWith(modelName: trimmed);
+      await store.save(updated);
+      return updated;
+    }
+
     final oldDir = Directory(descriptor.storedDirectoryPath);
     final newDir = await _storagePaths.getModelDirectory(trimmed);
     if (await newDir.exists()) {
@@ -372,8 +369,7 @@ class LocalModelRepository {
     try {
       await store.save(updated);
     } catch (_) {
-      // Roll the directory back so the stale record does not point at a
-      // missing path (listModels would garbage-collect the model otherwise).
+      // Keep the original SQL path usable when committing the rename fails.
       if (didRenameDirectory) {
         await Directory(newDir.path).rename(oldDir.path);
       }
@@ -597,7 +593,9 @@ class LocalModelRepository {
       );
     }
 
-    await _cleanupDirectory(descriptor.storedDirectoryPath);
+    if (!descriptor.isExternal) {
+      await _cleanupDirectory(descriptor.storedDirectoryPath);
+    }
     await store.remove(modelId);
   }
 
@@ -605,6 +603,15 @@ class LocalModelRepository {
     final directory = Directory(directoryPath);
     if (!await directory.exists()) {
       return;
+    }
+    final root = await _storagePaths.getModelsDirectory();
+    final resolved = p.normalize(await directory.resolveSymbolicLinks());
+    final expected = p.join(
+      await root.resolveSymbolicLinks(),
+      p.basename(directory.path),
+    );
+    if (!p.equals(resolved, expected)) {
+      throw StateError('Unexpected model storage path');
     }
     await directory.delete(recursive: true);
   }

@@ -1048,13 +1048,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modelAddGguf => '导入 GGUF 文件';
 
   @override
-  String get modelAddGgufDesc => 'llama.cpp 使用的单个 .gguf 文件';
+  String get modelAddGgufDesc => 'llama.cpp 使用的单个 gguf 模型文件';
 
   @override
   String get modelAddMnnDir => '导入 MNN 模型目录';
 
   @override
-  String get modelAddMnnDirDesc => 'MNN 引擎使用的整个模型目录';
+  String get modelAddMnnDirDesc => 'MNN模型是独立的模型目录';
 
   @override
   String get modelFormatExplainer => 'GGUF 是单个文件，MNN 模型是整个目录。卡片上的引擎徽标用于区分两者。';
@@ -3169,4 +3169,62 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get chatWelcomeDescription => '今天想聊些什么？';
+
+  @override
+  String get modelAddTitle => '添加模型';
+
+  @override
+  String get modelCopyGgufToApp => '将GGUF模型复制到应用';
+
+  @override
+  String get modelCopyMnnToApp => '将MNN模型复制到应用';
+
+  @override
+  String get modelUseExternal => '使用外部模型';
+
+  @override
+  String get modelExternalHelp => '仅保存本地路径，不复制文件。移动或删除原文件后，加载可能失败。';
+
+  @override
+  String get modelExternalTag => '外部';
+
+  @override
+  String modelExternalAdded(String modelName) {
+    return '已添加外部模型：$modelName';
+  }
+
+  @override
+  String modelExternalAddFailed(String error) {
+    return '添加外部模型失败：$error';
+  }
+
+  @override
+  String modelExternalRemoved(String modelName) {
+    return '已移除模型引用：$modelName';
+  }
+
+  @override
+  String get modelExternalRemove => '移除引用';
+
+  @override
+  String get modelExternalRemoveHelp => '从 ServLlama 移除这条引用？不会删除原文件。';
+
+  @override
+  String get modelStoragePermissionRequired =>
+      '选择外部模型需要存储访问权限。Android 11 及以上请在系统设置中开启「允许管理所有文件」。';
+
+  @override
+  String get modelPickerStorageRoot => '内部存储';
+
+  @override
+  String get modelPickerParent => '上一级目录';
+
+  @override
+  String get modelPickerCannotRead => '无法读取此目录，请检查存储权限或选择其他目录。';
+
+  @override
+  String get modelPickerEmpty => '此目录中没有可选项目';
+
+  @override
+  String get modelPickerSelectDirectory => '使用此模型目录';
 }

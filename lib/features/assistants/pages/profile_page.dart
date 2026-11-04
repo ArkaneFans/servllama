@@ -73,7 +73,7 @@ class _ProfilePageState extends State<ProfilePage> {
             : Center(
                 child: TextButton(
                   onPressed: () async {
-                    await provider.load(reconcileAssets: false);
+                    await provider.load();
                     if (mounted && provider.loaded && provider.error == null) {
                       setState(_restoreProfile);
                     }

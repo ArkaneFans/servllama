@@ -2,6 +2,7 @@ import 'package:servllama/features/agent/services/agent_tool_service.dart';
 import 'package:servllama/core/database/app_database.dart';
 import 'package:servllama/core/database/legacy_importer.dart';
 import 'package:servllama/core/database/legacy_migration_progress.dart';
+import 'package:servllama/core/repositories/unified_model_repository.dart';
 import 'package:servllama/features/chat/repositories/generation_run_repository.dart';
 import 'dart:async';
 import 'package:servllama/features/chat/repositories/chat_session_repository.dart';
@@ -69,6 +70,9 @@ Future<void> _initializeBusiness(
       skipLegacyImport: skipLegacyImport,
       retryCleanupOnOpen: false,
     ).warmUpMessageStore();
+    final models = UnifiedModelRepository(database: await AppDatabase.shared());
+    await models.registerLegacyMnnInventory();
+    await models.cleanupLegacyMissingModels();
     await GenerationRunRepository(await AppDatabase.shared()).recover();
     await AgentToolService.create();
     AppLogger.instance.event(

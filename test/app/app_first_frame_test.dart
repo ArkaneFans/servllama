@@ -46,7 +46,7 @@ void main() {
     expect(find.byType(MigrationFlowView), findsNothing);
     expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(fixture.assistants.loaded, isFalse);
-    expect(fixture.assistants.reconciliationModes, [false]);
+    expect(fixture.assistants.loadCount, 1);
     await tester.pump();
     expect(fixture.downloads.transferModes, [true]);
     expect(fixture.chat.historyLoads, 1);

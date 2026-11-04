@@ -8,21 +8,29 @@ import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/services/engines/inference_engine_adapter.dart';
 import 'package:servllama/core/services/engines/mnn_engine_adapter.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
+import 'package:servllama/core/database/app_database.dart';
+import 'package:servllama/core/models/model_asset.dart';
+import 'package:servllama/core/repositories/unified_model_repository.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late MnnEnginePlatform originalPlatform;
   late _FakeMnnPlatform platform;
+  late AppDatabase db;
+  late UnifiedModelRepository repository;
 
   setUp(() {
+    db = AppDatabase.memory();
+    repository = UnifiedModelRepository(database: db);
     originalPlatform = MnnEnginePlatform.instance;
     platform = _FakeMnnPlatform();
     MnnEnginePlatform.instance = platform;
   });
 
-  tearDown(() {
+  tearDown(() async {
     MnnEnginePlatform.instance = originalPlatform;
+    await db.close();
   });
 
   test(
@@ -31,6 +39,7 @@ void main() {
       platform.initialModel = _model(MnnBackend.cpu);
       platform.initializeBlocker = Completer<void>();
       final adapter = MnnEngineAdapter(
+        modelRepository: repository,
         settingsLoader: _FixedSettingsLoader(const ServerLaunchSettings()),
       );
       addTearDown(adapter.dispose);
@@ -46,6 +55,7 @@ void main() {
 
   test('uses the native bind as the only port decision', () async {
     final adapter = MnnEngineAdapter(
+      modelRepository: repository,
       settingsLoader: _FixedSettingsLoader(
         const ServerLaunchSettings(port: 8083),
       ),
@@ -73,9 +83,44 @@ void main() {
   });
 
   test(
+    'external MNN loads the SQL path without requiring files to exist',
+    () async {
+      final db = AppDatabase.memory();
+      addTearDown(db.close);
+      final repository = UnifiedModelRepository(database: db);
+      await repository.saveAsset(
+        const ModelAsset(
+          id: 'external-asset',
+          kind: AssetKind.llm,
+          engine: 'mnn',
+          runtimeId: 'Alias',
+          storageOwner: 'external',
+          path: '/missing/external-model',
+          name: 'Alias',
+          revision: 'local',
+          manifest: {'importedAt': 0, 'sizeBytes': 2048},
+        ),
+      );
+      final adapter = MnnEngineAdapter(
+        modelRepository: repository,
+        settingsLoader: _FixedSettingsLoader(const ServerLaunchSettings()),
+      );
+      addTearDown(adapter.dispose);
+      final result = await adapter.start(modelId: 'Alias', onPhase: (_) {});
+      expect(platform.externalPaths, ['/missing/external-model']);
+      expect(platform.externalNames, ['Alias']);
+      expect(platform.externalIds, ['Alias']);
+      expect(result.activeModelId, 'Alias');
+      expect(result.activeModelName, 'Alias');
+      expect(platform.startServerCalls, 1);
+    },
+  );
+
+  test(
     'stopping HTTP keeps residency until native unloading is acknowledged',
     () async {
       final adapter = MnnEngineAdapter(
+        modelRepository: repository,
         settingsLoader: _FixedSettingsLoader(const ServerLaunchSettings()),
       );
       addTearDown(adapter.dispose);
@@ -95,6 +140,7 @@ void main() {
     'failed unloading retains residency until an explicit retry succeeds',
     () async {
       final adapter = MnnEngineAdapter(
+        modelRepository: repository,
         settingsLoader: _FixedSettingsLoader(const ServerLaunchSettings()),
       );
       addTearDown(adapter.dispose);
@@ -117,6 +163,7 @@ void main() {
 
   test('a server stop timeout prevents model unloading', () async {
     final adapter = MnnEngineAdapter(
+      modelRepository: repository,
       settingsLoader: _FixedSettingsLoader(const ServerLaunchSettings()),
     );
     addTearDown(adapter.dispose);
@@ -143,6 +190,7 @@ void main() {
       'Unloading failed',
     );
     final adapter = MnnEngineAdapter(
+      modelRepository: repository,
       settingsLoader: _FixedSettingsLoader(const ServerLaunchSettings()),
     );
     addTearDown(adapter.dispose);
@@ -167,6 +215,7 @@ void main() {
     () async {
       platform.initializeBlocker = Completer<void>();
       final adapter = MnnEngineAdapter(
+        modelRepository: repository,
         settingsLoader: _FixedSettingsLoader(const ServerLaunchSettings()),
       );
       addTearDown(adapter.dispose);
@@ -190,6 +239,7 @@ void main() {
       'Port 8083 is currently unavailable.',
     );
     final adapter = MnnEngineAdapter(
+      modelRepository: repository,
       settingsLoader: _FixedSettingsLoader(
         const ServerLaunchSettings(port: 8083),
       ),
@@ -212,6 +262,7 @@ void main() {
 
   test('passes the saved backend when loading a model', () async {
     final adapter = MnnEngineAdapter(
+      modelRepository: repository,
       settingsLoader: _FixedSettingsLoader(
         const ServerLaunchSettings(mnnBackend: MnnBackend.vulkan),
       ),
@@ -224,6 +275,7 @@ void main() {
   test('reloads a resident model when its requested backend changes', () async {
     platform.initialModel = _model(MnnBackend.cpu);
     final adapter = MnnEngineAdapter(
+      modelRepository: repository,
       settingsLoader: _FixedSettingsLoader(
         const ServerLaunchSettings(mnnBackend: MnnBackend.opencl),
       ),
@@ -237,6 +289,7 @@ void main() {
     'passes mmap, precision and thread settings when loading a model',
     () async {
       final adapter = MnnEngineAdapter(
+        modelRepository: repository,
         settingsLoader: _FixedSettingsLoader(
           const ServerLaunchSettings(
             mnnUseMmap: true,
@@ -260,6 +313,7 @@ void main() {
   test('reloads a resident model when mmap settings change', () async {
     platform.initialModel = _model(MnnBackend.cpu);
     final adapter = MnnEngineAdapter(
+      modelRepository: repository,
       settingsLoader: _FixedSettingsLoader(
         const ServerLaunchSettings(mnnUseMmap: true),
       ),
@@ -272,6 +326,7 @@ void main() {
   test('reuses a resident model only when its backend also matches', () async {
     platform.initialModel = _model(MnnBackend.opencl);
     final adapter = MnnEngineAdapter(
+      modelRepository: repository,
       settingsLoader: _FixedSettingsLoader(
         const ServerLaunchSettings(mnnBackend: MnnBackend.opencl),
       ),
@@ -287,6 +342,7 @@ void main() {
       'OpenCL driver unavailable',
     );
     final adapter = MnnEngineAdapter(
+      modelRepository: repository,
       settingsLoader: _FixedSettingsLoader(
         const ServerLaunchSettings(mnnBackend: MnnBackend.opencl),
       ),
@@ -315,6 +371,7 @@ void main() {
         'Transformer C4 export required',
       );
       final adapter = MnnEngineAdapter(
+        modelRepository: repository,
         settingsLoader: _FixedSettingsLoader(
           const ServerLaunchSettings(mnnBackend: MnnBackend.hexagon),
         ),
@@ -367,6 +424,9 @@ class _FixedSettingsLoader extends ServerLaunchSettingsLoader {
 }
 
 class _FakeMnnPlatform extends MnnEnginePlatform {
+  final externalPaths = <String>[];
+  final externalNames = <String?>[];
+  final externalIds = <String?>[];
   int checkPortCalls = 0;
   int startServerCalls = 0;
   int snapshotCalls = 0;
@@ -436,6 +496,34 @@ class _FakeMnnPlatform extends MnnEnginePlatform {
     if (loadError != null) throw loadError!;
     return _model(
       options.backend,
+      useMmap: options.useMmap,
+      precision: options.precision,
+      threadNum: options.threadNum,
+    );
+  }
+
+  @override
+  Future<MnnModelInfo> loadModelFromPath(
+    String directoryPath, {
+    String? modelId,
+    String? displayName,
+    MnnLoadOptions options = const MnnLoadOptions(),
+  }) async {
+    externalPaths.add(directoryPath);
+    externalNames.add(displayName);
+    externalIds.add(modelId);
+    if (loadError != null) throw loadError!;
+    final id = modelId!;
+    return MnnModelInfo(
+      modelId: id,
+      modelKey: id,
+      displayName: displayName ?? id,
+      modelDirPath: directoryPath,
+      configPath: '$directoryPath/config.json',
+      sizeBytes: 2048,
+      importedAt: 0,
+      isActive: true,
+      backend: options.backend,
       useMmap: options.useMmap,
       precision: options.precision,
       threadNum: options.threadNum,

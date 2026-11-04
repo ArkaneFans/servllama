@@ -6,6 +6,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mnn_engine/mnn_engine.dart';
+import 'package:servllama/core/database/app_database.dart';
 import 'package:servllama/core/errors/model_operation_exception.dart';
 import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/core/models/inference_engine.dart';
@@ -138,11 +140,12 @@ void main() {
       final downloadService = _BlockingDownloadService();
       var refreshCount = 0;
       final completed = <String>[];
+      final local = _FakeLocalModelRepository();
       final provider = DownloadProvider(
         taskRepository: repository,
         downloadService: downloadService,
         settingsStore: _MemorySettingsStore(),
-        localModelRepository: _FakeLocalModelRepository(),
+        localModelRepository: local,
         logger: AppLogger(),
         onLibraryChanged: () async {
           refreshCount += 1;
@@ -171,6 +174,71 @@ void main() {
       expect(completed, <String>['model.gguf']);
       provider.dispose();
     });
+
+    test(
+      'MNN SQL registration failure rolls back without completion',
+      () async {
+        var deleted = '', refreshes = 0;
+        final completed = <String>[];
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(
+              const MethodChannel('com.arkanefans.mnn_engine/methods'),
+              (call) async {
+                if (call.method == 'deleteImportedModel') {
+                  deleted = (call.arguments as Map)['modelId'] as String;
+                  return null;
+                }
+                if (call.method == 'importModelFromPathWithResult') {
+                  return {
+                    'requestedModelName': 'model',
+                    'model': {
+                      'modelId': 'model',
+                      'modelKey': 'model',
+                      'displayName': 'model',
+                      'modelDirPath': '/models/model',
+                      'configPath': '/models/model/config.json',
+                      'sizeBytes': 10,
+                      'importedAt': 1,
+                      'isActive': false,
+                    },
+                  };
+                }
+                throw StateError('Unexpected native call: ${call.method}');
+              },
+            );
+        final db = AppDatabase.memory();
+        addTearDown(db.close);
+        final provider = DownloadProvider(
+          taskRepository: _MemoryTaskRepository([
+            _record(
+              stagingDirPath: tempDirectory.path,
+              status: DownloadStatus.downloaded,
+              engineValue: 'mnn',
+              completedFile: true,
+            ),
+          ]),
+          downloadService: _BlockingDownloadService()..release.complete(),
+          settingsStore: _MemorySettingsStore(),
+          unifiedModelRepository: _RejectingMnnRepository(db),
+          onLibraryChanged: () async {
+            refreshes++;
+          },
+          logger: AppLogger(),
+        );
+        addTearDown(provider.dispose);
+        provider.onDownloadCompleted = completed.add;
+        await provider.load();
+        await _waitFor(
+          () =>
+              provider.tasks.single.record.statusValue ==
+              DownloadStatus.failed.name,
+        );
+        expect(deleted, 'model');
+        expect(refreshes, 0);
+        expect(completed, isEmpty);
+        expect(await db.query('SELECT * FROM model_assets'), isEmpty);
+      },
+    );
 
     test(
       'a cancelled task cannot be persisted again by its old worker',
@@ -248,12 +316,16 @@ void main() {
       final repository = _MemoryTaskRepository(<DownloadTaskRecord>[record]);
       var refreshCount = 0;
       final completed = <String>[];
+      final local = _FakeLocalModelRepository();
+      final catalog = UnifiedModelRepository(localModelRepository: local);
       final provider = DownloadProvider(
         taskRepository: repository,
         downloadService: _BlockingDownloadService()..release.complete(),
         settingsStore: _MemorySettingsStore(),
+        localModelRepository: local,
         logger: AppLogger(),
         onLibraryChanged: () async {
+          expect((await catalog.listModels()).single.name, 'Qwen3-0.6B-MNN');
           refreshCount += 1;
         },
       );
@@ -629,8 +701,12 @@ class _BlockingDownloadService extends ModelDownloadService {
 }
 
 class _FakeLocalModelRepository extends LocalModelRepository {
-  _FakeLocalModelRepository()
-    : super(appSupportDirectory: Directory.systemTemp);
+  _FakeLocalModelRepository() : this._(AppDatabase.memory());
+
+  _FakeLocalModelRepository._(AppDatabase db)
+    : super(database: db, appSupportDirectory: Directory.systemTemp) {
+    addTearDown(db.close);
+  }
 
   @override
   Future<List<ModelDescriptor>> listModels() async => const <ModelDescriptor>[];
@@ -705,6 +781,18 @@ class _TrackedNameRepository extends UnifiedModelRepository {
   }) async {
     storageChecks++;
     return occupied && name.toLowerCase() == 'model';
+  }
+}
+
+class _RejectingMnnRepository extends UnifiedModelRepository {
+  _RejectingMnnRepository(AppDatabase db) : super(database: db);
+
+  @override
+  Future<LibraryModel> registerImportedMnnModel(
+    MnnModelInfo info, {
+    String? assetId,
+  }) async {
+    throw StateError('fixture SQL write failure');
   }
 }
 

@@ -95,7 +95,7 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
             ListTile(
               title: Text(l.v2OperationFailed),
               trailing: TextButton(
-                onPressed: () => p.load(reconcileAssets: false),
+                onPressed: () => p.load(),
                 child: Text(l.v2ToolRetryLoad),
               ),
             ),

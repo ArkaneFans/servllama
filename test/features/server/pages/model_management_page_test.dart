@@ -3,16 +3,21 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mnn_engine/mnn_engine.dart';
+import 'package:servllama/core/database/app_database.dart';
+import 'package:servllama/core/repositories/gguf_model_store.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/core/models/engine_runtime_state.dart';
 import 'package:servllama/core/models/inference_engine.dart';
+import 'package:servllama/core/models/library_model.dart';
 import 'package:servllama/core/models/model_descriptor.dart';
 import 'package:servllama/core/providers/engine_runtime_provider.dart';
 import 'package:servllama/core/providers/model_management_provider.dart';
 import 'package:servllama/core/services/app_l10n_service.dart';
 import 'package:servllama/core/repositories/local_model_repository.dart';
+import 'package:servllama/core/repositories/unified_model_repository.dart';
 import 'package:servllama/core/services/gguf_file_picker.dart';
 import 'package:servllama/features/downloads/models/download_task.dart';
 import 'package:servllama/features/downloads/models/download_task_view.dart';
@@ -229,6 +234,21 @@ void main() {
       expect(find.byTooltip('删除'), findsOneWidget);
     });
 
+    testWidgets('shows the registered size for external MNN models', (
+      tester,
+    ) async {
+      final provider = ModelManagementProvider(
+        repository: FakeLocalModelRepository(),
+        unifiedRepository: _ExternalMnnLibraryRepository(),
+      );
+      addTearDown(provider.dispose);
+      await tester.pumpWidget(_host(provider));
+      await tester.pumpAndSettle();
+      expect(find.text('My MNN'), findsOneWidget);
+      expect(find.text('MNN · 2.00 GB'), findsOneWidget);
+      expect(find.text('外部'), findsOneWidget);
+    });
+
     testWidgets('tapping a model card does not start the runtime', (
       tester,
     ) async {
@@ -381,7 +401,23 @@ void main() {
       await tester.tap(find.byKey(const Key('model_management_import_fab')));
       await tester.pumpAndSettle();
       expect(find.text('下载模型'), findsNothing);
-      await tester.tap(find.text('选择并导入'));
+      expect(find.text('将GGUF模型复制到应用'), findsOneWidget);
+      expect(find.text('llama.cpp 使用的单个 gguf 模型文件'), findsOneWidget);
+      expect(find.text('使用外部模型'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(BottomSheet),
+          matching: find.byType(ListTile),
+        ),
+        findsNWidgets(2),
+      );
+      await tester.tap(find.text('MNN'));
+      await tester.pumpAndSettle();
+      expect(find.text('将MNN模型复制到应用'), findsOneWidget);
+      expect(find.text('MNN模型是独立的模型目录'), findsOneWidget);
+      await tester.tap(find.text('llama.cpp'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('model_add_copy')));
       await _settle(tester);
 
       expect(find.text('模型导入成功: picked'), findsOneWidget);
@@ -428,7 +464,7 @@ void main() {
             (call) async {
               switch (call.method) {
                 case 'listImportedModels':
-                  return <Object?>[_mnnModelMap(modelName)];
+                  throw StateError('The page must read SQL');
                 case 'renameImportedModel':
                   final arguments = Map<Object?, Object?>.from(
                     call.arguments! as Map,
@@ -440,11 +476,18 @@ void main() {
               return null;
             },
           );
+      final local = FakeLocalModelRepository();
+      final catalog = UnifiedModelRepository(localModelRepository: local);
+      final before = await catalog.registerImportedMnnModel(
+        MnnModelInfo.fromMap(_mnnModelMap(modelName)),
+      );
       final provider = ModelManagementProvider(
-        repository: FakeLocalModelRepository(),
+        repository: local,
+        unifiedRepository: catalog,
         filePicker: FakeGgufFilePicker(),
         logger: AppLogger(),
       );
+      addTearDown(provider.dispose);
 
       await tester.pumpWidget(_host(provider));
       await tester.pumpAndSettle();
@@ -463,6 +506,8 @@ void main() {
 
       expect(find.text('模型已重命名为: mnn-after'), findsOneWidget);
       expect(find.text('mnn-after'), findsWidgets);
+      expect(provider.libraryModels.single.id, before.id);
+      expect((await catalog.asset(before.id))!.runtimeId, 'mnn-after');
     });
 
     testWidgets('imports mmproj from settings sheet', (tester) async {
@@ -704,17 +749,26 @@ void main() {
 }
 
 class FakeLocalModelRepository extends LocalModelRepository {
-  FakeLocalModelRepository({List<ModelDescriptor>? initialModels})
-    : _models = List<ModelDescriptor>.from(
-        initialModels ?? const <ModelDescriptor>[],
-      ),
-      super(appSupportDirectory: Directory.systemTemp);
+  factory FakeLocalModelRepository({List<ModelDescriptor>? initialModels}) =>
+      FakeLocalModelRepository._(initialModels ?? [], AppDatabase.memory());
+  FakeLocalModelRepository._(List<ModelDescriptor> initial, this.db)
+    : _models = List<ModelDescriptor>.from(initial),
+      super(database: db, appSupportDirectory: Directory.systemTemp) {
+    _seed = Future.wait(
+      initial.map((model) => GgufModelStore(db).save(model)),
+    ).then((_) {});
+    addTearDown(db.close);
+  }
+  final AppDatabase db;
+  late final Future<void> _seed;
 
   final List<ModelDescriptor> _models;
 
   @override
-  Future<List<ModelDescriptor>> listModels() async =>
-      List<ModelDescriptor>.from(_models);
+  Future<List<ModelDescriptor>> listModels() async {
+    await _seed;
+    return List<ModelDescriptor>.from(_models);
+  }
 
   @override
   Future<bool> isModelDirectoryOccupied(
@@ -737,12 +791,14 @@ class FakeLocalModelRepository extends LocalModelRepository {
       originalFileName: pickedFile.fileName,
     );
     _models.insert(0, descriptor);
+    await GgufModelStore(db).save(descriptor);
     return descriptor;
   }
 
   @override
   Future<void> deleteModel(String modelId) async {
     _models.removeWhere((model) => model.id == modelId);
+    await GgufModelStore(db).remove(modelId);
   }
 
   @override
@@ -753,6 +809,7 @@ class FakeLocalModelRepository extends LocalModelRepository {
     final index = _models.indexWhere((model) => model.id == modelId);
     final updated = _models[index].copyWith(mmprojFilePath: pickedFile.path);
     _models[index] = updated;
+    await GgufModelStore(db).save(updated);
     return updated;
   }
 
@@ -761,6 +818,7 @@ class FakeLocalModelRepository extends LocalModelRepository {
     final index = _models.indexWhere((model) => model.id == modelId);
     final updated = _models[index].copyWith(mmprojFilePath: null);
     _models[index] = updated;
+    await GgufModelStore(db).save(updated);
     return updated;
   }
 
@@ -769,6 +827,7 @@ class FakeLocalModelRepository extends LocalModelRepository {
     final index = _models.indexWhere((model) => model.id == modelId);
     final updated = _models[index].copyWith(visionEnabled: enabled);
     _models[index] = updated;
+    await GgufModelStore(db).save(updated);
     return updated;
   }
 
@@ -786,6 +845,7 @@ class FakeLocalModelRepository extends LocalModelRepository {
           : 'C:\\models\\$newName\\${current.mmprojFilePath!.split('\\').last}',
     );
     _models[index] = updated;
+    await GgufModelStore(db).save(updated);
     return updated;
   }
 
@@ -836,6 +896,22 @@ ModelDescriptor _descriptor({
     repoId: repoId,
     revision: revision,
   );
+}
+
+class _ExternalMnnLibraryRepository extends UnifiedModelRepository {
+  @override
+  Future<List<LibraryModel>> listModels() async => [
+    LibraryModel(
+      id: 'mnn:My MNN',
+      runtimeId: 'My MNN',
+      engine: InferenceEngine.mnn,
+      name: 'My MNN',
+      sizeBytes: 2147483648,
+      importedAt: DateTime(2026),
+      storagePath: '/external/original-folder',
+      isExternal: true,
+    ),
+  ];
 }
 
 Map<String, Object?> _mnnModelMap(String name) => <String, Object?>{
