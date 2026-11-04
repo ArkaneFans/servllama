@@ -1139,6 +1139,8 @@ class _MnnModelSettingsSheetState extends State<_MnnModelSettingsSheet> {
               children: [
                 Row(
                   children: [
+                    AiIdentityIcon(model: model.name, local: true),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         model.name,
@@ -1147,8 +1149,6 @@ class _MnnModelSettingsSheetState extends State<_MnnModelSettingsSheet> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    ModelFormatBadge(engine: InferenceEngine.mnn),
                   ],
                 ),
                 const SizedBox(height: 22),

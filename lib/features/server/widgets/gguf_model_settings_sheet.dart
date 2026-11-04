@@ -15,6 +15,7 @@ import 'package:servllama/features/downloads/widgets/download_wifi_only_gate.dar
 import 'package:servllama/features/downloads/widgets/model_repository_link.dart';
 import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/l10n/runtime_labels.dart';
+import 'package:servllama/shared/widgets/ai_identity_icon.dart';
 import 'package:servllama/shared/widgets/engine_badge.dart';
 import 'package:servllama/features/server/pages/model_file_picker_page.dart';
 import 'package:servllama/core/services/gguf_file_picker.dart';
@@ -294,7 +295,7 @@ class _GgufModelSettingsSheetState extends State<GgufModelSettingsSheet> {
               children: [
                 Row(
                   children: [
-                    const ModelFormatBadge(engine: InferenceEngine.llamaCpp),
+                    AiIdentityIcon(model: model.modelName, local: true),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
