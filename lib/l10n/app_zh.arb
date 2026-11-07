@@ -1,4 +1,62 @@
 {
+  "chatContextChanged": "发送消息后可获取当前上下文的实际用量。",
+  "chatContextUsage": "上下文用量",
+  "chatContextTokens": "{used} / {capacity} 词元",
+  "chatContextActual": "后端实测词元",
+  "chatContextUnknownCapacity": "上下文上限未知，未取得后端数据时不显示百分比。",
+  "chatContextActualNote": "最近一次回复的用量快照，包含缓存词元，并非累计计费用量。草稿或对话变更后需重新测量。",
+  "chatContextBackendCapacity": "正在运行的后端报告的上下文上限。",
+  "chatContextUnavailable": "词元用量未知",
+  "@chatContextTokens": {
+    "placeholders": {
+      "used": {
+        "type": "String"
+      },
+      "capacity": {
+        "type": "String"
+      }
+    }
+  },
+  "chatSpeedEstimated": "估算",
+  "chatTokenUnknown": "未知",
+  "chatInputTokenUsage": "输入 {count}（缓存 {cached}）",
+  "@chatInputTokenUsage": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "cached": {
+        "type": "String"
+      }
+    }
+  },
+  "chatOutputTokenUsage": "输出 {count}",
+  "@chatOutputTokenUsage": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsGenerationSpeed": "显示生成统计",
+  "settingsGenerationSpeedSubtitle": "在每条回复下显示速度、输入输出 token 数和缓存命中",
+  "chatPrefillSpeed": "预填充 {speed}",
+  "@chatPrefillSpeed": {
+    "placeholders": {
+      "speed": {
+        "type": "String"
+      }
+    }
+  },
+  "chatDecodeSpeed": "解码 {speed}",
+  "@chatDecodeSpeed": {
+    "placeholders": {
+      "speed": {
+        "type": "String"
+      }
+    }
+  },
+  "chatSpeedUnavailable": "暂无",
   "v2McpEmpty": "还没有 MCP 服务",
   "v2McpEmptyHint": "点击右上角 + 添加",
   "v2McpSearchHint": "搜索 MCP 服务",

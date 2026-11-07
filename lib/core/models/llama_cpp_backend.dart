@@ -39,6 +39,14 @@ class LlamaCppDeviceProbeResult {
 }
 
 LlamaCppDeviceProbeResult parseLlamaCppListDevices(String output) {
+  // Official v0.8.0 can publish HTP0 after substituting v73 for an
+  // unsupported or unknown DSP. Keep the official binaries unchanged, but
+  // do not expose that placeholder as a usable accelerator. Inspect the
+  // complete output: the probe appends stderr after the stdout device list.
+  final unverifiedHexagon = RegExp(
+    r'ggml-hex: Hexagon arch v\d+ is under supported range, capping at v73'
+    r'|ggml-hex: failed to query HTP version \(err -?\d+\) defaulting to v73',
+  ).hasMatch(output);
   final lines = output.split('\n');
   var listing = false;
   String? openclName;
@@ -70,7 +78,7 @@ LlamaCppDeviceProbeResult parseLlamaCppListDevices(String output) {
       continue;
     }
     final upper = name.toUpperCase();
-    if (hexagonName == null && upper.startsWith('HTP')) {
+    if (!unverifiedHexagon && hexagonName == null && upper.startsWith('HTP')) {
       hexagonName = name;
     } else if (openclName == null && upper.contains('OPENCL')) {
       openclName = name;

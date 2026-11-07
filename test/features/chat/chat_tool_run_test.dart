@@ -1,3 +1,4 @@
+import 'package:servllama/features/chat/models/generation_metrics.dart';
 import 'dart:io';
 import 'dart:async';
 
@@ -25,6 +26,7 @@ import 'package:servllama/features/chat/services/llama_chat_api_client.dart';
 
 class _Protocol extends ChatProtocolClient {
   bool callTools = true;
+  bool cancelAfterTerminal = false, failAfterTerminal = false;
   int? receivedMaxTokens;
   Duration outputDelay = Duration.zero;
   Completer<void>? paused;
@@ -56,6 +58,8 @@ class _Protocol extends ChatProtocolClient {
       for (final event in responder(turns, tools)) {
         yield event;
       }
+      if (cancelAfterTerminal) cancelToken.cancel('fixture');
+      if (failAfterTerminal) throw StateError('fixture failure');
       return;
     }
     if (callTools && tools.isNotEmpty && turns.last.role != 'tool') {
@@ -533,6 +537,129 @@ void main() {
           'SELECT state FROM generation_runs',
         )).single.read<String>('state'),
         'interrupted',
+      );
+    },
+  );
+  const nativeMetrics = GenerationMetrics(
+    promptTokens: 100,
+    promptMilliseconds: 200,
+    predictedTokens: 20,
+    predictedMilliseconds: 1000,
+    inputTokens: 120,
+    outputTokens: 20,
+    cachedInputTokens: 20,
+  );
+
+  test(
+    'metrics commit with response identity, survive history and switch revisions',
+    () async {
+      protocol.responder = (_, _) => const [
+        AiEvent(text: 'First'),
+        AiEvent(stopReason: 'stop', generationMetrics: nativeMetrics),
+      ];
+      await runner.sendMessage('Hello');
+      final first = conversation.visibleMessages.last;
+      final metrics = first.generationMetrics!;
+      expect(metrics.prefillTokensPerSecond, 500);
+      expect(metrics.modelId, 'model');
+      expect(metrics.connectionId, 'c');
+      expect(metrics.contextKey, isNotEmpty);
+      expect(
+        (await repository.loadMessage(first.id))!.generationMetrics,
+        metrics,
+      );
+      expect(
+        (await repository.loadMessageVersion(
+          first.versionIds.single,
+        ))!.generationMetrics,
+        metrics,
+      );
+      protocol.responder = (_, _) => const [
+        AiEvent(text: 'Second'),
+        AiEvent(stopReason: 'stop'),
+      ];
+      await runner.regenerateFromMessage(first.id);
+      expect(conversation.visibleMessages.last.generationMetrics, isNull);
+      await runner.selectMessageVersion(messageId: first.id, versionIndex: 0);
+      expect(conversation.visibleMessages.last.generationMetrics, metrics);
+      await runner.editMessage(
+        messageId: first.id,
+        newContent: 'Manually changed',
+      );
+      expect(conversation.visibleMessages.last.generationMetrics, isNull);
+    },
+  );
+
+  for (final cancel in [false, true]) {
+    test(
+      '${cancel ? 'cancelled' : 'failed'} run discards even already-received stats',
+      () async {
+        protocol.responder = (_, _) => const [
+          AiEvent(text: 'Partial'),
+          AiEvent(stopReason: 'stop', generationMetrics: nativeMetrics),
+        ];
+        protocol.cancelAfterTerminal = cancel;
+        protocol.failAfterTerminal = !cancel;
+        await runner.sendMessage('Hello');
+        final message = conversation.visibleMessages.last;
+        expect(message.generationMetrics, isNull);
+        expect(
+          (await repository.loadMessage(message.id))!.generationMetrics,
+          isNull,
+        );
+      },
+    );
+  }
+
+  test(
+    'tool round stats aggregate durations and preserve only final context occupancy',
+    () async {
+      protocol.responder = (turns, _) => turns.last.role == 'tool'
+          ? const [
+              AiEvent(text: 'Final'),
+              AiEvent(
+                stopReason: 'stop',
+                generationMetrics: GenerationMetrics(
+                  promptTokens: 50,
+                  promptMilliseconds: 300,
+                  predictedTokens: 10,
+                  predictedMilliseconds: 1000,
+                  inputTokens: 200,
+                  outputTokens: 11,
+                  decodeIsEstimated: true,
+                ),
+              ),
+            ]
+          : const [
+              AiEvent(
+                stopReason: 'tool_calls',
+                generationMetrics: nativeMetrics,
+                calls: [
+                  AiToolCall(
+                    id: 'ask',
+                    name: 'ask_user',
+                    arguments: {'question': 'Continue?'},
+                  ),
+                ],
+              ),
+            ];
+      final pending = runner.sendMessage('Hello');
+      await waitForApproval();
+      await service.decide('${service.activeRunId!}:ask', true, answer: 'Yes');
+      await pending;
+      final metrics = conversation.visibleMessages.last.generationMetrics!;
+      expect(metrics.prefillTokensPerSecond, 300);
+      expect(metrics.decodeTokensPerSecond, 15);
+      expect(metrics.decodeIsEstimated, isTrue);
+      expect(metrics.inputTokens, 320);
+      expect(metrics.outputTokens, 31);
+      expect(metrics.cachedInputTokens, isNull);
+      expect(metrics.contextTokens, 211);
+      expect(
+        (await repository.loadMessage(
+          conversation.visibleMessages.last.id,
+        ))!.generationMetrics,
+        metrics,
       );
     },
   );

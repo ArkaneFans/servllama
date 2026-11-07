@@ -2456,6 +2456,18 @@ class $MessageRevisionsTable extends MessageRevisions
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _generationMetricsMeta = const VerificationMeta(
+    'generationMetrics',
+  );
+  @override
+  late final GeneratedColumn<String> generationMetrics =
+      GeneratedColumn<String>(
+        'generation_metrics',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2469,6 +2481,7 @@ class $MessageRevisionsTable extends MessageRevisions
     reasoningContent,
     modelName,
     author,
+    generationMetrics,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2558,6 +2571,15 @@ class $MessageRevisionsTable extends MessageRevisions
         author.isAcceptableOrUnknown(data['author']!, _authorMeta),
       );
     }
+    if (data.containsKey('generation_metrics')) {
+      context.handle(
+        _generationMetricsMeta,
+        generationMetrics.isAcceptableOrUnknown(
+          data['generation_metrics']!,
+          _generationMetricsMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2611,6 +2633,10 @@ class $MessageRevisionsTable extends MessageRevisions
         DriftSqlType.string,
         data['${effectivePrefix}author'],
       ),
+      generationMetrics: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}generation_metrics'],
+      ),
     );
   }
 
@@ -2633,6 +2659,7 @@ class DbMessageRevisions extends DataClass
   final String? reasoningContent;
   final String? modelName;
   final String? author;
+  final String? generationMetrics;
   const DbMessageRevisions({
     required this.id,
     required this.messageId,
@@ -2645,6 +2672,7 @@ class DbMessageRevisions extends DataClass
     this.reasoningContent,
     this.modelName,
     this.author,
+    this.generationMetrics,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2667,6 +2695,9 @@ class DbMessageRevisions extends DataClass
     }
     if (!nullToAbsent || author != null) {
       map['author'] = Variable<String>(author);
+    }
+    if (!nullToAbsent || generationMetrics != null) {
+      map['generation_metrics'] = Variable<String>(generationMetrics);
     }
     return map;
   }
@@ -2692,6 +2723,9 @@ class DbMessageRevisions extends DataClass
       author: author == null && nullToAbsent
           ? const Value.absent()
           : Value(author),
+      generationMetrics: generationMetrics == null && nullToAbsent
+          ? const Value.absent()
+          : Value(generationMetrics),
     );
   }
 
@@ -2712,6 +2746,9 @@ class DbMessageRevisions extends DataClass
       reasoningContent: serializer.fromJson<String?>(json['reasoningContent']),
       modelName: serializer.fromJson<String?>(json['modelName']),
       author: serializer.fromJson<String?>(json['author']),
+      generationMetrics: serializer.fromJson<String?>(
+        json['generationMetrics'],
+      ),
     );
   }
   @override
@@ -2729,6 +2766,7 @@ class DbMessageRevisions extends DataClass
       'reasoningContent': serializer.toJson<String?>(reasoningContent),
       'modelName': serializer.toJson<String?>(modelName),
       'author': serializer.toJson<String?>(author),
+      'generationMetrics': serializer.toJson<String?>(generationMetrics),
     };
   }
 
@@ -2744,6 +2782,7 @@ class DbMessageRevisions extends DataClass
     Value<String?> reasoningContent = const Value.absent(),
     Value<String?> modelName = const Value.absent(),
     Value<String?> author = const Value.absent(),
+    Value<String?> generationMetrics = const Value.absent(),
   }) => DbMessageRevisions(
     id: id ?? this.id,
     messageId: messageId ?? this.messageId,
@@ -2758,6 +2797,9 @@ class DbMessageRevisions extends DataClass
         : this.reasoningContent,
     modelName: modelName.present ? modelName.value : this.modelName,
     author: author.present ? author.value : this.author,
+    generationMetrics: generationMetrics.present
+        ? generationMetrics.value
+        : this.generationMetrics,
   );
   DbMessageRevisions copyWithCompanion(MessageRevisionsCompanion data) {
     return DbMessageRevisions(
@@ -2776,6 +2818,9 @@ class DbMessageRevisions extends DataClass
           : this.reasoningContent,
       modelName: data.modelName.present ? data.modelName.value : this.modelName,
       author: data.author.present ? data.author.value : this.author,
+      generationMetrics: data.generationMetrics.present
+          ? data.generationMetrics.value
+          : this.generationMetrics,
     );
   }
 
@@ -2792,7 +2837,8 @@ class DbMessageRevisions extends DataClass
           ..write('content: $content, ')
           ..write('reasoningContent: $reasoningContent, ')
           ..write('modelName: $modelName, ')
-          ..write('author: $author')
+          ..write('author: $author, ')
+          ..write('generationMetrics: $generationMetrics')
           ..write(')'))
         .toString();
   }
@@ -2810,6 +2856,7 @@ class DbMessageRevisions extends DataClass
     reasoningContent,
     modelName,
     author,
+    generationMetrics,
   );
   @override
   bool operator ==(Object other) =>
@@ -2825,7 +2872,8 @@ class DbMessageRevisions extends DataClass
           other.content == this.content &&
           other.reasoningContent == this.reasoningContent &&
           other.modelName == this.modelName &&
-          other.author == this.author);
+          other.author == this.author &&
+          other.generationMetrics == this.generationMetrics);
 }
 
 class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
@@ -2840,6 +2888,7 @@ class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
   final Value<String?> reasoningContent;
   final Value<String?> modelName;
   final Value<String?> author;
+  final Value<String?> generationMetrics;
   final Value<int> rowid;
   const MessageRevisionsCompanion({
     this.id = const Value.absent(),
@@ -2853,6 +2902,7 @@ class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
     this.reasoningContent = const Value.absent(),
     this.modelName = const Value.absent(),
     this.author = const Value.absent(),
+    this.generationMetrics = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   MessageRevisionsCompanion.insert({
@@ -2867,6 +2917,7 @@ class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
     this.reasoningContent = const Value.absent(),
     this.modelName = const Value.absent(),
     this.author = const Value.absent(),
+    this.generationMetrics = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        messageId = Value(messageId),
@@ -2885,6 +2936,7 @@ class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
     Expression<String>? reasoningContent,
     Expression<String>? modelName,
     Expression<String>? author,
+    Expression<String>? generationMetrics,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2899,6 +2951,7 @@ class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
       if (reasoningContent != null) 'reasoning_content': reasoningContent,
       if (modelName != null) 'model_name': modelName,
       if (author != null) 'author': author,
+      if (generationMetrics != null) 'generation_metrics': generationMetrics,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2915,6 +2968,7 @@ class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
     Value<String?>? reasoningContent,
     Value<String?>? modelName,
     Value<String?>? author,
+    Value<String?>? generationMetrics,
     Value<int>? rowid,
   }) {
     return MessageRevisionsCompanion(
@@ -2929,6 +2983,7 @@ class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
       reasoningContent: reasoningContent ?? this.reasoningContent,
       modelName: modelName ?? this.modelName,
       author: author ?? this.author,
+      generationMetrics: generationMetrics ?? this.generationMetrics,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2969,6 +3024,9 @@ class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
     if (author.present) {
       map['author'] = Variable<String>(author.value);
     }
+    if (generationMetrics.present) {
+      map['generation_metrics'] = Variable<String>(generationMetrics.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2989,6 +3047,7 @@ class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
           ..write('reasoningContent: $reasoningContent, ')
           ..write('modelName: $modelName, ')
           ..write('author: $author, ')
+          ..write('generationMetrics: $generationMetrics, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();

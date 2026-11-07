@@ -36,7 +36,7 @@ class ServerLaunchSettings {
 
   static const int defaultContextSize = 4096;
   static const int minContextSize = 512;
-  static const int maxContextSize = 65536;
+  static const int maxContextSize = 262144;
 
   static const int defaultCpuThreads = 4;
   static const int minCpuThreads = 1;

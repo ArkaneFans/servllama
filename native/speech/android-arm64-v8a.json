@@ -19,8 +19,8 @@
   },
   "library": {
     "name": "libservllama_crispasr.so",
-    "bytes": 19012248,
-    "sha256": "e035c0753023f8e7e053320fb68dc2da3b055f56e92f3b0b100fafe84ef61d0b",
+    "bytes": 19010712,
+    "sha256": "866af94a1ba5f6fd400370464c6ef6c4493962d064c4a6747db296ca0b2e1994",
     "needed": [
       "libdl.so",
       "libmediandk.so",

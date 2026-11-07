@@ -1,4 +1,62 @@
 {
+  "chatContextChanged": "Send a message to measure the current context.",
+  "chatContextUsage": "Context usage",
+  "chatContextTokens": "{used} / {capacity} tokens",
+  "chatContextActual": "Backend token count",
+  "chatContextUnknownCapacity": "Context limit unavailable. No percentage is shown without backend data.",
+  "chatContextActualNote": "Latest response usage snapshot, including cached tokens; not cumulative billing. Drafts and changed conversations require a new measurement.",
+  "chatContextBackendCapacity": "Context limit reported by the running backend.",
+  "chatContextUnavailable": "Token count unavailable",
+  "@chatContextTokens": {
+    "placeholders": {
+      "used": {
+        "type": "String"
+      },
+      "capacity": {
+        "type": "String"
+      }
+    }
+  },
+  "chatSpeedEstimated": "estimated",
+  "chatTokenUnknown": "unknown",
+  "chatInputTokenUsage": "Input {count} (cached {cached})",
+  "@chatInputTokenUsage": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "cached": {
+        "type": "String"
+      }
+    }
+  },
+  "chatOutputTokenUsage": "Output {count}",
+  "@chatOutputTokenUsage": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsGenerationSpeed": "Show generation stats",
+  "settingsGenerationSpeedSubtitle": "Show speeds, input/output tokens and cache hits below each reply",
+  "chatPrefillSpeed": "Prefill {speed}",
+  "@chatPrefillSpeed": {
+    "placeholders": {
+      "speed": {
+        "type": "String"
+      }
+    }
+  },
+  "chatDecodeSpeed": "Decode {speed}",
+  "@chatDecodeSpeed": {
+    "placeholders": {
+      "speed": {
+        "type": "String"
+      }
+    }
+  },
+  "chatSpeedUnavailable": "Unavailable",
   "v2McpEmpty": "No MCP servers yet",
   "v2McpEmptyHint": "Tap + in the upper-right corner to add one",
   "v2McpSearchHint": "Search MCP servers",

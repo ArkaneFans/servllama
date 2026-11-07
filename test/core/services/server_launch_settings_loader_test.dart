@@ -18,6 +18,18 @@ void main() {
   });
 
   group('ServerLaunchSettingsLoader', () {
+    test('persists 256K without changing GPU', () async {
+      await loader.save(
+        const ServerLaunchSettings(
+          contextSize: 262144,
+          llamaCppBackend: LlamaCppBackend.hexagon,
+        ),
+      );
+      final settings = await loader.load();
+      expect(settings.contextSize, 262144);
+      expect(settings.llamaCppBackend, LlamaCppBackend.hexagon);
+    });
+
     test('returns defaults when prefs are missing', () async {
       final settings = await loader.load();
 

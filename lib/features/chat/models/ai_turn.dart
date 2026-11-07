@@ -1,3 +1,5 @@
+import 'package:servllama/features/chat/models/generation_metrics.dart';
+
 class AiImage {
   const AiImage(this.mime, this.base64);
   final String mime, base64;
@@ -82,10 +84,14 @@ class AiEvent {
     this.inputTokens = 0,
     this.outputTokens = 0,
     this.stopReason,
+    this.generationMetrics,
+    this.isStreamingOutput = false,
   });
   final String text, reasoning;
   final List<AiToolCall> calls;
   final List<Map<String, dynamic>> providerParts;
   final int inputTokens, outputTokens;
   final String? stopReason;
+  final GenerationMetrics? generationMetrics;
+  final bool isStreamingOutput;
 }

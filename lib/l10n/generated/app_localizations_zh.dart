@@ -9,6 +9,68 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get chatContextChanged => '发送消息后可获取当前上下文的实际用量。';
+
+  @override
+  String get chatContextUsage => '上下文用量';
+
+  @override
+  String chatContextTokens(String used, String capacity) {
+    return '$used / $capacity 词元';
+  }
+
+  @override
+  String get chatContextActual => '后端实测词元';
+
+  @override
+  String get chatContextUnknownCapacity => '上下文上限未知，未取得后端数据时不显示百分比。';
+
+  @override
+  String get chatContextActualNote =>
+      '最近一次回复的用量快照，包含缓存词元，并非累计计费用量。草稿或对话变更后需重新测量。';
+
+  @override
+  String get chatContextBackendCapacity => '正在运行的后端报告的上下文上限。';
+
+  @override
+  String get chatContextUnavailable => '词元用量未知';
+
+  @override
+  String get chatSpeedEstimated => '估算';
+
+  @override
+  String get chatTokenUnknown => '未知';
+
+  @override
+  String chatInputTokenUsage(String count, String cached) {
+    return '输入 $count（缓存 $cached）';
+  }
+
+  @override
+  String chatOutputTokenUsage(String count) {
+    return '输出 $count';
+  }
+
+  @override
+  String get settingsGenerationSpeed => '显示生成统计';
+
+  @override
+  String get settingsGenerationSpeedSubtitle => '在每条回复下显示速度、输入输出 token 数和缓存命中';
+
+  @override
+  String chatPrefillSpeed(String speed) {
+    return '预填充 $speed';
+  }
+
+  @override
+  String chatDecodeSpeed(String speed) {
+    return '解码 $speed';
+  }
+
+  @override
+  String get chatSpeedUnavailable => '暂无';
+
+  @override
   String get v2McpEmpty => '还没有 MCP 服务';
 
   @override

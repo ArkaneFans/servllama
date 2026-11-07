@@ -27,6 +27,7 @@ import 'package:servllama/features/chat/widgets/chat_conversation_transition.dar
 import 'package:servllama/features/chat/widgets/chat_engine_start_sheet.dart';
 import 'package:servllama/features/chat/widgets/chat_conversation_hero.dart';
 import 'package:servllama/features/chat/widgets/chat_input_bar.dart';
+import 'package:servllama/features/chat/widgets/chat_context_indicator.dart';
 import 'package:servllama/features/chat/widgets/chat_input_overlay_layout.dart';
 import 'package:servllama/features/chat/widgets/chat_message_list.dart';
 import 'package:servllama/features/chat/widgets/chat_message_sheets.dart';
@@ -836,6 +837,10 @@ class _ChatInputPanel extends StatelessWidget {
           pendingImageAttachments: snapshot.pendingImageAttachments,
           onRemoveImageAttachment: provider.removeImageAttachment,
           modelIcon: snapshot.modelIcon,
+          contextIndicator: ChatContextIndicator(
+            provider: provider,
+            runtime: serverProvider,
+          ),
         ),
       ],
     );

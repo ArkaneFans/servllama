@@ -1,3 +1,4 @@
+import 'package:servllama/features/chat/models/generation_metrics.dart';
 import 'package:servllama/features/agent/services/agent_tool_service.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -229,6 +230,7 @@ class ChatRunner extends ChangeNotifier {
         content: normalizedContent,
         clearReasoningContent: true,
         clearRunId: true,
+        clearGenerationMetrics: true,
         createdAt: DateTime.now(),
       ),
     );
@@ -651,6 +653,7 @@ class ChatRunner extends ChangeNotifier {
                 ))
             .copyWith(
               runId: _runId,
+              clearGenerationMetrics: true,
               author: author,
               clearAuthor: author == null,
               versionIds: draftVersionIds,
@@ -660,6 +663,7 @@ class ChatRunner extends ChangeNotifier {
     _activeCancelToken = CancelToken();
     var began = false;
     var terminalState = 'completed';
+    GenerationMetrics? completedMetrics;
     streamingMessages.update(draftMessage, isStreaming: true);
 
     var currentMessages = _messagesWithStreamingDraft(
@@ -709,6 +713,7 @@ class ChatRunner extends ChangeNotifier {
         if (_isDisposed) {
           return;
         }
+        completedMetrics = delta.generationMetrics ?? completedMetrics;
         final currentDraft = _draftAssistantMessage;
         if (currentDraft == null) {
           continue;
@@ -775,6 +780,19 @@ class ChatRunner extends ChangeNotifier {
       }
     } finally {
       if (_activeCancelToken?.isCancelled == true) terminalState = 'cancelled';
+      _draftAssistantMessage = _draftAssistantMessage?.copyWith(
+        generationMetrics: terminalState == 'completed' && !_isDisposed
+            ? completedMetrics?.withIdentity(
+                modelId: _activeConfig?.modelId ?? model.id,
+                connectionId: _activeConfig?.connection.id,
+                contextKey: _inputContextKey,
+              )
+            : null,
+        clearGenerationMetrics:
+            terminalState != 'completed' ||
+            _isDisposed ||
+            completedMetrics == null,
+      );
       try {
         if (began && _draftAssistantMessage != null) {
           await _persistDraftDelta(_draftAssistantMessage!, flush: true);
@@ -928,6 +946,7 @@ class ChatRunner extends ChangeNotifier {
         content: draft.content,
         createdAt: draft.createdAt,
         modelName: draft.modelName,
+        generationMetrics: draft.generationMetrics,
         reasoningContent: draft.reasoningContent,
         imageFilePaths: draft.imageFilePaths,
       ),
@@ -985,7 +1004,7 @@ class ChatRunner extends ChangeNotifier {
     return result;
   }
 
-  @visibleForTesting
+  /// Stable request identity shared by tool history and context-usage display.
   static String historyContextKey(
     ChatRunConfig config,
     List<ChatMessageRecord> messages,
@@ -998,6 +1017,7 @@ class ChatRunner extends ChangeNotifier {
                 .map(
                   (m) => encodeMessage(m)
                     ..remove('author')
+                    ..remove('generationMetrics')
                     ..remove('versionIds')
                     ..remove('currentVersionIndex'),
                 )
@@ -1033,6 +1053,7 @@ class ChatRunner extends ChangeNotifier {
       config,
       token,
     );
+    final roundMetrics = <GenerationMetrics?>[];
     try {
       while (true) {
         revalidateAuthorization();
@@ -1058,6 +1079,7 @@ class ChatRunner extends ChangeNotifier {
           yield ChatStreamDelta(content: e.text, reasoningContent: e.reasoning);
         }
         if (completed == null) throw StateError('Incomplete model turn');
+        roundMetrics.add(completed.generationMetrics);
         final assistantTurn = AiTurn(
           role: 'assistant',
           text: text.toString(),
@@ -1066,6 +1088,10 @@ class ChatRunner extends ChangeNotifier {
         );
         _trace.add(assistantTurn);
         if (completed.calls.isEmpty) {
+          final metrics = GenerationMetrics.combineRounds(roundMetrics);
+          if (metrics != null) {
+            yield ChatStreamDelta(generationMetrics: metrics);
+          }
           _finalAnswer = text.toString();
           if (_draftAssistantMessage != null) {
             await _persistDraftDelta(_draftAssistantMessage!, flush: true);
@@ -1171,6 +1197,7 @@ class ChatRunner extends ChangeNotifier {
       content: message.content,
       createdAt: message.createdAt,
       modelName: message.modelName,
+      generationMetrics: message.generationMetrics,
       reasoningContent: message.reasoningContent,
       imageFilePaths: message.imageFilePaths,
     );

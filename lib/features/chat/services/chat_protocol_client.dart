@@ -1,3 +1,4 @@
+import 'package:servllama/features/chat/models/generation_metrics.dart';
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:servllama/core/logging/app_logger.dart';
@@ -403,7 +404,7 @@ class ChatProtocolClient {
       channel: LogChannel.client,
       fields: fields,
     );
-    int? status, firstOutputMs;
+    int? status, firstOutputMs, firstOutputUs;
     var completed = false, inputTokens = 0, outputTokens = 0;
     Object? failure;
     try {
@@ -430,11 +431,33 @@ class ChatProtocolClient {
             fields: {...fields, 'elapsed_ms': firstOutputMs},
           );
         }
+        if (event.isStreamingOutput) {
+          firstOutputUs ??= watch.elapsedMicroseconds;
+        }
         if (event.stopReason != null) {
           inputTokens = event.inputTokens;
           outputTokens = event.outputTokens;
         }
-        yield event;
+        if (event.stopReason != null && event.generationMetrics != null) {
+          final first = firstOutputUs;
+          yield AiEvent(
+            text: event.text,
+            reasoning: event.reasoning,
+            calls: event.calls,
+            providerParts: event.providerParts,
+            inputTokens: event.inputTokens,
+            outputTokens: event.outputTokens,
+            stopReason: event.stopReason,
+            generationMetrics: event.generationMetrics!.withEstimates(
+              firstTokenMilliseconds: first == null ? null : first / 1000,
+              outputMilliseconds: first == null
+                  ? null
+                  : (watch.elapsedMicroseconds - first) / 1000,
+            ),
+          );
+        } else {
+          yield event;
+        }
       }
       completed = true;
     } catch (error) {
@@ -525,9 +548,24 @@ class ChatProtocolClient {
     }
     final calls = <int, _CallBuffer>{};
     final parts = <int, Map<String, dynamic>>{};
-    var input = 0, output = 0;
+    int? input, output, cachedInput;
     String? finish;
-    await for (final event in decodeServerEvents(body.stream)) {
+    GenerationMetrics? metrics;
+    final isJson =
+        response.headers
+            .value('content-type')
+            ?.toLowerCase()
+            .contains('application/json') ??
+        false;
+    final events = isJson && c.protocol == AiProtocol.openai
+        ? Stream<ServerEvent>.fromFuture(
+            utf8.decoder
+                .bind(body.stream)
+                .join()
+                .then((text) => ServerEvent(text)),
+          )
+        : decodeServerEvents(body.stream);
+    await for (final event in events) {
       if (cancelToken.isCancelled) throw cancelToken.cancelError!;
       if (event.data == '[DONE]') {
         finish ??= 'stop';
@@ -539,21 +577,41 @@ class ChatProtocolClient {
       }
       switch (c.protocol) {
         case AiProtocol.openai:
+          if (data.containsKey('timings')) {
+            metrics = GenerationMetrics.fromTimings(data['timings']);
+          }
           final usage = data['usage'] as Map?;
-          input = (usage?['prompt_tokens'] as int?) ?? input;
-          output = (usage?['completion_tokens'] as int?) ?? output;
+          input =
+              GenerationMetrics.tokenCount(usage?['prompt_tokens']) ?? input;
+          output =
+              GenerationMetrics.tokenCount(usage?['completion_tokens']) ??
+              output;
+          final details = usage?['prompt_tokens_details'];
+          cachedInput =
+              GenerationMetrics.tokenCount(
+                details is Map ? details['cached_tokens'] : null,
+              ) ??
+              cachedInput;
           for (final choice
               in (data['choices'] as List? ?? []).whereType<Map>().take(1)) {
             finish = choice['finish_reason'] as String? ?? finish;
-            final delta = choice['delta'] as Map? ?? {};
+            final delta =
+                choice['delta'] as Map? ?? choice['message'] as Map? ?? {};
             final text = delta['content'] as String? ?? '';
             final reasoning = delta['reasoning_content'] as String? ?? '';
             if (text.isNotEmpty || reasoning.isNotEmpty) {
-              yield AiEvent(text: text, reasoning: reasoning);
+              yield AiEvent(
+                text: text,
+                reasoning: reasoning,
+                isStreamingOutput: !isJson,
+              );
+            }
+            if (!isJson && (delta['tool_calls'] as List? ?? []).isNotEmpty) {
+              yield const AiEvent(isStreamingOutput: true);
             }
             for (final tool
                 in (delta['tool_calls'] as List? ?? []).whereType<Map>()) {
-              final i = tool['index'] as int? ?? 0;
+              final i = tool['index'] as int? ?? (isJson ? calls.length : 0);
               final b = calls.putIfAbsent(i, () => _CallBuffer());
               b.id = tool['id'] as String? ?? b.id;
               final fn = tool['function'] as Map? ?? {};
@@ -565,14 +623,29 @@ class ChatProtocolClient {
           final index = data['index'] as int? ?? 0;
           switch (data['type']) {
             case 'message_start':
-              input =
-                  (data['message']?['usage']?['input_tokens'] as int?) ?? input;
+              final usage = data['message']?['usage'] as Map?;
+              final fresh = GenerationMetrics.tokenCount(
+                usage?['input_tokens'],
+              );
+              final read = GenerationMetrics.tokenCount(
+                usage?['cache_read_input_tokens'],
+              );
+              final created = GenerationMetrics.tokenCount(
+                usage?['cache_creation_input_tokens'],
+              );
+              input = fresh == null
+                  ? input
+                  : fresh + (read ?? 0) + (created ?? 0);
+              cachedInput = read;
             case 'content_block_start':
               final block = Map<String, dynamic>.from(
                 data['content_block'] as Map,
               );
               parts[index] = block;
               if (block['type'] == 'tool_use') {
+                if ((block['name'] as String? ?? '').isNotEmpty) {
+                  yield const AiEvent(isStreamingOutput: true);
+                }
                 calls[index] = _CallBuffer()
                   ..id = block['id']
                   ..name = block['name'];
@@ -582,7 +655,7 @@ class ChatProtocolClient {
               }
               if (block['type'] == 'text' &&
                   (block['text'] as String? ?? '').isNotEmpty) {
-                yield AiEvent(text: block['text']);
+                yield AiEvent(text: block['text'], isStreamingOutput: true);
               }
             case 'content_block_delta':
               final delta = data['delta'] as Map;
@@ -591,16 +664,19 @@ class ChatProtocolClient {
                 case 'text_delta':
                   final t = delta['text'] as String;
                   block?['text'] = (block['text'] ?? '').toString() + t;
-                  yield AiEvent(text: t);
+                  yield AiEvent(text: t, isStreamingOutput: t.isNotEmpty);
                 case 'thinking_delta':
                   final t = delta['thinking'] as String;
                   block?['thinking'] = (block['thinking'] ?? '').toString() + t;
-                  yield AiEvent(reasoning: t);
+                  yield AiEvent(reasoning: t, isStreamingOutput: t.isNotEmpty);
                 case 'signature_delta':
                   block?['signature'] =
                       (block['signature'] ?? '').toString() +
                       delta['signature'].toString();
                 case 'input_json_delta':
+                  if ((delta['partial_json'] as String? ?? '').isNotEmpty) {
+                    yield const AiEvent(isStreamingOutput: true);
+                  }
                   calls[index]?.append(delta['partial_json'] as String? ?? '');
               }
             case 'message_delta':
@@ -611,8 +687,18 @@ class ChatProtocolClient {
           }
         case AiProtocol.gemini:
           input = data['usageMetadata']?['promptTokenCount'] as int? ?? input;
-          output =
-              data['usageMetadata']?['candidatesTokenCount'] as int? ?? output;
+          cachedInput =
+              GenerationMetrics.tokenCount(
+                data['usageMetadata']?['cachedContentTokenCount'],
+              ) ??
+              cachedInput;
+          final candidates = GenerationMetrics.tokenCount(
+            data['usageMetadata']?['candidatesTokenCount'],
+          );
+          final thoughts = GenerationMetrics.tokenCount(
+            data['usageMetadata']?['thoughtsTokenCount'],
+          );
+          output = candidates == null ? output : candidates + (thoughts ?? 0);
           for (final candidate
               in (data['candidates'] as List? ?? []).whereType<Map>().take(1)) {
             finish = candidate['finishReason'] as String? ?? finish;
@@ -623,11 +709,18 @@ class ChatProtocolClient {
               parts[parts.length] = part;
               if (part['text'] is String) {
                 yield part['thought'] == true
-                    ? AiEvent(reasoning: part['text'])
-                    : AiEvent(text: part['text']);
+                    ? AiEvent(
+                        reasoning: part['text'],
+                        isStreamingOutput: (part['text'] as String).isNotEmpty,
+                      )
+                    : AiEvent(
+                        text: part['text'],
+                        isStreamingOutput: (part['text'] as String).isNotEmpty,
+                      );
               }
               final fn = part['functionCall'] as Map?;
               if (fn != null) {
+                yield const AiEvent(isStreamingOutput: true);
                 calls[calls.length] = _CallBuffer()
                   ..id = (fn['id'] ?? 'gemini_${calls.length}') as String
                   ..name = fn['name'] as String
@@ -658,9 +751,26 @@ class ChatProtocolClient {
     yield AiEvent(
       calls: completed,
       providerParts: parts.values.toList(),
-      inputTokens: input,
-      outputTokens: output,
+      inputTokens: input ?? 0,
+      outputTokens: output ?? 0,
       stopReason: finish,
+      generationMetrics:
+          const {
+            'stop',
+            'length',
+            'tool_calls',
+            'end_turn',
+            'max_tokens',
+            'tool_use',
+            'STOP',
+            'MAX_TOKENS',
+          }.contains(finish)
+          ? (metrics ?? const GenerationMetrics()).withUsage(
+              inputTokens: input,
+              outputTokens: output,
+              cachedInputTokens: cachedInput,
+            )
+          : null,
     );
   }
 }

@@ -1,3 +1,4 @@
+import 'package:servllama/features/chat/models/generation_metrics.dart';
 import 'package:hive/hive.dart';
 import 'package:servllama/features/chat/models/message_author.dart';
 
@@ -13,6 +14,7 @@ class ChatMessageVersionRecord {
     this.modelName,
     this.runId,
     this.author,
+    this.generationMetrics,
     this.reasoningContent,
     this.imageFilePaths = const [],
   });
@@ -34,6 +36,7 @@ class ChatMessageVersionRecord {
 
   final String? runId;
   final MessageAuthor? author;
+  final GenerationMetrics? generationMetrics;
 
   @HiveField(5)
   final String? reasoningContent;
