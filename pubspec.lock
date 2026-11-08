@@ -715,7 +715,7 @@ packages:
       path: "../mnn_engine"
       relative: true
     source: path
-    version: "0.2.0"
+    version: "0.2.1"
   nested:
     dependency: transitive
     description:
