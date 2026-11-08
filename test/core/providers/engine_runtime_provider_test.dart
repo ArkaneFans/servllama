@@ -39,7 +39,7 @@ void main() {
           addTearDown(provider.dispose);
           final restored = provider.ensureRestored();
           expect(identical(restored, provider.ensureRestored()), isTrue);
-          final starting = provider.startPrivate();
+          final starting = provider.start();
           await Future<void>.delayed(Duration.zero);
           expect(mnn.startCount, 0);
           expect(llama.startCount, 0);
@@ -78,39 +78,100 @@ void main() {
       },
     );
 
-    for (final publish in [false, true]) {
+    test(
+      'same and cross engine model switches share the configured startup',
+      () async {
+        final llama = _FakeEngineAdapter(InferenceEngine.llamaCpp);
+        final mnn = _FakeEngineAdapter(InferenceEngine.mnn);
+        final provider = _provider(llama: llama, mnn: mnn);
+        addTearDown(provider.dispose);
+        final engines = [
+          InferenceEngine.llamaCpp,
+          InferenceEngine.llamaCpp,
+          InferenceEngine.mnn,
+          InferenceEngine.mnn,
+          InferenceEngine.llamaCpp,
+        ];
+        for (var i = 0; i < engines.length; i++) {
+          await provider.activateModel('model-$i', engine: engines[i]);
+          expect(provider.isRunning, isTrue);
+          expect(provider.activeEngine, engines[i]);
+          expect(provider.activeModelId, 'model-$i');
+          expect(provider.resources.isFree(LocalResourceDomain.llm), isFalse);
+          expect(provider.lastError, isNull);
+        }
+        expect(llama.startCount, 3);
+        expect(mnn.startCount, 2);
+        expect(llama.stopCount, 2);
+        expect(mnn.stopCount, 2);
+        await provider.stop();
+        expect(provider.resources.isFree(LocalResourceDomain.llm), isTrue);
+      },
+    );
+
+    for (final engine in InferenceEngine.values) {
       test(
-        'immediate same and cross engine restarts (publish=$publish)',
+        'server and model-picker starts use saved settings (${engine.name})',
         () async {
+          final settingsLoader = _FixedSettingsLoader()
+            ..settings = const ServerLaunchSettings(
+              listenMode: ServerListenMode.allInterfaces,
+              port: 9091,
+              apiKey: 'configured-key',
+              contextSize: 8192,
+              mnnThreadNum: 6,
+            );
           final llama = _FakeEngineAdapter(InferenceEngine.llamaCpp);
           final mnn = _FakeEngineAdapter(InferenceEngine.mnn);
-          final provider = _provider(llama: llama, mnn: mnn);
+          final adapter = engine == InferenceEngine.mnn ? mnn : llama;
+          final provider = _provider(
+            llama: llama,
+            mnn: mnn,
+            settingsLoader: settingsLoader,
+          );
           addTearDown(provider.dispose);
-          final engines = [
-            InferenceEngine.llamaCpp,
-            InferenceEngine.llamaCpp,
-            InferenceEngine.mnn,
-            InferenceEngine.mnn,
-            InferenceEngine.llamaCpp,
-          ];
-          for (var i = 0; i < engines.length; i++) {
-            await provider.switchEngine(engines[i]);
-            await provider.selectModel('model-$i');
-            await provider.start(publish: publish);
-            expect(provider.isRunning, isTrue);
-            expect(provider.activeEngine, engines[i]);
-            expect(provider.activeModelId, 'model-$i');
-            expect(provider.isPublished, publish);
-            await provider.stop();
-            expect(provider.resources.isFree(LocalResourceDomain.llm), isTrue);
-            expect(provider.canSwitchEngine, isTrue);
-            expect(provider.lastError, isNull);
-          }
-          expect(llama.startCount, 3);
-          expect(mnn.startCount, 2);
+          await provider.switchEngine(engine);
+          await provider.selectModel('first');
+          await provider.toggle();
+          expect(adapter.startSettings, same(settingsLoader.settings));
+          expect(provider.host, '0.0.0.0');
+          expect(provider.port, 9091);
+          expect(provider.apiKey, 'configured-key');
+
+          settingsLoader.settings = settingsLoader.settings.copyWith(
+            port: 9092,
+            apiKey: 'changed-key',
+          );
+          await provider.activateModel('first', engine: engine);
+          expect(adapter.startCount, 1);
+          expect(provider.apiKey, 'configured-key');
+          await provider.activateModel('second', engine: engine);
+          expect(adapter.startCount, 2);
+          expect(adapter.stopCount, 1);
+          expect(adapter.startSettings, same(settingsLoader.settings));
+          expect(provider.host, '0.0.0.0');
+          expect(provider.port, 9092);
+          expect(provider.apiKey, 'changed-key');
         },
       );
     }
+
+    test('concurrent model choices cannot start two engines', () async {
+      final llama = _FakeEngineAdapter(InferenceEngine.llamaCpp);
+      final mnn = _FakeEngineAdapter(InferenceEngine.mnn);
+      final provider = _provider(llama: llama, mnn: mnn);
+      addTearDown(provider.dispose);
+      await provider.ensureRestored();
+      await Future.wait([
+        provider.activateModel('first', engine: InferenceEngine.mnn),
+        provider.activateModel('second', engine: InferenceEngine.llamaCpp),
+      ]);
+      expect(provider.activeEngine, InferenceEngine.mnn);
+      expect(provider.activeModelId, 'first');
+      expect(mnn.startCount, 1);
+      expect(llama.startCount, 0);
+      expect(provider.isBusy, isFalse);
+    });
 
     test('cancel retains the lease until the pending start settles', () async {
       final startBlocker = Completer<void>();
@@ -164,7 +225,7 @@ void main() {
         addTearDown(provider.dispose);
         await provider.switchEngine(InferenceEngine.mnn);
         await provider.selectModel('mnn-model');
-        final starting = provider.startPrivate();
+        final starting = provider.start();
         await Future<void>.delayed(Duration.zero);
         final cancellation = provider.cancel();
         await Future<void>.delayed(Duration.zero);
@@ -179,7 +240,7 @@ void main() {
         expect(mnn.prepareCount, stage == 'settings' ? 0 : 1);
         expect(provider.resources.isFree(LocalResourceDomain.llm), isTrue);
 
-        await provider.startPrivate();
+        await provider.start();
         expect(mnn.startCount, 1);
         expect(provider.status, EngineRuntimeStatus.ready);
       });
@@ -201,7 +262,7 @@ void main() {
         }
       });
 
-      await provider.startPrivate();
+      await provider.start();
       expect(cancellation, isNotNull);
       await cancellation;
       expect(mnn.startCount, 0);
@@ -225,7 +286,7 @@ void main() {
       addTearDown(provider.dispose);
       await provider.switchEngine(InferenceEngine.mnn);
       await provider.selectModel('mnn-model');
-      final starting = provider.startPrivate();
+      final starting = provider.start();
       await Future<void>.delayed(Duration.zero);
       mnn.resident = true;
       final cancellation = provider.cancel();
@@ -244,12 +305,9 @@ void main() {
       expect(provider.resources.isFree(LocalResourceDomain.llm), isTrue);
     });
 
-    test('cancel waits for a pending private model replacement', () async {
+    test('cancel waits for a pending model replacement', () async {
       final blocker = Completer<void>();
-      final mnn = _FakeEngineAdapter(
-        InferenceEngine.mnn,
-        activateBlocker: blocker,
-      );
+      final mnn = _FakeEngineAdapter(InferenceEngine.mnn);
       final provider = _provider(
         llama: _FakeEngineAdapter(InferenceEngine.llamaCpp),
         mnn: mnn,
@@ -257,12 +315,14 @@ void main() {
       addTearDown(provider.dispose);
       await provider.switchEngine(InferenceEngine.mnn);
       await provider.selectModel('mnn-model');
-      await provider.startPrivate();
+      await provider.start();
+      mnn.startBlocker = blocker;
       final changing = provider.activateModel('replacement');
       await Future<void>.delayed(Duration.zero);
       final cancellation = provider.cancel();
       await Future<void>.delayed(Duration.zero);
-      expect(mnn.activateCount, 1);
+      expect(mnn.startCount, 2);
+      expect(mnn.stopCount, 1);
       expect(provider.status, EngineRuntimeStatus.stopping);
       expect(provider.resources.isFree(LocalResourceDomain.llm), isFalse);
 
@@ -285,7 +345,7 @@ void main() {
       await provider.start();
       await provider.activateModel('mnn-model');
 
-      expect(mnn.activateCount, 0);
+      expect(mnn.stopCount, 0);
       expect(mnn.startCount, 1);
     });
 
@@ -304,7 +364,7 @@ void main() {
         addTearDown(provider.dispose);
         await provider.switchEngine(InferenceEngine.mnn);
         await provider.selectModel('mnn-model');
-        await provider.startPrivate();
+        await provider.start();
 
         final stopping = provider.stop();
         await Future<void>.delayed(Duration.zero);
@@ -347,7 +407,7 @@ void main() {
         addTearDown(provider.dispose);
         await provider.switchEngine(InferenceEngine.mnn);
         await provider.selectModel('mnn-model');
-        await provider.startPrivate();
+        await provider.start();
         await provider.stop();
 
         expect(mnn.isRunning, isFalse);
@@ -356,7 +416,7 @@ void main() {
         expect(provider.canStart, isFalse);
         expect(provider.canSwitchEngine, isFalse);
         expect(provider.canStop, isTrue);
-        await provider.startPrivate();
+        await provider.start();
         expect(mnn.startCount, 1);
 
         mnn.stopError = null;
@@ -388,64 +448,69 @@ void main() {
       },
     );
 
-    test('published residency remains owned after a failed stop', () async {
-      final mnn = _FakeEngineAdapter(
-        InferenceEngine.mnn,
-        stopListenerBeforeFailure: true,
-        stopError: const EngineAdapterException(
+    test(
+      'failed stop keeps ownership and prevents model replacement',
+      () async {
+        final mnn = _FakeEngineAdapter(
+          InferenceEngine.mnn,
+          stopListenerBeforeFailure: true,
+          stopError: const EngineAdapterException(
+            EngineRuntimeErrorKind.serverStopFailed,
+          ),
+        );
+        final provider = _provider(
+          llama: _FakeEngineAdapter(InferenceEngine.llamaCpp),
+          mnn: mnn,
+        );
+        addTearDown(provider.dispose);
+        await provider.switchEngine(InferenceEngine.mnn);
+        await provider.selectModel('mnn-model');
+        await provider.start();
+        await provider.activateModel(
+          'another-model',
+          engine: InferenceEngine.llamaCpp,
+        );
+        expect(provider.activeEngine, InferenceEngine.mnn);
+        expect(mnn.startCount, 1);
+        expect(
+          provider.lastError?.kind,
           EngineRuntimeErrorKind.serverStopFailed,
-        ),
-      );
+        );
+        expect(provider.resources.leaseFor(LocalResourceDomain.llm), isNotNull);
+        mnn.stopError = null;
+        await provider.stop();
+        expect(provider.resources.isFree(LocalResourceDomain.llm), isTrue);
+      },
+    );
+
+    test('LLM start, model switch and stop preserve active speech', () async {
       final provider = _provider(
         llama: _FakeEngineAdapter(InferenceEngine.llamaCpp),
-        mnn: mnn,
+        mnn: _FakeEngineAdapter(InferenceEngine.mnn),
       );
       addTearDown(provider.dispose);
-      await provider.switchEngine(InferenceEngine.mnn);
-      await provider.selectModel('mnn-model');
-      await provider.start();
-      await provider.stop();
-      expect(provider.isPublished, isTrue);
-      expect(provider.resources.leaseFor(LocalResourceDomain.llm), isNotNull);
-      mnn.stopError = null;
-      await provider.stop();
-      expect(provider.isPublished, isFalse);
-      expect(provider.resources.isFree(LocalResourceDomain.llm), isTrue);
-    });
-
-    for (final publish in [false, true]) {
-      test(
-        'LLM start and stop preserve active speech (publish=$publish)',
-        () async {
-          final provider = _provider(
-            llama: _FakeEngineAdapter(InferenceEngine.llamaCpp),
-            mnn: _FakeEngineAdapter(InferenceEngine.mnn),
-          );
-          addTearDown(provider.dispose);
-          final speech = provider.resources.tryAcquire(
-            kind: LocalResourceKind.asr,
-            assetId: 'transcriber',
-            owner: 'speech',
-          );
-          await provider.selectModel('llm');
-          await provider.start(publish: publish);
-          expect(provider.status, EngineRuntimeStatus.ready);
-          expect(provider.isPublished, publish);
-          expect(
-            provider.resources.leaseFor(LocalResourceDomain.speech),
-            same(speech),
-          );
-
-          await provider.stop();
-          expect(provider.status, EngineRuntimeStatus.idle);
-          expect(provider.resources.isFree(LocalResourceDomain.llm), isTrue);
-          expect(
-            provider.resources.leaseFor(LocalResourceDomain.speech),
-            same(speech),
-          );
-        },
+      final speech = provider.resources.tryAcquire(
+        kind: LocalResourceKind.asr,
+        assetId: 'transcriber',
+        owner: 'speech',
       );
-    }
+      await provider.selectModel('llm');
+      await provider.start();
+      expect(provider.status, EngineRuntimeStatus.ready);
+      await provider.activateModel('other-llm', engine: InferenceEngine.mnn);
+      expect(
+        provider.resources.leaseFor(LocalResourceDomain.speech),
+        same(speech),
+      );
+
+      await provider.stop();
+      expect(provider.status, EngineRuntimeStatus.idle);
+      expect(provider.resources.isFree(LocalResourceDomain.llm), isTrue);
+      expect(
+        provider.resources.leaseFor(LocalResourceDomain.speech),
+        same(speech),
+      );
+    });
 
     test('moves the saved model selection after a rename', () async {
       final llama = _FakeEngineAdapter(InferenceEngine.llamaCpp);
@@ -573,12 +638,13 @@ class _FixedSettingsLoader extends ServerLaunchSettingsLoader {
 
   final Completer<void>? loadBlocker;
   int loads = 0;
+  ServerLaunchSettings settings = const ServerLaunchSettings();
 
   @override
   Future<ServerLaunchSettings> load() async {
     // Block explicit starts, not the lightweight initial status restoration.
     if (++loads > 1) await loadBlocker?.future;
-    return const ServerLaunchSettings();
+    return settings;
   }
 }
 
@@ -587,7 +653,6 @@ class _FakeEngineAdapter implements InferenceEngineAdapter {
     this.engine, {
     this.startBlocker,
     this.prepareBlocker,
-    this.activateBlocker,
     this.startError,
     this.cancelError,
     this.stopError,
@@ -597,9 +662,8 @@ class _FakeEngineAdapter implements InferenceEngineAdapter {
 
   @override
   final InferenceEngine engine;
-  final Completer<void>? startBlocker;
+  Completer<void>? startBlocker;
   final Completer<void>? prepareBlocker;
-  final Completer<void>? activateBlocker;
   final EngineAdapterException? startError;
   final EngineAdapterException? cancelError;
   EngineAdapterException? stopError;
@@ -612,7 +676,8 @@ class _FakeEngineAdapter implements InferenceEngineAdapter {
   bool resident = false;
   int prepareCount = 0;
   int startCount = 0;
-  int activateCount = 0;
+  int stopCount = 0;
+  ServerLaunchSettings? startSettings;
   int cancelCount = 0;
 
   @override
@@ -633,10 +698,12 @@ class _FakeEngineAdapter implements InferenceEngineAdapter {
   @override
   Future<EngineStartResult> start({
     required String modelId,
+    ServerLaunchSettings? settings,
     required RuntimePhaseCallback onPhase,
   }) async {
     _cancelRequested = false;
     startCount += 1;
+    startSettings = settings;
     onPhase(RuntimePhase.loadingModel);
     await startBlocker?.future;
     if (_cancelRequested) throw const EngineOperationCancelledException();
@@ -646,8 +713,8 @@ class _FakeEngineAdapter implements InferenceEngineAdapter {
     _isRunning = true;
     resident = true;
     return EngineStartResult(
-      host: '127.0.0.1',
-      port: 8080,
+      host: settings?.host ?? '127.0.0.1',
+      port: settings?.port ?? 8080,
       activeModelId: modelId,
       activeModelName: engine == InferenceEngine.mnn ? 'MNN model' : modelId,
     );
@@ -655,6 +722,7 @@ class _FakeEngineAdapter implements InferenceEngineAdapter {
 
   @override
   Future<void> stop({required RuntimePhaseCallback onPhase}) async {
+    stopCount += 1;
     if (stopBlocker != null || stopListenerBeforeFailure) {
       _isRunning = false;
       _running.add(false);
@@ -680,24 +748,6 @@ class _FakeEngineAdapter implements InferenceEngineAdapter {
     if (cancelError != null) throw cancelError!;
     _isRunning = false;
     resident = false;
-  }
-
-  @override
-  Future<EngineStartResult> activateModel(
-    String modelId, {
-    required RuntimePhaseCallback onPhase,
-  }) async {
-    _cancelRequested = false;
-    activateCount += 1;
-    onPhase(RuntimePhase.unloadingModel);
-    await activateBlocker?.future;
-    if (_cancelRequested) throw const EngineOperationCancelledException();
-    return EngineStartResult(
-      host: '127.0.0.1',
-      port: 8080,
-      activeModelId: modelId,
-      activeModelName: modelId,
-    );
   }
 
   @override

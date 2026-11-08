@@ -169,12 +169,10 @@ class _ChatTargetPickerState extends State<ChatTargetPicker> {
           .toList();
       if (!matchesProvider && assets.isEmpty) continue;
       final activeEngine = runtime?.activeEngine == engine;
-      final status = activeEngine && runtime!.isPublished
-          ? l.v2ServicePublished
-          : RuntimeLabels.status(
-              l,
-              activeEngine ? runtime!.state.status : EngineRuntimeStatus.idle,
-            );
+      final status = RuntimeLabels.status(
+        l,
+        activeEngine ? runtime!.state.status : EngineRuntimeStatus.idle,
+      );
       slivers.add(
         SliverToBoxAdapter(
           child: _ProviderHeading(
@@ -212,16 +210,10 @@ class _ChatTargetPickerState extends State<ChatTargetPicker> {
                 activeEngine &&
                 runtime!.isBusy &&
                 runtime.selectedModelId == asset.runtimeId;
-            final publishedConflict =
-                widget.onSelected != null &&
-                runtime?.isPublished == true &&
-                !loaded;
             final busy = widget.onSelected != null && runtime?.isBusy == true;
             final target = ChatTarget.local(asset.id);
             final subtitle = !asset.isReady
                 ? l.v2MissingTarget
-                : publishedConflict
-                ? l.v2PublishedModelLocked
                 : loading
                 ? l.serverStatusPreparing
                 : loaded
@@ -252,8 +244,7 @@ class _ChatTargetPickerState extends State<ChatTargetPicker> {
                 size: 24,
                 framed: false,
               ),
-              enabled:
-                  !disabled && asset.isReady && !publishedConflict && !busy,
+              enabled: !disabled && asset.isReady && !busy,
               onTap: () => _choose(target),
             );
           },

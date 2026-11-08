@@ -2772,13 +2772,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Managed in the local model library; load or stop models to control the runtime.';
 
   @override
-  String get v2ServicePublished => 'Serving externally';
-
-  @override
-  String get v2PublishedModelLocked =>
-      'Stop the published model in the service center before switching local models.';
-
-  @override
   String get v2LocalModelLoaded => 'Loaded';
 
   @override

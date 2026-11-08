@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:servllama/core/models/inference_engine.dart';
+import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/services/engines/inference_engine_adapter.dart';
 import 'package:servllama/core/services/llama_server_control_client.dart';
 
@@ -32,12 +33,13 @@ class StubEngineAdapter implements InferenceEngineAdapter {
   @override
   Future<EngineStartResult> start({
     required String modelId,
+    ServerLaunchSettings? settings,
     required RuntimePhaseCallback onPhase,
   }) async {
     _isRunning = true;
     return EngineStartResult(
-      host: '127.0.0.1',
-      port: 8080,
+      host: settings?.host ?? '127.0.0.1',
+      port: settings?.port ?? 8080,
       activeModelId: modelId,
       activeModelName: modelId,
     );
@@ -51,14 +53,6 @@ class StubEngineAdapter implements InferenceEngineAdapter {
   @override
   Future<void> cancel({required RuntimePhaseCallback onPhase}) async {
     _isRunning = false;
-  }
-
-  @override
-  Future<EngineStartResult> activateModel(
-    String modelId, {
-    required RuntimePhaseCallback onPhase,
-  }) async {
-    return start(modelId: modelId, onPhase: onPhase);
   }
 
   @override

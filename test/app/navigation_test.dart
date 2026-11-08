@@ -239,6 +239,9 @@ void main() {
       (tester) async {
         screen(tester, const Size(360, 800));
         await tester.runAsync(() async {
+          await KvStorage().setString('server.listen_mode', 'allInterfaces');
+          await KvStorage().setInt('server.port', 9091);
+          await KvStorage().setString('server.api_key', 'configured-key');
           await runtime.switchEngine(engine);
           await runtime.selectModel('local-default');
         });
@@ -275,7 +278,9 @@ void main() {
         expect(runtime.isRunning, isTrue, reason: '${runtime.lastError}');
         expect(runtime.activeEngine, engine);
         expect(runtime.activeModelId, 'local-default');
-        expect(runtime.isPublished, isFalse);
+        expect(runtime.host, '0.0.0.0');
+        expect(runtime.port, 9091);
+        expect(runtime.apiKey, 'configured-key');
         expect(chat.currentTarget?.toJson(), target.toJson());
         expect(find.byTooltip(l.serverStop), findsOneWidget);
         await tester.tap(find.byKey(const Key('chat_server_toggle_button')));
@@ -334,7 +339,6 @@ void main() {
       );
       expect(runtime.isRunning, isTrue, reason: '${runtime.lastError}');
       expect(runtime.activeModelId, 'local');
-      expect(runtime.isPublished, isFalse);
       expect(chat.currentTarget?.toJson(), target.toJson());
       await tester.runAsync(runtime.stop);
       await tester.pumpAndSettle();

@@ -72,7 +72,7 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
       return;
     }
     try {
-      final settings = await _settingsLoader.loadForRuntime();
+      final settings = await _settingsLoader.load();
       _logsEnabled = settings.logEnabled;
       _minimumLogLevel = settings.logLevel;
       // Restoring ownership needs only the existing service snapshot. Loading
@@ -109,16 +109,10 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
   @override
   Future<EngineStartResult> start({
     required String modelId,
+    ServerLaunchSettings? settings,
     required RuntimePhaseCallback onPhase,
   }) async {
     _cancelRequested = false;
-    return _startInternal(modelId: modelId, onPhase: onPhase);
-  }
-
-  Future<EngineStartResult> _startInternal({
-    required String modelId,
-    required RuntimePhaseCallback onPhase,
-  }) async {
     await prepare();
     _throwIfCancelled();
     try {
@@ -130,7 +124,7 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
       );
     }
     _throwIfCancelled();
-    final settings = await _settingsLoader.loadForRuntime();
+    settings ??= await _settingsLoader.load();
     _throwIfCancelled();
     _logsEnabled = settings.logEnabled;
     _minimumLogLevel = settings.logLevel;
@@ -185,17 +179,6 @@ class MnnEngineAdapter implements InferenceEngineAdapter {
   @override
   Future<void> stop({required RuntimePhaseCallback onPhase}) =>
       _releaseRuntime(onPhase: onPhase);
-
-  @override
-  Future<EngineStartResult> activateModel(
-    String modelId, {
-    required RuntimePhaseCallback onPhase,
-  }) async {
-    _cancelRequested = false;
-    await _releaseRuntime(onPhase: onPhase);
-    _throwIfCancelled();
-    return _startInternal(modelId: modelId, onPhase: onPhase);
-  }
 
   @override
   Future<void> cancel({required RuntimePhaseCallback onPhase}) async {

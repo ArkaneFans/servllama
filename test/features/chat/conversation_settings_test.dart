@@ -75,7 +75,7 @@ class _Assets extends UnifiedModelRepository {
 }
 
 class _Runtime extends Fake implements EngineRuntimeProvider {
-  bool running = false, published = false, residue = false;
+  bool running = false, residue = false;
   String? model;
   String? label;
   InferenceEngine engine = InferenceEngine.mnn;
@@ -94,8 +94,6 @@ class _Runtime extends Fake implements EngineRuntimeProvider {
   bool get isRunning => running;
   @override
   bool get isBusy => false;
-  @override
-  bool get isPublished => published;
   @override
   bool get canStop => running || residue;
   @override
@@ -134,11 +132,21 @@ class _Runtime extends Fake implements EngineRuntimeProvider {
   }
 
   @override
-  Future<void> startPrivate() async {
+  Future<void> start() async {
     actions.add('start');
     if (!started.isCompleted) started.complete();
     await startBlocker?.future;
     running = true;
+  }
+
+  @override
+  Future<void> activateModel(String modelId, {InferenceEngine? engine}) async {
+    final nextEngine = engine ?? this.engine;
+    if (running && this.engine == nextEngine && model == modelId) return;
+    if (canStop) await stop();
+    await switchEngine(nextEngine);
+    await selectModel(modelId);
+    await start();
   }
 }
 
@@ -488,8 +496,8 @@ void main() {
           await chat.load();
           await chat.selectSession('local');
         });
-        runtime.running = runtime.published = true;
-        runtime.model = 'other-published-model';
+        runtime.running = true;
+        runtime.model = 'other-model';
         bind();
         await tester.pumpWidget(
           ChangeNotifierProvider<EngineRuntimeProvider>.value(
@@ -504,7 +512,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(runtime.actions, ['stop']);
         expect(runtime.running, isFalse);
-        expect(runtime.model, 'other-published-model');
+        expect(runtime.model, 'other-model');
         expect(chat.currentTarget?.toJson(), local.toJson());
         expect(find.byKey(const Key('app_top_message')), findsNothing);
         expect(tester.takeException(), isNull);
@@ -1021,20 +1029,11 @@ void main() {
   );
 
   test(
-    'one local selection owns startup and rejects published switches before changing the target',
+    'one local selection owns switching and blocks context changes until startup finishes',
     () async {
       await chat.load();
       runtime.running = true;
-      runtime.published = true;
       runtime.model = 'other';
-      await expectLater(
-        chat.selectTarget(local, startLocal: true),
-        throwsStateError,
-      );
-      expect(chat.currentTarget?.modelId, 'one');
-      expect(chat.selectedSession, isNull);
-      expect(runtime.actions, isEmpty);
-      runtime.published = false;
       runtime.startBlocker = Completer<void>();
       final selection = chat.selectTarget(local, startLocal: true);
       await runtime.started.future.timeout(const Duration(seconds: 5));
@@ -1088,7 +1087,7 @@ void main() {
   );
 
   test(
-    'local selection is locked during lookup and startup never replaces a published model',
+    'local selection is locked during lookup and startup switches the running model',
     () async {
       await chat.load();
       assets.lookup = Completer<void>();
@@ -1098,12 +1097,8 @@ void main() {
       assets.lookup!.complete();
       await selection;
       runtime.running = true;
-      runtime.published = true;
       runtime.model = 'other';
       bind();
-      await expectLater(chat.prepareLocalTarget(), throwsStateError);
-      expect(runtime.actions, isEmpty);
-      runtime.published = false;
       runtime.startBlocker = Completer<void>();
       final start = chat.prepareLocalTarget();
       await runtime.started.future.timeout(const Duration(seconds: 5));

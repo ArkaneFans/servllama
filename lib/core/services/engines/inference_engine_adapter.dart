@@ -1,5 +1,6 @@
 import 'package:servllama/core/models/engine_runtime_state.dart';
 import 'package:servllama/core/models/inference_engine.dart';
+import 'package:servllama/core/models/server_launch_settings.dart';
 
 typedef RuntimePhaseCallback = void Function(RuntimePhase phase);
 
@@ -59,8 +60,11 @@ abstract class InferenceEngineAdapter {
   /// One-time initialization. Safe to call repeatedly.
   Future<void> prepare();
 
+  /// Runtime callers pass one saved configuration for the complete start.
+  /// Standalone adapter callers may load it through the adapter's settings loader.
   Future<EngineStartResult> start({
     required String modelId,
+    ServerLaunchSettings? settings,
     required RuntimePhaseCallback onPhase,
   });
 
@@ -70,12 +74,6 @@ abstract class InferenceEngineAdapter {
   /// resources. Safe to call even if the operation has not reached the server
   /// start phase yet.
   Future<void> cancel({required RuntimePhaseCallback onPhase});
-
-  /// Switches the active model within this engine while it is running.
-  Future<EngineStartResult> activateModel(
-    String modelId, {
-    required RuntimePhaseCallback onPhase,
-  });
 
   void dispose();
 }

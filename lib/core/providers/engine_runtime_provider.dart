@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:math';
-import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/runtime/resource_coordinator.dart';
 import 'package:servllama/core/security/log_redactor.dart';
 
@@ -22,8 +20,8 @@ import 'package:servllama/core/utils/network_utils.dart';
 /// bind the same configured port, so the base URL external clients use never
 /// changes when the active engine does.
 ///
-/// Engine switching is only allowed while idle (design decision D5), which is
-/// what keeps this class free of cross-engine rollback logic.
+/// Server and chat entry points use the same configured start and model switch.
+/// Switching models stops the current engine before starting the selected one.
 class EngineRuntimeProvider extends ChangeNotifier {
   EngineRuntimeProvider({
     InferenceEngineAdapter? llamaCppAdapter,
@@ -58,8 +56,6 @@ class EngineRuntimeProvider extends ChangeNotifier {
   final ServerLaunchSettingsLoader _settingsLoader;
   final ResourceCoordinator resources;
   ResourceLease? _lease;
-  bool _published = true;
-  bool get isPublished => _published && _lease != null;
   String get apiKey => _apiKey;
   void _releaseIfStopped() {
     if (_pendingOperation != null ||
@@ -69,8 +65,6 @@ class EngineRuntimeProvider extends ChangeNotifier {
     if (_lease != null) resources.release(_lease!);
     _lease = null;
   }
-
-  Future<void> startPrivate() => start(publish: false);
 
   final KvStorage _kvStorage;
   final AppLogger _logger;
@@ -85,6 +79,7 @@ class EngineRuntimeProvider extends ChangeNotifier {
       <InferenceEngine, String?>{};
 
   bool _disposed = false;
+  bool _activatingModel = false;
   int _operationEpoch = 0;
   Future<void>? _pendingOperation;
   String _host = '127.0.0.1';
@@ -96,13 +91,14 @@ class EngineRuntimeProvider extends ChangeNotifier {
   InferenceEngine get activeEngine => _state.engine;
   EngineRuntimeStatus get status => _state.status;
   bool get isRunning => _state.isRunning;
-  bool get isBusy => _state.isBusy;
+  bool get isBusy => _state.isBusy || _activatingModel;
   bool get canSwitchEngine =>
       _state.canSwitchEngine && !_adapters.values.any((a) => a.hasResources);
   bool get canStop =>
       !_state.isBusy &&
       (_state.isRunning || _adapters[_state.engine]!.hasResources);
   bool get canStart =>
+      !_activatingModel &&
       (_state.status == EngineRuntimeStatus.idle ||
           _state.status == EngineRuntimeStatus.error) &&
       selectedModelId != null &&
@@ -269,8 +265,8 @@ class EngineRuntimeProvider extends ChangeNotifier {
     if (engine == _state.engine) {
       return;
     }
-    // Guarded rather than orchestrated: switching while running would need a
-    // stop/unload/start rollback path, which D5 exists to avoid.
+    // A raw engine selection requires idle resources. activateModel owns the
+    // stop/start sequence when switching a running model.
     if (!canSwitchEngine) {
       return;
     }
@@ -342,6 +338,7 @@ class EngineRuntimeProvider extends ChangeNotifier {
   Future<void> toggle() async {
     await ensureRestored();
     if (_disposed) return;
+    if (_activatingModel && !_state.isBusy) return;
     if (_state.status == EngineRuntimeStatus.preparing) {
       await cancel();
       return;
@@ -356,7 +353,7 @@ class EngineRuntimeProvider extends ChangeNotifier {
     await start();
   }
 
-  Future<void> start({bool publish = true}) async {
+  Future<void> start() async {
     await ensureRestored();
     if (_disposed) return;
     if (_state.isBusy ||
@@ -394,23 +391,11 @@ class EngineRuntimeProvider extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    _published = publish;
     await _runOrchestrated((checkActive) async {
       await _requestNotificationPermissionOnce();
       checkActive();
-      final saved = await _settingsLoader.load();
+      final settings = await _settingsLoader.load();
       checkActive();
-      final internalKey = List.generate(
-        32,
-        (_) => Random.secure().nextInt(256).toRadixString(16).padLeft(2, '0'),
-      ).join();
-      _settingsLoader.runtimeOverride = publish
-          ? saved
-          : saved.copyWith(
-              listenMode: ServerListenMode.localhost,
-              apiKey: internalKey,
-            );
-      final settings = _settingsLoader.runtimeOverride!;
       _host = settings.host;
       _port = settings.port;
       _apiKey = settings.apiKey;
@@ -418,7 +403,11 @@ class EngineRuntimeProvider extends ChangeNotifier {
       final adapter = _adapters[engine]!;
       await adapter.prepare();
       checkActive();
-      return adapter.start(modelId: modelId, onPhase: _emitPhase);
+      return adapter.start(
+        modelId: modelId,
+        settings: settings,
+        onPhase: _emitPhase,
+      );
     });
   }
 
@@ -527,36 +516,32 @@ class EngineRuntimeProvider extends ChangeNotifier {
     }
   }
 
-  /// Makes [modelId] the serving model for the active engine. Starts the
-  /// runtime if it is down; otherwise replaces the running engine's resident
-  /// model using the lifecycle its adapter owns.
-  Future<void> activateModel(String modelId) async {
+  /// Loads a model using the server configuration, from either UI entry point.
+  /// Reuses the resident model or stops it before a same/cross-engine restart.
+  Future<void> activateModel(String modelId, {InferenceEngine? engine}) async {
     await ensureRestored();
     if (_disposed) return;
-    if (_state.isBusy) {
+    if (isBusy) {
       return;
     }
-    if (isPublished && _state.activeModelId != modelId) {
-      throw StateError(
-        'Stop the published LLM service before changing its model',
-      );
-    }
-
-    await selectModel(modelId);
-
-    if (_state.isRunning && _state.activeModelId == modelId) {
+    final targetEngine = engine ?? _state.engine;
+    if (_state.isRunning &&
+        _state.engine == targetEngine &&
+        _state.activeModelId == modelId) {
       return;
     }
-
-    if (!_state.isRunning) {
+    _activatingModel = true;
+    notifyListeners();
+    try {
+      if (canStop) await stop();
+      if (_disposed || !canSwitchEngine || _state.isBusy) return;
+      await switchEngine(targetEngine);
+      await selectModel(modelId);
       await start();
-      return;
+    } finally {
+      _activatingModel = false;
+      notifyListeners();
     }
-
-    final adapter = _adapters[_state.engine]!;
-    await _runOrchestrated(
-      (_) => adapter.activateModel(modelId, onPhase: _emitPhase),
-    );
   }
 
   Future<void> _runOrchestrated(

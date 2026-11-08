@@ -481,15 +481,6 @@ class ChatProvider extends ChangeNotifier {
         if (asset?.isReady != true || asset?.kind != AssetKind.llm) {
           throw StateError('Local model unavailable');
         }
-        final runtime = _runtime;
-        if (startLocal &&
-            runtime?.isPublished == true &&
-            (runtime!.activeModelId != asset!.runtimeId ||
-                runtime.activeEngine.storageValue != asset.engine)) {
-          throw StateError(
-            'Stop the published LLM service before changing its model',
-          );
-        }
       }
       final assistantId = currentAssistantId;
       if (assistantId == null) throw StateError('Assistant unavailable');
@@ -548,26 +539,13 @@ class ChatProvider extends ChangeNotifier {
       if (asset == null || !asset.isReady || asset.kind != AssetKind.llm) {
         throw StateError('Local model unavailable');
       }
-      if (runtime.isRunning &&
-          runtime.activeEngine.storageValue == asset.engine &&
-          runtime.activeModelId == asset.runtimeId) {
-        return;
-      }
-      if (runtime.isPublished) {
-        throw StateError(
-          'Stop the published LLM service before changing its model',
-        );
-      }
-      if (runtime.canStop) await runtime.stop();
-      if (!runtime.canSwitchEngine || runtime.isBusy) {
-        throw StateError('Local runtime is busy');
-      }
-      await runtime.switchEngine(
-        InferenceEngine.fromStorageValue(asset.engine),
+      await runtime.activateModel(
+        asset.runtimeId,
+        engine: InferenceEngine.fromStorageValue(asset.engine),
       );
-      await runtime.selectModel(asset.runtimeId);
-      await runtime.startPrivate();
-      if (!runtime.isRunning) {
+      if (!runtime.isRunning ||
+          runtime.activeEngine.storageValue != asset.engine ||
+          runtime.activeModelId != asset.runtimeId) {
         throw StateError(
           runtime.lastError?.detail ?? 'Local model startup failed',
         );

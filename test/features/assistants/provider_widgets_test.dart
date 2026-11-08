@@ -121,8 +121,6 @@ class _Runtime extends Fake
     engine: InferenceEngine.llamaCpp,
   );
   @override
-  bool isPublished = false;
-  @override
   bool get isRunning => state.isRunning;
   @override
   bool get isBusy => state.isBusy;
@@ -913,7 +911,7 @@ void main() {
   );
 
   testWidgets(
-    'activation failures keep the sheet open for retry and published models stay protected',
+    'activation failures allow retry and a running model permits local switches',
     (tester) async {
       var calls = 0;
       await tester.pumpWidget(
@@ -940,7 +938,6 @@ void main() {
       await tester.tap(row);
       await tester.pumpAndSettle();
       expect(calls, 2);
-      runtime.isPublished = true;
       runtime.state = runtime.state.copyWith(
         status: EngineRuntimeStatus.ready,
         activeModelId: 'runtime-gguf',
@@ -948,6 +945,20 @@ void main() {
       await tester.tap(find.text('Pick'));
       await tester.pumpAndSettle();
       expect(tester.widget<ListTile>(row).enabled, isTrue);
+      expect(
+        tester
+            .widget<ListTile>(
+              find.byKey(const ValueKey('chat_target_local_mnn')),
+            )
+            .enabled,
+        isTrue,
+      );
+      runtime.state = runtime.state.copyWith(
+        status: EngineRuntimeStatus.preparing,
+      );
+      runtime.notifyListeners();
+      await tester.pump();
+      expect(tester.widget<ListTile>(row).enabled, isFalse);
       expect(
         tester
             .widget<ListTile>(

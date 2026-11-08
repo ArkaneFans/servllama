@@ -82,6 +82,33 @@ void main() {
     expect(result.port, 8083);
   });
 
+  test('uses the configuration supplied by the runtime', () async {
+    final adapter = MnnEngineAdapter(
+      modelRepository: repository,
+      settingsLoader: _FixedSettingsLoader(const ServerLaunchSettings()),
+    );
+    addTearDown(adapter.dispose);
+    final result = await adapter.start(
+      modelId: 'local/qwen',
+      settings: const ServerLaunchSettings(
+        listenMode: ServerListenMode.allInterfaces,
+        port: 9091,
+        apiKey: 'configured-key',
+        mnnBackend: MnnBackend.opencl,
+        mnnPrecision: MnnPrecision.high,
+        mnnThreadNum: 6,
+      ),
+      onPhase: (_) {},
+    );
+    expect(result.host, '0.0.0.0');
+    expect(result.port, 9091);
+    expect(platform.requestedBindMode, MnnServerBindMode.allInterfaces);
+    expect(platform.requestedApiKey, 'configured-key');
+    expect(platform.requestedOptions.single.backend, MnnBackend.opencl);
+    expect(platform.requestedOptions.single.precision, MnnPrecision.high);
+    expect(platform.requestedOptions.single.threadNum, 6);
+  });
+
   test(
     'external MNN loads the SQL path without requiring files to exist',
     () async {
@@ -441,6 +468,8 @@ class _FakeMnnPlatform extends MnnEnginePlatform {
   MnnModelInfo? initialModel;
   final requestedBackends = <MnnBackend>[];
   final requestedOptions = <MnnLoadOptions>[];
+  MnnServerBindMode? requestedBindMode;
+  String? requestedApiKey;
 
   @override
   Stream<MnnRuntimeEvent> get events => const Stream<MnnRuntimeEvent>.empty();
@@ -537,13 +566,17 @@ class _FakeMnnPlatform extends MnnEnginePlatform {
     String? apiKey,
   }) async {
     startServerCalls++;
+    requestedBindMode = bindMode;
+    requestedApiKey = apiKey;
     final error = startError;
     if (error != null) {
       throw error;
     }
     return MnnServerInfo(
       running: true,
-      host: '127.0.0.1',
+      host: bindMode == MnnServerBindMode.allInterfaces
+          ? '0.0.0.0'
+          : '127.0.0.1',
       bindMode: bindMode,
       bindAddress: '127.0.0.1',
       port: port,

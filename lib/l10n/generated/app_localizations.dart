@@ -4973,18 +4973,6 @@ abstract class AppLocalizations {
   /// **'Managed in the local model library; load or stop models to control the runtime.'**
   String get v2LocalProviderHelp;
 
-  /// No description provided for @v2ServicePublished.
-  ///
-  /// In en, this message translates to:
-  /// **'Serving externally'**
-  String get v2ServicePublished;
-
-  /// No description provided for @v2PublishedModelLocked.
-  ///
-  /// In en, this message translates to:
-  /// **'Stop the published model in the service center before switching local models.'**
-  String get v2PublishedModelLocked;
-
   /// No description provided for @v2LocalModelLoaded.
   ///
   /// In en, this message translates to:

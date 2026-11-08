@@ -227,11 +227,11 @@ class _ChatViewState extends State<_ChatView> {
     // Both engines are model-specific. Choosing a model owns the remaining
     // start sequence when the selected engine has no saved default.
     if (runtime.selectedModelId == null) {
-      await _showLocalModels(context, privateStart: true);
+      await _showLocalModels(context);
       return;
     }
 
-    await runtime.startPrivate();
+    await runtime.start();
     if (context.mounted) {
       _showRuntimeError(context, runtime);
     }
@@ -277,10 +277,7 @@ class _ChatViewState extends State<_ChatView> {
     await _showLocalModels(context);
   }
 
-  Future<void> _showLocalModels(
-    BuildContext context, {
-    bool privateStart = false,
-  }) async {
+  Future<void> _showLocalModels(BuildContext context) async {
     final runtime = context.read<EngineRuntimeProvider?>();
     if (runtime == null) {
       return;
@@ -334,14 +331,7 @@ class _ChatViewState extends State<_ChatView> {
     }
     // One tap owns the whole bring-up: idle starts the engine, running swaps
     // within it. Progress remains in the runtime subtitle after the sheet closes.
-    if (privateStart) {
-      // Starting a local service must not change the conversation's target.
-      if (runtime.canStop) return;
-      await runtime.selectModel(picked.runtimeId);
-      await runtime.startPrivate();
-    } else {
-      await runtime.activateModel(picked.runtimeId);
-    }
+    await runtime.activateModel(picked.runtimeId);
     if (!context.mounted) {
       return;
     }

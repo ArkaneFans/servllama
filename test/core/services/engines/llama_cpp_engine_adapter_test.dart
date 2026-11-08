@@ -44,6 +44,31 @@ void main() {
       expect(result.activeModelName, 'alpha');
     });
 
+    test('uses the configuration supplied by the runtime', () async {
+      final process = _FakeProcessService();
+      final control = _FakeControlClient();
+      final adapter = _adapter(process: process, control: control);
+      final result = await adapter.start(
+        modelId: 'alpha',
+        settings: const ServerLaunchSettings(
+          listenMode: ServerListenMode.allInterfaces,
+          port: 9091,
+          apiKey: 'configured-key',
+          contextSize: 8192,
+        ),
+        onPhase: (_) {},
+      );
+      expect(result.host, '0.0.0.0');
+      expect(result.port, 9091);
+      expect(control.baseUrl, 'http://127.0.0.1:9091');
+      expect(
+        process.startArguments.single,
+        containsAllInOrder(['--host', '0.0.0.0', '--port', '9091']),
+      );
+      expect(process.startArguments.single, contains('configured-key'));
+      expect(process.startArguments.single, contains('8192'));
+    });
+
     test(
       'does not start a process when the selected model is missing',
       () async {
@@ -91,13 +116,14 @@ void main() {
       expect(process.isRunning, isFalse);
     });
 
-    test('replaces the process when activating another model', () async {
+    test('stops the old process before starting another model', () async {
       final process = _FakeProcessService();
       final adapter = _adapter(process: process, control: _FakeControlClient());
       await adapter.start(modelId: 'alpha', onPhase: (_) {});
       final phases = <RuntimePhase>[];
 
-      final result = await adapter.activateModel('beta', onPhase: phases.add);
+      await adapter.stop(onPhase: phases.add);
+      final result = await adapter.start(modelId: 'beta', onPhase: phases.add);
 
       expect(process.stopCount, 1);
       expect(process.startArguments, hasLength(2));

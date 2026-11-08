@@ -59,21 +59,15 @@ class LlamaCppEngineAdapter implements InferenceEngineAdapter {
   @override
   Future<EngineStartResult> start({
     required String modelId,
+    ServerLaunchSettings? settings,
     required RuntimePhaseCallback onPhase,
   }) async {
     _cancelRequested = false;
-    return _startInternal(modelId: modelId, onPhase: onPhase);
-  }
-
-  Future<EngineStartResult> _startInternal({
-    required String modelId,
-    required RuntimePhaseCallback onPhase,
-  }) async {
     try {
       await prepare();
       final model = await _findModel(modelId);
       _throwIfCancelled();
-      final settings = await _settingsLoader.loadForRuntime();
+      settings ??= await _settingsLoader.load();
       _throwIfCancelled();
       final probe = await _deviceProbeService.probe(force: true);
       _throwIfCancelled();
@@ -143,25 +137,6 @@ class LlamaCppEngineAdapter implements InferenceEngineAdapter {
         EngineRuntimeErrorKind.serverStopFailed,
       );
     }
-  }
-
-  @override
-  Future<EngineStartResult> activateModel(
-    String modelId, {
-    required RuntimePhaseCallback onPhase,
-  }) async {
-    _cancelRequested = false;
-    if (_serverService.isRunning) {
-      onPhase(RuntimePhase.stoppingServer);
-      final stopped = await _serverService.stopServer();
-      if (!stopped) {
-        throw const EngineAdapterException(
-          EngineRuntimeErrorKind.serverStopFailed,
-        );
-      }
-      _throwIfCancelled();
-    }
-    return _startInternal(modelId: modelId, onPhase: onPhase);
   }
 
   @override

@@ -92,7 +92,7 @@ class _ServerPageState extends State<ServerPage> {
           children: [
             EngineSelector(
               selected: state.engine,
-              enabled: runtime.canSwitchEngine,
+              enabled: runtime.canSwitchEngine && !runtime.isBusy,
               onChanged: runtime.switchEngine,
             ),
             const SizedBox(height: 18),

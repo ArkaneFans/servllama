@@ -101,6 +101,13 @@ whether to reuse/stop a resident model. Restoration never loads model weights,
 starts an idle server, changes the assistant's target or replays a Run. MNN
 restoration reads service status, not `initializeEngine`. Explicit start and
 native cleanup retain the existing cancellation and resource-lease boundaries.
+Server and chat starts both use the saved server configuration, including its
+listen mode, port, API key and engine parameters. Explicit model selection uses
+`EngineRuntimeProvider.activateModel`: reuse the running model, or stop the old
+engine before selecting and starting the new model. This applies to same-engine
+and cross-engine switches; there is no separate private/published mode or lock.
+Assistant selection and runtime selection remain separate, so starting/stopping
+from a service shortcut never changes the chat target.
 Locale/theme/timeout edits similarly join their initial read, so an early edit
 cannot later be overwritten by restoration.
 

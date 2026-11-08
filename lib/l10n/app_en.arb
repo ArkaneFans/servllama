@@ -1375,8 +1375,6 @@
   "v2DeselectVisible": "Deselect search results",
   "v2LocalProvider": "Local · {engine}",
   "v2LocalProviderHelp": "Managed in the local model library; load or stop models to control the runtime.",
-  "v2ServicePublished": "Serving externally",
-  "v2PublishedModelLocked": "Stop the published model in the service center before switching local models.",
   "v2LocalModelLoaded": "Loaded",
   "v2LocalModelUnloaded": "Not loaded",
   "@v2ProviderModelCount": {

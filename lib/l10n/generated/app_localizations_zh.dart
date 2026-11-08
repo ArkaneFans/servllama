@@ -2626,12 +2626,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2LocalProviderHelp => '从本地模型库管理，通过加载和停止控制运行。';
 
   @override
-  String get v2ServicePublished => '正在对外提供服务';
-
-  @override
-  String get v2PublishedModelLocked => '请先在服务中心停止已发布的模型，再切换本地模型。';
-
-  @override
   String get v2LocalModelLoaded => '已加载';
 
   @override
