@@ -167,7 +167,7 @@ class _ChatTargetPickerState extends State<ChatTargetPicker> {
                 a.runtimeId.toLowerCase().contains(query),
           )
           .toList();
-      if (!matchesProvider && assets.isEmpty) continue;
+      if (assets.isEmpty) continue;
       final activeEngine = runtime?.activeEngine == engine;
       final status = RuntimeLabels.status(
         l,
@@ -187,16 +187,6 @@ class _ChatTargetPickerState extends State<ChatTargetPicker> {
           ),
         ),
       );
-      if (assets.isEmpty) {
-        slivers.add(
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
-              child: Text(l.v2NoLocalChatModels),
-            ),
-          ),
-        );
-      }
       slivers.add(
         SliverList.builder(
           itemCount: assets.length,
@@ -252,9 +242,6 @@ class _ChatTargetPickerState extends State<ChatTargetPicker> {
       );
     }
     for (final c in p.connections.where((c) => c.enabled)) {
-      // Hide enabled providers that have no configured models — there is
-      // nothing to pick, so a heading with an empty body only adds noise.
-      if (c.models.isEmpty) continue;
       final matchesProvider = c.name.toLowerCase().contains(query);
       final models = c.models
           .where(
@@ -264,7 +251,7 @@ class _ChatTargetPickerState extends State<ChatTargetPicker> {
                 c.nameFor(id).toLowerCase().contains(query),
           )
           .toList();
-      if (!matchesProvider && models.isEmpty) continue;
+      if (models.isEmpty) continue;
       slivers.add(SliverToBoxAdapter(child: _ProviderHeading(name: c.name)));
       slivers.add(
         SliverList.builder(
@@ -385,12 +372,9 @@ class _ProviderHeading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // The picker's models sit inside a 20 dp SliverPadding; the provider
-    // heading steps a bit further left (8 dp) so it marks the grouping without
-    // lining up with the model rows — the visual hierarchy kelivo and rikkahub
-    // use for supplier headings over their cards.
+    // Align headings with the outer padding; model rows add their own inset.
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 18, 8, 8),
+      padding: const EdgeInsets.fromLTRB(0, 18, 8, 8),
       child: Row(
         children: [
           Flexible(
