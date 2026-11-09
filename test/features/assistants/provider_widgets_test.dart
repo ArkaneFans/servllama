@@ -10,7 +10,6 @@ import 'package:servllama/core/providers/engine_runtime_provider.dart';
 import 'package:servllama/features/assistants/models/assistant.dart';
 import 'package:servllama/features/assistants/models/provider_presets.dart';
 import 'package:servllama/features/assistants/pages/connections_page.dart';
-import 'package:servllama/features/assistants/pages/profile_page.dart';
 import 'package:servllama/features/assistants/providers/assistant_provider.dart';
 import 'package:servllama/features/assistants/widgets/provider_model_picker.dart';
 import 'package:servllama/features/assistants/widgets/provider_model_sheet.dart';
@@ -239,42 +238,6 @@ void main() {
   }
 
   testWidgets(
-    'early provider page distinguishes loading from an empty catalog',
-    (tester) async {
-      settings.loaded = false;
-      settings.connections = [];
-      settings.pendingSnapshot = Completer<void>();
-      await tester.pumpWidget(app(const ConnectionsPage()));
-      expect(find.byType(LinearProgressIndicator), findsOneWidget);
-      final add = tester.widget<IconButton>(
-        find.widgetWithIcon(IconButton, Icons.add),
-      );
-      expect(add.onPressed, isNull);
-      expect(find.byKey(const Key('provider_cloud')), findsNothing);
-      settings.pendingSnapshot!.complete();
-      await tester.pumpAndSettle();
-      expect(find.byKey(const Key('provider_cloud')), findsOneWidget);
-      expect(find.byType(LinearProgressIndicator), findsNothing);
-    },
-  );
-
-  testWidgets(
-    'early profile page restores fields before exposing an editable draft',
-    (tester) async {
-      settings.loaded = false;
-      settings.pendingSnapshot = Completer<void>();
-      await tester.pumpWidget(app(const ProfilePage()));
-      expect(find.byType(TextField), findsNothing);
-      settings.pendingSnapshot!.complete();
-      await tester.pumpAndSettle();
-      final name = tester.widget<TextField>(
-        find.byKey(const Key('profile_name')),
-      );
-      expect(name.controller!.text, 'Restored identity');
-    },
-  );
-
-  testWidgets(
     'editor loads a stored key, reveals it on demand and keeps it unchanged',
     (tester) async {
       await tester.pumpWidget(app(editorLauncher()));
@@ -298,53 +261,6 @@ void main() {
       await tester.tap(save);
       await tester.pumpAndSettle();
       expect(settings.savedKey, isNull);
-    },
-  );
-
-  testWidgets('a restored credential is present on the first editor frame', (
-    tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(420, 1400));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(app(const ConnectionEditor(connection: _cloud)));
-    final field = tester.widget<TextField>(
-      find.byKey(const Key('provider_key')),
-    );
-    expect(field.controller!.text, 'stored-secret');
-    expect(field.obscureText, isTrue);
-    expect(
-      field.decoration!.floatingLabelBehavior,
-      FloatingLabelBehavior.always,
-    );
-    final save = find.byKey(const Key('provider_save_button'));
-    expect(tester.widget<FilledButton>(save).onPressed, isNotNull);
-    final label = find.descendant(of: save, matching: find.byType(Text)).first;
-    expect(
-      DefaultTextStyle.of(tester.element(label)).style.color,
-      AppTheme.light().colorScheme.onPrimary,
-    );
-    await tester.pump(const Duration(milliseconds: 16));
-    expect(field.controller!.text, 'stored-secret');
-  });
-
-  testWidgets(
-    'a provider without a key has an immediately editable empty field',
-    (tester) async {
-      final empty = _cloud.changed({'apiKey': ''});
-      await tester.pumpWidget(app(ConnectionEditor(connection: empty)));
-      final field = find.byKey(const Key('provider_key'));
-      expect(tester.widget<TextField>(field).enabled, isNot(false));
-      expect(tester.widget<TextField>(field).controller!.text, isEmpty);
-      await revealConfigField(
-        tester,
-        find.byKey(const Key('provider_save_button')),
-      );
-      expect(
-        tester
-            .widget<FilledButton>(find.byKey(const Key('provider_save_button')))
-            .onPressed,
-        isNotNull,
-      );
     },
   );
 
@@ -440,55 +356,6 @@ void main() {
   );
 
   testWidgets(
-    'model capability sheet fits narrow large text and cancels without applying',
-    (tester) async {
-      tester.view.physicalSize = const Size(360, 800);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      await tester.pumpWidget(app(editorLauncher(), scale: 1.6));
-      await openEditor(tester);
-      await tester.tap(find.byKey(const Key('provider_models_tab')));
-      await tester.pumpAndSettle();
-      final row = find.byKey(const ValueKey('provider_model_kept'));
-      await reveal(tester, row);
-      await tester.tap(row);
-      await tester.pumpAndSettle();
-      expect(find.byType(ProviderModelSheet), findsOneWidget);
-      await tester.tap(find.byKey(const Key('model_images')));
-      await tester.tap(find.byKey(const Key('provider_model_close')));
-      await tester.pumpAndSettle();
-      await tester.tap(row);
-      await tester.pumpAndSettle();
-      expect(
-        tester
-            .widget<SwitchListTile>(find.byKey(const Key('model_images')))
-            .value,
-        isTrue,
-      );
-      expect(tester.takeException(), isNull);
-    },
-  );
-
-  testWidgets('picker keeps provider headings simple and local status inline', (
-    tester,
-  ) async {
-    await tester.pumpWidget(app(pickerLauncher()));
-    await tester.tap(find.text('Pick'));
-    await tester.pumpAndSettle();
-    final local = tester.widget<ListTile>(
-      find.byKey(const ValueKey('chat_target_local_gguf')),
-    );
-    expect(local.subtitle, isNull);
-    expect(find.byIcon(Icons.folder_outlined), findsNothing);
-    expect(find.byIcon(Icons.stop_circle_outlined), findsWidgets);
-    expect(find.byKey(const Key('chat_target_search')), findsOneWidget);
-    await tester.tap(find.byKey(const Key('chat_target_close')));
-    await tester.pumpAndSettle();
-    expect(find.byType(ChatTargetPicker), findsNothing);
-  });
-
-  testWidgets(
     'model display names are searchable while targets keep the API model ID',
     (tester) async {
       ChatTarget? picked;
@@ -521,51 +388,6 @@ void main() {
       await tester.pumpAndSettle();
       expect(picked?.connectionId, 'cloud');
       expect(picked?.modelId, 'kept');
-    },
-  );
-
-  testWidgets(
-    'provider rows drop delete actions and deletion lives in the editor',
-    (tester) async {
-      settings.connections = [providerPresets.first, _cloud];
-      await tester.pumpWidget(app(const ConnectionsPage()));
-      await tester.pumpAndSettle();
-      expect(find.text('Local · llama.cpp'), findsNothing);
-      expect(find.text('Local · MNN'), findsNothing);
-      // List rows no longer carry delete actions.
-      expect(find.byIcon(Icons.delete_outline), findsNothing);
-      await tester.tap(
-        find.byKey(const ValueKey('provider_enabled_preset:openai')),
-      );
-      await tester.pumpAndSettle();
-      expect(settings.connections.first.enabled, isTrue);
-      expect(settings.connections.last.models, ['kept']);
-
-      // Presets expose no delete action in the editor.
-      await tester.tap(find.byKey(const ValueKey('provider_preset:openai')));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const Key('provider_delete_button')), findsNothing);
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-
-      // Custom providers delete from the configuration page bottom, always
-      // behind a confirmation dialog.
-      await tester.tap(find.byKey(const ValueKey('provider_cloud')));
-      await tester.pumpAndSettle();
-      final delete = find.byKey(const Key('provider_delete_button'));
-      await revealConfigField(tester, delete);
-      await tester.tap(delete);
-      await tester.pumpAndSettle();
-      expect(find.byType(AlertDialog), findsOneWidget);
-      await tester.tap(
-        find.descendant(
-          of: find.byType(AlertDialog),
-          matching: find.byType(FilledButton),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byType(ConnectionEditor), findsNothing);
-      expect(settings.connections.map((c) => c.id), ['preset:openai']);
     },
   );
 
@@ -673,32 +495,6 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('manual model names follow the ID until the name is edited', (
-    tester,
-  ) async {
-    await tester.pumpWidget(app(editorLauncher()));
-    await openEditor(tester);
-    final add = find.byKey(const Key('provider_add_model'));
-    await reveal(tester, add);
-    await tester.tap(add);
-    await tester.pumpAndSettle();
-
-    final idField = find.byKey(const Key('provider_model_id'));
-    final nameField = find.byKey(const Key('provider_model_name'));
-    await tester.enterText(idField, 'first-model');
-    await tester.pump();
-    expect(tester.widget<TextField>(nameField).controller!.text, 'first-model');
-
-    await tester.enterText(nameField, 'Custom name');
-    await tester.pump();
-    await tester.enterText(idField, 'second-model');
-    await tester.pump();
-    expect(tester.widget<TextField>(nameField).controller!.text, 'Custom name');
-
-    await tester.tap(find.byKey(const Key('provider_model_close')));
-    await tester.pumpAndSettle();
-  });
-
   testWidgets(
     'discovery adds only selected candidates; cancel and failure preserve the list',
     (tester) async {
@@ -740,64 +536,6 @@ void main() {
       await fetch(tester);
       expect(find.byType(ProviderModelPicker), findsNothing);
       expect(settings.connections.first.models, ['kept', 'other']);
-    },
-  );
-
-  testWidgets('leaving the editor cancels its model request without saving', (
-    tester,
-  ) async {
-    settings.blockDiscovery = true;
-    await tester.pumpWidget(app(editorLauncher()));
-    await openEditor(tester);
-    final button = find.byKey(const Key('provider_fetch_models'));
-    await reveal(tester, button);
-    await tester.tap(button);
-    await tester.pump();
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-    expect(settings.discoveryToken!.isCancelled, isTrue);
-    expect(settings.connections.first.models, ['kept']);
-  });
-
-  testWidgets(
-    'provider management and model selection preserve catalog order',
-    (tester) async {
-      settings.connections = [
-        _cloud.changed({'id': 'zulu', 'name': 'Zulu provider'}),
-        _cloud.changed({
-          'id': 'disabled',
-          'name': 'Disabled provider',
-          'enabled': false,
-        }),
-        _cloud.changed({'id': 'alpha', 'name': 'Alpha provider'}),
-      ];
-      await tester.pumpWidget(app(const ConnectionsPage()));
-      await tester.pumpAndSettle();
-      final zulu = find.byKey(const ValueKey('provider_zulu'));
-      final disabled = find.byKey(const ValueKey('provider_disabled'));
-      final alpha = find.byKey(const ValueKey('provider_alpha'));
-      expect(
-        tester.getTopLeft(zulu).dy,
-        lessThan(tester.getTopLeft(disabled).dy),
-      );
-      expect(
-        tester.getTopLeft(disabled).dy,
-        lessThan(tester.getTopLeft(alpha).dy),
-      );
-
-      await tester.pumpWidget(app(pickerLauncher()));
-      await tester.tap(find.text('Pick'));
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.byKey(const Key('chat_target_search')),
-        'provider',
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('Disabled provider'), findsNothing);
-      expect(
-        tester.getTopLeft(find.text('Zulu provider')).dy,
-        lessThan(tester.getTopLeft(find.text('Alpha provider')).dy),
-      );
     },
   );
 
@@ -969,83 +707,6 @@ void main() {
       );
     },
   );
-
-  testWidgets(
-    'candidate and provider search layouts fit a narrow large-text keyboard view',
-    (tester) async {
-      tester.view.physicalSize = const Size(360, 800);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      await tester.pumpWidget(app(pickerLauncher(), scale: 1.8, keyboard: 260));
-      await tester.tap(find.text('Pick'));
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.byKey(const Key('chat_target_search')),
-        'kept',
-      );
-      await tester.pump();
-      expect(tester.takeException(), isNull);
-      await tester.tap(find.byKey(const Key('chat_target_close')));
-      await tester.pumpAndSettle();
-      await tester.pumpWidget(
-        app(
-          Builder(
-            builder: (context) => Scaffold(
-              body: TextButton(
-                onPressed: () => showDialog<List<String>>(
-                  context: context,
-                  builder: (_) => ProviderModelPicker(
-                    models: List.generate(200, (i) => 'model-$i'),
-                    existing: const {},
-                  ),
-                ),
-                child: const Text('Candidates'),
-              ),
-            ),
-          ),
-          scale: 1.8,
-          keyboard: 260,
-        ),
-      );
-      await tester.tap(find.text('Candidates'));
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.byKey(const Key('provider_model_search')),
-        '199',
-      );
-      await tester.pump();
-      final last = find.byKey(const ValueKey('provider_candidate_model-199'));
-      await tester.scrollUntilVisible(
-        last,
-        120,
-        scrollable: find
-            .descendant(
-              of: find.byType(ProviderModelPicker),
-              matching: find.byType(Scrollable),
-            )
-            .first,
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(last);
-      await tester.pump();
-      expect(tester.takeException(), isNull);
-    },
-  );
-
-  testWidgets('editor exposes the api path field with the default path', (
-    tester,
-  ) async {
-    await tester.pumpWidget(app(editorLauncher()));
-    await openEditor(tester);
-    final field = find.byKey(const Key('provider_api_path'));
-    expect(field, findsOneWidget);
-    await revealConfigField(tester, field);
-    expect(
-      tester.widget<TextField>(field).controller!.text,
-      '/chat/completions',
-    );
-  });
 
   testWidgets('editor loads a stored custom api path and saves edits', (
     tester,

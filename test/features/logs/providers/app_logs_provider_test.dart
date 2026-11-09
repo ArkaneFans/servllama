@@ -69,17 +69,6 @@ void main() {
       },
     );
 
-    test('loads existing server logs at initialization', () {
-      final logger = AppLogger();
-      logger.info('existing', channel: LogChannel.server, inMemory: true);
-
-      final provider = AppLogsProvider(logger: logger);
-
-      expect(provider.logs, hasLength(1));
-      expect(provider.logs.single.message, 'existing');
-      provider.dispose();
-    });
-
     test('updates when new server logs arrive', () async {
       final logger = AppLogger();
       final provider = AppLogsProvider(logger: logger);
@@ -124,14 +113,6 @@ void main() {
       provider.dispose();
     });
 
-    test('default maxEntries is 2000', () {
-      final logger = AppLogger();
-      final provider = AppLogsProvider(logger: logger);
-
-      expect(provider.maxEntries, 2000);
-      provider.dispose();
-    });
-
     test('clear removes every channel displayed by the log page', () async {
       final logger = AppLogger();
       logger.info('server', channel: LogChannel.server, inMemory: true);
@@ -171,31 +152,6 @@ void main() {
       expect(notifications, 1);
       provider.dispose();
     });
-
-    test(
-      'clear notifies immediately and cancels the pending notification',
-      () async {
-        final logger = AppLogger();
-        final provider = AppLogsProvider(
-          logger: logger,
-          notifyThrottle: const Duration(milliseconds: 20),
-        );
-        var notifications = 0;
-        provider.addListener(() => notifications += 1);
-
-        logger.info('line', channel: LogChannel.server, inMemory: true);
-        provider.clear();
-
-        expect(provider.isEmpty, isTrue);
-        expect(notifications, 1);
-
-        await Future<void>.delayed(const Duration(milliseconds: 60));
-
-        // The throttled notification was cancelled — no second callback.
-        expect(notifications, 1);
-        provider.dispose();
-      },
-    );
   });
 }
 

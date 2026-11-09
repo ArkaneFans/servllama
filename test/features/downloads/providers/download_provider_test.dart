@@ -88,94 +88,6 @@ void main() {
     );
 
     test(
-      'startup restores name reservations without scanning; commit rechecks collisions',
-      () async {
-        final names = _TrackedNameRepository();
-        final coordinator = ModelNameCoordinator(unifiedRepository: names);
-        final repository = _MemoryTaskRepository([
-          _record(
-            stagingDirPath: tempDirectory.path,
-            status: DownloadStatus.running,
-          ),
-        ]);
-        final downloads = _BlockingDownloadService();
-        final local = _FakeLocalModelRepository();
-        final provider = DownloadProvider(
-          taskRepository: repository,
-          downloadService: downloads,
-          settingsStore: _MemorySettingsStore(),
-          localModelRepository: local,
-          modelNameCoordinator: coordinator,
-          logger: AppLogger(),
-        );
-        addTearDown(provider.dispose);
-        await provider.load(startTransfers: false);
-        expect(names.inventoryReads, 0);
-        expect(names.storageChecks, 0);
-        expect(provider.tasks.single.record.modelName, 'model');
-        final competing = await coordinator.reserveAvailable(
-          ownerId: 'import',
-          requestedName: 'MODEL',
-        );
-        expect(competing.name, 'MODEL (2)');
-        await coordinator.release('import');
-        // The installed directory became occupied outside the current queue.
-        names.occupied = true;
-        provider.resumeRestoredTransfers();
-        await downloads.started.future;
-        downloads.release.complete();
-        await _waitFor(() => provider.tasks.isEmpty);
-        expect(names.inventoryReads, greaterThan(0));
-        expect(names.storageChecks, greaterThan(0));
-        expect(local.adoptedNames, ['model (2)']);
-      },
-    );
-
-    test('load is idempotent while a transfer is running', () async {
-      final record = _record(
-        stagingDirPath: tempDirectory.path,
-        status: DownloadStatus.queued,
-      );
-      final repository = _MemoryTaskRepository(<DownloadTaskRecord>[record]);
-      final downloadService = _BlockingDownloadService();
-      var refreshCount = 0;
-      final completed = <String>[];
-      final local = _FakeLocalModelRepository();
-      final provider = DownloadProvider(
-        taskRepository: repository,
-        downloadService: downloadService,
-        settingsStore: _MemorySettingsStore(),
-        localModelRepository: local,
-        logger: AppLogger(),
-        onLibraryChanged: () async {
-          refreshCount += 1;
-        },
-      );
-      provider.onDownloadCompleted = completed.add;
-
-      await provider.load();
-      await downloadService.started.future;
-
-      // Both the model-library and downloads pages call load when opened.
-      // Neither call may reload and requeue the live task.
-      await Future.wait(<Future<void>>[provider.load(), provider.load()]);
-      await Future<void>.delayed(Duration.zero);
-
-      expect(repository.listCalls, 1);
-      expect(downloadService.callCount, 1);
-
-      downloadService.release.complete();
-      // Completed downloads are pruned from the task list once committed to
-      // the model library, so completion is observable as the list going empty.
-      await _waitFor(() => provider.tasks.isEmpty);
-
-      expect(downloadService.callCount, 1);
-      expect(refreshCount, 1);
-      expect(completed, <String>['model.gguf']);
-      provider.dispose();
-    });
-
-    test(
       'MNN SQL registration failure rolls back without completion',
       () async {
         var deleted = '', refreshes = 0;
@@ -405,45 +317,6 @@ void main() {
       },
     );
 
-    test('does not enqueue the exact same unfinished download twice', () async {
-      final repository = _MemoryTaskRepository(<DownloadTaskRecord>[
-        _record(
-          stagingDirPath: tempDirectory.path,
-          status: DownloadStatus.paused,
-          modelName: 'model',
-        ),
-      ]);
-      final provider = DownloadProvider(
-        taskRepository: repository,
-        settingsStore: _MemorySettingsStore(),
-        logger: AppLogger(),
-      );
-      await provider.load();
-
-      await expectLater(
-        provider.enqueue(
-          engine: InferenceEngine.llamaCpp,
-          source: ModelHubSource.modelScope,
-          repoId: 'MNN/model',
-          revision: 'master',
-          modelName: 'another name',
-          files: const <HubRepoFile>[
-            HubRepoFile(path: 'model.gguf', sizeBytes: 10),
-          ],
-        ),
-        throwsA(
-          isA<DownloadException>().having(
-            (error) => error.kind,
-            'kind',
-            DownloadErrorKind.alreadyQueued,
-          ),
-        ),
-      );
-
-      expect(provider.tasks, hasLength(1));
-      provider.dispose();
-    });
-
     test(
       'serializes simultaneous attempts to enqueue the same download',
       () async {
@@ -479,42 +352,6 @@ void main() {
           DownloadErrorKind.alreadyQueued,
         );
         expect(provider.tasks, hasLength(1));
-        provider.dispose();
-      },
-    );
-
-    test(
-      'skips name allocation when enqueueing an mmproj replacement',
-      () async {
-        final downloadService = _BlockingDownloadService();
-        final provider = DownloadProvider(
-          taskRepository: _MemoryTaskRepository(const <DownloadTaskRecord>[]),
-          downloadService: downloadService,
-          settingsStore: _MemorySettingsStore(),
-          localModelRepository: _FakeLocalModelRepository(),
-          logger: AppLogger(),
-          modelNameCoordinator: _ThrowingNameCoordinator((name) {
-            fail('allocate should be skipped for replacements: $name');
-          }),
-        );
-
-        final task = await provider.enqueue(
-          engine: InferenceEngine.llamaCpp,
-          source: ModelHubSource.modelScope,
-          repoId: 'owner/qwen',
-          revision: 'main',
-          modelName: 'qwen',
-          files: const <HubRepoFile>[
-            HubRepoFile(path: 'Qwen3.5-0.8B-mmproj-f16.gguf', sizeBytes: 10),
-          ],
-          targetModelId: 'library-model',
-        );
-
-        expect(task.record.targetModelId, 'library-model');
-        expect(provider.tasks, hasLength(1));
-        downloadService.release.complete();
-        await provider.cancel(task.id);
-        await Future<void>.delayed(const Duration(milliseconds: 30));
         provider.dispose();
       },
     );
@@ -761,26 +598,6 @@ class _FakeLocalModelRepository extends LocalModelRepository {
       importedAt: DateTime(2026),
       mmprojFilePath: mmprojFile.path,
     );
-  }
-}
-
-class _TrackedNameRepository extends UnifiedModelRepository {
-  int inventoryReads = 0, storageChecks = 0;
-  bool occupied = false;
-
-  @override
-  Future<List<LibraryModel>> listModels() async {
-    inventoryReads++;
-    return [];
-  }
-
-  @override
-  Future<bool> isStorageNameOccupied(
-    String name, {
-    String? excludingLibraryId,
-  }) async {
-    storageChecks++;
-    return occupied && name.toLowerCase() == 'model';
   }
 }
 

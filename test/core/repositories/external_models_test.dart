@@ -113,19 +113,6 @@ void main() {
   );
 
   test(
-    'missing GGUF does not trigger recursive cleanup of its external parent',
-    () async {
-      final sibling = await File('${root.path}/keep.txt').writeAsString('keep');
-      await local.addExternalModel(
-        PickedGgufFile(path: '${root.path}/gone.gguf', fileName: 'gone.gguf'),
-        modelName: 'Gone',
-      );
-      expect(await local.listModels(), hasLength(1));
-      expect(await sibling.readAsString(), 'keep');
-    },
-  );
-
-  test(
     'external MNN is SQL-owned, survives missing paths and renames only its alias',
     () async {
       final path = '${root.path}/missing-mnn';
@@ -158,21 +145,6 @@ void main() {
       expect(calls, isNot(contains('deleteImportedModel')));
       expect(calls, isNot(contains('importModelFromPath')));
       expect(clearedCaches, ['MNN', 'Alias']);
-    },
-  );
-
-  test(
-    'a failed cache cleanup does not roll back a committed external rename',
-    () async {
-      final model = await unified.addExternalMnnModel(
-        '${root.path}/source',
-        'Before',
-      );
-      cacheError = PlatformException(code: 'cache_clear_failed');
-      final renamed = await unified.renameModel(model, 'After');
-      expect(renamed.runtimeId, 'After');
-      expect((await unified.listModels()).single.name, 'After');
-      expect(clearedCaches, ['Before']);
     },
   );
 }

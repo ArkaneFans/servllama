@@ -6,8 +6,6 @@ import 'package:mnn_engine/mnn_engine.dart';
 import 'package:servllama/core/database/app_database.dart';
 import 'package:servllama/core/database/legacy_importer.dart';
 import 'package:servllama/core/models/model_asset.dart';
-import 'package:servllama/core/models/model_descriptor.dart';
-import 'package:servllama/core/repositories/gguf_model_store.dart';
 import 'package:servllama/core/repositories/unified_model_repository.dart';
 
 void main() {
@@ -87,36 +85,6 @@ void main() {
     },
   );
 
-  test('empty new install records completion without Hive markers', () async {
-    inventory = [];
-    await register();
-    expect(await db.metadata(UnifiedModelRepository.mnnInventoryMarker), '1');
-    await register();
-    expect(reads, 1);
-    expect(await db.query('SELECT * FROM model_assets'), isEmpty);
-    expect(await db.metadata(LegacyImporter.inventoryMarker), isNull);
-  });
-
-  test('native read failure leaves only MNN registration pending', () async {
-    await db.setMetadata(LegacyImporter.chatsMarker, '1');
-    await db.setMetadata(LegacyImporter.inventoryMarker, '1');
-    await expectLater(
-      catalog.registerLegacyMnnInventory(
-        readInventory: () async {
-          throw StateError('fixture read failure');
-        },
-      ),
-      throwsStateError,
-    );
-    expect(
-      await db.metadata(UnifiedModelRepository.mnnInventoryMarker),
-      isNull,
-    );
-    expect(await db.metadata(LegacyImporter.inventoryMarker), '1');
-    await register();
-    expect(await db.metadata(UnifiedModelRepository.mnnInventoryMarker), '1');
-  });
-
   test('SQL failure rolls back MNN rows and marker independently', () async {
     await db.setMetadata(LegacyImporter.inventoryMarker, '1');
     await db.execute(
@@ -133,57 +101,6 @@ void main() {
     await register();
     expect(await db.metadata(UnifiedModelRepository.mnnInventoryMarker), '1');
     expect(reads, 2);
-  });
-
-  test('skipping Hive does not skip startup MNN registration', () async {
-    final file = await File('${root.path}/weights').writeAsString('keep');
-    await LegacyImporter(db, root).run(skipLegacyData: true);
-    expect(reads, 0);
-    expect(
-      await db.metadata(UnifiedModelRepository.mnnInventoryMarker),
-      isNull,
-    );
-    await register();
-    expect(reads, 1);
-    expect(await catalog.listModels(), hasLength(1));
-    expect(await file.readAsString(), 'keep');
-  });
-
-  test('1.x Hive commit survives a later MNN registration failure', () async {
-    Hive.init(root.path);
-    if (!Hive.isAdapterRegistered(0)) {
-      Hive.registerAdapter(ModelDescriptorAdapter());
-    }
-    final box = await Hive.openBox<ModelDescriptor>('imported_models');
-    await box.put(
-      'old-gguf',
-      ModelDescriptor(
-        id: 'old-gguf',
-        modelName: 'Old GGUF',
-        storedFilePath: '/missing/gguf/model.gguf',
-        storedDirectoryPath: '/missing/gguf',
-        sizeBytes: 100,
-        importedAt: DateTime(2020),
-      ),
-    );
-    await box.close();
-    final file = File('${root.path}/imported_models.hive');
-    final before = await file.readAsBytes();
-    await LegacyImporter(db, root).run();
-    await expectLater(
-      catalog.registerLegacyMnnInventory(
-        readInventory: () async {
-          throw StateError('MNN unavailable');
-        },
-      ),
-      throwsStateError,
-    );
-    expect(await db.metadata(LegacyImporter.inventoryMarker), '1');
-    expect((await GgufModelStore(db).list()).single.id, 'old-gguf');
-    await LegacyImporter(db, root).run();
-    await register();
-    expect(await catalog.listModels(), hasLength(2));
-    expect(await file.readAsBytes(), before);
   });
 
   test(

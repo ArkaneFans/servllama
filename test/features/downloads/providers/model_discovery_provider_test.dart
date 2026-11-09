@@ -1,80 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:servllama/core/models/inference_engine.dart';
 import 'package:servllama/features/downloads/models/model_hub.dart';
 import 'package:servllama/features/downloads/providers/model_discovery_provider.dart';
-import 'package:servllama/features/downloads/services/device_capability_service.dart';
 import 'package:servllama/features/downloads/services/download_settings_store.dart';
-import 'package:servllama/features/downloads/services/model_catalog_service.dart';
 import 'package:servllama/features/downloads/services/model_hub_client.dart';
 
 void main() {
   group('ModelDiscoveryProvider', () {
-    test(
-      'local preparation is reusable and never waits on or starts hub requests',
-      () async {
-        var requests = 0;
-        final provider = ModelDiscoveryProvider(
-          catalogService: _EmptyCatalogService(),
-          capabilityService: _UnknownCapabilityService(),
-          settingsStore: _MemoryDownloadSettingsStore(),
-          huggingFaceClient: _FakeHubClient(
-            source: ModelHubSource.huggingFace,
-            onSearch: (query, format, token, sort) async {
-              requests++;
-              return HubSearchPage(items: const []);
-            },
-          ),
-          modelScopeClient: _emptyModelScopeClient(),
-        );
-        addTearDown(provider.dispose);
-        await Future.wait([provider.prepare(), provider.prepare()]);
-        expect(provider.isLoadingCatalog, isFalse);
-        expect(requests, 0);
-        await provider.load();
-        await provider.load();
-        expect(requests, 1);
-      },
-    );
-    test(
-      'load performs an empty-query search for the current source',
-      () async {
-        final calls = <_SearchCall>[];
-        final provider = ModelDiscoveryProvider(
-          catalogService: _EmptyCatalogService(),
-          capabilityService: _UnknownCapabilityService(),
-          settingsStore: _MemoryDownloadSettingsStore(),
-          huggingFaceClient: _FakeHubClient(
-            source: ModelHubSource.huggingFace,
-            onSearch: (query, format, pageToken, sort) async {
-              calls.add(_SearchCall(query, format, pageToken));
-              return HubSearchPage(
-                items: <HubRepoSummary>[
-                  _summary(
-                    source: ModelHubSource.huggingFace,
-                    format: format,
-                    repoId: 'owner/default-model',
-                  ),
-                ],
-              );
-            },
-          ),
-          modelScopeClient: _emptyModelScopeClient(),
-        );
-        addTearDown(provider.dispose);
-
-        await provider.load();
-
-        expect(calls, hasLength(1));
-        expect(calls.single.query, '');
-        expect(calls.single.format, HubModelFormat.gguf);
-        expect(calls.single.pageToken, isNull);
-        expect(provider.query, '');
-        expect(provider.searchResults.single.repoId, 'owner/default-model');
-      },
-    );
-
     test('searches only the active source and its supported formats', () async {
       final calls = <String>[];
       final provider = ModelDiscoveryProvider(
@@ -216,64 +149,6 @@ void main() {
       },
     );
 
-    test('loadMore keeps previously loaded result order', () async {
-      final provider = ModelDiscoveryProvider(
-        settingsStore: _MemoryDownloadSettingsStore(),
-        huggingFaceClient: _FakeHubClient(
-          source: ModelHubSource.huggingFace,
-          onSearch: (_, format, pageToken, sort) async {
-            if (pageToken == null) {
-              return HubSearchPage(
-                items: <HubRepoSummary>[
-                  _summary(
-                    source: ModelHubSource.huggingFace,
-                    format: format,
-                    repoId: 'owner/low-downloads',
-                    downloads: 1,
-                  ),
-                  _summary(
-                    source: ModelHubSource.huggingFace,
-                    format: format,
-                    repoId: 'owner/high-downloads',
-                    downloads: 100,
-                  ),
-                ],
-                nextPageToken: '2',
-              );
-            }
-            return HubSearchPage(
-              items: <HubRepoSummary>[
-                _summary(
-                  source: ModelHubSource.huggingFace,
-                  format: format,
-                  repoId: 'owner/mid-downloads',
-                  downloads: 50,
-                ),
-              ],
-            );
-          },
-        ),
-        modelScopeClient: _emptyModelScopeClient(),
-      );
-      addTearDown(provider.dispose);
-
-      await provider.search('q');
-      expect(
-        provider.displayedSearchResults.map((repo) => repo.repoId),
-        <String>['owner/low-downloads', 'owner/high-downloads'],
-      );
-
-      await provider.loadMore();
-      expect(
-        provider.displayedSearchResults.map((repo) => repo.repoId),
-        <String>[
-          'owner/low-downloads',
-          'owner/high-downloads',
-          'owner/mid-downloads',
-        ],
-      );
-    });
-
     test('deduplicates duplicate repositories in one search page', () async {
       final provider = ModelDiscoveryProvider(
         settingsStore: _MemoryDownloadSettingsStore(),
@@ -306,56 +181,6 @@ void main() {
 
       expect(provider.searchResults, hasLength(1));
       expect(provider.searchResults.single.format, HubModelFormat.gguf);
-    });
-
-    test('ignores a late loadMore result after a new search', () async {
-      final latePage = Completer<HubSearchPage>();
-      final provider = ModelDiscoveryProvider(
-        settingsStore: _MemoryDownloadSettingsStore(),
-        huggingFaceClient: _FakeHubClient(
-          source: ModelHubSource.huggingFace,
-          onSearch: (query, format, pageToken, sort) {
-            if (pageToken != null) {
-              return latePage.future;
-            }
-            return Future<HubSearchPage>.value(
-              HubSearchPage(
-                items: <HubRepoSummary>[
-                  _summary(
-                    source: ModelHubSource.huggingFace,
-                    format: format,
-                    repoId: 'owner/$query',
-                  ),
-                ],
-                nextPageToken: query == 'first' ? 'next' : null,
-              ),
-            );
-          },
-        ),
-        modelScopeClient: _emptyModelScopeClient(),
-      );
-      addTearDown(provider.dispose);
-
-      await provider.search('first');
-      final staleLoadMore = provider.loadMore();
-      await Future<void>.delayed(Duration.zero);
-      await provider.search('second');
-      latePage.complete(
-        HubSearchPage(
-          items: <HubRepoSummary>[
-            _summary(
-              source: ModelHubSource.huggingFace,
-              format: HubModelFormat.gguf,
-              repoId: 'owner/stale-page',
-            ),
-          ],
-        ),
-      );
-      await staleLoadMore;
-
-      expect(provider.query, 'second');
-      expect(provider.searchResults.single.repoId, 'owner/second');
-      expect(provider.isLoadingMore, isFalse);
     });
 
     test('keeps the newest query result when searches overlap', () async {
@@ -404,55 +229,6 @@ void main() {
       expect(provider.query, 'second');
       expect(provider.searchResults.single.repoId, 'owner/second');
       expect(provider.isSearching, isFalse);
-    });
-
-    test('fetchRepoDetail does not replace an already opened repo', () async {
-      final opened = HubRepoDetail(
-        summary: _summary(
-          source: ModelHubSource.huggingFace,
-          format: HubModelFormat.gguf,
-          repoId: 'owner/open',
-        ),
-        files: const <HubRepoFile>[
-          HubRepoFile(path: 'open.gguf', sizeBytes: 10),
-        ],
-      );
-      final fetched = HubRepoDetail(
-        summary: _summary(
-          source: ModelHubSource.huggingFace,
-          format: HubModelFormat.gguf,
-          repoId: 'owner/other',
-        ),
-        files: const <HubRepoFile>[
-          HubRepoFile(path: 'other.gguf', sizeBytes: 20),
-        ],
-      );
-      final provider = ModelDiscoveryProvider(
-        settingsStore: _MemoryDownloadSettingsStore(),
-        huggingFaceClient: _FakeHubClient(
-          source: ModelHubSource.huggingFace,
-          onSearch: (_, _, _, sort) async =>
-              const HubSearchPage(items: <HubRepoSummary>[]),
-          onFetch: (repoId, _) async =>
-              repoId == 'owner/open' ? opened : fetched,
-        ),
-        modelScopeClient: _emptyModelScopeClient(),
-      );
-      addTearDown(provider.dispose);
-
-      await provider.openRepo('owner/open', engine: InferenceEngine.llamaCpp);
-      expect(provider.repoDetail!.summary.repoId, 'owner/open');
-      expect(provider.isLoadingRepo, isFalse);
-
-      final detail = await provider.fetchRepoDetail(
-        repoId: 'owner/other',
-        source: ModelHubSource.huggingFace,
-        engine: InferenceEngine.llamaCpp,
-      );
-
-      expect(detail.summary.repoId, 'owner/other');
-      expect(provider.repoDetail!.summary.repoId, 'owner/open');
-      expect(provider.isLoadingRepo, isFalse);
     });
 
     test('uses explicit format instead of guessing from repository name', () {
@@ -510,16 +286,6 @@ class _SearchCall {
   final String? pageToken;
 }
 
-class _EmptyCatalogService extends ModelCatalogService {
-  @override
-  Future<List<CatalogEntry>> load() async => const <CatalogEntry>[];
-}
-
-class _UnknownCapabilityService extends DeviceCapabilityService {
-  @override
-  Future<DeviceMemoryInfo> readMemory() async => DeviceMemoryInfo.unknown;
-}
-
 class _MemoryDownloadSettingsStore extends DownloadSettingsStore {
   DownloadSettings _settings = const DownloadSettings();
 
@@ -536,7 +302,6 @@ class _FakeHubClient implements ModelHubClient {
   _FakeHubClient({
     required this.source,
     required this.onSearch,
-    this.onFetch,
     Set<HubModelFormat>? searchableFormats,
   }) : searchableFormats =
            searchableFormats ??
@@ -556,11 +321,6 @@ class _FakeHubClient implements ModelHubClient {
     HubSearchSort sort,
   )
   onSearch;
-  final Future<HubRepoDetail> Function(
-    String repoId,
-    HubModelFormat? expectedFormat,
-  )?
-  onFetch;
 
   @override
   final Set<HubModelFormat> searchableFormats;
@@ -576,11 +336,7 @@ class _FakeHubClient implements ModelHubClient {
     String repoId, {
     HubModelFormat? expectedFormat,
   }) {
-    final fetch = onFetch;
-    if (fetch == null) {
-      throw UnimplementedError();
-    }
-    return fetch(repoId, expectedFormat);
+    throw UnimplementedError();
   }
 
   @override

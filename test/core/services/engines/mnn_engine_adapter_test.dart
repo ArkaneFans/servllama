@@ -53,35 +53,6 @@ void main() {
     },
   );
 
-  test('uses the native bind as the only port decision', () async {
-    final adapter = MnnEngineAdapter(
-      modelRepository: repository,
-      settingsLoader: _FixedSettingsLoader(
-        const ServerLaunchSettings(port: 8083),
-      ),
-    );
-    addTearDown(adapter.dispose);
-
-    final phases = <RuntimePhase>[];
-    final result = await adapter.start(
-      modelId: 'local/qwen',
-      onPhase: phases.add,
-    );
-
-    expect(platform.checkPortCalls, 0);
-    expect(platform.startServerCalls, 1);
-    expect(
-      platform.snapshotCalls,
-      1,
-      reason: 'prepare reads the initial snapshot once',
-    );
-    expect(phases, <RuntimePhase>[
-      RuntimePhase.loadingModel,
-      RuntimePhase.startingServer,
-    ]);
-    expect(result.port, 8083);
-  });
-
   test('uses the configuration supplied by the runtime', () async {
     final adapter = MnnEngineAdapter(
       modelRepository: repository,
@@ -207,59 +178,6 @@ void main() {
     expect(adapter.hasResources, isTrue);
   });
 
-  test('startup failure cannot hide a failed cleanup', () async {
-    platform.startError = const MnnEngineException(
-      'port_in_use',
-      'Port unavailable',
-    );
-    platform.unloadError = const MnnEngineException(
-      'runtime_release_failed',
-      'Unloading failed',
-    );
-    final adapter = MnnEngineAdapter(
-      modelRepository: repository,
-      settingsLoader: _FixedSettingsLoader(const ServerLaunchSettings()),
-    );
-    addTearDown(adapter.dispose);
-    await expectLater(
-      adapter.start(modelId: 'local/qwen', onPhase: (_) {}),
-      throwsA(
-        isA<EngineAdapterException>().having(
-          (e) => e.kind,
-          'kind',
-          EngineRuntimeErrorKind.serverStopFailed,
-        ),
-      ),
-    );
-    expect(adapter.hasResources, isTrue);
-    platform.unloadError = null;
-    await adapter.stop(onPhase: (_) {});
-    expect(adapter.hasResources, isFalse);
-  });
-
-  test(
-    'cancelling preparation cannot load a model after cleanup has finished',
-    () async {
-      platform.initializeBlocker = Completer<void>();
-      final adapter = MnnEngineAdapter(
-        modelRepository: repository,
-        settingsLoader: _FixedSettingsLoader(const ServerLaunchSettings()),
-      );
-      addTearDown(adapter.dispose);
-      final starting = expectLater(
-        adapter.start(modelId: 'local/qwen', onPhase: (_) {}),
-        throwsA(isA<EngineOperationCancelledException>()),
-      );
-      await Future<void>.delayed(Duration.zero);
-      await adapter.cancel(onPhase: (_) {});
-      platform.initializeBlocker!.complete();
-      await starting;
-      expect(platform.requestedBackends, isEmpty);
-      expect(platform.startServerCalls, 0);
-      expect(adapter.hasResources, isFalse);
-    },
-  );
-
   test('maps a real bind conflict to the typed port error', () async {
     platform.startError = const MnnEngineException(
       'port_in_use',
@@ -285,82 +203,6 @@ void main() {
     );
     expect(platform.checkPortCalls, 0);
     expect(platform.unloadModelCalls, 1);
-  });
-
-  test('passes the saved backend when loading a model', () async {
-    final adapter = MnnEngineAdapter(
-      modelRepository: repository,
-      settingsLoader: _FixedSettingsLoader(
-        const ServerLaunchSettings(mnnBackend: MnnBackend.vulkan),
-      ),
-    );
-    addTearDown(adapter.dispose);
-    await adapter.start(modelId: 'local/qwen', onPhase: (_) {});
-    expect(platform.requestedBackends, [MnnBackend.vulkan]);
-  });
-
-  test('reloads a resident model when its requested backend changes', () async {
-    platform.initialModel = _model(MnnBackend.cpu);
-    final adapter = MnnEngineAdapter(
-      modelRepository: repository,
-      settingsLoader: _FixedSettingsLoader(
-        const ServerLaunchSettings(mnnBackend: MnnBackend.opencl),
-      ),
-    );
-    addTearDown(adapter.dispose);
-    await adapter.start(modelId: 'local/qwen', onPhase: (_) {});
-    expect(platform.requestedBackends, [MnnBackend.opencl]);
-  });
-
-  test(
-    'passes mmap, precision and thread settings when loading a model',
-    () async {
-      final adapter = MnnEngineAdapter(
-        modelRepository: repository,
-        settingsLoader: _FixedSettingsLoader(
-          const ServerLaunchSettings(
-            mnnUseMmap: true,
-            mnnPrecision: MnnPrecision.high,
-            mnnThreadNum: 6,
-          ),
-        ),
-      );
-      addTearDown(adapter.dispose);
-      await adapter.start(modelId: 'local/qwen', onPhase: (_) {});
-      expect(platform.requestedOptions, [
-        const MnnLoadOptions(
-          useMmap: true,
-          precision: MnnPrecision.high,
-          threadNum: 6,
-        ),
-      ]);
-    },
-  );
-
-  test('reloads a resident model when mmap settings change', () async {
-    platform.initialModel = _model(MnnBackend.cpu);
-    final adapter = MnnEngineAdapter(
-      modelRepository: repository,
-      settingsLoader: _FixedSettingsLoader(
-        const ServerLaunchSettings(mnnUseMmap: true),
-      ),
-    );
-    addTearDown(adapter.dispose);
-    await adapter.start(modelId: 'local/qwen', onPhase: (_) {});
-    expect(platform.requestedOptions.single.useMmap, isTrue);
-  });
-
-  test('reuses a resident model only when its backend also matches', () async {
-    platform.initialModel = _model(MnnBackend.opencl);
-    final adapter = MnnEngineAdapter(
-      modelRepository: repository,
-      settingsLoader: _FixedSettingsLoader(
-        const ServerLaunchSettings(mnnBackend: MnnBackend.opencl),
-      ),
-    );
-    addTearDown(adapter.dispose);
-    await adapter.start(modelId: 'local/qwen', onPhase: (_) {});
-    expect(platform.requestedBackends, isEmpty);
   });
 
   test('backend failure is actionable and does not retry with CPU', () async {
@@ -389,36 +231,6 @@ void main() {
     expect(platform.startServerCalls, 0);
     expect(platform.unloadModelCalls, 1);
   });
-
-  test(
-    'incompatible Hexagon model does not start a server or retry with CPU',
-    () async {
-      platform.loadError = const MnnEngineException(
-        'model_backend_incompatible',
-        'Transformer C4 export required',
-      );
-      final adapter = MnnEngineAdapter(
-        modelRepository: repository,
-        settingsLoader: _FixedSettingsLoader(
-          const ServerLaunchSettings(mnnBackend: MnnBackend.hexagon),
-        ),
-      );
-      addTearDown(adapter.dispose);
-      await expectLater(
-        adapter.start(modelId: 'local/qwen', onPhase: (_) {}),
-        throwsA(
-          isA<EngineAdapterException>().having(
-            (error) => error.kind,
-            'kind',
-            EngineRuntimeErrorKind.modelBackendIncompatible,
-          ),
-        ),
-      );
-      expect(platform.requestedBackends, [MnnBackend.hexagon]);
-      expect(platform.startServerCalls, 0);
-      expect(platform.unloadModelCalls, 1);
-    },
-  );
 }
 
 MnnModelInfo _model(

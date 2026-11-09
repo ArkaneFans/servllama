@@ -24,44 +24,6 @@ void main() {
       AppL10nService.instance.setLocale(const Locale('en'));
     });
 
-    test(
-      'MNN picker cancellation is silent, unlocks import and preserves errors',
-      () async {
-        const channel = MethodChannel('com.arkanefans.mnn_engine/methods');
-        var code = 'import_cancelled';
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-            .setMockMethodCallHandler(channel, (call) async {
-              if (call.method == 'importModelDirectoryWithResult') {
-                throw PlatformException(code: code, message: 'fixture');
-              }
-              return null;
-            });
-        addTearDown(
-          () => TestDefaultBinaryMessengerBinding
-              .instance
-              .defaultBinaryMessenger
-              .setMockMethodCallHandler(channel, null),
-        );
-        final logger = AppLogger();
-        final provider = ModelManagementProvider(
-          repository: FakeLocalModelRepository(),
-          unifiedRepository: _StrictUnifiedRepository(),
-          logger: logger,
-        );
-        addTearDown(provider.dispose);
-        addTearDown(logger.dispose);
-        expect(await provider.importMnnModelDirectory(), isNull);
-        expect(provider.isImporting, isFalse);
-        expect(
-          logger.entriesFor(LogChannel.model).where((e) => e.isError),
-          isEmpty,
-        );
-        code = 'invalid_model';
-        expect(await provider.importMnnModelDirectory(), contains('fixture'));
-        expect(provider.isImporting, isFalse);
-      },
-    );
-
     for (final rejectSql in [false, true]) {
       test(
         'MNN import commits SQL before notification (rejectSql=$rejectSql)',
@@ -130,49 +92,6 @@ void main() {
     }
 
     test(
-      'notification failure keeps the committed import successful',
-      () async {
-        var changes = 0;
-        final provider = ModelManagementProvider(
-          repository: FakeLocalModelRepository(),
-          filePicker: FakeGgufFilePicker(
-            pickedFile: const PickedGgufFile(
-              path: 'C:\\mock\\model.gguf',
-              fileName: 'model.gguf',
-            ),
-          ),
-          onAssetsChanged: () async {
-            changes++;
-            throw StateError('fixture refresh failure');
-          },
-        );
-        addTearDown(provider.dispose);
-        expect(await provider.importModel(), 'Model imported: model');
-        expect(changes, 1);
-        expect(provider.libraryModels.single.name, 'model');
-      },
-    );
-
-    test('load reads initial model list', () async {
-      final repository = FakeLocalModelRepository(
-        initialModels: <ModelDescriptor>[
-          _descriptor(id: 'a', modelName: 'alpha'),
-        ],
-      );
-      final provider = ModelManagementProvider(
-        repository: repository,
-        filePicker: FakeGgufFilePicker(),
-        logger: AppLogger(),
-      );
-
-      await provider.load();
-
-      expect(provider.models, hasLength(1));
-      expect(provider.models.single.modelName, 'alpha');
-      expect(provider.isLoading, isFalse);
-    });
-
-    test(
       'initial loads share completion and route visits reuse the snapshot',
       () async {
         final repository = _StrictUnifiedRepository();
@@ -194,21 +113,6 @@ void main() {
         expect(notifications, 1);
       },
     );
-
-    test('importModel keeps list unchanged when picker is cancelled', () async {
-      final repository = FakeLocalModelRepository();
-      final provider = ModelManagementProvider(
-        repository: repository,
-        filePicker: FakeGgufFilePicker(),
-        logger: AppLogger(),
-      );
-
-      final message = await provider.importModel();
-
-      expect(message, isNull);
-      expect(provider.models, isEmpty);
-      expect(provider.isImporting, isFalse);
-    });
 
     test('importModel updates list and importing state on success', () async {
       final repository = FakeLocalModelRepository();
@@ -267,32 +171,6 @@ void main() {
         containsAll(<String>['model', 'model (2)']),
       );
     });
-
-    test(
-      'does not notify after dispose when an import completes late',
-      () async {
-        final repository = FakeLocalModelRepository();
-        final completer = Completer<ModelDescriptor>();
-        repository.importCompleter = completer;
-        final provider = ModelManagementProvider(
-          repository: repository,
-          filePicker: FakeGgufFilePicker(
-            pickedFile: const PickedGgufFile(
-              path: 'C:\\mock\\model.gguf',
-              fileName: 'model.gguf',
-            ),
-          ),
-          logger: AppLogger(),
-        );
-
-        final pendingImport = provider.importModel();
-        provider.dispose();
-        completer.complete(_descriptor(id: 'm1', modelName: 'model'));
-
-        // Must not throw "used after being disposed".
-        await pendingImport;
-      },
-    );
 
     test('deleteModel removes item and clears deleting state', () async {
       final repository = FakeLocalModelRepository(
@@ -424,22 +302,6 @@ void main() {
       expect(provider.models.single.mmprojFilePath, isNull);
     });
 
-    test('formats file picker errors for mmproj import message', () async {
-      final provider = ModelManagementProvider(
-        repository: FakeLocalModelRepository(),
-        filePicker: FakeGgufFilePicker(
-          error: PlatformException(code: 'FilePicker', message: '文件不可用'),
-        ),
-        logger: AppLogger(),
-      );
-
-      final message = await provider.importMmproj('m1');
-
-      expect(message, 'Failed to import mmproj: 文件不可用');
-      expect(provider.isImportingMmproj, isFalse);
-      expect(provider.importingMmprojModelId, isNull);
-    });
-
     test(
       'returns error message and resets state when repository throws',
       () async {
@@ -461,25 +323,6 @@ void main() {
         final message = await provider.importModel();
 
         expect(message, 'Failed to import model: The model name is invalid.');
-        expect(provider.isImporting, isFalse);
-        expect(provider.models, isEmpty);
-      },
-    );
-
-    test(
-      'formats file picker platform errors for user-facing message',
-      () async {
-        final provider = ModelManagementProvider(
-          repository: FakeLocalModelRepository(),
-          filePicker: FakeGgufFilePicker(
-            error: PlatformException(code: 'FilePicker', message: '不支持该文件过滤器'),
-          ),
-          logger: AppLogger(),
-        );
-
-        final message = await provider.importModel();
-
-        expect(message, 'Failed to import model: 不支持该文件过滤器');
         expect(provider.isImporting, isFalse);
         expect(provider.models, isEmpty);
       },

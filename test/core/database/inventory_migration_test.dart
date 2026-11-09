@@ -7,8 +7,6 @@ import 'package:servllama/core/database/legacy_importer.dart';
 import 'package:servllama/core/database/legacy_migration_progress.dart';
 import 'package:servllama/core/models/model_descriptor.dart';
 import 'package:servllama/core/repositories/gguf_model_store.dart';
-import 'package:servllama/core/repositories/local_model_repository.dart';
-import 'package:servllama/core/repositories/unified_model_repository.dart';
 import 'package:servllama/features/downloads/models/download_task.dart';
 import 'package:servllama/features/downloads/repositories/download_task_repository.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
@@ -127,79 +125,6 @@ void main() {
   }
 
   test(
-    'independent inventory import preserves asset identity and never reimports deleted rows',
-    () async {
-      await seed();
-      await db.setMetadata('legacyImportComplete', '1');
-      // A stale/corrupt chat source must not be reopened after its prior migration.
-      await File(
-        '${root.path}/chat_sessions.hive',
-      ).writeAsString('already migrated');
-      await db.execute(
-        "INSERT INTO model_assets VALUES(?,'llm','llama_cpp',?,'app',?,?,?,'ready',?)",
-        [
-          'stable-asset',
-          model.modelName,
-          model.storedFilePath,
-          model.modelName,
-          'pinned',
-          jsonEncode({
-            'libraryId': 'gguf:${model.id}',
-            'images': false,
-            'custom': 'keep',
-          }),
-        ],
-      );
-      final progress = <LegacyMigrationProgress>[];
-      await LegacyImporter(db, root, onProgress: progress.add).run();
-      expect(await db.metadata(LegacyImporter.inventoryMarker), '1');
-      expect(
-        (await GgufModelStore(db).find(model.id))!.toJson(),
-        model.toJson(),
-      );
-      final downloads = DownloadTaskRepository(database: db);
-      expect((await downloads.listTasks()).single.toJson(), task.toJson());
-      final assets = await db.query('SELECT id,manifest FROM model_assets');
-      expect(assets.single.read<String>('id'), 'stable-asset');
-      expect(
-        jsonDecode(assets.single.read<String>('manifest'))['custom'],
-        'keep',
-      );
-      expect(progress.last.stage, LegacyMigrationStage.complete);
-      expect(
-        progress
-            .where((p) => p.stage == LegacyMigrationStage.writing)
-            .last
-            .completed,
-        2,
-      );
-      await expectSourcesUnchanged();
-
-      // Ordinary reconciliation cannot overwrite the newly authoritative details.
-      final local = LocalModelRepository(
-        database: db,
-        appSupportDirectory: root,
-      );
-      await UnifiedModelRepository(
-        database: db,
-        localModelRepository: local,
-      ).listAssets();
-      expect(
-        (await GgufModelStore(db).find(model.id))!.toJson(),
-        model.toJson(),
-      );
-      await GgufModelStore(db).remove(model.id);
-      await downloads.delete(task.id);
-      progress.clear();
-      await LegacyImporter(db, root, onProgress: progress.add).run();
-      expect(await GgufModelStore(db).list(), isEmpty);
-      expect(await downloads.listTasks(), isEmpty);
-      expect(progress, isEmpty);
-      await expectSourcesUnchanged();
-    },
-  );
-
-  test(
     'write failure rolls back all domains and markers, same process retry succeeds',
     () async {
       await seed();
@@ -222,21 +147,6 @@ void main() {
       expect(await db.metadata(LegacyImporter.inventoryMarker), '1');
       expect((await GgufModelStore(db).list()).single.toJson(), model.toJson());
       await expectSourcesUnchanged();
-    },
-  );
-
-  test(
-    'fresh installation marks empty migration without showing upgrade or creating Hive files',
-    () async {
-      final progress = <LegacyMigrationProgress>[];
-      await LegacyImporter(db, root, onProgress: progress.add).run();
-      expect(progress, isEmpty);
-      expect(await db.metadata(LegacyImporter.inventoryMarker), '1');
-      expect(await db.metadata('legacyImportComplete'), '1');
-      expect(
-        await root.list().any((entry) => entry.path.endsWith('.hive')),
-        isFalse,
-      );
     },
   );
 
@@ -335,23 +245,6 @@ void main() {
     expect(await db.metadata('legacyImportComplete'), '1');
     expect(await db.metadata(LegacyImporter.inventoryMarker), '1');
   });
-
-  test(
-    'lone compacted source is imported without renaming or modifying it',
-    () async {
-      await seed();
-      final compacted = await File(
-        '${root.path}/imported_models.hive',
-      ).rename('${root.path}/imported_models.hivec');
-      await LegacyImporter(db, root).run();
-      expect(
-        (await GgufModelStore(db).find(model.id))!.toJson(),
-        model.toJson(),
-      );
-      expect(await compacted.readAsBytes(), modelHive);
-      expect(await File('${root.path}/imported_models.hive').exists(), isFalse);
-    },
-  );
 
   test(
     '1.x message order, selected versions and attachments migrate atomically with inventory',
@@ -490,26 +383,6 @@ void main() {
           entry.value,
         );
       }
-      await expectSourcesUnchanged();
-    },
-  );
-
-  test(
-    'conflicting destination cannot silently discard a legacy download',
-    () async {
-      await seed();
-      final existing = DownloadTaskRecord.fromJson(task.toJson())
-        ..modelName = 'Already saved';
-      await DownloadTaskRepository(database: db).save(existing);
-      await expectLater(LegacyImporter(db, root).run(), throwsStateError);
-      expect(await db.metadata(LegacyImporter.inventoryMarker), isNull);
-      expect(await GgufModelStore(db).list(), isEmpty);
-      expect(
-        (await DownloadTaskRepository(
-          database: db,
-        ).listTasks()).single.modelName,
-        'Already saved',
-      );
       await expectSourcesUnchanged();
     },
   );

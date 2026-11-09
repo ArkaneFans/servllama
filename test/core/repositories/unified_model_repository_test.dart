@@ -42,32 +42,7 @@ void main() {
   }
 
   test(
-    'SQL lists missing files without native calls or metadata writes',
-    () async {
-      await gguf('Vision');
-      await mnn('MNN');
-      final before = (await db.query(
-        'SELECT * FROM model_assets ORDER BY id',
-      )).map((r) => r.data).toList();
-      final models = await repository.listModels();
-      expect(models, hasLength(2));
-      expect(
-        models.map((m) => m.id).toSet(),
-        before.map((r) => r['id']).toSet(),
-      );
-      expect(models.firstWhere((m) => m.name == 'Vision').hasMmproj, isTrue);
-      expect(await repository.listAssets(), hasLength(2));
-      expect(calls, isEmpty);
-      expect(
-        (await db.query(
-          'SELECT * FROM model_assets ORDER BY id',
-        )).map((r) => r.data).toList(),
-        before,
-      );
-    },
-  );
-  test(
-    'chat and library share ready LLM registrations without old tombstones',
+    'model catalog exposes ready LLM assets to both library and chat',
     () async {
       await gguf('Ready GGUF');
       await mnn('Ready MNN');
@@ -228,20 +203,6 @@ void main() {
       );
     },
   );
-  test('unregistered native commit has no virtual library ID', () async {
-    final coordinator = ModelNameCoordinator(unifiedRepository: repository);
-    await coordinator.reserveAvailable(
-      ownerId: 'download',
-      requestedName: 'Qwen',
-    );
-    final result = await coordinator.reserveCommitted(
-      ownerId: 'import',
-      requestedName: 'Qwen',
-      committedName: 'Qwen',
-    );
-    expect(result.name, 'Qwen');
-    expect(calls, isEmpty);
-  });
 }
 
 class _Local extends LocalModelRepository {

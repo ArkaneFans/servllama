@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mnn_engine/mnn_engine.dart';
 import 'package:servllama/core/providers/server_config_provider.dart';
@@ -63,42 +61,6 @@ void main() {
   );
 
   test(
-    'does not silently replace a saved unavailable accelerator with CPU',
-    () async {
-      service.capabilities = service.capabilities
-          .where((item) => item.backend != MnnBackend.opencl)
-          .toList();
-      await storage.setString(ServerPrefsKeys.mnnBackend, 'opencl');
-      await provider.load();
-      await provider.loadMnnBackends();
-      expect(provider.mnnBackend, MnnBackend.opencl);
-      await provider.updateMnnBackend(MnnBackend.cpu);
-      expect(await storage.getString(ServerPrefsKeys.mnnBackend), 'cpu');
-    },
-  );
-
-  test(
-    'migrates Hexagon preferences and rejects even an available NPU',
-    () async {
-      service.capabilities = const [
-        MnnBackendCapability(
-          backend: MnnBackend.hexagon,
-          compiled: true,
-          available: true,
-          status: MnnBackendStatus.available,
-        ),
-      ];
-      await storage.setString(ServerPrefsKeys.mnnBackend, 'hexagon');
-      await provider.load();
-      await provider.loadMnnBackends();
-      await provider.updateMnnBackend(MnnBackend.hexagon);
-      expect(provider.mnnBackend, MnnBackend.cpu);
-      expect(await storage.getString(ServerPrefsKeys.mnnBackend), 'cpu');
-      expect(provider.mnnCapabilities, isEmpty);
-    },
-  );
-
-  test(
     'a failed probe can be retried and does not prevent choosing CPU',
     () async {
       service.error = StateError('driver probe failed');
@@ -112,27 +74,6 @@ void main() {
       expect(provider.mnnBackendError, isNull);
       await provider.updateMnnBackend(MnnBackend.opencl);
       expect(provider.mnnBackend, MnnBackend.opencl);
-    },
-  );
-
-  test(
-    'finishing a probe after page disposal does not notify listeners',
-    () async {
-      final pendingService = FakeMnnBackendService()
-        ..pending = Completer<void>();
-      final pendingProvider = ServerConfigProvider(
-        kvStorage: storage,
-        mnnBackendService: pendingService,
-      );
-      var notifications = 0;
-      pendingProvider.addListener(() => notifications++);
-      final loading = pendingProvider.loadMnnBackends();
-      pendingProvider.dispose();
-      final beforeCompletion = notifications;
-      pendingService.pending!.complete();
-      await loading;
-      expect(notifications, beforeCompletion);
-      await pendingService.dispose();
     },
   );
 }

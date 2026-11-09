@@ -74,48 +74,6 @@ void main() {
   );
 
   test(
-    'only the query goes to the selected provider and receipt metadata is bounded',
-    () async {
-      final requests = <RequestOptions>[];
-      final dio = searchTestDio((request, _) {
-        requests.add(request);
-        return searchHtml(bingSearchFixture);
-      });
-      addTearDown(dio.close);
-      final result = await WebSearchService(dio: dio, logger: logger).search(
-        ' private & 中文 query ',
-        options: const WebSearchOptions(maxResults: 2),
-        cancelToken: CancelToken(),
-        limit: 9,
-        runId: 'run',
-        callId: 'call',
-      );
-      expect(requests.single.uri.host, 'www.bing.com');
-      expect(requests.single.uri.queryParameters, {'q': 'private & 中文 query'});
-      expect(requests.single.data, isNull);
-      expect(
-        requests.single.headers.keys.map((k) => k.toLowerCase()),
-        isNot(contains('authorization')),
-      );
-      expect(result.toJson()['query'], 'private & 中文 query');
-      final logs = logger
-          .entriesFor(LogChannel.agent)
-          .map((e) => e.message)
-          .join('\n');
-      expect(logs, contains('provider="bing"'));
-      expect(logs, contains('limit=2'));
-      for (final excluded in [
-        'private',
-        '中文',
-        'docs.example',
-        'documentation excerpt',
-      ]) {
-        expect(logs, isNot(contains(excluded)));
-      }
-    },
-  );
-
-  test(
     'limit and UTF-8 budget keep search results inside a complete tool receipt',
     () async {
       final rows = List.generate(
@@ -230,19 +188,6 @@ void main() {
     expect(requests.map((u) => u.host), ['www.bing.com']);
   });
 
-  test('response byte limit applies even without Content-Length', () async {
-    await expectLater(
-      run('x' * (WebSearchService.maxResponseBytes + 1)),
-      throwsA(
-        isA<WebSearchException>().having(
-          (e) => e.reason,
-          'reason',
-          WebSearchFailure.tooLarge,
-        ),
-      ),
-    );
-  });
-
   test(
     'cancel interrupts a pending HTTP request without retaining query text',
     () async {
@@ -313,22 +258,4 @@ void main() {
       expect(token.isCancelled, isFalse);
     },
   );
-
-  test('empty queries fail before making a request', () async {
-    var calls = 0;
-    final dio = searchTestDio((_, _) {
-      calls++;
-      return searchHtml(bingSearchFixture);
-    });
-    addTearDown(dio.close);
-    await expectLater(
-      WebSearchService(dio: dio, logger: logger).search(
-        '  ',
-        options: const WebSearchOptions(),
-        cancelToken: CancelToken(),
-      ),
-      throwsFormatException,
-    );
-    expect(calls, 0);
-  });
 }

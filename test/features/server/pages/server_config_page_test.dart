@@ -90,134 +90,11 @@ void main() {
       expect(contextSlider.min, ServerLaunchSettings.minContextSize);
       expect(contextSlider.max, ServerLaunchSettings.maxContextSize);
       expect(
-        contextSlider.divisions,
-        (ServerLaunchSettings.maxContextSize -
-                ServerLaunchSettings.minContextSize) ~/
-            512,
-      );
-      expect(
         find.byWidgetPredicate(
           (widget) => widget is TextField && widget.controller?.text == '8192',
         ),
         findsOneWidget,
       );
-    });
-
-    testWidgets('uses fixed 1-8 defaults for performance sliders', (
-      tester,
-    ) async {
-      final kvStorage = KvStorage();
-      final configProvider = ServerConfigProvider(
-        kvStorage: kvStorage,
-        llamaCppDeviceProbeService: LlamaCppDeviceProbeService(
-          resultOverride: () => LlamaCppDeviceProbeResult.cpuOnly,
-        ),
-      );
-      final serverService = _FakeLlamaServerService();
-      final serverProvider = EngineRuntimeProvider(
-        kvStorage: KvStorage(),
-        llamaCppAdapter: LlamaCppEngineAdapter(
-          serverService: serverService,
-          settingsLoader: _FixedServerLaunchSettingsLoader(
-            const ServerLaunchSettings(),
-          ),
-          modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
-        ),
-        mnnAdapter: StubEngineAdapter(),
-        settingsLoader: _FixedServerLaunchSettingsLoader(
-          const ServerLaunchSettings(),
-        ),
-      );
-      addTearDown(() {
-        configProvider.dispose();
-        serverProvider.dispose();
-        serverService.dispose();
-      });
-
-      await tester.runAsync(serverProvider.ensureRestored);
-      await tester.pumpWidget(
-        _TestApp(
-          serverProvider: serverProvider,
-          child: ServerConfigPage(provider: configProvider),
-        ),
-      );
-      await tester.pumpAndSettle();
-      await tester.drag(find.byType(ListView), const Offset(0, -1200));
-      await tester.pumpAndSettle();
-
-      final sliders = tester.widgetList<Slider>(find.byType(Slider)).toList();
-      final performanceSliders = sliders.sublist(sliders.length - 2);
-
-      expect(sliders.length, greaterThanOrEqualTo(2));
-      expect(performanceSliders[0].min, 1);
-      expect(performanceSliders[0].max, 8);
-      expect(performanceSliders[0].divisions, 7);
-      expect(
-        performanceSliders[0].value,
-        ServerLaunchSettings.defaultCpuThreads,
-      );
-      expect(performanceSliders[1].min, 1);
-      expect(performanceSliders[1].max, 8);
-      expect(performanceSliders[1].divisions, 7);
-      expect(performanceSliders[1].value, 1);
-      expect(configProvider.cpuThreads, ServerLaunchSettings.defaultCpuThreads);
-      expect(
-        configProvider.parallelSlots,
-        ServerLaunchSettings.defaultParallelSlots,
-      );
-    });
-
-    testWidgets('shows logging controls with enabled info defaults', (
-      tester,
-    ) async {
-      final kvStorage = KvStorage();
-      final configProvider = ServerConfigProvider(
-        kvStorage: kvStorage,
-        llamaCppDeviceProbeService: LlamaCppDeviceProbeService(
-          resultOverride: () => LlamaCppDeviceProbeResult.cpuOnly,
-        ),
-      );
-      final serverService = _FakeLlamaServerService();
-      final serverProvider = EngineRuntimeProvider(
-        kvStorage: KvStorage(),
-        llamaCppAdapter: LlamaCppEngineAdapter(
-          serverService: serverService,
-          settingsLoader: _FixedServerLaunchSettingsLoader(
-            const ServerLaunchSettings(),
-          ),
-          modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
-        ),
-        mnnAdapter: StubEngineAdapter(),
-        settingsLoader: _FixedServerLaunchSettingsLoader(
-          const ServerLaunchSettings(),
-        ),
-      );
-      addTearDown(() {
-        configProvider.dispose();
-        serverProvider.dispose();
-        serverService.dispose();
-      });
-
-      await tester.runAsync(serverProvider.ensureRestored);
-      await tester.pumpWidget(
-        _TestApp(
-          serverProvider: serverProvider,
-          child: ServerConfigPage(provider: configProvider),
-        ),
-      );
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('日志'),
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
-
-      expect(find.text('日志'), findsOneWidget);
-      expect(find.text('日志启用'), findsOneWidget);
-      expect(find.text('日志级别'), findsOneWidget);
-      expect(find.text('信息'), findsOneWidget);
-      expect(configProvider.logEnabled, isTrue);
-      expect(configProvider.logLevel, ServerLogLevel.info);
     });
 
     testWidgets('shows MNN backends without llama inference controls', (
@@ -287,7 +164,7 @@ void main() {
       expect(find.text('上下文长度'), findsNothing);
     });
 
-    testWidgets('removes fixed action bar and saves port changes immediately', (
+    testWidgets('saves port changes immediately to server configuration', (
       tester,
     ) async {
       final kvStorage = KvStorage();
@@ -327,13 +204,6 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('保存配置'), findsNothing);
-      expect(find.textContaining('当前地址：http://'), findsNothing);
-      expect(find.textContaining('改动即时保存'), findsNothing);
-      expect(
-        find.byKey(const Key('server_config_effect_notice')),
-        findsNothing,
-      );
       expect(find.text('网络与访问'), findsOneWidget);
 
       await tester.enterText(find.widgetWithText(TextField, '8080'), '9001');

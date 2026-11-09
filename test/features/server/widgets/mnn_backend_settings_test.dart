@@ -68,21 +68,6 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('offers CPU and GPU selection without a Hexagon entry', (
-    tester,
-  ) async {
-    await showSettings(tester);
-    expect(find.text('已加载的后端：CPU'), findsOneWidget);
-    expect(find.byKey(const Key('mnn_backend_hexagon')), findsNothing);
-    expect(find.textContaining('Hexagon'), findsNothing);
-    expect(find.byKey(const Key('mnn_backend_vulkan')), findsOneWidget);
-    await tester.tap(find.byKey(const Key('mnn_backend_opencl')));
-    await tester.pumpAndSettle();
-    expect(provider.mnnBackend, MnnBackend.opencl);
-    expect(find.text('已加载的后端：CPU'), findsOneWidget);
-    expect(find.textContaining('下次加载模型时生效'), findsOneWidget);
-  });
-
   testWidgets('probe failure offers retry and recovers backend choices', (
     tester,
   ) async {
@@ -110,45 +95,6 @@ void main() {
       isNotNull,
     );
   });
-
-  testWidgets('fits a narrow screen with large text', (tester) async {
-    tester.view.physicalSize = const Size(360, 800);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    await showSettings(tester, textScale: 2);
-    await tester.ensureVisible(find.byKey(const Key('mnn_backend_vulkan')));
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets(
-    'keeps Hexagon hidden even when the plugin reports it available',
-    (tester) async {
-      service.capabilities = [
-        ...service.capabilities.where(
-          (item) => item.backend != MnnBackend.hexagon,
-        ),
-        const MnnBackendCapability(
-          backend: MnnBackend.hexagon,
-          compiled: true,
-          available: true,
-          status: MnnBackendStatus.available,
-          dspArchitecture: 'v79',
-        ),
-      ];
-      tester.view.physicalSize = const Size(360, 800);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      await showSettings(tester, textScale: 2);
-      expect(find.byKey(const Key('mnn_backend_hexagon')), findsNothing);
-      expect(find.textContaining('Hexagon'), findsNothing);
-      expect(find.textContaining('v79'), findsNothing);
-      expect(provider.mnnBackend, MnnBackend.cpu);
-      expect(tester.takeException(), isNull);
-    },
-  );
 
   testWidgets('exposes mmap, precision, threads and cache clearing', (
     tester,

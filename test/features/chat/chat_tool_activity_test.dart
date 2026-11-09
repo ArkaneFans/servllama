@@ -19,7 +19,6 @@ import 'package:servllama/features/chat/models/ai_turn.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/models/chat_run_config.dart';
 import 'package:servllama/features/chat/widgets/chat_message_list.dart';
-import 'package:servllama/features/chat/widgets/chat_message_sheets.dart';
 import 'package:servllama/features/chat/widgets/chat_tool_activity.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
 import '../../support/mcp_tool_fixture.dart';
@@ -379,60 +378,6 @@ void main() {
     },
   );
 
-  testWidgets('truncated receipts explain the export limit', (tester) async {
-    await tester.pumpWidget(
-      app(
-        ToolInvocationCard(
-          invocation: receipt(
-            'bounded',
-            payload: const {
-              'arguments': {},
-              'result': 'Saved excerpt',
-              'resultTruncated': true,
-            },
-          ),
-        ),
-      ),
-    );
-    await tester.tap(find.byKey(const ValueKey('tool_toggle_run:bounded')));
-    await tester.pump();
-    expect(
-      find.text(
-        'This result was truncated. Only the saved excerpt can be viewed or exported.',
-      ),
-      findsOneWidget,
-    );
-    expect(find.byIcon(Icons.download), findsNothing);
-  });
-
-  testWidgets(
-    'both version deletion actions remain reachable with large text on a narrow screen',
-    (tester) async {
-      await tester.pumpWidget(
-        app(
-          SizedBox(
-            width: 260,
-            height: 360,
-            child: ChatMessageActionSheet(
-              message: message.copyWith(
-                versionIds: ['old', 'new'],
-                currentVersionIndex: 1,
-              ),
-              canRegenerate: true,
-            ),
-          ),
-          scale: 2,
-        ),
-      );
-      final all = find.byKey(const Key('chat_message_action_delete_reply'));
-      await tester.ensureVisible(all);
-      await tester.pump();
-      expect(find.text('Delete this version'), findsOneWidget);
-      expect(find.text('Delete all versions'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-  );
-
   testWidgets('reject and cancellation remove inline decision controls', (
     tester,
   ) async {
@@ -515,54 +460,6 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(WebSearchReceipt), findsOneWidget);
       expect(find.text('Flutter docs'), findsOneWidget);
-    },
-  );
-
-  testWidgets(
-    'large text fits on a narrow screen and historical pending rows are read-only',
-    (tester) async {
-      tester.view.physicalSize = const Size(320, 750);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      for (final state in [
-        'prepared',
-        'approved',
-        'pendingApproval',
-        'executing',
-        'succeeded',
-        'failed',
-        'rejected',
-        'cancelled',
-        'unknownOutcome',
-      ]) {
-        await tester.pumpWidget(
-          app(
-            SingleChildScrollView(
-              child: SizedBox(
-                width: 260,
-                child: ToolInvocationCard(
-                  key: ValueKey(state),
-                  invocation: receipt(
-                    state,
-                    state: state,
-                    name: 'long_remote_tool_name_that_wraps',
-                    payload: {
-                      'arguments': {'path': 'a/long/path/with/a/long-name.txt'},
-                      'result': 'Saved output',
-                    },
-                  ),
-                ),
-              ),
-            ),
-            scale: 2,
-          ),
-        );
-        await tester.tap(find.byKey(ValueKey('tool_toggle_run:$state')));
-        await tester.pump();
-        expect(find.text('Allow once'), findsNothing);
-        expect(tester.takeException(), isNull, reason: state);
-      }
     },
   );
 

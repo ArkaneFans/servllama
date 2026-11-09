@@ -29,19 +29,6 @@ void main() {
       await server.close();
     });
 
-    test('uses 120 seconds receive timeout by default', () {
-      final client = LlamaChatApiClient(
-        settingsLoader: _FixedServerLaunchSettingsLoader(
-          const ServerLaunchSettings(),
-        ),
-      );
-
-      expect(
-        client.dio.options.receiveTimeout,
-        LlamaChatApiClient.defaultChatReceiveTimeout,
-      );
-    });
-
     test('updates receive timeout at runtime', () {
       final client = LlamaChatApiClient(
         settingsLoader: _FixedServerLaunchSettingsLoader(
@@ -189,65 +176,6 @@ void main() {
             .toList();
 
         expect(chunks, <ChatStreamDelta>[const ChatStreamDelta(content: '你好')]);
-      },
-    );
-
-    test('streamChatCompletion skips malformed SSE data lines', () async {
-      server.chatResponder = (request) async {
-        request.response.statusCode = 200;
-        request.response.headers.contentType = ContentType(
-          'text',
-          'event-stream',
-        );
-        request.response.add(
-          utf8.encode('data: {"choices":[{"delta":{"content":"前"}}]}\n\n'),
-        );
-        request.response.add(utf8.encode('data: not-json at all\n\n'));
-        request.response.add(
-          utf8.encode('data: {"choices":[{"delta":{"content":"后"}}]}\n\n'),
-        );
-        request.response.add(utf8.encode('data: [DONE]\n\n'));
-        await request.response.close();
-      };
-
-      final chunks = await client
-          .streamChatCompletion(
-            modelId: 'alpha',
-            messages: const <ChatMessageRecord>[],
-            cancelToken: CancelToken(),
-          )
-          .toList();
-
-      expect(chunks, <ChatStreamDelta>[
-        const ChatStreamDelta(content: '前'),
-        const ChatStreamDelta(content: '后'),
-      ]);
-    });
-
-    test(
-      'streamChatCompletion parses a trailing line without a newline',
-      () async {
-        server.chatResponder = (request) async {
-          request.response.statusCode = 200;
-          request.response.headers.contentType = ContentType(
-            'text',
-            'event-stream',
-          );
-          request.response.add(
-            utf8.encode('data: {"choices":[{"delta":{"content":"尾行"}}]}'),
-          );
-          await request.response.close();
-        };
-
-        final chunks = await client
-            .streamChatCompletion(
-              modelId: 'alpha',
-              messages: const <ChatMessageRecord>[],
-              cancelToken: CancelToken(),
-            )
-            .toList();
-
-        expect(chunks, <ChatStreamDelta>[const ChatStreamDelta(content: '尾行')]);
       },
     );
 

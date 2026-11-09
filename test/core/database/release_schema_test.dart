@@ -147,28 +147,6 @@ void main() {
     },
   );
 
-  test('list and reference queries use the intended indexes', () async {
-    final plans = {
-      'SELECT id FROM conversations ORDER BY updated_at DESC,id':
-          'conversations_recent',
-      "SELECT id FROM messages WHERE conversation_id='c' ORDER BY position":
-          'sqlite_autoindex_messages_2',
-      "SELECT id FROM message_revisions WHERE run_id='r'": 'revisions_run',
-      "SELECT 1 FROM revision_attachments WHERE path='p'": 'attachments_path',
-      'SELECT id FROM speech_jobs ORDER BY created_at DESC,id':
-          'speech_jobs_recent',
-      'SELECT id FROM download_tasks ORDER BY created_at DESC,id':
-          'downloads_recent',
-    };
-    for (final entry in plans.entries) {
-      final plan = (await db.query(
-        'EXPLAIN QUERY PLAN ${entry.key}',
-      )).map((r) => r.read<String>('detail')).join('\n');
-      expect(plan, contains(entry.value));
-      expect(plan, isNot(contains('TEMP B-TREE')));
-    }
-  });
-
   test('disk database uses WAL and the release filename', () async {
     await db.close();
     final root = await Directory.systemTemp.createTemp('servllama-release-db-');

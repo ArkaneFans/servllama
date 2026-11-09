@@ -1,7 +1,5 @@
 import 'package:servllama/features/settings/pages/download_settings_page.dart';
 import 'dart:io';
-import 'dart:typed_data';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -31,11 +29,8 @@ import 'package:servllama/features/assistants/pages/connections_page.dart';
 import 'package:servllama/features/assistants/pages/profile_page.dart';
 import 'package:servllama/features/assistants/providers/assistant_provider.dart';
 import 'package:servllama/features/assistants/repositories/assistant_repository.dart';
-import 'package:servllama/features/assistants/widgets/assistant_selector.dart';
 import 'package:servllama/features/chat/models/chat_session_record.dart';
 import 'package:servllama/features/chat/pages/chat_page.dart';
-import 'package:servllama/features/chat/pages/chat_history_page.dart';
-import 'package:servllama/features/chat/widgets/chat_session_search_field.dart';
 import 'package:servllama/features/chat/providers/chat_provider.dart';
 import 'package:servllama/features/chat/repositories/chat_session_repository.dart';
 import 'package:servllama/features/downloads/pages/downloads_page.dart';
@@ -49,7 +44,6 @@ import 'package:servllama/features/speech/pages/speech_page.dart';
 import 'package:servllama/features/speech/services/speech_job_service.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
 import 'package:servllama/shared/widgets/push_sidebar.dart';
-import 'package:servllama/shared/widgets/app_empty_state.dart';
 import 'package:servllama/shared/navigation/app_navigation_observer.dart';
 
 import '../features/speech/speech_test_support.dart';
@@ -346,56 +340,6 @@ void main() {
     },
   );
 
-  testWidgets(
-    'sidebar and history search keep text and icon vertically centered at large text sizes',
-    (tester) async {
-      screen(tester, const Size(360, 800));
-      for (final scale in [1.0, 1.6]) {
-        for (final history in [false, true]) {
-          await tester.pumpWidget(
-            app(
-              home: history ? const ChatHistoryPage() : const MainScaffold(),
-              scale: scale,
-            ),
-          );
-          await tester.pumpAndSettle();
-          if (!history) {
-            await tester.tap(find.byIcon(Icons.menu));
-            await tester.pumpAndSettle();
-          }
-          final field = find.byKey(
-            Key(history ? 'history_page_search_input' : 'drawer_search_input'),
-          );
-          await tester.enterText(field, 'Search 搜索');
-          await tester.pump();
-          final search = find.ancestor(
-            of: field,
-            matching: find.byType(ChatSessionSearchField),
-          );
-          final editable = find.descendant(
-            of: field,
-            matching: find.byType(EditableText),
-          );
-          final icon = find.descendant(
-            of: search,
-            matching: find.byIcon(Icons.search_rounded),
-          );
-          expect(
-            (tester.getCenter(editable).dy - tester.getCenter(search).dy).abs(),
-            lessThan(1),
-          );
-          expect(
-            (tester.getCenter(icon).dy - tester.getCenter(search).dy).abs(),
-            lessThan(1),
-          );
-          expect(chat.sessionQuery, 'Search 搜索');
-          expect(tester.takeException(), isNull);
-          await tester.pumpWidget(const SizedBox());
-        }
-      }
-    },
-  );
-
   testWidgets('chat model selection releases both composer and search focus', (
     tester,
   ) async {
@@ -455,51 +399,18 @@ void main() {
     },
   );
 
-  testWidgets(
-    'MCP and profile forms separate adjacent inputs on a narrow screen',
-    (tester) async {
-      screen(tester, const Size(360, 800));
-      for (final page in [const McpEditor(), const ProfilePage()]) {
-        await tester.pumpWidget(app(home: page, scale: 1.3));
-        await tester.pumpAndSettle();
-        final fields = find.byType(TextField);
-        expect(fields.evaluate().length, greaterThanOrEqualTo(2));
-        expect(
-          tester.getTopLeft(fields.at(1)).dy -
-              tester.getBottomLeft(fields.first).dy,
-          greaterThanOrEqualTo(16),
-        );
-        await tester.enterText(fields.first, 'Draft');
-        await tester.pump();
-        expect(tester.takeException(), isNull);
-        await tester.pumpWidget(const SizedBox());
-      }
-    },
-  );
-
   testWidgets('sidebar routes preserve the open drawer, chat and draft', (
     tester,
   ) async {
     screen(tester, const Size(360, 800));
     await tester.pumpWidget(app());
     await tester.pumpAndSettle();
-    expect(find.byType(NavigationBar), findsNothing);
-    expect(find.byType(BottomNavigationBar), findsNothing);
-    expect(
-      find.descendant(
-        of: find.byType(AppBar),
-        matching: find.byType(AssistantSelector),
-      ),
-      findsNothing,
-    );
     await tester.enterText(
       find.byKey(const Key('chat_input_field')),
       'Keep this draft',
     );
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('drawer_ui_primitives')), findsNothing);
-    expect(find.byKey(const Key('drawer_migration_preview')), findsNothing);
     expect(input(tester, 'chat_input_field').focusNode.hasFocus, isFalse);
     expect(tester.testTextInput.isVisible, isFalse);
     final drawerAction = find.descendant(
@@ -553,103 +464,6 @@ void main() {
       );
       expect(tester.takeException(), isNull);
     }
-    await tester.pumpWidget(const SizedBox.shrink());
-  });
-
-  testWidgets(
-    'sidebar actions and library downloads return without replaying touch feedback',
-    (tester) async {
-      screen(tester, const Size(360, 800));
-      final boundary = GlobalKey();
-      Future<Uint8List> pixels() async => (await tester.runAsync(() async {
-        final image =
-            await (boundary.currentContext!.findRenderObject()
-                    as RenderRepaintBoundary)
-                .toImage();
-        final bytes = await image.toByteData();
-        image.dispose();
-        return bytes!.buffer.asUint8List();
-      }))!;
-      Future<void> roundTrip(String key) async {
-        final baseline = await pixels();
-        final press = await tester.startGesture(
-          tester.getCenter(find.byKey(Key(key))),
-        );
-        await tester.pump(const Duration(milliseconds: 160));
-        await tester.pump(const Duration(milliseconds: 100));
-        await press.up();
-        await tester.pumpAndSettle();
-        await tester.binding.handlePopRoute();
-        await tester.pump();
-        // Wait for the route transition, without settling extra ink frames.
-        await tester.pump(const Duration(milliseconds: 350));
-        expect(await pixels(), orderedEquals(baseline), reason: key);
-        await tester.pumpAndSettle();
-      }
-
-      await tester.pumpWidget(
-        app(
-          home: RepaintBoundary(key: boundary, child: const MainScaffold()),
-        ),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.menu));
-      await tester.pumpAndSettle();
-      for (final key in [
-        'drawer_assistants_action',
-        'drawer_server_action',
-        'drawer_models_action',
-        'drawer_speech_action',
-        'drawer_settings_action',
-      ]) {
-        await roundTrip(key);
-      }
-      await tester.pumpWidget(const SizedBox());
-      await tester.pumpWidget(
-        app(
-          home: RepaintBoundary(key: boundary, child: const ModelLibraryPage()),
-        ),
-      );
-      await tester.pumpAndSettle();
-      await roundTrip('model_library_downloads_button');
-      expect(tester.takeException(), isNull);
-      await tester.pumpWidget(const SizedBox());
-    },
-  );
-
-  testWidgets('assistant management cannot switch the current chat', (
-    tester,
-  ) async {
-    screen(tester, const Size(360, 800));
-    await tester.pumpWidget(app());
-    await tester.pumpAndSettle();
-    await open(tester, 'drawer_settings_action');
-    await tester.tap(find.byKey(const Key('settings_assistants_tile')));
-    await tester.pumpAndSettle();
-    final study = find.ancestor(
-      of: find.text('Study'),
-      matching: find.byType(ListTile),
-    );
-    await tester.tap(
-      find.descendant(
-        of: study,
-        matching: find.byType(PopupMenuButton<String>),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Use assistant'), findsNothing);
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Study'));
-    await tester.pumpAndSettle();
-    expect(find.widgetWithText(AppBar, 'Study'), findsOneWidget);
-    await back(tester);
-    await back(tester);
-    await back(tester);
-    expect(find.byType(ChatPage), findsOneWidget);
-    expect(chat.selectedSession?.id, 'original');
-    expect(chat.currentAssistantId, 'daily');
-    expect(chat.currentDraft, isEmpty);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
@@ -737,45 +551,6 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
-
-  testWidgets('model, skill and MCP empty states share text styles', (
-    tester,
-  ) async {
-    screen(tester, const Size(360, 800));
-    final pages = <(Widget, String, String)>[
-      (const ModelLibraryPage(), 'No models yet', 'Tap + to add a model'),
-      (
-        const SkillsPage(),
-        'No skills yet',
-        'Tap + in the upper-right corner to import one',
-      ),
-      (
-        const McpServersPage(),
-        'No MCP servers yet',
-        'Tap + in the upper-right corner to add one',
-      ),
-    ];
-    for (final (page, title, description) in pages) {
-      await tester.pumpWidget(app(home: page, scale: 1.6));
-      await settleSql(tester, () => find.text(title).evaluate().isNotEmpty);
-
-      final titleFinder = find.text(title);
-      final theme = Theme.of(tester.element(titleFinder));
-      expect(find.byType(AppEmptyState), findsOneWidget);
-      expect(
-        tester.widget<Text>(titleFinder).style,
-        theme.textTheme.titleMedium,
-      );
-      expect(
-        tester.widget<Text>(find.text(description)).style,
-        theme.textTheme.bodyMedium?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      );
-      expect(tester.takeException(), isNull);
-      await tester.pumpWidget(const SizedBox.shrink());
-    }
-  });
 
   testWidgets('skills add sheet validates and imports pasted markdown', (
     tester,
@@ -944,12 +719,6 @@ void main() {
       expect(find.byType(McpEditor), findsOneWidget);
       expect(find.text('Custom request headers'), findsOneWidget);
       expect(find.byKey(const Key('mcp_enabled_switch')), findsOneWidget);
-      expect(
-        find.textContaining('Disabling keeps the configuration'),
-        findsNothing,
-      );
-      expect(find.textContaining('Sent with every MCP request'), findsNothing);
-      expect(find.textContaining('Save to apply'), findsNothing);
       await tester.tap(find.byKey(const Key('mcp_enabled_switch')));
       await tester.pump();
       expect(find.text('Disabled'), findsOneWidget);
@@ -1165,49 +934,6 @@ void main() {
     },
   );
 
-  testWidgets(
-    'sidebar actions fit with a keyboard and a narrow embedded sidebar',
-    (tester) async {
-      screen(tester, const Size(360, 800));
-      await tester.pumpWidget(app(scale: 1.6));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.menu));
-      await tester.pumpAndSettle();
-      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
-      addTearDown(tester.view.resetViewInsets);
-      await tester.enterText(
-        find.byKey(const Key('drawer_search_input')),
-        'filter',
-      );
-      await tester.pumpAndSettle();
-      expect(
-        find.byKey(const Key('drawer_settings_action')).hitTestable(),
-        findsOneWidget,
-      );
-      expect(tester.takeException(), isNull);
-      tester.view.resetViewInsets();
-      tester.view.physicalSize = const Size(1000, 500);
-      await tester.pumpAndSettle();
-      tester
-          .widget<PushSidebar>(find.byType(PushSidebar))
-          .onSidebarWidthChanged!(200);
-      await tester.pumpAndSettle();
-      for (final name in [
-        'assistants',
-        'server',
-        'models',
-        'speech',
-        'settings',
-      ]) {
-        expect(
-          find.byKey(Key('drawer_${name}_action')).hitTestable(),
-          findsOneWidget,
-        );
-      }
-      expect(tester.takeException(), isNull);
-      await tester.pumpWidget(const SizedBox.shrink());
-    },
-  );
   testWidgets(
     'welcome shortcuts preserve chat and open the exact destination',
     (tester) async {

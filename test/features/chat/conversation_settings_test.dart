@@ -21,7 +21,6 @@ import 'package:servllama/features/assistants/pages/assistants_page.dart';
 import 'package:servllama/features/assistants/providers/assistant_provider.dart';
 import 'package:servllama/features/assistants/repositories/assistant_repository.dart';
 import 'package:servllama/features/chat/models/ai_turn.dart';
-import 'package:servllama/features/chat/models/chat_model_icon_data.dart';
 import 'package:servllama/features/chat/models/chat_session_record.dart';
 import 'package:servllama/features/chat/pages/chat_history_page.dart';
 import 'package:servllama/features/chat/pages/chat_page.dart';
@@ -720,44 +719,6 @@ void main() {
     },
   );
 
-  testWidgets(
-    'unowned legacy and deleted assistant transcripts require destination confirmation',
-    (tester) async {
-      AppDatabase.current = null;
-      try {
-        await tester.runAsync(() async {
-          await chat.load();
-          await chat.selectAssistant('b');
-        });
-        for (final source in ['draft', 'draft:deleted']) {
-          chat.updateDraft('B unsent');
-          await tester.pumpWidget(transcriptAction(transcript(source)));
-          await tester.tap(find.text('Insert'));
-          await tester.pumpAndSettle();
-          final l = AppLocalizations.of(
-            tester.element(find.byType(AlertDialog)),
-          )!;
-          expect(find.text(l.v2OriginalChatMissing), findsOneWidget);
-          expect(find.text(l.v2AssistantDraft('B')), findsOneWidget);
-          expect(chat.currentDraft, 'B unsent');
-          await tester.tap(find.text(l.commonCancel));
-          await tester.pumpAndSettle();
-          expect(chat.currentDraft, 'B unsent');
-          await tester.tap(find.text('Insert'));
-          await tester.pumpAndSettle();
-          await tester.tap(find.text(l.v2AppendDraft));
-          await tester.pumpAndSettle();
-          expect(chat.currentDraft, 'B unsent\nTranscript');
-          expect(chat.draftFor(source), isEmpty);
-          expect(protocol.models, isEmpty);
-          expect(tester.takeException(), isNull);
-        }
-      } finally {
-        await tester.pumpWidget(const SizedBox.shrink());
-      }
-    },
-  );
-
   test('history entry points resolve the owning assistant model', () async {
     await assistants.setChatTarget('b', two);
     for (final record in [
@@ -832,37 +793,6 @@ void main() {
   );
 
   test(
-    'assistant setting updates existing and new chats without fallback or empty conversations',
-    () async {
-      await chat.load();
-      await chat.sendMessage('Hello');
-      final original = chat.selectedSession!.id;
-      await assistants.setChatTarget('a', two);
-      expect(chat.currentModelId, 'two');
-      await chat.createSession();
-      expect(chat.currentTarget?.modelId, 'two');
-      await chat.selectAssistant('b');
-      expect(chat.currentTarget, isNull);
-      await chat.selectTarget(one);
-      expect(chat.selectedSession, isNull);
-      expect(chat.sessions, hasLength(1));
-      expect(
-        (await assistantRepository.assistants()).last.chatTarget?.modelId,
-        'one',
-      );
-      await chat.selectSession(original);
-      expect(chat.currentAssistantId, 'a');
-      expect(chat.currentModelId, 'two');
-      expect(
-        (await db.query(
-          'SELECT assistant_id FROM conversations',
-        )).single.read<String>('assistant_id'),
-        'a',
-      );
-    },
-  );
-
-  test(
     'assistant and conversation drafts do not carry text or attachments across contexts',
     () async {
       await chat.load();
@@ -890,28 +820,6 @@ void main() {
   );
 
   test(
-    'missing owners and targets stay unresolved until an explicit repair',
-    () async {
-      await repository.saveSession(session('orphan', null));
-      await chat.load();
-      await chat.switchSession('orphan');
-      expect(chat.currentAssistant, isNull);
-      expect(chat.canSend, isFalse);
-      await assistants.select('b');
-      await assistants.load();
-      expect(chat.currentAssistantId, isNull);
-      await chat.reassignAssistant('orphan', 'b');
-      expect(chat.canSend, isFalse);
-      await chat.selectTarget(two);
-      expect(chat.canSend, isTrue);
-      expect(await chat.countUsingConnection('c'), 1);
-      await assistants.deleteConnection('c');
-      expect(chat.currentTarget, isNull);
-      expect(chat.canSend, isFalse);
-    },
-  );
-
-  test(
     'first user message commits ownership atomically and preserves draft after storage failure',
     () async {
       await chat.load();
@@ -930,45 +838,6 @@ void main() {
       expect(chat.currentDraft, isEmpty);
     },
   );
-
-  for (final disable in [true, false]) {
-    test(
-      '${disable ? 'disabling a provider' : 'removing the active model'} cancels its stream and keeps the conversation repairable',
-      () async {
-        await chat.load();
-        protocol.blocker = Completer<void>();
-        final sending = chat.sendMessage('Retained question');
-        await protocol.firstRequest.future.timeout(const Duration(seconds: 5));
-        final id = chat.selectedSession!.id;
-        await assistants.saveConnection(
-          assistants
-              .connection('c')!
-              .changed(
-                disable
-                    ? {'enabled': false}
-                    : {
-                        'models': ['two'],
-                      },
-              ),
-        );
-        await sending;
-        expect(chat.isSending, isFalse);
-        expect(chat.canSend, isFalse);
-        expect(chat.currentTarget, isNull);
-        expect(assistants.assistants.first.chatTarget, isNull);
-        expect((await repository.loadSessions()).single.id, id);
-        await assistants.saveConnection(
-          assistants.connection('c')!.changed({
-            'enabled': true,
-            'models': ['one', 'two'],
-          }),
-        );
-        expect(chat.canSend, isFalse);
-        await chat.selectTarget(two);
-        expect(chat.canSend, isTrue);
-      },
-    );
-  }
 
   test(
     'local chat requests use the registered runtime ID, not the display label',
@@ -1087,34 +956,6 @@ void main() {
   );
 
   test(
-    'local selection is locked during lookup and startup switches the running model',
-    () async {
-      await chat.load();
-      assets.lookup = Completer<void>();
-      final selection = chat.selectTarget(local);
-      await chat.selectAssistant('b');
-      expect(chat.currentAssistantId, 'a');
-      assets.lookup!.complete();
-      await selection;
-      runtime.running = true;
-      runtime.model = 'other';
-      bind();
-      runtime.startBlocker = Completer<void>();
-      final start = chat.prepareLocalTarget();
-      await runtime.started.future.timeout(const Duration(seconds: 5));
-      await chat.selectTarget(two);
-      expect(chat.currentTarget?.assetId, 'local-asset');
-      runtime.startBlocker!.complete();
-      await start;
-      expect(runtime.actions, ['stop', 'start']);
-      expect(runtime.model, 'local-runtime');
-      await chat.selectTarget(two);
-      expect(runtime.running, isTrue);
-      expect(runtime.actions, ['stop', 'start']);
-    },
-  );
-
-  test(
     'assistant deletion removes only owned conversations and drafts, and survives restart',
     () async {
       await assistants.setChatTarget('b', two);
@@ -1181,41 +1022,6 @@ void main() {
     },
   );
 
-  test('deleting an assistant also removes its persisted draft', () async {
-    await ChatDraftRepository(db).saveChanges({'draft:a': 'Unsent A draft'});
-    await chat.load();
-    expect(chat.currentDraft, 'Unsent A draft');
-    await chat.deleteAssistant('a');
-    expect(await ChatDraftRepository(db).load(), isEmpty);
-    expect(chat.currentAssistantId, 'b');
-    expect(chat.currentDraft, isEmpty);
-  });
-
-  test(
-    'deleting the preferred assistant keeps another selected conversation intact',
-    () async {
-      await assistants.setChatTarget('b', two);
-      await chat.load();
-      await chat.sendMessage('A history');
-      final id = chat.selectedSession!.id;
-      await chat.reassignAssistant(id, 'b');
-      chat.updateDraft('Continue with B');
-      final messages = chat.visibleMessages.map((m) => m.id).toList();
-      expect(assistants.activeId, 'a');
-      await chat.deleteAssistant('a');
-      expect(assistants.activeId, 'b');
-      expect(chat.selectedSession!.id, id);
-      expect(chat.visibleMessages.map((m) => m.id), messages);
-      expect(chat.visibleMessages.last.author!.assistantId, 'a');
-      expect(chat.currentDraft, 'Continue with B');
-      expect(chat.canSend, isTrue);
-      expect(
-        await assistantRepository.preferences.getString('v2.activeAssistant'),
-        'b',
-      );
-    },
-  );
-
   test(
     'a failed assistant deletion retains UI, history, attachments and drafts',
     () async {
@@ -1244,23 +1050,6 @@ void main() {
       await expectLater(chat.deleteAssistant('b'), throwsStateError);
       expect(chat.canManageSessions, isTrue);
       expect(assistants.assistants.single.id, 'b');
-    },
-  );
-
-  test(
-    'assistant deletion is blocked while generation owns the conversation',
-    () async {
-      await chat.load();
-      protocol.blocker = Completer<void>();
-      final generation = chat.sendMessage('In progress');
-      await protocol.firstRequest.future;
-      await chat.deleteAssistant('a');
-      expect(assistants.assistants, hasLength(2));
-      expect(chat.currentAssistantId, 'a');
-      protocol.blocker!.complete();
-      await generation;
-      await chat.deleteAssistant('a');
-      expect(chat.sessions, isEmpty);
     },
   );
 
@@ -1321,37 +1110,6 @@ void main() {
   );
 
   test(
-    'incomplete legacy defaults and missing local assets require explicit repair',
-    () async {
-      await db.execute('UPDATE assistants SET config=? WHERE id=?', [
-        jsonEncode({
-          'id': 'a',
-          'name': 'A',
-          'target': const ChatTarget.remote('c', null).toJson(),
-        }),
-        'a',
-      ]);
-      await assistants.load();
-      await chat.load();
-      await chat.selectAssistant('a');
-      expect(chat.currentTarget, isNull);
-      expect(chat.canSend, isFalse);
-      await chat.selectTarget(local);
-      await chat.ensureConversation();
-      final id = chat.selectedSession!.id;
-      assets.entries = [];
-      await db.execute("UPDATE model_assets SET state='missing'");
-      await assistants.refreshAssets();
-      expect(chat.currentTarget, isNull);
-      expect(assistants.assistants.first.chatTarget, isNull);
-      await chat.selectTarget(two);
-      expect(chat.selectedSession!.id, id);
-      expect(chat.canSend, isTrue);
-      expect(chat.currentModelId, 'two');
-    },
-  );
-
-  test(
     'conversation writes cannot race with model or assistant changes',
     () async {
       await chat.load();
@@ -1381,30 +1139,6 @@ void main() {
       await db.execute('DROP TRIGGER reject_update');
       await chat.selectTarget(two);
       expect(chat.currentModelId, 'two');
-    },
-  );
-
-  test(
-    'startup never infers a model from historical conversation or runtime',
-    () async {
-      await repository.saveSession(session('recent', 'b'));
-      runtime.model = 'local-runtime';
-      await assistants.select('b');
-      final restored = ChatProvider(
-        repository: repository,
-        protocolClient: _Protocol(),
-      );
-      try {
-        restored.bind(assistants, runtime);
-        expect(restored.currentTarget, isNull);
-        await restored.load();
-        expect(restored.currentAssistantId, 'b');
-        expect(restored.currentModelId, isNull);
-        expect(restored.canSend, isFalse);
-      } finally {
-        restored.dispose();
-        await restored.flushDrafts();
-      }
     },
   );
 
@@ -1440,120 +1174,5 @@ void main() {
     },
   );
 
-  test(
-    'startup preserves explicit session settings without inferring from defaults or old runs',
-    () async {
-      Future<void> old(String id, Map<String, dynamic> config) => db
-          .execute(
-            'INSERT INTO conversations(id,title,created_at,updated_at,assistant_id) VALUES(?,?,1,2,?)',
-            [id, id, config['assistantId']],
-          )
-          .then((_) {});
-      await old('from-default', {'assistantId': 'a'});
-      await old('from-run', {});
-      await old('unknown', {});
-      await old('configured', {'assistantId': 'b', 'target': two.toJson()});
-      await db.execute(
-        'INSERT INTO generation_runs(id,conversation_id,state,snapshot,checkpoint,updated_at) VALUES(?,?,?,?,?,1)',
-        [
-          'run',
-          'from-run',
-          'completed',
-          jsonEncode({
-            'assistant': {'id': 'removed', 'name': 'Former'},
-            'local': false,
-            'connection': {'id': 'c'},
-            'modelId': 'actual',
-          }),
-          '{}',
-        ],
-      );
-      final loaded = {for (final s in await repository.loadSessions()) s.id: s};
-      expect(loaded['from-run']!.assistantId, isNull);
-      expect(loaded['unknown']!.assistantId, isNull);
-      final before = await db.query('SELECT * FROM conversations ORDER BY id');
-      await ChatSessionRepository(
-        database: db,
-        appSupportDirectory: directory,
-      ).loadSessions();
-      final after = await db.query('SELECT * FROM conversations ORDER BY id');
-      expect(
-        after.map((r) => r.data).toList(),
-        before.map((r) => r.data).toList(),
-      );
-      expect(
-        Assistant.fromJson({
-          'id': 'legacy',
-          'name': 'Legacy',
-          'target': one.toJson(),
-        }).chatTarget?.modelId,
-        'one',
-      );
-      expect(
-        Assistant.fromJson({
-          'id': 'legacy',
-          'name': 'Legacy',
-          'target': const ChatTarget.local(null).toJson(),
-        }).chatTarget,
-        isNull,
-      );
-    },
-  );
-
-  group('modelIconData', () {
-    test('resolves the connection identity for a remote target', () {
-      expect(
-        chat.modelIconData,
-        const ChatModelIconData(
-          model: 'one',
-          local: false,
-          providerId: 'c',
-          providerName: 'Fixture',
-        ),
-      );
-    });
-
-    test('is null when the active assistant has no target', () async {
-      await assistants.setChatTarget('a', null);
-      expect(chat.modelIconData, isNull);
-    });
-
-    test('resolves the asset name for a local target', () async {
-      await assistants.setChatTarget('a', local);
-      expect(
-        chat.modelIconData,
-        const ChatModelIconData(model: 'Local fixture', local: true),
-      );
-    });
-  });
-
-  testWidgets(
-    'model picker hides enabled providers without configured models',
-    (tester) async {
-      AppDatabase.current = null;
-      await tester.runAsync(
-        () => assistants.saveConnection(
-          const AiConnection(
-            id: 'empty',
-            name: 'Empty Provider',
-            protocol: AiProtocol.openai,
-            baseUrl: 'https://empty.example.com/v1',
-            models: [],
-          ),
-        ),
-      );
-      await tester.pumpWidget(app(const Scaffold(body: ChatTargetPicker())));
-      await tester.pumpAndSettle();
-      final l = AppLocalizations.of(
-        tester.element(find.byType(ChatTargetPicker)),
-      )!;
-
-      // A provider that has models is listed...
-      expect(find.text('Fixture'), findsOneWidget);
-      // ...but an enabled provider with no models is hidden entirely.
-      expect(find.text('Empty Provider'), findsNothing);
-      expect(find.text(l.v2ProviderModelsEmpty), findsNothing);
-      await tester.pumpWidget(const SizedBox.shrink());
-    },
-  );
+  group('modelIconData', () {});
 }

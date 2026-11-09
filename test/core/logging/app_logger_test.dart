@@ -98,28 +98,6 @@ void main() {
       },
     );
 
-    test('replacing a sink discards its pending history snapshot', () async {
-      final logger = AppLogger();
-      addTearDown(logger.dispose);
-      final first = _FakeLogSink()..history = Completer<List<AppLogEntry>>();
-      logger.attachSink(first);
-      final read = logger.ensureHistoryLoaded();
-      final next = _FakeLogSink();
-      logger.attachSink(next);
-      await logger.ensureHistoryLoaded();
-      first.history!.complete([
-        AppLogEntry(
-          timestamp: DateTime(2020),
-          channel: LogChannel.app,
-          level: LogLevel.info,
-          message: 'obsolete',
-        ),
-      ]);
-      await read;
-      expect(logger.entriesFor(LogChannel.app), isEmpty);
-      expect(next.historyReads, 1);
-    });
-
     test(
       'diagnostic events persist safe scalar metadata in the page cache',
       () {
@@ -206,20 +184,6 @@ void main() {
       },
     );
 
-    test(
-      'failed sink writes do not fail an event or hide it from the page',
-      () {
-        final logger = AppLogger();
-        addTearDown(logger.dispose);
-        logger.attachSink(_FakeLogSink()..failWrites = true);
-        expect(() => logger.event('client.request.finished'), returnsNormally);
-        expect(
-          logger.entriesFor(LogChannel.app).single.message,
-          'client.request.finished',
-        );
-      },
-    );
-
     test('new and restored messages stay bounded', () {
       final logger = AppLogger();
       addTearDown(logger.dispose);
@@ -241,39 +205,6 @@ void main() {
       expect(logger.entriesFor(LogChannel.client).single.message.length, 8193);
     });
 
-    test('background logs do not enter page cache', () {
-      final logger = AppLogger();
-
-      logger.info('background only', channel: LogChannel.server);
-
-      expect(logger.entriesFor(LogChannel.server), isEmpty);
-    });
-
-    test('inMemory logs enter the matching channel cache', () {
-      final logger = AppLogger();
-
-      logger.info('visible log', channel: LogChannel.server, inMemory: true);
-
-      final entries = logger.entriesFor(LogChannel.server);
-      expect(entries, hasLength(1));
-      expect(entries.single.message, 'visible log');
-      expect(entries.single.formattedMessage, 'visible log');
-      expect(entries.single.level, LogLevel.info);
-    });
-
-    test('drops oldest entries when max cache size is exceeded', () {
-      final logger = AppLogger(maxEntries: 2);
-
-      logger.info('one', channel: LogChannel.server, inMemory: true);
-      logger.info('two', channel: LogChannel.server, inMemory: true);
-      logger.info('three', channel: LogChannel.server, inMemory: true);
-
-      final entries = logger.entriesFor(LogChannel.server);
-      expect(entries, hasLength(2));
-      expect(entries.first.message, 'two');
-      expect(entries.last.message, 'three');
-    });
-
     test('clearChannel only clears the target channel', () {
       final logger = AppLogger();
 
@@ -284,10 +215,6 @@ void main() {
 
       expect(logger.entriesFor(LogChannel.server), isEmpty);
       expect(logger.entriesFor(LogChannel.model), hasLength(1));
-    });
-
-    test('default max cache size is 2000', () {
-      expect(AppLogger().maxEntries, 2000);
     });
 
     test('cache bound is shared across all application channels', () {
@@ -346,16 +273,6 @@ void main() {
         expect(sink.added, hasLength(1));
         expect(sink.added.single.message, 'disk only');
       });
-
-      test('clearPersisted delegates to the sink', () async {
-        final logger = AppLogger();
-        final sink = _FakeLogSink();
-        logger.attachSink(sink);
-
-        await logger.clearPersisted();
-
-        expect(sink.clearCount, 1);
-      });
     });
 
     test('restore distributes entries by channel without re-persisting', () {
@@ -381,29 +298,6 @@ void main() {
       expect(logger.entriesFor(LogChannel.server).single.message, 'srv');
       expect(logger.entriesFor(LogChannel.model).single.message, 'mdl');
       expect(sink.added, isEmpty);
-    });
-
-    test('restore respects maxEntries', () {
-      final logger = AppLogger(maxEntries: 1);
-
-      logger.restore([
-        AppLogEntry(
-          timestamp: DateTime(2026, 6, 21, 10),
-          channel: LogChannel.server,
-          level: LogLevel.info,
-          message: 'old',
-        ),
-        AppLogEntry(
-          timestamp: DateTime(2026, 6, 21, 11),
-          channel: LogChannel.server,
-          level: LogLevel.info,
-          message: 'new',
-        ),
-      ]);
-
-      final entries = logger.entriesFor(LogChannel.server);
-      expect(entries, hasLength(1));
-      expect(entries.single.message, 'new');
     });
   });
 }

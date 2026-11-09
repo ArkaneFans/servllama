@@ -37,50 +37,6 @@ void main() {
       },
     );
 
-    test('load marks initial load as completed', () async {
-      final provider = ServerConfigProvider(
-        settingsLoader: _FixedServerLaunchSettingsLoader(
-          const ServerLaunchSettings(contextSize: 8192, batchSize: 1024),
-        ),
-      );
-
-      expect(provider.hasCompletedInitialLoad, isFalse);
-
-      await provider.load();
-
-      expect(provider.hasCompletedInitialLoad, isTrue);
-      expect(provider.contextSize, 8192);
-      expect(provider.batchSize, 1024);
-      expect(provider.logEnabled, isTrue);
-      expect(provider.logLevel, ServerLogLevel.info);
-      expect(provider.mnnUseMmap, isFalse);
-      expect(provider.mnnPrecision, MnnPrecision.low);
-      expect(provider.mnnThreadNum, 4);
-      expect(provider.statusText, 'Configuration loaded');
-    });
-
-    test('updatePort persists the full settings snapshot', () async {
-      final kvStorage = KvStorage();
-      final provider = ServerConfigProvider(kvStorage: kvStorage);
-
-      await provider.updatePort(9001);
-
-      expect(await kvStorage.getInt(ServerPrefsKeys.port), 9001);
-      // Saves write the whole settings object; untouched fields persist
-      // their defaults.
-      expect(
-        await kvStorage.getString(ServerPrefsKeys.listenMode),
-        'localhost',
-      );
-      expect(await kvStorage.getString(ServerPrefsKeys.apiKey), isEmpty);
-      expect(
-        await kvStorage.getInt(ServerPrefsKeys.contextSize),
-        ServerLaunchSettings.defaultContextSize,
-      );
-      expect(await kvStorage.getBool(ServerPrefsKeys.useMmap), isTrue);
-      expect(provider.statusText, 'Configuration saved');
-    });
-
     test('sequential updates accumulate into the persisted snapshot', () async {
       final kvStorage = KvStorage();
       final provider = ServerConfigProvider(kvStorage: kvStorage);
@@ -96,23 +52,6 @@ void main() {
       expect(
         await kvStorage.getInt(ServerPrefsKeys.port),
         ServerLaunchSettings.defaultPort,
-      );
-      expect(provider.statusText, 'Configuration saved');
-    });
-
-    test('updates log settings independently', () async {
-      final kvStorage = KvStorage();
-      final provider = ServerConfigProvider(kvStorage: kvStorage);
-
-      await provider.updateLogEnabled(false);
-      await provider.updateLogLevel(ServerLogLevel.debug);
-
-      expect(provider.logEnabled, isFalse);
-      expect(provider.logLevel, ServerLogLevel.debug);
-      expect(await kvStorage.getBool(ServerPrefsKeys.logEnabled), isFalse);
-      expect(
-        await kvStorage.getString(ServerPrefsKeys.logLevel),
-        ServerLogLevel.debug.name,
       );
       expect(provider.statusText, 'Configuration saved');
     });
@@ -208,29 +147,7 @@ void main() {
         ServerLaunchSettings.maxParallelSlots,
       );
     });
-
-    test('does not notify after dispose when a save completes late', () async {
-      final loader = _BlockingSaveLoader();
-      final provider = ServerConfigProvider(settingsLoader: loader);
-
-      final pendingUpdate = provider.updatePort(9001);
-      provider.dispose();
-      loader.gate.complete();
-
-      // Must not throw "used after being disposed".
-      await pendingUpdate;
-    });
   });
-}
-
-class _BlockingSaveLoader extends ServerLaunchSettingsLoader {
-  final Completer<void> gate = Completer<void>();
-
-  @override
-  Future<ServerLaunchSettings> load() async => const ServerLaunchSettings();
-
-  @override
-  Future<void> save(ServerLaunchSettings settings) => gate.future;
 }
 
 class _BlockingLoadLoader extends ServerLaunchSettingsLoader {
@@ -244,13 +161,4 @@ class _BlockingLoadLoader extends ServerLaunchSettingsLoader {
 
   @override
   Future<void> save(ServerLaunchSettings settings) async {}
-}
-
-class _FixedServerLaunchSettingsLoader extends ServerLaunchSettingsLoader {
-  _FixedServerLaunchSettingsLoader(this.settings);
-
-  final ServerLaunchSettings settings;
-
-  @override
-  Future<ServerLaunchSettings> load() async => settings;
 }

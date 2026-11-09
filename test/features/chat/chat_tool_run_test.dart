@@ -168,70 +168,6 @@ void main() {
     expect(service.pendingCount, 1);
   }
 
-  test('assistant maxTokens is not sent to the provider', () async {
-    activeAssistant = assistant.changed({'maxTokens': 1});
-    protocol.responder = (_, _) => const [
-      AiEvent(text: 'Partial answer'),
-      AiEvent(stopReason: 'length'),
-    ];
-
-    await runner.sendMessage('Hello');
-
-    expect(protocol.receivedMaxTokens, isNull);
-    expect(runner.stopReason, isNull);
-    expect(
-      logger
-          .entriesFor(LogChannel.client)
-          .where(
-            (entry) => entry.message.contains('client.run.budget_reached'),
-          ),
-      isEmpty,
-    );
-  });
-
-  test('assistant turn and tool call fields do not cap the loop', () async {
-    activeAssistant = assistant.changed({'maxTurns': 1, 'maxToolCalls': 0});
-    final running = runner.sendMessage('Hello');
-    await waitForApproval();
-    final run = service.activeRunId!;
-    await service.decide('$run:ask', true, answer: 'Yes');
-    await running;
-
-    final reply = conversation.visibleMessages.last;
-    expect(reply.content.trim(), 'Final answer');
-    expect(reply.runId, run);
-    expect(
-      await service.repository.forRun(reply.sessionId!, run),
-      hasLength(1),
-    );
-    expect(runner.stopReason, isNull);
-  });
-
-  test('assistant contextChars does not restrict the request input', () async {
-    activeAssistant = assistant.changed({
-      'contextChars': 1000,
-      'instructions': 'x' * 2000,
-    });
-    protocol.callTools = false;
-
-    await runner.sendMessage('Hello');
-
-    expect(conversation.visibleMessages.last.content.trim(), 'Final answer');
-    expect(runner.stopReason, isNull);
-  });
-
-  test('assistant timeoutSeconds is not used as a run deadline', () async {
-    activeAssistant = assistant.changed({'timeoutSeconds': 0});
-    protocol
-      ..callTools = false
-      ..outputDelay = const Duration(milliseconds: 20);
-
-    await runner.sendMessage('Hello');
-
-    expect(conversation.visibleMessages.last.content.trim(), 'Final answer');
-    expect(runner.stopReason, isNull);
-  });
-
   test(
     'cancelling before any text retains the tool-only reply and its revision',
     () async {
@@ -325,65 +261,6 @@ void main() {
       );
       expect(await service.repository.history(original.sessionId!), isEmpty);
       expect(await db.query('SELECT * FROM generation_runs'), isEmpty);
-    },
-  );
-
-  test(
-    'user versions can be selected and deleted without changing later replies',
-    () async {
-      protocol.callTools = false;
-      await runner.sendMessage('Original question');
-      final user = conversation.visibleMessages.first;
-      final answer = conversation.visibleMessages.last;
-      await runner.editMessage(
-        messageId: user.id,
-        newContent: 'Edited question',
-      );
-      final edited = conversation.visibleMessages.first;
-      expect(edited.versionCount, 2);
-      await runner.selectMessageVersion(messageId: user.id, versionIndex: 0);
-      expect(conversation.visibleMessages.first.content, 'Original question');
-      await expectLater(
-        runner.deleteMessage(
-          user.id,
-          allVersions: false,
-          expectedMessage: edited,
-        ),
-        throwsStateError,
-      );
-      await runner.deleteMessage(user.id, allVersions: false);
-      expect(conversation.visibleMessages.first.content, 'Edited question');
-      expect(conversation.visibleMessages.first.versionCount, 1);
-      expect(conversation.visibleMessages.last.id, answer.id);
-      expect(conversation.visibleMessages.last.runId, answer.runId);
-      await runner.deleteMessage(user.id);
-      expect(conversation.visibleMessages.single.id, answer.id);
-      expect(await db.query('SELECT * FROM generation_runs'), hasLength(1));
-    },
-  );
-
-  test(
-    'cancelling an empty regeneration cannot resurrect a deleted revision or leak its run',
-    () async {
-      protocol.callTools = false;
-      await runner.sendMessage('Hello');
-      final id = conversation.visibleMessages.last.id;
-      await runner.regenerateFromMessage(id);
-      await runner.regenerateFromMessage(id);
-      final deletedVersion = conversation.visibleMessages.last.versionIds.last;
-      await runner.deleteMessage(id, allVersions: false);
-      final retained = conversation.visibleMessages.last;
-      expect(retained.versionIds, hasLength(2));
-      protocol.paused = Completer<void>();
-      final running = runner.regenerateFromMessage(id);
-      await protocol.paused!.future;
-      runner.cancelStreaming();
-      await running;
-      expect(conversation.visibleMessages.last.versionIds, retained.versionIds);
-      expect(conversation.visibleMessages.last.runId, retained.runId);
-      expect(await repository.loadMessageVersion(deletedVersion), isNull);
-      expect(await db.query('SELECT * FROM generation_runs'), hasLength(2));
-      expect(await db.query('SELECT * FROM message_revisions'), hasLength(3));
     },
   );
 

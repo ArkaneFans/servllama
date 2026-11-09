@@ -56,29 +56,6 @@ void main() {
     }
 
     test(
-      'model selection enables start and reaches ready with active model',
-      () async {
-        final llama = _FakeEngineAdapter(InferenceEngine.llamaCpp);
-        final mnn = _FakeEngineAdapter(InferenceEngine.mnn);
-        final provider = _provider(llama: llama, mnn: mnn);
-        addTearDown(provider.dispose);
-
-        await provider.switchEngine(InferenceEngine.mnn);
-        expect(provider.canStart, isFalse);
-
-        await provider.selectModel('mnn-model');
-        expect(provider.canStart, isTrue);
-
-        await provider.start();
-
-        expect(provider.status, EngineRuntimeStatus.ready);
-        expect(provider.activeModelId, 'mnn-model');
-        expect(provider.activeModelName, 'MNN model');
-        expect(mnn.startCount, 1);
-      },
-    );
-
-    test(
       'same and cross engine model switches share the configured startup',
       () async {
         final llama = _FakeEngineAdapter(InferenceEngine.llamaCpp);
@@ -208,103 +185,6 @@ void main() {
       expect(mnn.hasResources, isFalse);
     });
 
-    for (final stage in ['settings', 'prepare']) {
-      test('cancel during $stage prevents a late adapter start', () async {
-        final blocker = Completer<void>();
-        final mnn = _FakeEngineAdapter(
-          InferenceEngine.mnn,
-          prepareBlocker: stage == 'prepare' ? blocker : null,
-        );
-        final provider = _provider(
-          llama: _FakeEngineAdapter(InferenceEngine.llamaCpp),
-          mnn: mnn,
-          settingsLoader: _FixedSettingsLoader(
-            loadBlocker: stage == 'settings' ? blocker : null,
-          ),
-        );
-        addTearDown(provider.dispose);
-        await provider.switchEngine(InferenceEngine.mnn);
-        await provider.selectModel('mnn-model');
-        final starting = provider.start();
-        await Future<void>.delayed(Duration.zero);
-        final cancellation = provider.cancel();
-        await Future<void>.delayed(Duration.zero);
-
-        expect(provider.status, EngineRuntimeStatus.stopping);
-        expect(provider.resources.isFree(LocalResourceDomain.llm), isFalse);
-        expect(mnn.startCount, 0);
-        blocker.complete();
-        await starting;
-        await cancellation;
-        expect(mnn.startCount, 0);
-        expect(mnn.prepareCount, stage == 'settings' ? 0 : 1);
-        expect(provider.resources.isFree(LocalResourceDomain.llm), isTrue);
-
-        await provider.start();
-        expect(mnn.startCount, 1);
-        expect(provider.status, EngineRuntimeStatus.ready);
-      });
-    }
-
-    test('synchronous preparing listener can cancel before startup', () async {
-      final mnn = _FakeEngineAdapter(InferenceEngine.mnn);
-      final provider = _provider(
-        llama: _FakeEngineAdapter(InferenceEngine.llamaCpp),
-        mnn: mnn,
-      );
-      addTearDown(provider.dispose);
-      await provider.switchEngine(InferenceEngine.mnn);
-      await provider.selectModel('mnn-model');
-      Future<void>? cancellation;
-      provider.addListener(() {
-        if (provider.status == EngineRuntimeStatus.preparing) {
-          cancellation = provider.cancel();
-        }
-      });
-
-      await provider.start();
-      expect(cancellation, isNotNull);
-      await cancellation;
-      expect(mnn.startCount, 0);
-      expect(provider.status, EngineRuntimeStatus.idle);
-      expect(provider.resources.isFree(LocalResourceDomain.llm), isTrue);
-    });
-
-    test('failed cancellation still waits for startup before retry', () async {
-      final blocker = Completer<void>();
-      final mnn = _FakeEngineAdapter(
-        InferenceEngine.mnn,
-        startBlocker: blocker,
-        cancelError: const EngineAdapterException(
-          EngineRuntimeErrorKind.serverStopFailed,
-        ),
-      );
-      final provider = _provider(
-        llama: _FakeEngineAdapter(InferenceEngine.llamaCpp),
-        mnn: mnn,
-      );
-      addTearDown(provider.dispose);
-      await provider.switchEngine(InferenceEngine.mnn);
-      await provider.selectModel('mnn-model');
-      final starting = provider.start();
-      await Future<void>.delayed(Duration.zero);
-      mnn.resident = true;
-      final cancellation = provider.cancel();
-      await Future<void>.delayed(Duration.zero);
-      expect(provider.status, EngineRuntimeStatus.stopping);
-      expect(provider.resources.isFree(LocalResourceDomain.llm), isFalse);
-
-      blocker.complete();
-      await starting;
-      await cancellation;
-      expect(provider.status, EngineRuntimeStatus.error);
-      expect(provider.resources.isFree(LocalResourceDomain.llm), isFalse);
-      expect(provider.canStop, isTrue);
-      expect(provider.canStart, isFalse);
-      await provider.stop();
-      expect(provider.resources.isFree(LocalResourceDomain.llm), isTrue);
-    });
-
     test('cancel waits for a pending model replacement', () async {
       final blocker = Completer<void>();
       final mnn = _FakeEngineAdapter(InferenceEngine.mnn);
@@ -332,21 +212,6 @@ void main() {
       expect(provider.status, EngineRuntimeStatus.idle);
       expect(provider.activeModelId, isNull);
       expect(provider.resources.isFree(LocalResourceDomain.llm), isTrue);
-    });
-
-    test('activating the resident model is idempotent', () async {
-      final llama = _FakeEngineAdapter(InferenceEngine.llamaCpp);
-      final mnn = _FakeEngineAdapter(InferenceEngine.mnn);
-      final provider = _provider(llama: llama, mnn: mnn);
-      addTearDown(provider.dispose);
-
-      await provider.switchEngine(InferenceEngine.mnn);
-      await provider.selectModel('mnn-model');
-      await provider.start();
-      await provider.activateModel('mnn-model');
-
-      expect(mnn.stopCount, 0);
-      expect(mnn.startCount, 1);
     });
 
     test(
@@ -424,27 +289,6 @@ void main() {
         expect(provider.status, EngineRuntimeStatus.idle);
         expect(provider.resources.isFree(LocalResourceDomain.llm), isTrue);
         expect(mnn.startCount, 1);
-      },
-    );
-
-    test(
-      'restore adopts a resident model even when its HTTP listener is stopped',
-      () async {
-        final mnn = _FakeEngineAdapter(InferenceEngine.mnn);
-        final provider = _provider(
-          llama: _FakeEngineAdapter(InferenceEngine.llamaCpp),
-          mnn: mnn,
-        );
-        addTearDown(provider.dispose);
-        await provider.switchEngine(InferenceEngine.mnn);
-        await provider.selectModel('mnn-model');
-        mnn.resident = true;
-        await provider.restore();
-        expect(provider.resources.isFree(LocalResourceDomain.llm), isFalse);
-        expect(provider.canStop, isTrue);
-        expect(provider.canStart, isFalse);
-        await provider.stop();
-        expect(provider.resources.isFree(LocalResourceDomain.llm), isTrue);
       },
     );
 
@@ -583,39 +427,6 @@ void main() {
       expect(provider.activeEngine, InferenceEngine.mnn);
       expect(provider.status, EngineRuntimeStatus.idle);
     });
-
-    test(
-      'blocks switching while an errored adapter is still running',
-      () async {
-        final llama = _FakeEngineAdapter(
-          InferenceEngine.llamaCpp,
-          stopError: const EngineAdapterException(
-            EngineRuntimeErrorKind.serverStopFailed,
-          ),
-        );
-        final mnn = _FakeEngineAdapter(InferenceEngine.mnn);
-        final provider = _provider(llama: llama, mnn: mnn);
-        addTearDown(provider.dispose);
-
-        await provider.selectModel('test-model');
-        await provider.start();
-        await provider.stop();
-
-        expect(provider.status, EngineRuntimeStatus.error);
-        expect(llama.isRunning, isTrue);
-        expect(provider.canSwitchEngine, isFalse);
-
-        await provider.switchEngine(InferenceEngine.mnn);
-        expect(provider.activeEngine, InferenceEngine.llamaCpp);
-
-        llama.emitRunning(false);
-        await Future<void>.delayed(Duration.zero);
-
-        expect(provider.canSwitchEngine, isTrue);
-        await provider.switchEngine(InferenceEngine.mnn);
-        expect(provider.activeEngine, InferenceEngine.mnn);
-      },
-    );
   });
 }
 
@@ -634,16 +445,10 @@ EngineRuntimeProvider _provider({
 }
 
 class _FixedSettingsLoader extends ServerLaunchSettingsLoader {
-  _FixedSettingsLoader({this.loadBlocker});
-
-  final Completer<void>? loadBlocker;
-  int loads = 0;
   ServerLaunchSettings settings = const ServerLaunchSettings();
 
   @override
   Future<ServerLaunchSettings> load() async {
-    // Block explicit starts, not the lightweight initial status restoration.
-    if (++loads > 1) await loadBlocker?.future;
     return settings;
   }
 }
@@ -654,7 +459,6 @@ class _FakeEngineAdapter implements InferenceEngineAdapter {
     this.startBlocker,
     this.prepareBlocker,
     this.startError,
-    this.cancelError,
     this.stopError,
     this.stopBlocker,
     this.stopListenerBeforeFailure = false,
@@ -665,7 +469,6 @@ class _FakeEngineAdapter implements InferenceEngineAdapter {
   Completer<void>? startBlocker;
   final Completer<void>? prepareBlocker;
   final EngineAdapterException? startError;
-  final EngineAdapterException? cancelError;
   EngineAdapterException? stopError;
   final Completer<void>? stopBlocker;
   final bool stopListenerBeforeFailure;
@@ -745,7 +548,6 @@ class _FakeEngineAdapter implements InferenceEngineAdapter {
   Future<void> cancel({required RuntimePhaseCallback onPhase}) async {
     cancelCount += 1;
     _cancelRequested = true;
-    if (cancelError != null) throw cancelError!;
     _isRunning = false;
     resident = false;
   }

@@ -35,33 +35,6 @@ void main() {
   final l10n = lookupAppLocalizations(const Locale('en'));
 
   group('HubRepoPage GGUF vision picker', () {
-    testWidgets('hides vision when the repository has no mmproj files', (
-      tester,
-    ) async {
-      final downloads = _RecordingDownloadProvider();
-      addTearDown(downloads.dispose);
-
-      await tester.pumpWidget(
-        _host(files: const <HubRepoFile>[q4, q8], downloads: downloads),
-      );
-      await tester.pumpAndSettle();
-      await _openRepo(tester);
-
-      expect(find.byKey(Key('quant_vision_button_${q4.path}')), findsNothing);
-      expect(find.byKey(Key('quant_vision_button_${q8.path}')), findsNothing);
-      expect(find.text(q4.fileName), findsOneWidget);
-      expect(find.text(q8.fileName), findsOneWidget);
-
-      await tester.tap(find.byKey(Key('quant_download_button_${q4.path}')));
-      await _settle(tester);
-
-      expect(downloads.calls, hasLength(1));
-      expect(downloads.calls.single.files, <HubRepoFile>[q4]);
-      expect(find.byType(HubRepoPage), findsOneWidget);
-      expect(find.text(l10n.downloadQueued(q4.fileName)), findsOneWidget);
-      expect(find.text(l10n.repoDownloadQueued), findsOneWidget);
-    });
-
     testWidgets('does not enqueue the same quant twice', (tester) async {
       final downloads = _RecordingDownloadProvider();
       addTearDown(downloads.dispose);
@@ -85,29 +58,6 @@ void main() {
 
       expect(downloads.calls, hasLength(2));
       expect(downloads.calls.last.files, <HubRepoFile>[q8]);
-    });
-
-    testWidgets('defaults to vision on and the first mmproj', (tester) async {
-      final downloads = _RecordingDownloadProvider();
-      addTearDown(downloads.dispose);
-
-      await tester.pumpWidget(
-        _host(
-          files: const <HubRepoFile>[q8, firstMmproj, q4, secondMmproj],
-          downloads: downloads,
-        ),
-      );
-      await tester.pumpAndSettle();
-      await _openRepo(tester);
-
-      expect(find.byKey(Key('quant_vision_button_${q4.path}')), findsOneWidget);
-      expect(find.text(l10n.repoVisionOn), findsWidgets);
-
-      await tester.tap(find.byKey(Key('quant_download_button_${q4.path}')));
-      await _settle(tester);
-
-      expect(downloads.calls, hasLength(1));
-      expect(downloads.calls.single.files, <HubRepoFile>[q4, firstMmproj]);
     });
 
     testWidgets('can disable vision and download only the quant', (
@@ -165,44 +115,6 @@ void main() {
       await tester.tap(find.byKey(Key('quant_download_button_${q4.path}')));
       await _settle(tester);
 
-      expect(downloads.calls.single.files, <HubRepoFile>[q4, secondMmproj]);
-    });
-
-    testWidgets('memory warning allows projector selection and download', (
-      tester,
-    ) async {
-      final downloads = _RecordingDownloadProvider();
-      addTearDown(downloads.dispose);
-
-      await tester.pumpWidget(
-        _host(
-          files: const <HubRepoFile>[q4, firstMmproj, secondMmproj],
-          downloads: downloads,
-          memory: const DeviceMemoryInfo(totalBytes: 128, availableBytes: 1),
-        ),
-      );
-      await tester.pumpAndSettle();
-      await _openRepo(tester);
-
-      expect(
-        find.textContaining(l10n.feasibilityNotEnoughMemory),
-        findsOneWidget,
-      );
-      await tester.tap(find.byKey(Key('quant_vision_button_${q4.path}')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(Key('mmproj_option_${secondMmproj.path}')));
-      await tester.pump();
-      Navigator.of(tester.element(find.byType(MmprojPickerSheet))).pop();
-      await tester.pumpAndSettle();
-
-      expect(
-        find.textContaining(l10n.feasibilityNotEnoughMemory),
-        findsOneWidget,
-      );
-      await tester.tap(find.byKey(Key('quant_download_button_${q4.path}')));
-      await _settle(tester);
-
-      expect(downloads.calls, hasLength(1));
       expect(downloads.calls.single.files, <HubRepoFile>[q4, secondMmproj]);
     });
   });

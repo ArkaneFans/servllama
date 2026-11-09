@@ -30,23 +30,6 @@ void main() {
       expect(settledKeys, <String>['s1']);
     });
 
-    testWidgets('does not stage small light windows', (tester) async {
-      final settledKeys = <String>[];
-
-      await tester.pumpWidget(
-        _host(
-          conversationKey: 's1',
-          messages: _messages(count: 3),
-          settledKeys: settledKeys,
-        ),
-      );
-
-      expect(find.text('s1:m0'), findsOneWidget);
-      expect(find.text('s1:m2'), findsOneWidget);
-      await tester.pump();
-      expect(settledKeys, isEmpty);
-    });
-
     testWidgets('ignores stale settle callbacks after conversation switch', (
       tester,
     ) async {

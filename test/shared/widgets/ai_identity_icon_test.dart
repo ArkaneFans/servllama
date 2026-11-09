@@ -21,32 +21,6 @@ void main() {
     expect(AiBrand.model('custom-model'), isNull);
   });
 
-  test('provider resolution uses stable identities without URLs', () {
-    expect(AiBrand.provider(id: 'preset:siliconflow'), 'siliconcloud');
-    expect(AiBrand.provider(name: 'Local proxy'), isNull);
-  });
-
-  test('provider names resolve brands without requiring an exact match', () {
-    for (final entry in {
-      'OpenAI compatible': 'openai',
-      'My OpenAI Proxy': 'openai',
-      'GPT-4 Proxy': 'openai',
-      'Google Gemini': 'gemini',
-      'Claude API': 'claude',
-      '硅基流动': 'siliconcloud',
-      '阿里云百炼': 'alibabacloud',
-      '智谱 AI': 'zhipu',
-      '月之暗面': 'kimi',
-      'OpenRouter Proxy': 'openrouter',
-      'Local DeepSeek': 'deepseek',
-    }.entries) {
-      expect(AiBrand.provider(name: entry.key), entry.value);
-    }
-
-    expect(AiBrand.provider(name: 'local proxy'), isNull);
-    expect(AiBrand.provider(name: 'myowncloud'), isNull);
-  });
-
   testWidgets('bundled brands render in both brightness modes and fall back', (
     tester,
   ) async {

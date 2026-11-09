@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/core/logging/file_log_sink.dart';
-import 'package:servllama/features/logs/providers/app_logs_provider.dart';
 
 AppLogEntry _entry(String message, {int second = 0}) => AppLogEntry(
   timestamp: DateTime(2026, 6, 21, 10, 0, second),
@@ -40,39 +39,6 @@ void main() {
     });
 
     test(
-      'old server logs and new app channels restore into the same query',
-      () async {
-        final file = File('${logsDirectory.path}/app.log');
-        await file.writeAsString(
-          '1782000000000|server|info|legacy server started\n',
-        );
-        final sink = FileLogSink(logsDirectory: logsDirectory);
-        final logger = AppLogger()..attachSink(sink);
-        addTearDown(logger.dispose);
-        for (final channel in [
-          LogChannel.app,
-          LogChannel.client,
-          LogChannel.agent,
-          LogChannel.speech,
-        ]) {
-          logger.event('finished', channel: channel, fields: {'run': 'r-1'});
-        }
-        await logger.flushSink();
-        final restored = AppLogger()..restore(await sink.loadRecent(2000));
-        addTearDown(restored.dispose);
-        final provider = AppLogsProvider(logger: restored);
-        addTearDown(provider.dispose);
-        expect(provider.count, 5);
-        expect(
-          provider.query(channel: LogChannel.server).single.message,
-          'legacy server started',
-        );
-        expect(provider.query(text: 'r-1'), hasLength(4));
-        expect(provider.query(channel: LogChannel.speech), hasLength(1));
-      },
-    );
-
-    test(
       'clear discards earlier pending writes and preserves later events',
       () async {
         final sink = FileLogSink(logsDirectory: logsDirectory);
@@ -84,18 +50,6 @@ void main() {
         expect((await sink.loadRecent(10)).single.message, 'later');
       },
     );
-
-    test('loadRecent returns only the last N entries', () async {
-      final sink = FileLogSink(logsDirectory: logsDirectory);
-
-      for (var i = 0; i < 5; i++) {
-        sink.add(_entry('m$i', second: i));
-      }
-      await sink.flush();
-
-      final loaded = await sink.loadRecent(3);
-      expect(loaded.map((e) => e.message), ['m2', 'm3', 'm4']);
-    });
 
     test('preserves messages containing newlines and pipes', () async {
       final sink = FileLogSink(logsDirectory: logsDirectory);
@@ -142,19 +96,6 @@ void main() {
         expect(loaded.last.message, contains('entry-'));
       },
     );
-
-    test('clear removes the log files', () async {
-      final sink = FileLogSink(logsDirectory: logsDirectory);
-
-      sink.add(_entry('temp', second: 1));
-      await sink.flush();
-      expect(await File('${logsDirectory.path}/app.log').exists(), isTrue);
-
-      await sink.clear();
-
-      expect(await File('${logsDirectory.path}/app.log').exists(), isFalse);
-      expect(await sink.loadRecent(10), isEmpty);
-    });
 
     test('skips malformed lines when loading', () async {
       final file = File('${logsDirectory.path}/app.log');

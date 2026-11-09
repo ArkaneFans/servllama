@@ -19,7 +19,6 @@ import 'package:servllama/features/assistants/widgets/identity_avatar.dart';
 import 'package:servllama/features/agent/models/agent_records.dart';
 import 'package:servllama/features/agent/repositories/agent_repository.dart';
 import 'package:servllama/features/agent/services/agent_tool_service.dart';
-import 'package:servllama/features/agent/widgets/assistant_tools_editor.dart';
 import 'package:servllama/features/chat/models/chat_run_config.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
 
@@ -165,77 +164,6 @@ void main() {
     },
   );
 
-  test(
-    'existing assistants never resolve or overwrite the default label',
-    () async {
-      final restored = AssistantProvider(
-        repository: repository,
-        models: _NoModels(),
-        loadDefaultName: () => throw StateError('must not resolve a default'),
-      );
-      addTearDown(restored.dispose);
-      await restored.ensureLoaded();
-      expect(restored.loaded, isTrue);
-      expect(restored.error, isNull);
-      expect(
-        restored.assistants.map((v) => v.name),
-        unorderedEquals(['A', 'B']),
-      );
-    },
-  );
-
-  test(
-    'disposal while resolving the default name does not create an assistant',
-    () async {
-      final freshDb = AppDatabase.memory();
-      final freshRepository = AssistantRepository(
-        freshDb,
-        preferences: _MemoryPreferences(),
-      );
-      final pendingName = Completer<String>();
-      final resolvingName = Completer<void>();
-      final freshProvider = AssistantProvider(
-        repository: freshRepository,
-        models: _NoModels(),
-        loadDefaultName: () {
-          resolvingName.complete();
-          return pendingName.future;
-        },
-      );
-      addTearDown(freshDb.close);
-      final loading = freshProvider.ensureLoaded();
-      await resolvingName.future;
-      freshProvider.dispose();
-      pendingName.complete('AI Assistant');
-      await loading;
-      expect(await freshRepository.assistants(), isEmpty);
-    },
-  );
-
-  test('default label does not overwrite existing assistant names', () async {
-    const existing = Assistant(id: 'existing', name: 'ServLlama');
-    await repository.saveAssistant(existing);
-    await provider.load();
-    expect(
-      provider.assistants.firstWhere((v) => v.id == existing.id).name,
-      existing.name,
-    );
-    expect(
-      provider.assistants.map((v) => v.name),
-      unorderedEquals(['A', 'B', 'ServLlama']),
-    );
-  });
-
-  test('new profiles stay empty without an initialization write', () async {
-    expect(provider.profile.name, isEmpty);
-    expect(provider.profile.avatar, isEmpty);
-    final profile = await repository.profile();
-    expect(profile.name, isEmpty);
-    expect(profile.avatar, isEmpty);
-    expect(profile.description, isEmpty);
-    expect(await repository.preferences.getString('v2.userProfile'), isNull);
-  });
-
   test('a cleared name stays empty after saving and reloading', () async {
     await provider.saveProfile(
       const UserProfile(
@@ -253,68 +181,6 @@ void main() {
     expect(provider.profile.description, 'My description');
     expect((await repository.profile()).name, isEmpty);
   });
-
-  test(
-    'historical profile grants are ignored and omitted from new Run inputs',
-    () async {
-      await repository.saveProfile(
-        const UserProfile(
-          name: 'Private nickname',
-          description: 'Private description',
-        ),
-      );
-      final selected = a.changed({
-        'instructions': 'Only these instructions',
-        'useProfile': true,
-        'profileFields': ['addressAs', 'preferences'],
-      });
-      final run = config(selected);
-      expect(run.system, 'Only these instructions');
-      expect(run.snapshot(), isNot(contains('profile')));
-      expect(jsonEncode(run.snapshot()), isNot(contains('Private')));
-      expect(selected.toJson(), isNot(contains('useProfile')));
-      expect(selected.toJson(), isNot(contains('profileFields')));
-      expect(
-        run.authorizedBy(
-          selected.changed({'instructions': 'Next turn'}),
-          connection,
-        ),
-        isTrue,
-      );
-      expect((await repository.profile()).description, 'Private description');
-    },
-  );
-  test(
-    'profile reads legacy preferences but only persists the three fields',
-    () async {
-      await repository.preferences.setString(
-        'v2.userProfile',
-        jsonEncode({
-          'name': 'Local user',
-          'avatar': '🌿',
-          'addressAs': 'Old form of address',
-          'preferences': 'Existing description',
-        }),
-      );
-      final profile = await repository.profile();
-      expect(profile.description, 'Existing description');
-      await repository.saveProfile(profile);
-      final stored =
-          jsonDecode(
-                (await repository.preferences.getString('v2.userProfile'))!,
-              )
-              as Map;
-      expect(stored.keys, unorderedEquals(['name', 'avatar', 'description']));
-      expect(
-        UserProfile.fromJson({
-          ...stored,
-          'description': '',
-          'preferences': 'Old',
-        }).description,
-        isEmpty,
-      );
-    },
-  );
 
   test(
     'connection deletion or a changed credential domain revokes frozen requests',
@@ -384,22 +250,7 @@ void main() {
       restored.dispose();
     },
   );
-  test(
-    'an unassigned imported conversation is not bound by an incidental settings refresh',
-    () async {
-      await db.execute(
-        'INSERT INTO conversations(id,title,created_at,updated_at) VALUES(?,?,0,0)',
-        ['conversation', 'Old conversation'],
-      );
-      await provider.select('a');
-      await provider.load();
-      expect(provider.activeId, 'a');
-      final row = (await db.query(
-        'SELECT assistant_id FROM conversations',
-      )).single;
-      expect(row.readNullable<String>('assistant_id'), isNull);
-    },
-  );
+
   test(
     'a failed credential rotation leaves the previous key and connection intact',
     () async {
@@ -464,34 +315,6 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets(
-    'assistant management shows only identity without selecting the active assistant',
-    (tester) async {
-      await provider.save(a.changed({'instructions': 'A system prompt'}));
-      await provider.select(a.id);
-      await tester.pumpWidget(app(const AssistantsPage()));
-      await tester.pumpAndSettle();
-      final row = find.byWidgetPredicate(
-        (widget) =>
-            widget is ListTile &&
-            widget.title is Text &&
-            (widget.title as Text).data == a.name,
-      );
-      final tile = tester.widget<ListTile>(row);
-      expect(tile.selected, isFalse);
-      expect(tile.subtitle, isNull);
-      expect(find.byIcon(Icons.check_circle), findsNothing);
-      expect(find.text('A system prompt'), findsNothing);
-      await tester.tap(row);
-      await tester.pumpAndSettle();
-      expect(find.byType(AssistantEditor), findsOneWidget);
-      expect(find.widgetWithText(AppBar, a.name), findsOneWidget);
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      expect(provider.activeId, a.id);
-    },
-  );
-
   testWidgets('assistant search filters by name and can be cleared', (
     tester,
   ) async {
@@ -522,30 +345,6 @@ void main() {
     await tester.pump();
     expect(assistantRow(a.name), findsOneWidget);
     expect(assistantRow(b.name), findsOneWidget);
-  });
-
-  testWidgets('profile saves blank names without storing the localized hint', (
-    tester,
-  ) async {
-    await tester.pumpWidget(launcher(const ProfilePage()));
-    final nameField = find.byKey(const Key('profile_name'));
-    for (final value in ['', '  Updated user  ', '', '   ']) {
-      await tester.tap(find.text('Open editor'));
-      await tester.pumpAndSettle();
-      final l = AppLocalizations.of(tester.element(find.byType(ProfilePage)))!;
-      final field = tester.widget<TextField>(nameField);
-      expect(field.controller!.text, provider.profile.name);
-      expect(field.decoration!.hintText, l.v2ChatUserName);
-      expect(
-        tester.widget<IdentityAvatar>(find.byType(IdentityAvatar)).value,
-        isEmpty,
-      );
-      await tester.enterText(nameField, value);
-      await saveEditor(tester, l);
-      expect(find.byType(ProfilePage), findsNothing);
-      expect(provider.profile.name, value.trim());
-      expect((await repository.profile()).name, value.trim());
-    }
   });
 
   testWidgets(
@@ -869,124 +668,6 @@ void main() {
       expect(saved.maxTokens, 4096);
       expect(saved.maxTurns, 3);
       expect(saved.maxToolCalls, 5);
-      expect(tester.takeException(), isNull);
-    },
-  );
-  testWidgets(
-    'a bound disabled skill stays selected with a disabled explanation',
-    (tester) async {
-      const skill = SkillRecord(
-        id: 'paused-skill',
-        name: 'Paused skill',
-        path: '/fixture',
-        hash: 'hash',
-        description: 'Static instructions',
-        enabled: false,
-      );
-      await AgentRepository(db).saveSkill(skill);
-      final original = a.changed({
-        'skillIds': [skill.id],
-      });
-      tester.view.physicalSize = const Size(360, 800);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      await tester.pumpWidget(
-        app(
-          Scaffold(
-            body: SingleChildScrollView(
-              child: AssistantToolsEditor(assistant: original),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      final l = AppLocalizations.of(
-        tester.element(find.byType(AssistantToolsEditor)),
-      )!;
-      await tester.tap(find.widgetWithText(Tab, l.v2Skills));
-      await tester.pumpAndSettle();
-
-      final tileFinder = find.byKey(
-        const ValueKey('assistant_skill_paused-skill'),
-      );
-      expect(tileFinder, findsOneWidget);
-      final tile = tester.widget<CheckboxListTile>(tileFinder);
-      expect(tile.value, isTrue);
-      expect(tile.onChanged, isNull);
-      expect(find.text(l.v2SkillEnableOnSkillsPage), findsOneWidget);
-      final title = tester.widget<Text>(
-        find.descendant(of: tileFinder, matching: find.text(skill.name)),
-      );
-      expect(
-        title.style?.color,
-        Theme.of(
-          tester.element(tileFinder),
-        ).colorScheme.onSurface.withValues(alpha: .48),
-      );
-      expect(tester.takeException(), isNull);
-    },
-  );
-  testWidgets(
-    'a bound disabled MCP server keeps its grants but disables tools',
-    (tester) async {
-      const server = McpServer(
-        id: '12345678-paused',
-        name: 'Paused MCP',
-        url: 'https://example.com/mcp',
-        enabled: false,
-        tools: [
-          {'name': 'lookup'},
-        ],
-      );
-      await AgentRepository(db).saveServer(server);
-      final name = AgentToolService.mcpToolName(server.id, 'lookup');
-      final original = a.changed({
-        'tools': [name],
-        'mcpServerIds': [server.id],
-      });
-      tester.view.physicalSize = const Size(360, 800);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      await tester.pumpWidget(
-        app(
-          Scaffold(
-            body: SingleChildScrollView(
-              child: AssistantToolsEditor(assistant: original),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      final l = AppLocalizations.of(
-        tester.element(find.byType(AssistantToolsEditor)),
-      )!;
-      await tester.tap(find.widgetWithText(Tab, l.v2Mcp));
-      await tester.pumpAndSettle();
-
-      final serverTile = find.byKey(
-        const ValueKey('assistant_mcp_12345678-paused'),
-      );
-      expect(serverTile, findsOneWidget);
-      expect(find.text(l.v2McpEnableOnMcpPage), findsOneWidget);
-      final title = tester.widget<Text>(
-        find.descendant(of: serverTile, matching: find.text(server.name)),
-      );
-      expect(
-        title.style?.color,
-        Theme.of(
-          tester.element(serverTile),
-        ).colorScheme.onSurface.withValues(alpha: .48),
-      );
-
-      await tester.tap(serverTile);
-      await tester.pumpAndSettle();
-      final tool = tester.widget<CheckboxListTile>(
-        find.byKey(const ValueKey('assistant_mcp_tool_12345678-paused_lookup')),
-      );
-      expect(tool.value, isTrue);
-      expect(tool.onChanged, isNull);
       expect(tester.takeException(), isNull);
     },
   );

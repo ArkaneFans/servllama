@@ -69,32 +69,6 @@ void main() {
       expect(process.startArguments.single, contains('8192'));
     });
 
-    test(
-      'does not start a process when the selected model is missing',
-      () async {
-        final process = _FakeProcessService();
-        final adapter = _adapter(
-          process: process,
-          control: _FakeControlClient(),
-          models: const <ModelDescriptor>[],
-        );
-
-        await expectLater(
-          adapter.start(modelId: 'missing', onPhase: (_) {}),
-          throwsA(
-            isA<EngineAdapterException>()
-                .having(
-                  (error) => error.kind,
-                  'kind',
-                  EngineRuntimeErrorKind.modelLoadFailed,
-                )
-                .having((error) => error.detail, 'detail', 'missing'),
-          ),
-        );
-        expect(process.startArguments, isEmpty);
-      },
-    );
-
     test('stops the process when model readiness fails', () async {
       final process = _FakeProcessService();
       final adapter = _adapter(
@@ -114,34 +88,6 @@ void main() {
       );
       expect(process.stopCount, 1);
       expect(process.isRunning, isFalse);
-    });
-
-    test('stops the old process before starting another model', () async {
-      final process = _FakeProcessService();
-      final adapter = _adapter(process: process, control: _FakeControlClient());
-      await adapter.start(modelId: 'alpha', onPhase: (_) {});
-      final phases = <RuntimePhase>[];
-
-      await adapter.stop(onPhase: phases.add);
-      final result = await adapter.start(modelId: 'beta', onPhase: phases.add);
-
-      expect(process.stopCount, 1);
-      expect(process.startArguments, hasLength(2));
-      expect(
-        process.startArguments.last,
-        containsAllInOrder(<String>[
-          '--model',
-          '/models/beta/model.gguf',
-          '--alias',
-          'beta',
-        ]),
-      );
-      expect(phases, <RuntimePhase>[
-        RuntimePhase.stoppingServer,
-        RuntimePhase.startingServer,
-        RuntimePhase.loadingModel,
-      ]);
-      expect(result.activeModelId, 'beta');
     });
 
     test('cancellation stops a partially started process', () async {

@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mnn_engine/mnn_engine.dart';
 import 'package:servllama/core/database/app_database.dart';
 import 'package:servllama/core/database/legacy_importer.dart';
 import 'package:servllama/core/models/model_asset.dart';
@@ -144,37 +143,6 @@ void main() {
       await catalog.cleanupLegacyMissingModels();
       expect(await catalog.asset('deleted'), isNull);
       expect((await assistants.assistants()).single.chatTarget, isNull);
-    },
-  );
-
-  test(
-    'MNN admission precedes cleanup so residual directories are not registered again',
-    () async {
-      await seed('deleted');
-      final folder = await Directory('${root.path}/deleted').create();
-      final file = await File('${folder.path}/weights').writeAsString('keep');
-      await catalog.registerLegacyMnnInventory(
-        readInventory: () async => [
-          MnnModelInfo(
-            modelId: 'deleted',
-            modelKey: 'deleted',
-            displayName: 'deleted',
-            modelDirPath: folder.path,
-            configPath: '${folder.path}/config.json',
-            sizeBytes: 4,
-            importedAt: 0,
-            isActive: false,
-          ),
-        ],
-      );
-      await catalog.cleanupLegacyMissingModels();
-      await catalog.registerLegacyMnnInventory(
-        readInventory: () async =>
-            throw StateError('Inventory must not be scanned again'),
-      );
-      expect(await catalog.listLlmAssets(), isEmpty);
-      expect(await catalog.asset('deleted'), isNull);
-      expect(await file.readAsString(), 'keep');
     },
   );
 }

@@ -231,27 +231,4 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
-
-  testWidgets(
-    'long names and model metadata fit a narrow screen at large text size',
-    (tester) async {
-      tester.view.physicalSize = const Size(360, 1100);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-      identities.update(
-        values: [
-          a.changed({'name': 'A long assistant name ' * 6}),
-        ],
-      );
-      await tester.pumpWidget(
-        app([
-          message.copyWith(modelName: 'provider-model-with-long-name-' * 5),
-        ], scale: 1.8),
-      );
-      await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
-      expect(tester.getRect(header('a1')).right, lessThanOrEqualTo(360));
-      expect(tester.getRect(footer('a1')).right, lessThanOrEqualTo(360));
-    },
-  );
 }

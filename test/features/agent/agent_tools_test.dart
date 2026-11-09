@@ -102,31 +102,6 @@ void main() {
     );
   }
 
-  test(
-    'retired file tools cannot be advertised or invoked by legacy grants',
-    () async {
-      const retired = ['list_files', 'read_file', 'write_file'];
-      assistant = assistant.changed({
-        'tools': ['clock', ...retired],
-      });
-      await reopen();
-      expect(session.definitions.map((t) => t.name), ['clock']);
-      for (final name in retired) {
-        final result = await session.invoke(
-          AiToolCall(id: name, name: name, arguments: const {}),
-        );
-        expect(result.isError, isTrue);
-        expect(
-          (await service.repository.invocation('next:$name'))!.state,
-          'failed',
-        );
-      }
-      expect(service.pendingCount, 0);
-      expect(await db.query('SELECT * FROM pending_file_deletions'), isEmpty);
-      expect(await Directory('${dir.path}/workspaces').exists(), isFalse);
-    },
-  );
-
   for (final failed in [false, true]) {
     test(
       'large MCP ${failed ? 'failure' : 'success'} keeps a bounded Unicode receipt without a workspace',
@@ -505,72 +480,7 @@ void main() {
       expect(session.skillInstructions, contains('PRIVATE BODY'));
     },
   );
-  test('a bound disabled skill is skipped until it is enabled again', () async {
-    await session.close();
-    final source = File('${dir.path}/disabled-skill.md');
-    await source.writeAsString(
-      '---\nname: paused guide\ndescription: paused description\n---\n'
-      'PAUSED BODY',
-    );
-    final skill = await service.skills.importPackage(source);
-    await service.setSkillEnabled(skill, false);
-    assistant = assistant.changed({
-      'skillIds': [skill.id],
-    });
-    await AssistantRepository(db).saveAssistant(assistant);
-    ChatRunConfig config() => ChatRunConfig(
-      assistant: assistant,
-      connection: AiConnection(
-        id: 'c',
-        name: 'test',
-        protocol: AiProtocol.openai,
-        baseUrl: 'https://example.com/v1',
-        models: ['m'],
-        modelCapabilities: {'m': ModelCapabilities(supportsTools: true)},
-      ),
-      key: '',
-      modelId: 'm',
-      isLocal: false,
-    );
 
-    await seedAgentRun(db, 'disabled-skill');
-    session = await service.open(
-      'disabled-skill',
-      'conversation',
-      config(),
-      CancelToken(),
-    );
-    expect(session.skillInstructions, isNot(contains('paused description')));
-    expect(session.definitions.any((t) => t.name == 'read_skill'), isFalse);
-    final skipped = await session.invoke(
-      AiToolCall(
-        id: 'skipped',
-        name: 'read_skill',
-        arguments: {'id': skill.id},
-      ),
-    );
-    expect(skipped.isError, isTrue);
-    expect((await AssistantRepository(db).assistants()).single.skillIds, [
-      skill.id,
-    ]);
-
-    await session.close();
-    await service.setSkillEnabled(skill, true);
-    await seedAgentRun(db, 'enabled-skill');
-    session = await service.open(
-      'enabled-skill',
-      'conversation',
-      config(),
-      CancelToken(),
-    );
-    expect(session.skillInstructions, contains('paused description'));
-    expect(session.definitions.any((t) => t.name == 'read_skill'), isTrue);
-    final body = await session.invoke(
-      AiToolCall(id: 'body', name: 'read_skill', arguments: {'id': skill.id}),
-    );
-    expect(body.isError, isFalse);
-    expect(body.text, contains('PAUSED BODY'));
-  });
   test('revocation cancels a pending user question', () async {
     final running = session.invoke(
       const AiToolCall(

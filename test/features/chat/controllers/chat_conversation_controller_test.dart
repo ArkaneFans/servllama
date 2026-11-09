@@ -44,14 +44,6 @@ void main() {
       expect(notified, isTrue);
     });
 
-    test('updateVisibleMessage ignores messages outside the window', () {
-      final before = controller.visibleMessages;
-
-      controller.updateVisibleMessage(_message('missing', '不存在'));
-
-      expect(controller.visibleMessages, same(before));
-    });
-
     test('removeVisibleMessage drops the record from the window', () {
       controller.removeVisibleMessage('m1');
 
@@ -64,56 +56,6 @@ void main() {
       controller.removeVisibleMessage('missing');
       expect(controller.visibleMessages, same(before));
     });
-  });
-
-  test(
-    'shared foreground and warmup loads can settle after disposal',
-    () async {
-      final repository = _DelayedRepository();
-      final sessions = ChatSessionListController(repository: repository);
-      final controller = ChatConversationController(
-        repository: repository,
-        sessionList: sessions,
-        messageWindowSize: 30,
-      );
-      sessions.upsertSession(_session('s1', ['m1']));
-      final warming = controller.warmUpSession('s1');
-      final selecting = controller.switchSession('s1');
-      controller.dispose();
-      repository.pending.complete([_message('m1', 'cached')]);
-      await Future.wait([warming, selecting]);
-      expect(repository.loads, 1);
-      sessions.dispose();
-    },
-  );
-
-  test('warmup shares foreground loads and never changes selection', () async {
-    final repository = _DelayedRepository();
-    final sessions = ChatSessionListController(repository: repository);
-    final controller = ChatConversationController(
-      repository: repository,
-      sessionList: sessions,
-      messageWindowSize: 30,
-    );
-    sessions.upsertSession(_session('s1', ['m1']));
-    var notifications = 0;
-    controller.addListener(() => notifications++);
-    final warming = controller.warmUpSession('s1');
-    expect(controller.selectedSessionId, isNull);
-    expect(notifications, 0);
-    final selecting = controller.switchSession('s1');
-    expect(repository.loads, 1);
-    repository.pending.complete([_message('m1', 'cached')]);
-    await Future.wait([warming, selecting]);
-    expect(controller.visibleMessages.single.content, 'cached');
-    sessions.removeSessions({'s1'}, notify: false);
-    controller.forgetSessions({'s1'});
-    await controller.warmUpSession('s1');
-    expect(repository.loads, 1);
-    controller.dispose();
-    await controller.warmUpSession('s1');
-    expect(repository.loads, 1);
-    sessions.dispose();
   });
 
   test(

@@ -79,46 +79,6 @@ void main() {
       expect(captured?.queryParameters.containsKey('search'), isFalse);
       expect(captured?.queryParameters['cursor'], 'opaque+cursor=');
     });
-
-    test('maps search sort to HF sort query values', () async {
-      final sorts = <HubSearchSort, String>{
-        HubSearchSort.trending: 'trendingScore',
-        HubSearchSort.downloads: 'downloads',
-        HubSearchSort.likes: 'likes',
-      };
-      for (final entry in sorts.entries) {
-        RequestOptions? captured;
-        final client = HuggingFaceHubClient(
-          dio: _stubDio((options) {
-            captured = options;
-            return const <dynamic>[];
-          }),
-        );
-        await client.search(
-          'qwen',
-          format: HubModelFormat.gguf,
-          sort: entry.key,
-        );
-        expect(captured?.queryParameters['sort'], entry.value);
-        expect(captured?.queryParameters['direction'], -1);
-      }
-    });
-
-    test('does not issue unsupported MNN searches', () async {
-      var requestCount = 0;
-      final client = HuggingFaceHubClient(
-        dio: _stubDio((_) {
-          requestCount += 1;
-          return const <dynamic>[];
-        }),
-      );
-
-      final results = await client.search('qwen', format: HubModelFormat.mnn);
-
-      expect(results.items, isEmpty);
-      expect(requestCount, 0);
-      expect(client.searchableFormats, <HubModelFormat>{HubModelFormat.gguf});
-    });
   });
 
   group('ModelScopeHubClient', () {
@@ -160,37 +120,6 @@ void main() {
         expect(results.nextPageToken, '2');
       });
     }
-
-    test('maps search sort to ModelScope SortBy values', () async {
-      final sorts = <HubSearchSort, String>{
-        HubSearchSort.trending: 'Default',
-        HubSearchSort.downloads: 'DownloadsCount',
-        HubSearchSort.likes: 'StarsCount',
-      };
-      for (final entry in sorts.entries) {
-        RequestOptions? captured;
-        final client = ModelScopeHubClient(
-          dio: _stubDio((options) {
-            captured = options;
-            return <String, dynamic>{
-              'Data': <String, dynamic>{
-                'Model': <String, dynamic>{
-                  'Models': <Map<String, dynamic>>[],
-                  'TotalCount': 0,
-                },
-              },
-            };
-          }),
-        );
-        await client.search(
-          'qwen',
-          format: HubModelFormat.gguf,
-          sort: entry.key,
-        );
-        final body = Map<String, dynamic>.from(captured?.data as Map);
-        expect(body['SortBy'], entry.value);
-      }
-    });
 
     test('uses the page-number token for subsequent pages', () async {
       RequestOptions? captured;

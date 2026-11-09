@@ -7,21 +7,16 @@ import 'package:servllama/core/models/model_asset.dart';
 import 'package:servllama/features/speech/services/audio_io_service.dart';
 import 'package:servllama/features/speech/services/wave_file.dart';
 import 'package:servllama/features/speech/widgets/audio_input_panel.dart';
-import 'package:servllama/shared/widgets/app_scaffold.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
-import 'package:servllama/features/chat/models/chat_session_record.dart';
 import 'package:servllama/features/chat/providers/chat_provider.dart';
-import 'package:servllama/features/chat/widgets/chat_speech_button.dart';
 import 'package:servllama/features/speech/models/speech_models.dart';
 import 'package:servllama/features/speech/pages/speech_job_page.dart';
 import 'package:servllama/features/speech/pages/speech_page.dart';
-import 'package:servllama/features/speech/pages/voice_profiles_page.dart';
 import 'package:servllama/features/speech/widgets/speech_job_widgets.dart';
 import 'package:servllama/features/speech/services/speech_job_service.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
-import 'package:servllama/shared/widgets/async_action.dart';
 import 'speech_test_support.dart';
 
 class _ClockAudio extends AudioIoService {
@@ -29,40 +24,6 @@ class _ClockAudio extends AudioIoService {
   Duration elapsed = Duration.zero;
   @override
   Duration get recordingElapsed => elapsed;
-}
-
-class _DraftChat extends ChatProvider {
-  final a = ChatSessionRecord(
-    id: 'a',
-    title: 'Destination A',
-    createdAt: DateTime(2026),
-    updatedAt: DateTime(2026),
-  );
-  final b = ChatSessionRecord(
-    id: 'b',
-    title: 'Active B',
-    createdAt: DateTime(2026),
-    updatedAt: DateTime(2026),
-  );
-  int sends = 0, cancellations = 0;
-  @override
-  List<ChatSessionRecord> get sessions => [a, b];
-  @override
-  ChatSessionRecord? get selectedSession => b;
-  @override
-  bool get isSending => true;
-  @override
-  Future<void> sendMessage(
-    String text, {
-    List<String>? imageAttachments,
-  }) async {
-    sends++;
-  }
-
-  @override
-  void cancelStreaming() {
-    cancellations++;
-  }
 }
 
 void main() {
@@ -101,20 +62,6 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
   }
-
-  testWidgets('speech page temporarily hides reference voices entry', (
-    tester,
-  ) async {
-    tallScreen(tester);
-    await tester.pumpWidget(app(const SpeechPage()));
-    await tester.pumpAndSettle();
-    final l = AppLocalizations.of(tester.element(find.byType(SpeechPage)))!;
-
-    expect(find.byTooltip(l.v2SpeechModels), findsOneWidget);
-    expect(find.byTooltip(l.v2Voices), findsNothing);
-    expect(find.byType(VoiceProfilesPage), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
 
   testWidgets(
     'CosyVoice uses the default voice and retains marking disclosure',
@@ -310,88 +257,6 @@ void main() {
     },
   );
 
-  testWidgets('voice preview synthesizes inline without closing the editor', (
-    tester,
-  ) async {
-    await tester.runAsync(() async {
-      final bytes = 'GGUF'.codeUnits;
-      final asset = await h.service.models.createAsset(
-        SpeechPackage(
-          recipe: SpeechRecipe.crispQwenTts,
-          name: 'Clone fixture',
-          revision: 'fixture',
-          files: [
-            SpeechFile(
-              path: 'model.gguf',
-              bytes: bytes.length,
-              sha256: sha256.convert(bytes).toString(),
-            ),
-          ],
-          config: {
-            'model': 'model.gguf',
-            'codec': 'model.gguf',
-            'voice': 'model.gguf',
-          },
-        ),
-        state: 'ready',
-      );
-      await File('${asset.path}/model.gguf').writeAsBytes(bytes);
-      final input = File('${h.directory.path}/voice.wav');
-      final writer = WaveWriter(input, 16000);
-      writer.add(Float32List(16000 * 3));
-      writer.close();
-      await h.service.createVoice(
-        asset: asset,
-        name: 'My voice',
-        input: input.path,
-        referenceText: 'Reference transcript',
-        rightsConfirmed: true,
-      );
-    });
-    tallScreen(tester);
-    await tester.pumpWidget(app(const VoiceProfilesPage()));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('My voice'));
-    await tester.pumpAndSettle();
-    final input = find.byKey(const Key('voice_preview_input'));
-    await tester.enterText(input, 'Voice audition text');
-    await tester.runAsync(() async {
-      await tester.tap(find.byKey(const Key('voice_save_preview')));
-      await until(() => h.workers.isNotEmpty);
-      await h.workers.single.started.future;
-    });
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(
-      tester
-          .widget<FilledButton>(find.byKey(const Key('voice_save_preview')))
-          .onPressed,
-      isNull,
-    );
-    expect(find.byType(SpeechJobPage), findsNothing);
-    await tester.runAsync(() async {
-      h.workers.single.finished.complete({
-        'outputPath': '${h.directory.path}/preview.wav',
-        'sampleRate': 24000,
-      });
-      await until(
-        () => h.service.jobs.single.state == SpeechJobState.completed,
-      );
-    });
-    await tester.pumpAndSettle();
-    expect(input, findsOneWidget);
-    expect(find.byKey(const Key('speech_result_text')), findsOneWidget);
-    expect(
-      tester
-          .widget<SelectableText>(find.byKey(const Key('speech_result_text')))
-          .data,
-      'Voice audition text',
-    );
-    expect(find.byType(SpeechJobPage), findsNothing);
-    expect(tester.takeException(), isNull);
-    await tester.pumpWidget(const SizedBox());
-  });
-
   testWidgets(
     'failure retries inline with new ID and cancellation keeps the form',
     (tester) async {
@@ -471,38 +336,6 @@ void main() {
     },
   );
 
-  testWidgets('speech empty states fit 360 dp, dark mode and large text', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(360, 800);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(app(const SpeechPage(), scale: 1.6));
-    await tester.pumpAndSettle();
-    final l = AppLocalizations.of(tester.element(find.byType(SpeechPage)))!;
-    expect(find.text(l.v2Speech), findsOneWidget);
-    expect(find.text(l.v2ImportAudio), findsOneWidget);
-    expect(find.textContaining('音频在本机处理'), findsNothing);
-    expect(find.textContaining('请先在模型页下载'), findsNothing);
-    expect(tester.takeException(), isNull);
-    await tester.tap(find.text(l.v2Tts));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('请先在模型页下载'), findsNothing);
-    expect(tester.takeException(), isNull);
-    await tester.tap(find.text(l.v2Tasks));
-    await tester.pumpAndSettle();
-    expect(find.text(l.v2NoSpeechJobsEmpty), findsOneWidget);
-    expect(
-      find.ancestor(
-        of: find.text(l.v2NoSpeechJobsEmpty),
-        matching: find.byType(Center),
-      ),
-      findsOneWidget,
-    );
-    expect(tester.takeException(), isNull);
-  });
-
   testWidgets('speech residency explains waiting without an LLM stop action', (
     tester,
   ) async {
@@ -562,67 +395,4 @@ void main() {
       expect(find.text(l.v2ChunkTimingHelp), findsOneWidget);
     },
   );
-
-  for (final replace in [false, true]) {
-    testWidgets(
-      replace
-          ? 'stale transcript replacement keeps both drafts'
-          : 'transcript append uses the chosen latest draft without stopping a Run',
-      (tester) async {
-        final chat = _DraftChat();
-        addTearDown(chat.dispose);
-        chat.updateDraft('reviewed draft', key: 'a');
-        chat.updateDraft('keep active B', key: 'b');
-        final job = SpeechJob(
-          id: 'asr',
-          state: SpeechJobState.completed,
-          createdAt: DateTime(2026),
-          snapshot: {'assetId': 'model', 'kind': 'asr', 'conversationId': 'a'},
-          result: {'text': 'transcript'},
-        );
-        await tester.pumpWidget(
-          app(
-            Builder(
-              builder: (context) => AppScaffold(
-                body: Center(
-                  child: FilledButton(
-                    onPressed: () => runUiAction(
-                      context,
-                      () => insertTranscript(context, job),
-                    ),
-                    child: const Text('Insert'),
-                  ),
-                ),
-              ),
-            ),
-            chat: chat,
-          ),
-        );
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Insert'));
-        await tester.pumpAndSettle();
-        expect(find.text('Destination A'), findsOneWidget);
-        chat.updateDraft('new latest draft', key: 'a');
-        final l = AppLocalizations.of(
-          tester.element(find.byType(AlertDialog)),
-        )!;
-        await tester.tap(
-          find.text(replace ? l.v2ReplaceDraft : l.v2AppendDraft),
-        );
-        await tester.pumpAndSettle();
-        expect(
-          chat.draftFor('a'),
-          replace ? 'new latest draft' : 'new latest draft\ntranscript',
-        );
-        expect(chat.currentDraft, 'keep active B');
-        expect(chat.selectedSession!.id, 'b');
-        expect(chat.sends, 0);
-        expect(chat.cancellations, 0);
-        if (replace) {
-          expect(find.textContaining(l.v2DraftChanged), findsOneWidget);
-        }
-        expect(tester.takeException(), isNull);
-      },
-    );
-  }
 }

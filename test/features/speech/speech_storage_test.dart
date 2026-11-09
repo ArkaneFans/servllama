@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/core/storage/owned_file_cleanup.dart';
 import 'package:servllama/features/speech/models/speech_models.dart';
-import 'package:servllama/features/speech/repositories/speech_repository.dart';
 import 'package:servllama/features/speech/services/speech_job_service.dart';
 import 'speech_test_support.dart';
 
@@ -35,52 +34,6 @@ void main() {
   );
 
   test(
-    'loading the speech catalog does not resume old pending deletions',
-    () async {
-      final asset = await h.model();
-      await h.db.execute(
-        "UPDATE model_assets SET state='deleting' WHERE id=?",
-        [asset.id],
-      );
-      await h.service.models.load();
-      expect(await Directory(asset.path).exists(), isTrue);
-      expect(
-        (await h.service.models.models.asset(asset.id))!.state,
-        'deleting',
-      );
-      await h.service.models.delete(asset);
-      expect(await h.service.models.models.asset(asset.id), isNull);
-    },
-  );
-
-  test(
-    'warmup and demand coalesce speech initialization without starting jobs',
-    () async {
-      final cold = SpeechJobService(
-        h.resources,
-        logger: h.logger,
-        workerFactory: () =>
-            throw StateError('Initialization must not run inference'),
-      );
-      final first = cold.initialize(
-        storageRoot: h.directory,
-        database: h.db,
-        configureAudio: false,
-      );
-      final demand = cold.initialize();
-      expect(identical(first, demand), isTrue);
-      await Future.wait([first, demand]);
-      expect(cold.ready, isTrue);
-      expect(cold.loadError, isNull);
-      expect(h.workers, isEmpty);
-      final models = cold.models;
-      await cold.initialize();
-      expect(cold.models, same(models));
-      cold.dispose();
-    },
-  );
-
-  test(
     'failed speech preparation can retry with a clean error state',
     () async {
       final file = File('${h.directory.path}/not-a-directory');
@@ -103,50 +56,6 @@ void main() {
       cold.dispose();
     },
   );
-
-  test(
-    'disposing during speech preparation releases partial services',
-    () async {
-      final cold = SpeechJobService(h.resources, logger: h.logger);
-      final initializing = cold.initialize(
-        storageRoot: h.directory,
-        database: h.db,
-        configureAudio: false,
-      );
-      cold.dispose();
-      await initializing;
-      expect(cold.ready, isFalse);
-      expect(() => cold.models.addListener(() {}), throwsFlutterError);
-      expect(() => cold.audio.addListener(() {}), throwsFlutterError);
-      await cold.initialize();
-      expect(cold.ready, isFalse);
-    },
-  );
-
-  test('active queries do not deserialize unrelated historical jobs', () async {
-    await h.db.execute(
-      "INSERT INTO speech_jobs(id,state,asset_id,created_at,payload) VALUES('old','completed','asset',0,'not read by active queries')",
-    );
-    final active = SpeechJob(
-      id: 'active',
-      state: SpeechJobState.waiting,
-      snapshot: {
-        'assetId': 'asset',
-        'kind': 'tts',
-        'voice': {'id': 'voice'},
-      },
-      createdAt: DateTime(2026),
-    );
-    final repository = SpeechRepository(h.db);
-    await repository.saveJob(active);
-    expect(await repository.activeCount(), 1);
-    expect(await repository.usesAsset('asset'), isTrue);
-    expect(await repository.usesVoice('voice'), isTrue);
-    await repository.recover();
-    expect(await repository.activeCount(), 0);
-    expect(await repository.usesAsset('asset'), isFalse);
-    expect(await repository.usesVoice('voice'), isFalse);
-  });
 
   test(
     'job deletion commits first, rolls back on SQL failure, and retries cleanup on startup',

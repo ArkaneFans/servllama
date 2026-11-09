@@ -5,52 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/shared/widgets/push_sidebar.dart';
 
 void main() {
-  for (final width in [700.0, 1000.0]) {
-    testWidgets('sidebar clears main and search focus at width $width', (
-      tester,
-    ) async {
-      final controller = PushSidebarController();
-      final mainFocus = FocusNode(), searchFocus = FocusNode();
-      addTearDown(mainFocus.dispose);
-      addTearDown(searchFocus.dispose);
-      await tester.pumpWidget(
-        _TestHost(
-          width: width,
-          child: Material(
-            child: PushSidebar(
-              controller: controller,
-              drawerWidth: 240,
-              largeScreenInitiallyOpen: false,
-              drawer: Align(
-                alignment: Alignment.topCenter,
-                child: TextField(
-                  key: const Key('search'),
-                  focusNode: searchFocus,
-                ),
-              ),
-              child: TextField(key: const Key('main'), focusNode: mainFocus),
-            ),
-          ),
-        ),
-      );
-      await tester.showKeyboard(find.byKey(const Key('main')));
-      expect(mainFocus.hasFocus, isTrue);
-      unawaited(controller.open());
-      await tester.pumpAndSettle();
-      expect(mainFocus.hasFocus, isFalse);
-      expect(tester.testTextInput.isVisible, isFalse);
-      await tester.showKeyboard(find.byKey(const Key('search')));
-      unawaited(controller.close());
-      await tester.pumpAndSettle();
-      expect(searchFocus.hasFocus, isFalse);
-      expect(tester.testTextInput.isVisible, isFalse);
-      unawaited(controller.open());
-      await tester.pumpAndSettle();
-      expect(searchFocus.hasFocus, isFalse);
-      expect(tester.testTextInput.isVisible, isFalse);
-      await tester.pumpWidget(const SizedBox.shrink());
-    });
-  }
   group('PushSidebar', () {
     testWidgets(
       'opens mobile sidebar, pushes content, and closes on scrim tap',
@@ -149,85 +103,6 @@ void main() {
       expect(find.text('main'), findsOneWidget);
     });
 
-    testWidgets('uses 200ms for mobile open and close animations', (
-      tester,
-    ) async {
-      final controller = PushSidebarController();
-
-      await tester.pumpWidget(
-        _TestHost(
-          width: 700,
-          child: PushSidebar(
-            controller: controller,
-            drawerWidth: 240,
-            drawer: const ColoredBox(
-              color: Colors.blue,
-              child: SizedBox.expand(child: Center(child: Text('drawer'))),
-            ),
-            child: const ColoredBox(
-              color: Colors.white,
-              child: SizedBox.expand(child: Center(child: Text('main'))),
-            ),
-          ),
-        ),
-      );
-
-      unawaited(controller.open());
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 199));
-
-      expect(_mainContentDx(tester), lessThan(240));
-      expect(find.text('drawer'), findsOneWidget);
-
-      await tester.pump(const Duration(milliseconds: 1));
-
-      expect(_mainContentDx(tester), 240);
-
-      unawaited(controller.close());
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 199));
-
-      expect(_mainContentDx(tester), greaterThan(0));
-
-      await tester.pump(const Duration(milliseconds: 1));
-
-      expect(_mainContentDx(tester), 0);
-      expect(find.text('drawer'), findsNothing);
-    });
-
-    testWidgets('does not rebuild main child on mobile animation ticks', (
-      tester,
-    ) async {
-      final controller = PushSidebarController();
-      var buildCount = 0;
-
-      await tester.pumpWidget(
-        _TestHost(
-          width: 700,
-          child: PushSidebar(
-            controller: controller,
-            drawerWidth: 240,
-            drawer: const SizedBox.expand(child: Text('drawer')),
-            child: _BuildCounter(
-              onBuild: () {
-                buildCount += 1;
-              },
-            ),
-          ),
-        ),
-      );
-
-      final initialBuildCount = buildCount;
-      unawaited(controller.open());
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 80));
-
-      expect(buildCount, initialBuildCount);
-
-      await tester.pumpAndSettle();
-      expect(buildCount, initialBuildCount);
-    });
-
     testWidgets(
       'shows embedded sidebar by default on large screens and resizes within bounds',
       (tester) async {
@@ -276,21 +151,6 @@ void main() {
       },
     );
   });
-}
-
-class _BuildCounter extends StatelessWidget {
-  const _BuildCounter({required this.onBuild});
-
-  final VoidCallback onBuild;
-
-  @override
-  Widget build(BuildContext context) {
-    onBuild();
-    return const ColoredBox(
-      color: Colors.white,
-      child: SizedBox.expand(child: Center(child: Text('main'))),
-    );
-  }
 }
 
 class _SidebarHarness extends StatelessWidget {

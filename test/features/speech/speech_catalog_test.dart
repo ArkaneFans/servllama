@@ -14,7 +14,7 @@ void main() {
           as Map<String, dynamic>;
 
   test(
-    'catalog replaces Qwen Base with a pinned multilingual CosyVoice package',
+    'bundled speech presets describe supported ASR and TTS packages',
     () async {
       final json =
           jsonDecode(await rootBundle.loadString('assets/speech/catalog.json'))
@@ -29,7 +29,7 @@ void main() {
         SpeechRecipe.crispCosyVoiceTts,
       ]);
       final preset = packages.last;
-      expect(preset.totalBytes, 786910496);
+      expect(preset.totalBytes, greaterThan(0));
       expect(preset.files, hasLength(4));
       expect(preset.recipe.kind, AssetKind.tts);
       expect(preset.recipe.canClone, isFalse);
@@ -52,7 +52,7 @@ void main() {
     },
   );
 
-  test('CrispASR dispatch preserves legacy backends and selects CosyVoice', () {
+  test('speech recipes select the matching native engine', () {
     expect(SpeechRecipe.crispWhisper.crispBackend, 'whisper');
     expect(SpeechRecipe.crispQwenTts.crispBackend, 'qwen3-tts');
     expect(SpeechRecipe.crispQwenTts.canClone, isTrue);

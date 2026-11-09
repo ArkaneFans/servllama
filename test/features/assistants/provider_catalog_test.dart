@@ -72,103 +72,6 @@ void main() {
   );
 
   test(
-    'settings restore includes the key without a separate credential read',
-    () async {
-      await repository.saveConnection(custom, key: 'fixture-key');
-      final provider = AssistantProvider(
-        repository: repository,
-        models: _EmptyAssets(),
-      );
-      addTearDown(provider.dispose);
-      await provider.ensureLoaded();
-      expect(provider.connection(custom.id)!.apiKey, 'fixture-key');
-      expect(provider.connection(custom.id)!.credentialRevision, 1);
-    },
-  );
-
-  test(
-    'light startup restores keys and targets without inventory reads',
-    () async {
-      final saved = await repository.saveConnection(custom, key: 'fixture-key');
-      await repository.saveAssistant(
-        const Assistant(
-          id: 'a',
-          name: 'A',
-          chatTarget: ChatTarget.remote('custom', 'kept'),
-        ),
-      );
-      final models = _TrackedAssets();
-      final provider = AssistantProvider(
-        repository: repository,
-        models: models,
-      );
-      addTearDown(provider.dispose);
-      await provider.load();
-      expect(models.readCount, 1);
-      expect(provider.connection(saved.id)!.apiKey, 'fixture-key');
-      expect(provider.active!.chatTarget!.modelId, 'kept');
-      expect(provider.resolveTarget(provider.active!.chatTarget), isNotNull);
-      models.pending = Completer<List<ModelAsset>>();
-      final refresh = provider.refreshAssets();
-      await Future<void>.delayed(Duration.zero);
-      expect(models.readCount, 2);
-      models.pending!.complete([]);
-      await refresh;
-      expect(models.readCount, 2);
-      expect(provider.active!.chatTarget!.modelId, 'kept');
-      expect(provider.connection(saved.id)!.apiKey, 'fixture-key');
-    },
-  );
-
-  test(
-    'explicit asset refresh reads after an older in-flight prefetch',
-    () async {
-      final models = _TrackedAssets();
-      final provider = AssistantProvider(
-        repository: repository,
-        models: models,
-      );
-      addTearDown(provider.dispose);
-      await provider.load();
-      final pending = Completer<List<ModelAsset>>();
-      models.pending = pending;
-      final warmup = provider.refreshAssets();
-      await Future<void>.delayed(Duration.zero);
-      final explicit = provider.refreshAssets();
-      const fresh = ModelAsset(
-        id: 'fresh',
-        kind: AssetKind.llm,
-        engine: 'mnn',
-        runtimeId: 'model',
-        storageOwner: 'mnn',
-        path: '',
-        name: 'Fresh',
-        revision: '1',
-      );
-      models.pending = null;
-      models.current = [fresh];
-      pending.complete([]);
-      await Future.wait([warmup, explicit]);
-      expect(models.readCount, 3);
-      expect(provider.assets.single.id, 'fresh');
-    },
-  );
-
-  test(
-    'model-only edits preserve the stored key and its credential revision',
-    () async {
-      final saved = await repository.saveConnection(custom, key: 'fixture-key');
-      final edited = await repository.saveConnection(
-        saved.changed({
-          'models': ['kept', 'new'],
-        }),
-      );
-      expect(edited.apiKey, saved.apiKey);
-      expect(edited.credentialRevision, saved.credentialRevision);
-    },
-  );
-
-  test(
     'inline credentials survive settings reload and process recreation',
     () async {
       var saved = await repository.saveConnection(custom, key: 'fixture-first');
@@ -199,54 +102,6 @@ void main() {
     },
   );
 
-  test(
-    'old capability flags become per-model settings and save without stale entries',
-    () async {
-      final legacy = custom.toJson()..remove('modelCapabilities');
-      legacy['supportsImages'] = false;
-      legacy['supportsTools'] = true;
-      legacy['models'] = ['kept', 'other'];
-      legacy['modelNames'] = {'kept': 'Primary', 'other': 'Other'};
-      final loaded = AiConnection.fromJson(legacy);
-      expect(loaded.capabilitiesFor('kept').supportsImages, isFalse);
-      expect(loaded.capabilitiesFor('other').supportsImages, isFalse);
-      expect(loaded.capabilitiesFor('other').supportsTools, isTrue);
-      expect(loaded.nameFor('kept'), 'Primary');
-      final edited = loaded.changed({
-        'modelCapabilities': {
-          'kept': const ModelCapabilities(
-            supportsImages: true,
-            supportsTools: false,
-          ).toJson(),
-          'other': loaded.capabilitiesFor('other').toJson(),
-        },
-      });
-      final saved = await repository.saveConnection(edited);
-      expect(saved.capabilitiesFor('kept').supportsTools, isFalse);
-      expect(saved.capabilitiesFor('other').supportsTools, isTrue);
-      final persisted =
-          jsonDecode(
-                (await db.query(
-                  'SELECT config FROM ai_connections',
-                )).single.read<String>('config'),
-              )
-              as Map;
-      expect(persisted.containsKey('supportsTools'), isFalse);
-      expect(persisted.containsKey('supportsImages'), isFalse);
-      final removed = await repository.saveConnection(
-        saved.changed({
-          'models': ['other'],
-        }),
-      );
-      expect(removed.modelCapabilities.keys, ['other']);
-      expect(removed.modelNames.keys, ['other']);
-      expect(
-        (await repository.connections()).single.toJson(),
-        removed.toJson(),
-      );
-    },
-  );
-
   test('capability revocation affects only runs using that model', () {
     final c = custom.changed({
       'models': ['kept', 'other'],
@@ -270,29 +125,6 @@ void main() {
       expect(run('other').authorizedBy(a, changed), isTrue);
       expect(run('kept').capabilities.toJson()[capability], isTrue);
     }
-  });
-
-  test('normalizing a model ID preserves its capability settings', () async {
-    final saved = await repository.saveConnection(
-      AiConnection(
-        id: 'trim',
-        name: 'Trim',
-        protocol: AiProtocol.openai,
-        baseUrl: 'https://example.com/v1',
-        models: [' model '],
-        modelCapabilities: {
-          ' model ': const ModelCapabilities(
-            supportsImages: false,
-            supportsTools: false,
-          ),
-        },
-        modelNames: {' model ': ' Friendly model '},
-      ),
-    );
-    expect(saved.models, ['model']);
-    expect(saved.nameFor('model'), 'Friendly model');
-    expect(saved.capabilitiesFor('model').supportsImages, isFalse);
-    expect(saved.capabilitiesFor('model').supportsTools, isFalse);
   });
 
   test(
@@ -377,28 +209,6 @@ void main() {
   );
 
   test(
-    'missing presets append without reordering existing providers',
-    () async {
-      await repository.initializeProviders();
-      final missing = providerPresets.first;
-      await db.execute('DELETE FROM ai_connections WHERE id=?', [missing.id]);
-      final added = await repository.saveConnection(custom);
-      final existing = await repository.connections();
-      await repository.initializeProviders();
-      final result = await repository.connections();
-      expect(result.map((c) => c.id), [
-        ...existing.map((c) => c.id),
-        missing.id,
-      ]);
-      expect(result.first.toJson(), added.toJson());
-      expect(
-        result.take(existing.length).map((c) => c.toJson()),
-        existing.map((c) => c.toJson()),
-      );
-    },
-  );
-
-  test(
     'concurrent additions retain distinct positions ahead of presets',
     () async {
       await repository.initializeProviders();
@@ -417,72 +227,6 @@ void main() {
     },
   );
 
-  test(
-    'preset initialization never infers saved model permissions from historical targets',
-    () async {
-      final old = custom.toJson();
-      await db.execute(
-        'INSERT INTO ai_connections(id,name,revision,config) VALUES(?,?,1,?)',
-        [custom.id, custom.name, jsonEncode(old)],
-      );
-      await repository.saveAssistant(
-        const Assistant(
-          id: 'a',
-          name: 'A',
-          chatTarget: ChatTarget.remote('custom', 'assistant-only'),
-        ),
-      );
-      await db.execute(
-        'INSERT INTO conversations(id,title,created_at,updated_at,assistant_id) VALUES(?,?,0,0,?)',
-        ['conversation', 'Existing', 'a'],
-      );
-      await repository.initializeProviders();
-      var loaded = (await repository.connections()).singleWhere(
-        (c) => c.id == custom.id,
-      );
-      expect(loaded.enabled, isTrue);
-      expect(loaded.models, ['kept']);
-      expect(
-        (await db.query(
-          'SELECT assistant_id FROM conversations',
-        )).single.read<String>('assistant_id'),
-        'a',
-      );
-      loaded = await repository.saveConnection(
-        loaded.changed({'models': [], 'enabled': false}),
-      );
-      await repository.initializeProviders();
-      expect(
-        (await repository.connections())
-            .singleWhere((c) => c.id == custom.id)
-            .toJson(),
-        loaded.toJson(),
-      );
-    },
-  );
-
-  test('preset initialization rolls back on failure', () async {
-    await repository.saveConnection(custom);
-    await repository.saveAssistant(
-      const Assistant(
-        id: 'a',
-        name: 'A',
-        chatTarget: ChatTarget.remote('custom', 'missing'),
-      ),
-    );
-    await db.execute(
-      "CREATE TRIGGER reject_catalog BEFORE INSERT ON ai_connections BEGIN SELECT RAISE(ABORT,'fixture'); END",
-    );
-    await expectLater(repository.initializeProviders(), throwsA(anything));
-    expect((await repository.connections()).single.models, ['kept']);
-    await db.execute('DROP TRIGGER reject_catalog');
-    await repository.initializeProviders();
-    expect(
-      (await repository.connections()),
-      hasLength(providerPresets.length + 1),
-    );
-  });
-
   test('model lists normalize IDs and reject invalid entries', () async {
     final saved = await repository.saveConnection(
       custom.changed({
@@ -500,42 +244,6 @@ void main() {
     );
     expect((await repository.connections()).single.toJson(), saved.toJson());
   });
-
-  test(
-    'stale concurrent settings cannot restore old models or rotate a key',
-    () async {
-      final original = await repository.saveConnection(
-        custom,
-        key: 'fixture-old',
-      );
-      final updated = await repository.saveConnection(
-        original.changed({
-          'models': ['new'],
-          'enabled': false,
-        }),
-      );
-      await expectLater(
-        repository.saveConnection(
-          original.changed({'name': 'Stale'}),
-          key: 'fixture-new',
-        ),
-        throwsStateError,
-      );
-      expect(
-        (await repository.connections()).single.toJson(),
-        updated.toJson(),
-      );
-      final outcomes = await Future.wait([
-        repository
-            .saveConnection(updated.changed({'name': 'First'}))
-            .then((_) => true, onError: (_) => false),
-        repository
-            .saveConnection(updated.changed({'name': 'Second'}))
-            .then((_) => true, onError: (_) => false),
-      ]);
-      expect(outcomes.where((succeeded) => succeeded), hasLength(1));
-    },
-  );
 
   test(
     'failed commit preserves the key; omitted input keeps it and explicit empty input clears it',

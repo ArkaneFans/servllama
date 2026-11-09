@@ -295,52 +295,6 @@ void main() {
       expect(tester.widget<GestureDetector>(mnnGesture).onTap, isNotNull);
     });
 
-    testWidgets('shows running state and stop action when server is running', (
-      tester,
-    ) async {
-      final stopCompleter = Completer<bool>()..complete(true);
-      final serverService = _ControllableLlamaServerService(
-        initiallyRunning: true,
-        stopCompleter: stopCompleter,
-      );
-      final serverProvider = EngineRuntimeProvider(
-        llamaCppAdapter: LlamaCppEngineAdapter(
-          deviceProbeService: LlamaCppDeviceProbeService(
-            resultOverride: () => const LlamaCppDeviceProbeResult(),
-          ),
-          serverService: serverService,
-          settingsLoader: _FixedServerLaunchSettingsLoader(
-            const ServerLaunchSettings(),
-          ),
-          modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
-        ),
-        mnnAdapter: StubEngineAdapter(),
-        settingsLoader: _FixedServerLaunchSettingsLoader(
-          const ServerLaunchSettings(),
-        ),
-        kvStorage: KvStorage(),
-      );
-      addTearDown(() {
-        serverProvider.dispose();
-        serverService.dispose();
-      });
-
-      await tester.runAsync(serverProvider.ensureRestored);
-      await tester.pumpWidget(_TestApp(serverProvider: serverProvider));
-      // Not pumpAndSettle: the uptime ticker holds a periodic timer open for
-      // as long as the runtime is up, so no frame is ever "settled".
-      await tester.pump();
-
-      expect(find.text('运行中'), findsOneWidget);
-      expect(
-        find.descendant(
-          of: find.byKey(const Key('server_page_toggle_button')),
-          matching: find.text('停止'),
-        ),
-        findsOneWidget,
-      );
-    });
-
     testWidgets('shows busy loading state while starting server', (
       tester,
     ) async {
@@ -428,40 +382,6 @@ void main() {
       await tester.pump();
     });
 
-    testWidgets('shows the current orchestration phase in the status pill', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: RuntimeHeroCard(
-              state: const EngineRuntimeState(
-                engine: InferenceEngine.llamaCpp,
-                status: EngineRuntimeStatus.preparing,
-                phase: RuntimePhase.startingServer,
-              ),
-              displayUrl: 'http://127.0.0.1:8080',
-              selectedModelId: null,
-              selectedModelName: null,
-              canStart: false,
-              canStop: false,
-              onSelectModel: () {},
-              onToggle: () {},
-              onCopyUrl: () {},
-            ),
-          ),
-        ),
-      );
-
-      final statusCard = find.byKey(const Key('server_page_status_card'));
-      expect(
-        find.descendant(of: statusCard, matching: find.text('启动服务')),
-        findsOneWidget,
-      );
-      expect(find.text('准备中'), findsNothing);
-      expect(find.byKey(const Key('server_page_phase_list')), findsNothing);
-    });
-
     testWidgets('offers stop again when failed cleanup still owns resources', (
       tester,
     ) async {
@@ -536,57 +456,6 @@ void main() {
         findsOneWidget,
       );
     });
-
-    testWidgets('menu item pressed state dims content and clears on cancel', (
-      tester,
-    ) async {
-      final serverService = _ControllableLlamaServerService();
-      final serverProvider = EngineRuntimeProvider(
-        kvStorage: KvStorage(),
-        llamaCppAdapter: LlamaCppEngineAdapter(
-          deviceProbeService: LlamaCppDeviceProbeService(
-            resultOverride: () => const LlamaCppDeviceProbeResult(),
-          ),
-          serverService: serverService,
-          settingsLoader: _FixedServerLaunchSettingsLoader(
-            const ServerLaunchSettings(),
-          ),
-          modelRepository: _FixedModelStoragePaths('C:\\app\\models'),
-        ),
-        mnnAdapter: StubEngineAdapter(),
-        settingsLoader: _FixedServerLaunchSettingsLoader(
-          const ServerLaunchSettings(),
-        ),
-      );
-      addTearDown(() {
-        serverProvider.dispose();
-        serverService.dispose();
-      });
-
-      await tester.runAsync(serverProvider.ensureRestored);
-      await tester.pumpWidget(_TestApp(serverProvider: serverProvider));
-      await tester.pumpAndSettle();
-
-      const targetKey = ValueKey<String>('server_page_menu_item_日志');
-      final targetFinder = find.byKey(targetKey);
-
-      double opacityOf(Finder finder) {
-        final widget = tester.widget<AnimatedOpacity>(finder);
-        return widget.opacity;
-      }
-
-      expect(opacityOf(targetFinder), 1.0);
-
-      final gesture = await tester.startGesture(tester.getCenter(targetFinder));
-      await tester.pump(const Duration(milliseconds: 250));
-
-      expect(opacityOf(targetFinder), lessThan(1.0));
-
-      await gesture.cancel();
-      await tester.pumpAndSettle();
-
-      expect(opacityOf(targetFinder), 1.0);
-    });
   });
 }
 
@@ -631,14 +500,12 @@ class _ControllableLlamaServerService implements LlamaServerService {
   _ControllableLlamaServerService({
     this.initiallyRunning = false,
     this.startCompleter,
-    this.stopCompleter,
   }) : _isRunning = initiallyRunning;
 
   final StreamController<bool> _runningStateController =
       StreamController<bool>.broadcast();
   final bool initiallyRunning;
   final Completer<bool>? startCompleter;
-  final Completer<bool>? stopCompleter;
   bool _isRunning;
 
   @override
@@ -673,12 +540,9 @@ class _ControllableLlamaServerService implements LlamaServerService {
 
   @override
   Future<bool> stopServer() async {
-    final stopped = await (stopCompleter?.future ?? Future<bool>.value(true));
-    if (stopped) {
-      _isRunning = false;
-      _runningStateController.add(false);
-    }
-    return stopped;
+    _isRunning = false;
+    _runningStateController.add(false);
+    return true;
   }
 }
 

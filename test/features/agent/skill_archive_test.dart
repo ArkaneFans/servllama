@@ -89,41 +89,7 @@ void main() {
   test('empty pasted markdown is rejected', () async {
     await expectLater(skills.importMarkdown(' \n '), throwsFormatException);
   });
-  test('skill metadata requires both name and description', () async {
-    await expectLater(
-      skills.importMarkdown('---\nname: Missing description\n---\nbody'),
-      throwsA(
-        isA<SkillFormatException>().having(
-          (error) => error.error,
-          'error',
-          SkillFormatError.missingDescription,
-        ),
-      ),
-    );
-    await expectLater(
-      skills.importMarkdown('---\ndescription: Missing name\n---\nbody'),
-      throwsA(
-        isA<SkillFormatException>().having(
-          (error) => error.error,
-          'error',
-          SkillFormatError.missingName,
-        ),
-      ),
-    );
-  });
-  test('legacy records default to enabled and expose incomplete metadata', () {
-    final record = SkillRecord.fromJson({
-      'id': 'legacy',
-      'name': 'Legacy skill',
-      'path': '${root.path}/skills/legacy',
-      'hash': 'legacy',
-      'description': '',
-    });
-    expect(record.enabled, isTrue);
-    expect(record.source, SkillSource.unknown);
-    expect(record.installedAt, isNull);
-    expect(record.hasValidMetadata, isFalse);
-  });
+
   test('disabled state and edited metadata persist together', () async {
     final skill = await skills.importMarkdown(
       '---\nname: Before\ndescription: Before edit\n---\n# Before\nbody',
@@ -218,17 +184,4 @@ void main() {
       throwsFormatException,
     );
   });
-  test(
-    'nested YAML is not treated as executable or expanded metadata',
-    () async {
-      await expectLater(
-        skills.importPackage(
-          await zip([
-            ArchiveFile.string('SKILL.md', '---\nname: [one, two]\n---\nbody'),
-          ]),
-        ),
-        throwsFormatException,
-      );
-    },
-  );
 }

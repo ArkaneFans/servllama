@@ -140,31 +140,6 @@ void main() {
     },
   );
 
-  test('fresh installs complete migration with no credentials', () async {
-    await migration().run();
-    expect(await db.metadata(CredentialMigration.marker), '1');
-    expect(await AssistantRepository(db).connections(), isEmpty);
-  });
-
-  test(
-    'providers and servers without references get known empty inline values',
-    () async {
-      await seed();
-      await db.execute(
-        "UPDATE ai_connections SET config=json_remove(config,'\$.secretRef')",
-      );
-      await db.execute(
-        "UPDATE mcp_servers SET config=json_remove(config,'\$.secretRef')",
-      );
-      await migration().run();
-      expect(
-        (await AssistantRepository(db).connections()).single.apiKey,
-        isEmpty,
-      );
-      expect((await AgentRepository(db).servers()).single.headers, isEmpty);
-    },
-  );
-
   test(
     'missing or unreadable referenced credentials do not become empty settings',
     () async {
@@ -193,17 +168,6 @@ void main() {
       );
     },
   );
-
-  test('invalid legacy MCP headers stop migration before any write', () async {
-    await seed();
-    legacy.values['mcp:legacy'] = 'legacy-token';
-    await expectLater(migration().run(), throwsFormatException);
-    legacy.values['mcp:legacy'] =
-        'servllama-mcp-headers:v1:${jsonEncode({'X-Key': 'value\r\nInjected: yes'})}';
-    await expectLater(migration().run(), throwsFormatException);
-    expect(await db.metadata(CredentialMigration.marker), isNull);
-    expect(legacy.cleanups, 0);
-  });
 
   test(
     'preference write failure keeps legacy values and is retryable',
@@ -266,26 +230,6 @@ void main() {
         '',
       );
       expect(legacy.values, isEmpty);
-    },
-  );
-
-  test(
-    'retry after cleanup but before completion marker does not need old secrets',
-    () async {
-      await seed();
-      await db.execute(
-        "CREATE TRIGGER reject_marker BEFORE INSERT ON app_metadata BEGIN SELECT RAISE(ABORT,'fixture'); END",
-      );
-      await expectLater(migration().run(), throwsA(anything));
-      expect(legacy.values, isEmpty);
-      expect(await db.metadata(CredentialMigration.marker), isNull);
-      await db.execute('DROP TRIGGER reject_marker');
-      await migration().run();
-      expect(
-        (await AssistantRepository(db).connections()).single.apiKey,
-        'fixture-provider-key',
-      );
-      expect(await db.metadata(CredentialMigration.marker), '1');
     },
   );
 

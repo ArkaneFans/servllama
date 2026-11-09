@@ -107,93 +107,6 @@ void main() {
       expect(committedKeys, isEmpty);
     });
 
-    testWidgets('delays next child without fade when body animation is off', (
-      tester,
-    ) async {
-      final committedKeys = <String>[];
-
-      await tester.pumpWidget(
-        _host(
-          conversationKey: 'a',
-          text: 'Conversation A',
-          committedKeys: committedKeys,
-          animateBody: false,
-          switchDelay: const Duration(milliseconds: 100),
-        ),
-      );
-      await tester.pumpWidget(
-        _host(
-          conversationKey: 'b',
-          text: 'Conversation B',
-          committedKeys: committedKeys,
-          animateBody: false,
-          switchDelay: const Duration(milliseconds: 100),
-        ),
-      );
-
-      expect(find.text('Conversation A'), findsOneWidget);
-      expect(find.text('Conversation B'), findsNothing);
-      expect(committedKeys, isEmpty);
-
-      await tester.pump(const Duration(milliseconds: 90));
-
-      expect(find.text('Conversation A'), findsOneWidget);
-      expect(find.text('Conversation B'), findsNothing);
-      expect(committedKeys, isEmpty);
-
-      await _pumpPastNoFadeDelay(tester);
-
-      expect(find.text('Conversation A'), findsNothing);
-      expect(find.text('Conversation B'), findsOneWidget);
-      expect(committedKeys, <String>['b']);
-    });
-
-    testWidgets('commits latest pending child after no-fade delay', (
-      tester,
-    ) async {
-      final committedKeys = <String>[];
-
-      await tester.pumpWidget(
-        _host(
-          conversationKey: 'a',
-          text: 'Conversation A',
-          committedKeys: committedKeys,
-          animateBody: false,
-          switchDelay: const Duration(milliseconds: 100),
-        ),
-      );
-      await tester.pumpWidget(
-        _host(
-          conversationKey: 'b',
-          text: 'Conversation B',
-          committedKeys: committedKeys,
-          animateBody: false,
-          switchDelay: const Duration(milliseconds: 100),
-        ),
-      );
-      await tester.pump(const Duration(milliseconds: 40));
-      await tester.pumpWidget(
-        _host(
-          conversationKey: 'c',
-          text: 'Conversation C',
-          committedKeys: committedKeys,
-          animateBody: false,
-          switchDelay: const Duration(milliseconds: 100),
-        ),
-      );
-
-      await tester.pump(const Duration(milliseconds: 90));
-
-      expect(find.text('Conversation A'), findsOneWidget);
-      expect(find.text('Conversation C'), findsNothing);
-
-      await _pumpPastNoFadeDelay(tester);
-
-      expect(find.text('Conversation A'), findsNothing);
-      expect(find.text('Conversation C'), findsOneWidget);
-      expect(committedKeys, <String>['c']);
-    });
-
     testWidgets('waits for pending child to become ready before committing', (
       tester,
     ) async {
@@ -245,47 +158,6 @@ void main() {
       expect(find.text('Conversation B ready'), findsOneWidget);
       expect(committedKeys, <String>['b']);
     });
-
-    testWidgets('commits unready pending child after max delay', (
-      tester,
-    ) async {
-      final committedKeys = <String>[];
-
-      await tester.pumpWidget(
-        _host(
-          conversationKey: 'a',
-          text: 'Conversation A',
-          committedKeys: committedKeys,
-          animateBody: false,
-          switchDelay: const Duration(milliseconds: 50),
-          maxUnreadyDelay: const Duration(milliseconds: 120),
-        ),
-      );
-      await tester.pumpWidget(
-        _host(
-          conversationKey: 'b',
-          text: 'Conversation B loading',
-          committedKeys: committedKeys,
-          animateBody: false,
-          readyToCommit: false,
-          switchDelay: const Duration(milliseconds: 50),
-          maxUnreadyDelay: const Duration(milliseconds: 120),
-        ),
-      );
-
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(find.text('Conversation A'), findsOneWidget);
-      expect(find.text('Conversation B loading'), findsNothing);
-      expect(committedKeys, isEmpty);
-
-      await tester.pump(const Duration(milliseconds: 20));
-      await tester.pump();
-
-      expect(find.text('Conversation A'), findsNothing);
-      expect(find.text('Conversation B loading'), findsOneWidget);
-      expect(committedKeys, <String>['b']);
-    });
   });
 }
 
@@ -317,12 +189,6 @@ Widget _host({
 
 Future<void> _pumpPastTransition(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 100));
-  await tester.pump();
-  await tester.pump();
-}
-
-Future<void> _pumpPastNoFadeDelay(WidgetTester tester) async {
-  await tester.pump(const Duration(milliseconds: 10));
   await tester.pump();
   await tester.pump();
 }

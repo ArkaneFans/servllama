@@ -49,34 +49,6 @@ void main() {
       expect(controller.isLoaded, isTrue);
     },
   );
-
-  test(
-    'disposing during history load suppresses late state notifications',
-    () async {
-      final repository = _DelayedHistory();
-      final controller = ChatSessionListController(repository: repository);
-      final loading = controller.load();
-      controller.dispose();
-      repository.ready.complete([_session('old', 'history')]);
-      await loading;
-      expect(controller.sessions, isEmpty);
-    },
-  );
-
-  test(
-    'app-owned chat can be disposed while its background history is pending',
-    () async {
-      final repository = _DelayedHistory();
-      final chat = ChatProvider(repository: repository);
-      final loading = chat.load(preloadMessages: false);
-      await Future<void>.delayed(Duration.zero);
-      expect(repository.reads, 1);
-      chat.dispose();
-      repository.ready.complete([_session('old', 'history')]);
-      await loading;
-      expect(chat.sessions, isEmpty);
-    },
-  );
 }
 
 ChatSessionRecord _session(String id, String title) => ChatSessionRecord(

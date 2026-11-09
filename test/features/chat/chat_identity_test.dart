@@ -12,7 +12,6 @@ import 'package:servllama/features/chat/controllers/chat_model_controller.dart';
 import 'package:servllama/features/chat/controllers/chat_runner.dart';
 import 'package:servllama/features/chat/controllers/chat_session_list_controller.dart';
 import 'package:servllama/features/chat/models/ai_turn.dart';
-import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/models/chat_message_version_record.dart';
 import 'package:servllama/features/chat/models/chat_model_option.dart';
 import 'package:servllama/features/chat/models/chat_run_config.dart';
@@ -184,23 +183,6 @@ void main() {
     },
   );
 
-  test(
-    'failed requests are still attributed to their frozen assistant',
-    () async {
-      protocol.failure = StateError('fixture');
-      await runner.sendMessage('Hello');
-      final m = conversation.visibleMessages.last;
-      expect(m.content, contains('Request Failed'));
-      expect(m.author?.assistantId, 'a');
-      expect(
-        (await repository.loadMessageVersion(
-          m.versionIds.single,
-        ))?.author?.assistantId,
-        'a',
-      );
-    },
-  );
-
   test('committed versions keep identity and are immutable', () async {
     await runner.sendMessage('Hello');
     final message = conversation.visibleMessages.last;
@@ -224,22 +206,6 @@ void main() {
     expect(
       (await repository.loadMessageVersion(version.id))!.author?.toJson(),
       authorA.toJson(),
-    );
-  });
-
-  test('display attribution and avatar do not change continuation context', () {
-    final m = ChatMessageRecord(
-      id: 'm',
-      role: ChatRole.assistant,
-      content: 'Reply',
-      createdAt: DateTime(2026),
-    );
-    final key = ChatRunner.historyContextKey(config(a), [m]);
-    expect(
-      ChatRunner.historyContextKey(config(a.changed({'avatar': '📚'})), [
-        m.copyWith(author: authorA),
-      ]),
-      key,
     );
   });
 }

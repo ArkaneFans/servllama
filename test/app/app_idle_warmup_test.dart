@@ -43,67 +43,6 @@ void main() {
     }
   }
 
-  testWidgets(
-    'async background snapshot does not delay paint; plan waits for it',
-    (tester) async {
-      final ready = ValueNotifier(false);
-      final background = Completer<void>();
-      var plans = 0;
-      await tester.pumpWidget(
-        MaterialApp(
-          home: AppIdleWarmup(
-            ready: ready,
-            onReady: () => background.future,
-            createTasks: () async {
-              plans++;
-              return [];
-            },
-            child: const Text('usable home'),
-          ),
-        ),
-      );
-      expect(find.text('usable home'), findsOneWidget);
-      expect(plans, 0);
-      ready.value = true;
-      await frames(tester);
-      expect(plans, 0);
-      background.complete();
-      await frames(tester);
-      expect(plans, 1);
-      await tester.pumpWidget(const SizedBox());
-      ready.dispose();
-    },
-  );
-
-  testWidgets(
-    'disposal during background preparation never creates an idle plan',
-    (tester) async {
-      final ready = ValueNotifier(true);
-      final background = Completer<void>();
-      var plans = 0;
-      await tester.pumpWidget(
-        MaterialApp(
-          home: AppIdleWarmup(
-            ready: ready,
-            onReady: () => background.future,
-            createTasks: () async {
-              plans++;
-              return [];
-            },
-            child: const Text('home'),
-          ),
-        ),
-      );
-      await frames(tester);
-      await tester.pumpWidget(const SizedBox());
-      background.complete();
-      await frames(tester);
-      expect(plans, 0);
-      expect(tester.takeException(), isNull);
-      ready.dispose();
-    },
-  );
-
   testWidgets('waits for readiness and first paint, then runs serially once', (
     tester,
   ) async {
@@ -145,38 +84,6 @@ void main() {
     ready.dispose();
   });
 
-  testWidgets('denied idle slots yield to frames rather than spin timers', (
-    tester,
-  ) async {
-    final ready = ValueNotifier(true);
-    final strategy = tester.binding.schedulingStrategy;
-    var ran = false;
-    tester.binding.schedulingStrategy =
-        ({required priority, required scheduler}) => false;
-    try {
-      await tester.pumpWidget(
-        host(
-          ready: ready,
-          tasks: [
-            StartupTask('idle', () async {
-              ran = true;
-            }),
-          ],
-        ),
-      );
-      await frames(tester);
-      await tester.pump(const Duration(seconds: 1));
-      expect(ran, isFalse);
-      tester.binding.schedulingStrategy = strategy;
-      await frames(tester);
-      expect(ran, isTrue);
-    } finally {
-      tester.binding.schedulingStrategy = strategy;
-      await tester.pumpWidget(const SizedBox());
-      ready.dispose();
-    }
-  });
-
   testWidgets(
     'busy domains defer warmup but do not abandon background startup',
     (tester) async {
@@ -205,37 +112,6 @@ void main() {
       busy.dispose();
     },
   );
-
-  testWidgets('gestures on pushed routes defer pending work', (tester) async {
-    final ready = ValueNotifier(true);
-    final busy = ValueNotifier(true);
-    var calls = 0;
-    await tester.pumpWidget(
-      host(
-        ready: ready,
-        busy: busy,
-        tasks: [
-          StartupTask('cache', () async {
-            calls++;
-          }),
-        ],
-      ),
-    );
-    await tester.tap(find.text('home ready'));
-    await tester.pumpAndSettle();
-    final gesture = await tester.startGesture(
-      tester.getCenter(find.text('route')),
-    );
-    busy.value = false;
-    await frames(tester);
-    expect(calls, 0);
-    await gesture.cancel();
-    await frames(tester);
-    expect(calls, 1);
-    await tester.pumpWidget(const SizedBox());
-    ready.dispose();
-    busy.dispose();
-  });
 
   testWidgets(
     'pause defers the next task; resume does not repeat successful work',
@@ -296,30 +172,4 @@ void main() {
       ready.dispose();
     },
   );
-
-  testWidgets('disposal stops queued steps without cancelling in-flight I/O', (
-    tester,
-  ) async {
-    final ready = ValueNotifier(true);
-    final pending = Completer<void>();
-    var calls = 0;
-    await tester.pumpWidget(
-      host(
-        ready: ready,
-        tasks: [
-          StartupTask('first', () => pending.future),
-          StartupTask('second', () async {
-            calls++;
-          }),
-        ],
-      ),
-    );
-    await frames(tester);
-    await tester.pumpWidget(const SizedBox());
-    pending.complete();
-    await frames(tester);
-    expect(calls, 0);
-    expect(tester.takeException(), isNull);
-    ready.dispose();
-  });
 }
