@@ -173,42 +173,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatSelectModel => 'Select model';
 
   @override
-  String get chatRefreshModels => 'Refresh models';
-
-  @override
-  String get chatLoadedModels => 'Loaded models';
-
-  @override
-  String get chatAvailableModels => 'Available models';
-
-  @override
-  String chatNoModels(String title) {
-    return 'No $title';
-  }
-
-  @override
-  String get chatHeroTitle => 'Start chatting';
-
-  @override
-  String get chatHeroDescriptionReady =>
-      'Send a message to start chatting with your local model.';
-
-  @override
-  String get chatHeroDescriptionStartServer =>
-      'Start the server first, then load a model to begin your AI conversation.';
-
-  @override
-  String get chatHeroDescriptionSelectModel =>
-      'The server is running. Load a model to begin your AI conversation.';
-
-  @override
   String get chatStartServer => 'Start server';
-
-  @override
-  String get chatStartingServer => 'Starting...';
-
-  @override
-  String get chatLoadingModel => 'Loading model...';
 
   @override
   String get chatInputHintStartServer =>
@@ -233,39 +198,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatStop => 'Stop';
 
   @override
-  String get chatUnloadModel => 'Unload model';
-
-  @override
-  String get chatModelStatusLoaded => 'Loaded';
-
-  @override
-  String get chatModelStatusLoading => 'Loading';
-
-  @override
   String get chatModelStatusAvailable => 'Available to load';
-
-  @override
-  String get chatModelStatusFailed => 'Load failed';
-
-  @override
-  String chatModelLoadTimeout(Object model) {
-    return 'Model load timed out: $model';
-  }
-
-  @override
-  String chatModelLoadFailed(Object model) {
-    return 'Failed to load model: $model';
-  }
-
-  @override
-  String chatModelUnloadTimeout(Object model) {
-    return 'Model unload timed out: $model';
-  }
-
-  @override
-  String chatModelRequestFailed(Object detail) {
-    return 'Request failed: $detail';
-  }
 
   @override
   String get chatReasoningProcess => 'Reasoning';
@@ -302,15 +235,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatAttachImage => 'Attach image';
-
-  @override
-  String get chatRemoveImage => 'Remove image';
-
-  @override
-  String get chatImageLimitExceeded => 'Maximum 5 images per message';
-
-  @override
-  String get chatImageSizeExceeded => 'Image size cannot exceed 10MB';
 
   @override
   String get settingsTitle => 'Settings';
@@ -399,9 +323,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get settingsUnavailable => 'Coming soon';
-
-  @override
   String get settingsAbout => 'About';
 
   @override
@@ -423,29 +344,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get languageModeSystem => 'Follow system';
 
   @override
-  String get languageModeChinese => 'Simplified Chinese';
-
-  @override
-  String get languageModeEnglish => 'English';
-
-  @override
   String get aboutTitle => 'About';
 
   @override
   String get aboutDescription => 'An LLM inference server on your phone';
 
   @override
-  String aboutVersion(String version) {
-    return 'Version $version';
-  }
-
-  @override
   String get aboutVersionCopied => 'Version copied';
-
-  @override
-  String aboutLlamaCppVersion(String version) {
-    return 'llama.cpp $version';
-  }
 
   @override
   String get aboutStarOnGitHub => 'Star on GitHub';
@@ -519,10 +424,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get serverForegroundNotificationText =>
       'ServLlama server is running in the background';
-
-  @override
-  String get serverStartFailedCheckLogs =>
-      'Server failed to start. Check logs.';
 
   @override
   String serverStartFailed(String error) {
@@ -749,15 +650,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get serverConfigResetAction => 'Restore defaults';
 
   @override
-  String get modelManagementTitle => 'Model management';
-
-  @override
-  String get modelManagementImport => 'Import model';
-
-  @override
-  String get modelManagementImporting => 'Importing...';
-
-  @override
   String modelManagementImportSuccess(String modelName) {
     return 'Model imported: $modelName';
   }
@@ -776,13 +668,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get modelManagementEmptyTitle => 'No models imported yet';
-
-  @override
-  String get modelManagementEmptyDescription =>
-      'After tapping \"Import model\", your local GGUF model list will appear here.';
-
-  @override
   String get modelManagementDeleteBusy => 'Deleting model. Please wait.';
 
   @override
@@ -799,18 +684,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modelManagementDeleteDialogTitle => 'Delete model';
 
   @override
-  String modelManagementDeleteDialogContent(String modelName) {
-    return 'Delete $modelName? This removes the model file and cannot be undone.';
-  }
-
-  @override
   String get modelManagementDeleteTooltip => 'Delete';
-
-  @override
-  String get modelMmprojBadgeLabel => 'Multimodal';
-
-  @override
-  String get modelTextBadgeLabel => 'Text';
 
   @override
   String get modelManagementSettingsTooltip => 'Settings';
@@ -819,16 +693,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modelSettingsNameLabel => 'Model name';
 
   @override
-  String get modelSettingsMmprojLabel => 'Multimodal projector';
-
-  @override
   String get modelSettingsImportMmproj => 'Import mmproj file';
-
-  @override
-  String get modelSettingsDownloadMmproj => 'Download mmproj';
-
-  @override
-  String get modelSettingsReplaceMmproj => 'Replace mmproj';
 
   @override
   String get modelSettingsRemoveMmproj => 'Remove mmproj';
@@ -969,9 +834,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appLogsFilterErrors => 'Errors only';
 
   @override
-  String get engineSectionTitle => 'Inference engine';
-
-  @override
   String get serverStatusIdle => 'Stopped';
 
   @override
@@ -1068,9 +930,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modelLibraryTitle => 'Models';
 
   @override
-  String get modelLibraryAddTitle => 'Add a model';
-
-  @override
   String get modelLibraryFilterAll => 'All';
 
   @override
@@ -1078,13 +937,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get modelLibraryInstalledSection => 'Installed';
-
-  @override
-  String get modelAddDownload => 'Download from a hub';
-
-  @override
-  String get modelAddDownloadDesc =>
-      'Hugging Face and ModelScope, with resume support';
 
   @override
   String get modelAddGguf => 'Import a GGUF file';
@@ -1098,10 +950,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get modelAddMnnDirDesc =>
       'An MNN model is a self-contained model directory';
-
-  @override
-  String get modelFormatExplainer =>
-      'GGUF is a single file; MNN models are whole directories. The engine badge on each card tells them apart.';
 
   @override
   String get modelLibraryEmptyTitle => 'No models yet';
@@ -1134,14 +982,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'The running model cannot be deleted';
 
   @override
-  String get modelLibrarySwitchEngineBlocked =>
-      'Stop the running service before switching engines.';
-
-  @override
-  String get modelLibraryActivationFailed =>
-      'Could not activate the model. Check the server logs.';
-
-  @override
   String get modelCapabilityChinese => 'Chinese';
 
   @override
@@ -1160,26 +1000,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get discoverTabFeatured => 'Featured';
 
   @override
-  String get discoverTabSearch => 'Search';
-
-  @override
-  String discoverDeviceMemory(String available, String total) {
-    return '$available of $total RAM available';
-  }
-
-  @override
-  String get discoverDeviceMemoryUnknown =>
-      'Device memory unknown; feasibility is not checked.';
-
-  @override
   String get discoverSearchHint => 'Search repositories';
-
-  @override
-  String get discoverSearchDisclaimer =>
-      'Search results come straight from the hub and have not been verified on a device.';
-
-  @override
-  String get discoverBackToFeatured => 'View device-verified picks';
 
   @override
   String get discoverSortTrending => 'Trending';
@@ -1191,20 +1012,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get discoverSortLikes => 'Likes';
 
   @override
-  String get discoverSortUpdated => 'Recently updated';
-
-  @override
-  String get discoverFormatAll => 'All formats';
-
-  @override
-  String get discoverFeaturedNote =>
-      'Every model here has been run on a real device.';
-
-  @override
   String get discoverNoResults => 'No matching repositories';
-
-  @override
-  String get discoverSearchPrompt => 'Type a model name to search both hubs.';
 
   @override
   String get discoverErrorNetwork =>
@@ -1222,11 +1030,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'The hub returned an unexpected response.';
 
   @override
-  String discoverResultCount(int count) {
-    return '$count results';
-  }
-
-  @override
   String discoverDownloadsCount(int count) {
     return '$count downloads';
   }
@@ -1241,9 +1044,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get repoQuantSectionTitle => 'Quantization';
-
-  @override
-  String get repoFilesSectionTitle => 'Files';
 
   @override
   String get repoDownloadAction => 'Download';
@@ -1319,11 +1119,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get repoVisionNoMmproj => 'This repository has no mmproj files.';
-
-  @override
-  String repoEstimatedMemory(String size) {
-    return 'Needs about $size';
-  }
 
   @override
   String get repoNoGgufFiles => 'This repository has no GGUF files.';
@@ -1584,12 +1379,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsSectionStorage => 'Storage';
 
   @override
-  String get settingsStorageModels => 'Models';
-
-  @override
-  String get settingsStorageDownloads => 'Unfinished downloads';
-
-  @override
   String get settingsClearStaging => 'Clear unfinished downloads';
 
   @override
@@ -1600,21 +1389,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutMnnVersion => 'MNN version';
-
-  @override
-  String aboutMnnVersionDetail(String value) {
-    return 'MNN version: $value';
-  }
-
-  @override
-  String get chatEmptyTitle => 'Pick a model to start';
-
-  @override
-  String get chatEmptyDescription =>
-      'The service starts on its own once a model is chosen.';
-
-  @override
-  String get chatEmptyAction => 'Choose a model';
 
   @override
   String get chatChooseEngineToStart => 'Choose the inference engine to start';
@@ -1629,13 +1403,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatLoadModelAction => 'Load';
-
-  @override
-  String get chatPreparingModel => 'Preparing model';
-
-  @override
-  String get chatEmptyNoModelsDescription =>
-      'Download a model first. Everything runs on this device afterwards.';
 
   @override
   String get mnnBackendTitle => 'MNN inference backend';
@@ -1786,9 +1553,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2FirstAssistants => 'Assistants';
 
   @override
-  String get v2Chat => 'Chat';
-
-  @override
   String get v2Models => 'Models';
 
   @override
@@ -1799,9 +1563,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get v2OperationFailed => 'Operation failed';
-
-  @override
-  String get v2NoInstructions => 'Default conversation behavior';
 
   @override
   String get v2Duplicate => 'Duplicate';
@@ -1816,20 +1577,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2Instructions => 'System instructions';
 
   @override
-  String get v2Connection => 'Provider';
-
-  @override
-  String get v2LocalInference => 'Local inference';
-
-  @override
   String get v2MissingTarget =>
       'Target unavailable. Check that its provider is enabled and the model is listed, or choose another.';
-
-  @override
-  String get v2Model => 'Model';
-
-  @override
-  String get v2CurrentLocal => 'Current local model';
 
   @override
   String get v2ModelId => 'Model ID';
@@ -1863,9 +1612,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2ApiPath => 'API path';
 
   @override
-  String get v2ModelsHelp => 'Model IDs, one per line (manual entry supported)';
-
-  @override
   String get v2Images => 'Image input supported';
 
   @override
@@ -1873,12 +1619,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get v2FetchModels => 'Fetch models';
-
-  @override
-  String get v2TestConnection => 'Test provider';
-
-  @override
-  String get v2TestPassed => 'Test succeeded. Changes are not saved yet.';
 
   @override
   String get v2Profile => 'User profile';
@@ -1935,12 +1675,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get v2ProfileDescriptionHint => 'A short introduction about yourself…';
-
-  @override
-  String get v2StartLocal => 'Load this conversation\'s local model';
-
-  @override
-  String get v2RemoteReady => 'Chat directly with the selected provider';
 
   @override
   String get v2Skills => 'Skills';
@@ -2147,9 +1881,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'The operation may have taken effect. It will not retry automatically. Verify the outcome before starting a new run.';
 
   @override
-  String get v2Details => 'Arguments, target and receipt';
-
-  @override
   String get v2YourAnswer => 'Your answer';
 
   @override
@@ -2331,16 +2062,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2PlaybackSpeed => 'Playback speed (keeps the generated audio)';
 
   @override
-  String get v2InputSnapshot => 'Task input snapshot';
-
-  @override
-  String get v2SpeechPackageHelp =>
-      'Each recipe is a self-contained package. An import ZIP must contain speech-package.json at its root.';
-
-  @override
-  String get v2ImportSpeechPackage => 'Import model ZIP';
-
-  @override
   String get v2Ready => 'Ready';
 
   @override
@@ -2355,9 +2076,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get v2DeleteSpeechModelHelp =>
       'Delete local model files. Existing results remain. Cancel queued jobs first; reference voices require a compatible model.';
-
-  @override
-  String get v2AvailableModels => 'Available recipes';
 
   @override
   String get v2ModelLicenseHelp =>
@@ -2431,11 +2149,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String v2TranscriptDestination(String name) {
-    return 'Destination: $name';
-  }
-
-  @override
   String get v2RetrySpeech => 'Retry as a new task';
 
   @override
@@ -2450,9 +2163,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get v2NativeRestart =>
       'Speech cleanup is unconfirmed. Restart the app before running another speech task. Task records are retained.';
-
-  @override
-  String get v2CancelImport => 'Cancel import';
 
   @override
   String get v2OriginalChatMissing =>
@@ -2580,11 +2290,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2ConversationModel => 'Choose model';
 
   @override
-  String get v2ConversationModelHelp =>
-      'Choose a model by provider. Selecting a local model loads it and starts the service.';
-
-  @override
-  String get v2NoLocalChatModels => 'No models';
+  String get v2NoAvailableModels =>
+      'No available models, please add a provider or local model';
 
   @override
   String get v2AssistantDefaultModel => 'Chat model';
@@ -2689,23 +2396,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'This result was truncated. Only the saved excerpt can be viewed or exported.';
 
   @override
-  String get v2ProviderPreset => 'Preset';
-
-  @override
-  String get v2ProviderCustom => 'Custom';
-
-  @override
-  String get v2ProviderPresetHelp =>
-      'Preset providers cannot be deleted. You can configure or disable them.';
-
-  @override
   String get v2ProviderEnabled => 'Enable provider';
-
-  @override
-  String get v2ProviderOn => 'Enabled';
-
-  @override
-  String get v2ProviderOff => 'Disabled';
 
   @override
   String v2ProviderModelCount(int count) {
@@ -2768,10 +2459,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get v2LocalProviderHelp =>
-      'Managed in the local model library; load or stop models to control the runtime.';
-
-  @override
   String get v2LocalModelLoaded => 'Loaded';
 
   @override
@@ -2802,16 +2489,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsDebug => 'Debug';
-
-  @override
-  String get localModelImport => 'Import local model';
-
-  @override
-  String get localModelChooseImport => 'Choose and import';
-
-  @override
-  String get localModelImportHelp =>
-      'The selected file or folder is copied into app storage. Import starts after selection.';
 
   @override
   String get discoveryQuery => 'Search preset names or engines';
@@ -3223,26 +2900,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get uiLabSend => 'Send preview message';
 
   @override
-  String get uiLabExactValue => 'Value';
-
-  @override
-  String get uiLabNumericHint =>
-      'Drag for a rough value, or type up to two decimal places.';
-
-  @override
-  String uiLabNumericError(String min, String max) {
-    return 'Enter a value from $min to $max, with at most two decimal places.';
-  }
-
-  @override
   String get uiLabMessages => 'Messages';
 
   @override
   String get uiLabMessagesHint =>
       'Centered at the top for 3 seconds. A new message replaces the previous one; you can also dismiss it.';
-
-  @override
-  String get uiLabDismissMessage => 'Dismiss message';
 
   @override
   String get uiLabMessageSuccess => 'Success';

@@ -166,39 +166,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatSelectModel => '选择模型';
 
   @override
-  String get chatRefreshModels => '刷新模型';
-
-  @override
-  String get chatLoadedModels => '已加载模型';
-
-  @override
-  String get chatAvailableModels => '可用模型';
-
-  @override
-  String chatNoModels(String title) {
-    return '暂无$title';
-  }
-
-  @override
-  String get chatHeroTitle => '开始对话';
-
-  @override
-  String get chatHeroDescriptionReady => '输入一条消息，开始与你的本地模型对话。';
-
-  @override
-  String get chatHeroDescriptionStartServer => '请先启动服务器，然后加载一个模型，马上开始你的AI对话~';
-
-  @override
-  String get chatHeroDescriptionSelectModel => '服务器已启动，请加载一个模型，马上开始你的 AI 对话~';
-
-  @override
   String get chatStartServer => '启动服务器';
-
-  @override
-  String get chatStartingServer => '启动中...';
-
-  @override
-  String get chatLoadingModel => '加载模型中...';
 
   @override
   String get chatInputHintStartServer => '模型未加载，请加载模型';
@@ -222,39 +190,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatStop => '停止';
 
   @override
-  String get chatUnloadModel => '卸载模型';
-
-  @override
-  String get chatModelStatusLoaded => '已加载';
-
-  @override
-  String get chatModelStatusLoading => '加载中';
-
-  @override
   String get chatModelStatusAvailable => '可加载';
-
-  @override
-  String get chatModelStatusFailed => '加载失败';
-
-  @override
-  String chatModelLoadTimeout(Object model) {
-    return '模型加载超时：$model，请稍后重试';
-  }
-
-  @override
-  String chatModelLoadFailed(Object model) {
-    return '模型加载失败：$model';
-  }
-
-  @override
-  String chatModelUnloadTimeout(Object model) {
-    return '模型卸载超时：$model';
-  }
-
-  @override
-  String chatModelRequestFailed(Object detail) {
-    return '请求失败：$detail';
-  }
 
   @override
   String get chatReasoningProcess => '深度思考';
@@ -291,15 +227,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get chatAttachImage => '添加图片';
-
-  @override
-  String get chatRemoveImage => '移除图片';
-
-  @override
-  String get chatImageLimitExceeded => '每条消息最多添加5张图片';
-
-  @override
-  String get chatImageSizeExceeded => '图片大小不能超过10MB';
 
   @override
   String get settingsTitle => '设置';
@@ -387,9 +314,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get settingsUnavailable => '暂未开放';
-
-  @override
   String get settingsAbout => '关于';
 
   @override
@@ -411,29 +335,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get languageModeSystem => '跟随系统';
 
   @override
-  String get languageModeChinese => '简体中文';
-
-  @override
-  String get languageModeEnglish => 'English';
-
-  @override
   String get aboutTitle => '关于';
 
   @override
   String get aboutDescription => '手机上的大模型推理服务器';
 
   @override
-  String aboutVersion(String version) {
-    return '版本 $version';
-  }
-
-  @override
   String get aboutVersionCopied => '版本号已复制';
-
-  @override
-  String aboutLlamaCppVersion(String version) {
-    return 'llama.cpp $version';
-  }
 
   @override
   String get aboutStarOnGitHub => '在 GitHub 上点亮 Star';
@@ -506,9 +414,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get serverForegroundNotificationText => 'ServLlama 服务器正在后台运行';
-
-  @override
-  String get serverStartFailedCheckLogs => '启动失败，请查看日志。';
 
   @override
   String serverStartFailed(String error) {
@@ -719,15 +624,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get serverConfigResetAction => '恢复默认';
 
   @override
-  String get modelManagementTitle => '模型管理';
-
-  @override
-  String get modelManagementImport => '导入模型';
-
-  @override
-  String get modelManagementImporting => '导入中...';
-
-  @override
   String modelManagementImportSuccess(String modelName) {
     return '模型导入成功: $modelName';
   }
@@ -746,13 +642,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get modelManagementEmptyTitle => '还没有导入模型';
-
-  @override
-  String get modelManagementEmptyDescription =>
-      '点击右下角“导入模型”后，这里会显示本地 GGUF 模型列表。';
-
-  @override
   String get modelManagementDeleteBusy => '正在删除模型，请稍后。';
 
   @override
@@ -769,18 +658,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modelManagementDeleteDialogTitle => '删除模型';
 
   @override
-  String modelManagementDeleteDialogContent(String modelName) {
-    return '确定删除 $modelName 吗？这会移除模型文件，且无法恢复。';
-  }
-
-  @override
   String get modelManagementDeleteTooltip => '删除';
-
-  @override
-  String get modelMmprojBadgeLabel => '多模态';
-
-  @override
-  String get modelTextBadgeLabel => '文本';
 
   @override
   String get modelManagementSettingsTooltip => '设置';
@@ -789,16 +667,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modelSettingsNameLabel => '模型名称';
 
   @override
-  String get modelSettingsMmprojLabel => '多模态投影器';
-
-  @override
   String get modelSettingsImportMmproj => '导入 mmproj 文件';
-
-  @override
-  String get modelSettingsDownloadMmproj => '下载 mmproj';
-
-  @override
-  String get modelSettingsReplaceMmproj => '更换 mmproj';
 
   @override
   String get modelSettingsRemoveMmproj => '移除 mmproj';
@@ -930,9 +799,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appLogsFilterErrors => '仅错误';
 
   @override
-  String get engineSectionTitle => '推理引擎';
-
-  @override
   String get serverStatusIdle => '未运行';
 
   @override
@@ -1027,9 +893,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modelLibraryTitle => '模型库';
 
   @override
-  String get modelLibraryAddTitle => '添加模型';
-
-  @override
   String get modelLibraryFilterAll => '全部';
 
   @override
@@ -1037,12 +900,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get modelLibraryInstalledSection => '已安装';
-
-  @override
-  String get modelAddDownload => '从模型仓库下载';
-
-  @override
-  String get modelAddDownloadDesc => '支持 Hugging Face 与魔搭，断点续传';
 
   @override
   String get modelAddGguf => '导入 GGUF 文件';
@@ -1055,9 +912,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get modelAddMnnDirDesc => 'MNN模型是独立的模型目录';
-
-  @override
-  String get modelFormatExplainer => 'GGUF 是单个文件，MNN 模型是整个目录。卡片上的引擎徽标用于区分两者。';
 
   @override
   String get modelLibraryEmptyTitle => '还没有模型';
@@ -1089,12 +943,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modelLibraryActiveCannotDelete => '运行中的模型不可删除';
 
   @override
-  String get modelLibrarySwitchEngineBlocked => '当前服务正在运行，请先停止服务再切换引擎。';
-
-  @override
-  String get modelLibraryActivationFailed => '模型激活失败，请查看服务器日志。';
-
-  @override
   String get modelCapabilityChinese => '中文';
 
   @override
@@ -1113,24 +961,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get discoverTabFeatured => '精选';
 
   @override
-  String get discoverTabSearch => '搜索';
-
-  @override
-  String discoverDeviceMemory(String available, String total) {
-    return '可用内存 $available / 共 $total';
-  }
-
-  @override
-  String get discoverDeviceMemoryUnknown => '无法读取设备内存，未做可行性判断。';
-
-  @override
   String get discoverSearchHint => '搜索模型仓库';
-
-  @override
-  String get discoverSearchDisclaimer => '搜索结果直接来自仓库，未经真机验证。';
-
-  @override
-  String get discoverBackToFeatured => '查看真机验证的精选模型';
 
   @override
   String get discoverSortTrending => '综合';
@@ -1142,19 +973,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get discoverSortLikes => '喜欢数';
 
   @override
-  String get discoverSortUpdated => '最近更新';
-
-  @override
-  String get discoverFormatAll => '全部格式';
-
-  @override
-  String get discoverFeaturedNote => '以下模型均经过真机验证。';
-
-  @override
   String get discoverNoResults => '没有匹配的仓库';
-
-  @override
-  String get discoverSearchPrompt => '输入模型名称，在双源仓库中搜索。';
 
   @override
   String get discoverErrorNetwork => '网络不可达，请检查连接或切换线路。';
@@ -1167,11 +986,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get discoverErrorMalformed => '仓库返回了无法解析的响应。';
-
-  @override
-  String discoverResultCount(int count) {
-    return '共 $count 个结果';
-  }
 
   @override
   String discoverDownloadsCount(int count) {
@@ -1188,9 +1002,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get repoQuantSectionTitle => '量化档位';
-
-  @override
-  String get repoFilesSectionTitle => '文件';
 
   @override
   String get repoDownloadAction => '下载';
@@ -1258,11 +1069,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get repoVisionNoMmproj => '该仓库没有 mmproj 文件。';
-
-  @override
-  String repoEstimatedMemory(String size) {
-    return '约需 $size';
-  }
 
   @override
   String get repoNoGgufFiles => '该仓库没有 GGUF 文件。';
@@ -1504,12 +1310,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsSectionStorage => '存储';
 
   @override
-  String get settingsStorageModels => '模型';
-
-  @override
-  String get settingsStorageDownloads => '未完成的下载';
-
-  @override
   String get settingsClearStaging => '清理未完成的下载';
 
   @override
@@ -1520,20 +1320,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aboutMnnVersion => 'MNN 版本';
-
-  @override
-  String aboutMnnVersionDetail(String value) {
-    return 'MNN 版本：$value';
-  }
-
-  @override
-  String get chatEmptyTitle => '选一个模型开始';
-
-  @override
-  String get chatEmptyDescription => '选定模型后服务会自动启动。';
-
-  @override
-  String get chatEmptyAction => '选择模型';
 
   @override
   String get chatChooseEngineToStart => '选择要启动的推理引擎';
@@ -1548,12 +1334,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get chatLoadModelAction => '加载';
-
-  @override
-  String get chatPreparingModel => '模型准备中';
-
-  @override
-  String get chatEmptyNoModelsDescription => '先下载一个模型，之后全程在本机运行。';
 
   @override
   String get mnnBackendTitle => 'MNN 推理后端';
@@ -1692,9 +1472,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2FirstAssistants => '助手';
 
   @override
-  String get v2Chat => '聊天';
-
-  @override
   String get v2Models => '模型';
 
   @override
@@ -1705,9 +1482,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get v2OperationFailed => '操作未完成';
-
-  @override
-  String get v2NoInstructions => '使用默认对话行为';
 
   @override
   String get v2Duplicate => '复制';
@@ -1722,19 +1496,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2Instructions => '系统指令';
 
   @override
-  String get v2Connection => '供应商';
-
-  @override
-  String get v2LocalInference => '本地推理';
-
-  @override
   String get v2MissingTarget => '目标不可用，请检查供应商是否启用、模型是否仍在列表中，或重新选择。';
-
-  @override
-  String get v2Model => '模型';
-
-  @override
-  String get v2CurrentLocal => '当前本地模型';
 
   @override
   String get v2ModelId => '模型 ID';
@@ -1767,9 +1529,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2ApiPath => 'API 路径';
 
   @override
-  String get v2ModelsHelp => '模型 ID，每行一个（可手工输入）';
-
-  @override
   String get v2Images => '支持图片输入';
 
   @override
@@ -1777,12 +1536,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get v2FetchModels => '获取模型列表';
-
-  @override
-  String get v2TestConnection => '测试供应商';
-
-  @override
-  String get v2TestPassed => '测试成功，尚未保存。';
 
   @override
   String get v2Profile => '用户档案';
@@ -1836,12 +1589,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get v2ProfileDescriptionHint => '简单介绍一下自己…';
-
-  @override
-  String get v2StartLocal => '加载当前会话的本地模型';
-
-  @override
-  String get v2RemoteReady => '直接与所选供应商对话';
 
   @override
   String get v2Skills => '技能';
@@ -2042,9 +1789,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2UnknownOutcomeHelp => '操作可能已经生效，不会自动重试。核查结果后再明确发起新的运行。';
 
   @override
-  String get v2Details => '参数、目标与回执';
-
-  @override
   String get v2YourAnswer => '你的回答';
 
   @override
@@ -2216,16 +1960,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2PlaybackSpeed => '播放倍速（不改变已合成音频）';
 
   @override
-  String get v2InputSnapshot => '任务输入快照';
-
-  @override
-  String get v2SpeechPackageHelp =>
-      '语音模型按固定配方安装，每个包独立保存模型、词表、codec 和音色依赖。导入 ZIP 根目录须包含 speech-package.json。';
-
-  @override
-  String get v2ImportSpeechPackage => '导入模型 ZIP';
-
-  @override
   String get v2Ready => '可用';
 
   @override
@@ -2240,9 +1974,6 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get v2DeleteSpeechModelHelp =>
       '删除本机模型文件。已完成的结果会保留；队列中的任务须先取消，参考音色将需要重新选择模型。';
-
-  @override
-  String get v2AvailableModels => '可下载配方';
 
   @override
   String get v2ModelLicenseHelp => '下载前请查看上游模型说明、支持语言和使用许可。';
@@ -2312,11 +2043,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String v2TranscriptDestination(String name) {
-    return '投递到：$name';
-  }
-
-  @override
   String get v2RetrySpeech => '重新创建任务';
 
   @override
@@ -2329,9 +2055,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get v2NativeRestart => '语音资源释放尚未确认。请重启应用后再运行语音任务；当前记录会保留。';
-
-  @override
-  String get v2CancelImport => '取消导入';
 
   @override
   String get v2OriginalChatMissing => '原目标已失效或无法确认，请选择其他会话或助手草稿。转录结果仍会保留。';
@@ -2448,10 +2171,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2ConversationModel => '选择模型';
 
   @override
-  String get v2ConversationModelHelp => '按供应商选择模型。点击本地模型后加载并启动服务。';
-
-  @override
-  String get v2NoLocalChatModels => '暂无模型';
+  String get v2NoAvailableModels => '没有可用模型, 请添加供应商或本地模型';
 
   @override
   String get v2AssistantDefaultModel => '聊天模型';
@@ -2546,22 +2266,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2ToolResultTruncated => '此结果已截断，仅可查看或导出已保存的片段。';
 
   @override
-  String get v2ProviderPreset => '预设';
-
-  @override
-  String get v2ProviderCustom => '自定义';
-
-  @override
-  String get v2ProviderPresetHelp => '预设供应商不可删除，可以修改配置或禁用。';
-
-  @override
   String get v2ProviderEnabled => '启用供应商';
-
-  @override
-  String get v2ProviderOn => '已启用';
-
-  @override
-  String get v2ProviderOff => '已禁用';
 
   @override
   String v2ProviderModelCount(int count) {
@@ -2623,9 +2328,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get v2LocalProviderHelp => '从本地模型库管理，通过加载和停止控制运行。';
-
-  @override
   String get v2LocalModelLoaded => '已加载';
 
   @override
@@ -2654,15 +2356,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsDebug => '调试';
-
-  @override
-  String get localModelImport => '导入本地模型';
-
-  @override
-  String get localModelChooseImport => '选择并导入';
-
-  @override
-  String get localModelImportHelp => '选择文件或目录后即开始导入，文件将复制到应用存储中。';
 
   @override
   String get discoveryQuery => '搜索预设名称或引擎';
@@ -3050,24 +2743,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get uiLabSend => '发送预览消息';
 
   @override
-  String get uiLabExactValue => '精确值';
-
-  @override
-  String get uiLabNumericHint => '滑动粗调，右侧输入精确值，最多两位小数。';
-
-  @override
-  String uiLabNumericError(String min, String max) {
-    return '请输入 $min–$max 范围内的数值，最多两位小数。';
-  }
-
-  @override
   String get uiLabMessages => '消息提示';
 
   @override
   String get uiLabMessagesHint => '顶部居中悬浮，3 秒后消失。新消息替换旧消息，也可手动关闭。';
-
-  @override
-  String get uiLabDismissMessage => '关闭提示';
 
   @override
   String get uiLabMessageSuccess => '成功';

@@ -404,71 +404,11 @@ abstract class AppLocalizations {
   /// **'Select model'**
   String get chatSelectModel;
 
-  /// No description provided for @chatRefreshModels.
-  ///
-  /// In en, this message translates to:
-  /// **'Refresh models'**
-  String get chatRefreshModels;
-
-  /// No description provided for @chatLoadedModels.
-  ///
-  /// In en, this message translates to:
-  /// **'Loaded models'**
-  String get chatLoadedModels;
-
-  /// No description provided for @chatAvailableModels.
-  ///
-  /// In en, this message translates to:
-  /// **'Available models'**
-  String get chatAvailableModels;
-
-  /// No description provided for @chatNoModels.
-  ///
-  /// In en, this message translates to:
-  /// **'No {title}'**
-  String chatNoModels(String title);
-
-  /// No description provided for @chatHeroTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Start chatting'**
-  String get chatHeroTitle;
-
-  /// No description provided for @chatHeroDescriptionReady.
-  ///
-  /// In en, this message translates to:
-  /// **'Send a message to start chatting with your local model.'**
-  String get chatHeroDescriptionReady;
-
-  /// No description provided for @chatHeroDescriptionStartServer.
-  ///
-  /// In en, this message translates to:
-  /// **'Start the server first, then load a model to begin your AI conversation.'**
-  String get chatHeroDescriptionStartServer;
-
-  /// No description provided for @chatHeroDescriptionSelectModel.
-  ///
-  /// In en, this message translates to:
-  /// **'The server is running. Load a model to begin your AI conversation.'**
-  String get chatHeroDescriptionSelectModel;
-
   /// No description provided for @chatStartServer.
   ///
   /// In en, this message translates to:
   /// **'Start server'**
   String get chatStartServer;
-
-  /// No description provided for @chatStartingServer.
-  ///
-  /// In en, this message translates to:
-  /// **'Starting...'**
-  String get chatStartingServer;
-
-  /// No description provided for @chatLoadingModel.
-  ///
-  /// In en, this message translates to:
-  /// **'Loading model...'**
-  String get chatLoadingModel;
 
   /// No description provided for @chatInputHintStartServer.
   ///
@@ -512,59 +452,11 @@ abstract class AppLocalizations {
   /// **'Stop'**
   String get chatStop;
 
-  /// No description provided for @chatUnloadModel.
-  ///
-  /// In en, this message translates to:
-  /// **'Unload model'**
-  String get chatUnloadModel;
-
-  /// No description provided for @chatModelStatusLoaded.
-  ///
-  /// In en, this message translates to:
-  /// **'Loaded'**
-  String get chatModelStatusLoaded;
-
-  /// No description provided for @chatModelStatusLoading.
-  ///
-  /// In en, this message translates to:
-  /// **'Loading'**
-  String get chatModelStatusLoading;
-
   /// No description provided for @chatModelStatusAvailable.
   ///
   /// In en, this message translates to:
   /// **'Available to load'**
   String get chatModelStatusAvailable;
-
-  /// No description provided for @chatModelStatusFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Load failed'**
-  String get chatModelStatusFailed;
-
-  /// No description provided for @chatModelLoadTimeout.
-  ///
-  /// In en, this message translates to:
-  /// **'Model load timed out: {model}'**
-  String chatModelLoadTimeout(Object model);
-
-  /// No description provided for @chatModelLoadFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to load model: {model}'**
-  String chatModelLoadFailed(Object model);
-
-  /// No description provided for @chatModelUnloadTimeout.
-  ///
-  /// In en, this message translates to:
-  /// **'Model unload timed out: {model}'**
-  String chatModelUnloadTimeout(Object model);
-
-  /// No description provided for @chatModelRequestFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Request failed: {detail}'**
-  String chatModelRequestFailed(Object detail);
 
   /// No description provided for @chatReasoningProcess.
   ///
@@ -637,24 +529,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Attach image'**
   String get chatAttachImage;
-
-  /// No description provided for @chatRemoveImage.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove image'**
-  String get chatRemoveImage;
-
-  /// No description provided for @chatImageLimitExceeded.
-  ///
-  /// In en, this message translates to:
-  /// **'Maximum 5 images per message'**
-  String get chatImageLimitExceeded;
-
-  /// No description provided for @chatImageSizeExceeded.
-  ///
-  /// In en, this message translates to:
-  /// **'Image size cannot exceed 10MB'**
-  String get chatImageSizeExceeded;
 
   /// No description provided for @settingsTitle.
   ///
@@ -818,12 +692,6 @@ abstract class AppLocalizations {
   /// **'Allowed range: {minSeconds}-{maxSeconds} s'**
   String settingsChatTimeoutRange(int minSeconds, int maxSeconds);
 
-  /// No description provided for @settingsUnavailable.
-  ///
-  /// In en, this message translates to:
-  /// **'Coming soon'**
-  String get settingsUnavailable;
-
   /// No description provided for @settingsAbout.
   ///
   /// In en, this message translates to:
@@ -866,18 +734,6 @@ abstract class AppLocalizations {
   /// **'Follow system'**
   String get languageModeSystem;
 
-  /// No description provided for @languageModeChinese.
-  ///
-  /// In en, this message translates to:
-  /// **'Simplified Chinese'**
-  String get languageModeChinese;
-
-  /// No description provided for @languageModeEnglish.
-  ///
-  /// In en, this message translates to:
-  /// **'English'**
-  String get languageModeEnglish;
-
   /// No description provided for @aboutTitle.
   ///
   /// In en, this message translates to:
@@ -890,23 +746,11 @@ abstract class AppLocalizations {
   /// **'An LLM inference server on your phone'**
   String get aboutDescription;
 
-  /// No description provided for @aboutVersion.
-  ///
-  /// In en, this message translates to:
-  /// **'Version {version}'**
-  String aboutVersion(String version);
-
   /// No description provided for @aboutVersionCopied.
   ///
   /// In en, this message translates to:
   /// **'Version copied'**
   String get aboutVersionCopied;
-
-  /// No description provided for @aboutLlamaCppVersion.
-  ///
-  /// In en, this message translates to:
-  /// **'llama.cpp {version}'**
-  String aboutLlamaCppVersion(String version);
 
   /// No description provided for @aboutStarOnGitHub.
   ///
@@ -1051,12 +895,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'ServLlama server is running in the background'**
   String get serverForegroundNotificationText;
-
-  /// No description provided for @serverStartFailedCheckLogs.
-  ///
-  /// In en, this message translates to:
-  /// **'Server failed to start. Check logs.'**
-  String get serverStartFailedCheckLogs;
 
   /// No description provided for @serverStartFailed.
   ///
@@ -1448,24 +1286,6 @@ abstract class AppLocalizations {
   /// **'Restore defaults'**
   String get serverConfigResetAction;
 
-  /// No description provided for @modelManagementTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Model management'**
-  String get modelManagementTitle;
-
-  /// No description provided for @modelManagementImport.
-  ///
-  /// In en, this message translates to:
-  /// **'Import model'**
-  String get modelManagementImport;
-
-  /// No description provided for @modelManagementImporting.
-  ///
-  /// In en, this message translates to:
-  /// **'Importing...'**
-  String get modelManagementImporting;
-
   /// No description provided for @modelManagementImportSuccess.
   ///
   /// In en, this message translates to:
@@ -1486,18 +1306,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to import model: {error}'**
   String modelManagementImportFailed(String error);
-
-  /// No description provided for @modelManagementEmptyTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'No models imported yet'**
-  String get modelManagementEmptyTitle;
-
-  /// No description provided for @modelManagementEmptyDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'After tapping \"Import model\", your local GGUF model list will appear here.'**
-  String get modelManagementEmptyDescription;
 
   /// No description provided for @modelManagementDeleteBusy.
   ///
@@ -1523,29 +1331,11 @@ abstract class AppLocalizations {
   /// **'Delete model'**
   String get modelManagementDeleteDialogTitle;
 
-  /// No description provided for @modelManagementDeleteDialogContent.
-  ///
-  /// In en, this message translates to:
-  /// **'Delete {modelName}? This removes the model file and cannot be undone.'**
-  String modelManagementDeleteDialogContent(String modelName);
-
   /// No description provided for @modelManagementDeleteTooltip.
   ///
   /// In en, this message translates to:
   /// **'Delete'**
   String get modelManagementDeleteTooltip;
-
-  /// No description provided for @modelMmprojBadgeLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Multimodal'**
-  String get modelMmprojBadgeLabel;
-
-  /// No description provided for @modelTextBadgeLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Text'**
-  String get modelTextBadgeLabel;
 
   /// No description provided for @modelManagementSettingsTooltip.
   ///
@@ -1559,29 +1349,11 @@ abstract class AppLocalizations {
   /// **'Model name'**
   String get modelSettingsNameLabel;
 
-  /// No description provided for @modelSettingsMmprojLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Multimodal projector'**
-  String get modelSettingsMmprojLabel;
-
   /// No description provided for @modelSettingsImportMmproj.
   ///
   /// In en, this message translates to:
   /// **'Import mmproj file'**
   String get modelSettingsImportMmproj;
-
-  /// No description provided for @modelSettingsDownloadMmproj.
-  ///
-  /// In en, this message translates to:
-  /// **'Download mmproj'**
-  String get modelSettingsDownloadMmproj;
-
-  /// No description provided for @modelSettingsReplaceMmproj.
-  ///
-  /// In en, this message translates to:
-  /// **'Replace mmproj'**
-  String get modelSettingsReplaceMmproj;
 
   /// No description provided for @modelSettingsRemoveMmproj.
   ///
@@ -1805,12 +1577,6 @@ abstract class AppLocalizations {
   /// **'Errors only'**
   String get appLogsFilterErrors;
 
-  /// No description provided for @engineSectionTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Inference engine'**
-  String get engineSectionTitle;
-
   /// No description provided for @serverStatusIdle.
   ///
   /// In en, this message translates to:
@@ -1973,12 +1739,6 @@ abstract class AppLocalizations {
   /// **'Models'**
   String get modelLibraryTitle;
 
-  /// No description provided for @modelLibraryAddTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Add a model'**
-  String get modelLibraryAddTitle;
-
   /// No description provided for @modelLibraryFilterAll.
   ///
   /// In en, this message translates to:
@@ -1996,18 +1756,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Installed'**
   String get modelLibraryInstalledSection;
-
-  /// No description provided for @modelAddDownload.
-  ///
-  /// In en, this message translates to:
-  /// **'Download from a hub'**
-  String get modelAddDownload;
-
-  /// No description provided for @modelAddDownloadDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Hugging Face and ModelScope, with resume support'**
-  String get modelAddDownloadDesc;
 
   /// No description provided for @modelAddGguf.
   ///
@@ -2032,12 +1780,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'An MNN model is a self-contained model directory'**
   String get modelAddMnnDirDesc;
-
-  /// No description provided for @modelFormatExplainer.
-  ///
-  /// In en, this message translates to:
-  /// **'GGUF is a single file; MNN models are whole directories. The engine badge on each card tells them apart.'**
-  String get modelFormatExplainer;
 
   /// No description provided for @modelLibraryEmptyTitle.
   ///
@@ -2093,18 +1835,6 @@ abstract class AppLocalizations {
   /// **'The running model cannot be deleted'**
   String get modelLibraryActiveCannotDelete;
 
-  /// No description provided for @modelLibrarySwitchEngineBlocked.
-  ///
-  /// In en, this message translates to:
-  /// **'Stop the running service before switching engines.'**
-  String get modelLibrarySwitchEngineBlocked;
-
-  /// No description provided for @modelLibraryActivationFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Could not activate the model. Check the server logs.'**
-  String get modelLibraryActivationFailed;
-
   /// No description provided for @modelCapabilityChinese.
   ///
   /// In en, this message translates to:
@@ -2141,41 +1871,11 @@ abstract class AppLocalizations {
   /// **'Featured'**
   String get discoverTabFeatured;
 
-  /// No description provided for @discoverTabSearch.
-  ///
-  /// In en, this message translates to:
-  /// **'Search'**
-  String get discoverTabSearch;
-
-  /// No description provided for @discoverDeviceMemory.
-  ///
-  /// In en, this message translates to:
-  /// **'{available} of {total} RAM available'**
-  String discoverDeviceMemory(String available, String total);
-
-  /// No description provided for @discoverDeviceMemoryUnknown.
-  ///
-  /// In en, this message translates to:
-  /// **'Device memory unknown; feasibility is not checked.'**
-  String get discoverDeviceMemoryUnknown;
-
   /// No description provided for @discoverSearchHint.
   ///
   /// In en, this message translates to:
   /// **'Search repositories'**
   String get discoverSearchHint;
-
-  /// No description provided for @discoverSearchDisclaimer.
-  ///
-  /// In en, this message translates to:
-  /// **'Search results come straight from the hub and have not been verified on a device.'**
-  String get discoverSearchDisclaimer;
-
-  /// No description provided for @discoverBackToFeatured.
-  ///
-  /// In en, this message translates to:
-  /// **'View device-verified picks'**
-  String get discoverBackToFeatured;
 
   /// No description provided for @discoverSortTrending.
   ///
@@ -2195,35 +1895,11 @@ abstract class AppLocalizations {
   /// **'Likes'**
   String get discoverSortLikes;
 
-  /// No description provided for @discoverSortUpdated.
-  ///
-  /// In en, this message translates to:
-  /// **'Recently updated'**
-  String get discoverSortUpdated;
-
-  /// No description provided for @discoverFormatAll.
-  ///
-  /// In en, this message translates to:
-  /// **'All formats'**
-  String get discoverFormatAll;
-
-  /// No description provided for @discoverFeaturedNote.
-  ///
-  /// In en, this message translates to:
-  /// **'Every model here has been run on a real device.'**
-  String get discoverFeaturedNote;
-
   /// No description provided for @discoverNoResults.
   ///
   /// In en, this message translates to:
   /// **'No matching repositories'**
   String get discoverNoResults;
-
-  /// No description provided for @discoverSearchPrompt.
-  ///
-  /// In en, this message translates to:
-  /// **'Type a model name to search both hubs.'**
-  String get discoverSearchPrompt;
 
   /// No description provided for @discoverErrorNetwork.
   ///
@@ -2249,12 +1925,6 @@ abstract class AppLocalizations {
   /// **'The hub returned an unexpected response.'**
   String get discoverErrorMalformed;
 
-  /// No description provided for @discoverResultCount.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} results'**
-  String discoverResultCount(int count);
-
   /// No description provided for @discoverDownloadsCount.
   ///
   /// In en, this message translates to:
@@ -2278,12 +1948,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Quantization'**
   String get repoQuantSectionTitle;
-
-  /// No description provided for @repoFilesSectionTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Files'**
-  String get repoFilesSectionTitle;
 
   /// No description provided for @repoDownloadAction.
   ///
@@ -2410,12 +2074,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This repository has no mmproj files.'**
   String get repoVisionNoMmproj;
-
-  /// No description provided for @repoEstimatedMemory.
-  ///
-  /// In en, this message translates to:
-  /// **'Needs about {size}'**
-  String repoEstimatedMemory(String size);
 
   /// No description provided for @repoNoGgufFiles.
   ///
@@ -2849,18 +2507,6 @@ abstract class AppLocalizations {
   /// **'Storage'**
   String get settingsSectionStorage;
 
-  /// No description provided for @settingsStorageModels.
-  ///
-  /// In en, this message translates to:
-  /// **'Models'**
-  String get settingsStorageModels;
-
-  /// No description provided for @settingsStorageDownloads.
-  ///
-  /// In en, this message translates to:
-  /// **'Unfinished downloads'**
-  String get settingsStorageDownloads;
-
   /// No description provided for @settingsClearStaging.
   ///
   /// In en, this message translates to:
@@ -2885,30 +2531,6 @@ abstract class AppLocalizations {
   /// **'MNN version'**
   String get aboutMnnVersion;
 
-  /// No description provided for @aboutMnnVersionDetail.
-  ///
-  /// In en, this message translates to:
-  /// **'MNN version: {value}'**
-  String aboutMnnVersionDetail(String value);
-
-  /// No description provided for @chatEmptyTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Pick a model to start'**
-  String get chatEmptyTitle;
-
-  /// No description provided for @chatEmptyDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'The service starts on its own once a model is chosen.'**
-  String get chatEmptyDescription;
-
-  /// No description provided for @chatEmptyAction.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose a model'**
-  String get chatEmptyAction;
-
   /// No description provided for @chatChooseEngineToStart.
   ///
   /// In en, this message translates to:
@@ -2932,18 +2554,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Load'**
   String get chatLoadModelAction;
-
-  /// No description provided for @chatPreparingModel.
-  ///
-  /// In en, this message translates to:
-  /// **'Preparing model'**
-  String get chatPreparingModel;
-
-  /// No description provided for @chatEmptyNoModelsDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Download a model first. Everything runs on this device afterwards.'**
-  String get chatEmptyNoModelsDescription;
 
   /// No description provided for @mnnBackendTitle.
   ///
@@ -3191,12 +2801,6 @@ abstract class AppLocalizations {
   /// **'Assistants'**
   String get v2FirstAssistants;
 
-  /// No description provided for @v2Chat.
-  ///
-  /// In en, this message translates to:
-  /// **'Chat'**
-  String get v2Chat;
-
   /// No description provided for @v2Models.
   ///
   /// In en, this message translates to:
@@ -3220,12 +2824,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Operation failed'**
   String get v2OperationFailed;
-
-  /// No description provided for @v2NoInstructions.
-  ///
-  /// In en, this message translates to:
-  /// **'Default conversation behavior'**
-  String get v2NoInstructions;
 
   /// No description provided for @v2Duplicate.
   ///
@@ -3251,35 +2849,11 @@ abstract class AppLocalizations {
   /// **'System instructions'**
   String get v2Instructions;
 
-  /// No description provided for @v2Connection.
-  ///
-  /// In en, this message translates to:
-  /// **'Provider'**
-  String get v2Connection;
-
-  /// No description provided for @v2LocalInference.
-  ///
-  /// In en, this message translates to:
-  /// **'Local inference'**
-  String get v2LocalInference;
-
   /// No description provided for @v2MissingTarget.
   ///
   /// In en, this message translates to:
   /// **'Target unavailable. Check that its provider is enabled and the model is listed, or choose another.'**
   String get v2MissingTarget;
-
-  /// No description provided for @v2Model.
-  ///
-  /// In en, this message translates to:
-  /// **'Model'**
-  String get v2Model;
-
-  /// No description provided for @v2CurrentLocal.
-  ///
-  /// In en, this message translates to:
-  /// **'Current local model'**
-  String get v2CurrentLocal;
 
   /// No description provided for @v2ModelId.
   ///
@@ -3341,12 +2915,6 @@ abstract class AppLocalizations {
   /// **'API path'**
   String get v2ApiPath;
 
-  /// No description provided for @v2ModelsHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Model IDs, one per line (manual entry supported)'**
-  String get v2ModelsHelp;
-
   /// No description provided for @v2Images.
   ///
   /// In en, this message translates to:
@@ -3364,18 +2932,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Fetch models'**
   String get v2FetchModels;
-
-  /// No description provided for @v2TestConnection.
-  ///
-  /// In en, this message translates to:
-  /// **'Test provider'**
-  String get v2TestConnection;
-
-  /// No description provided for @v2TestPassed.
-  ///
-  /// In en, this message translates to:
-  /// **'Test succeeded. Changes are not saved yet.'**
-  String get v2TestPassed;
 
   /// No description provided for @v2Profile.
   ///
@@ -3478,18 +3034,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'A short introduction about yourself…'**
   String get v2ProfileDescriptionHint;
-
-  /// No description provided for @v2StartLocal.
-  ///
-  /// In en, this message translates to:
-  /// **'Load this conversation\'s local model'**
-  String get v2StartLocal;
-
-  /// No description provided for @v2RemoteReady.
-  ///
-  /// In en, this message translates to:
-  /// **'Chat directly with the selected provider'**
-  String get v2RemoteReady;
 
   /// No description provided for @v2Skills.
   ///
@@ -3875,12 +3419,6 @@ abstract class AppLocalizations {
   /// **'The operation may have taken effect. It will not retry automatically. Verify the outcome before starting a new run.'**
   String get v2UnknownOutcomeHelp;
 
-  /// No description provided for @v2Details.
-  ///
-  /// In en, this message translates to:
-  /// **'Arguments, target and receipt'**
-  String get v2Details;
-
   /// No description provided for @v2YourAnswer.
   ///
   /// In en, this message translates to:
@@ -4223,24 +3761,6 @@ abstract class AppLocalizations {
   /// **'Playback speed (keeps the generated audio)'**
   String get v2PlaybackSpeed;
 
-  /// No description provided for @v2InputSnapshot.
-  ///
-  /// In en, this message translates to:
-  /// **'Task input snapshot'**
-  String get v2InputSnapshot;
-
-  /// No description provided for @v2SpeechPackageHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Each recipe is a self-contained package. An import ZIP must contain speech-package.json at its root.'**
-  String get v2SpeechPackageHelp;
-
-  /// No description provided for @v2ImportSpeechPackage.
-  ///
-  /// In en, this message translates to:
-  /// **'Import model ZIP'**
-  String get v2ImportSpeechPackage;
-
   /// No description provided for @v2Ready.
   ///
   /// In en, this message translates to:
@@ -4270,12 +3790,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Delete local model files. Existing results remain. Cancel queued jobs first; reference voices require a compatible model.'**
   String get v2DeleteSpeechModelHelp;
-
-  /// No description provided for @v2AvailableModels.
-  ///
-  /// In en, this message translates to:
-  /// **'Available recipes'**
-  String get v2AvailableModels;
 
   /// No description provided for @v2ModelLicenseHelp.
   ///
@@ -4397,12 +3911,6 @@ abstract class AppLocalizations {
   /// **'Download size: about {size} MiB'**
   String v2DownloadSize(int size);
 
-  /// No description provided for @v2TranscriptDestination.
-  ///
-  /// In en, this message translates to:
-  /// **'Destination: {name}'**
-  String v2TranscriptDestination(String name);
-
   /// No description provided for @v2RetrySpeech.
   ///
   /// In en, this message translates to:
@@ -4426,12 +3934,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Speech cleanup is unconfirmed. Restart the app before running another speech task. Task records are retained.'**
   String get v2NativeRestart;
-
-  /// No description provided for @v2CancelImport.
-  ///
-  /// In en, this message translates to:
-  /// **'Cancel import'**
-  String get v2CancelImport;
 
   /// No description provided for @v2OriginalChatMissing.
   ///
@@ -4649,17 +4151,11 @@ abstract class AppLocalizations {
   /// **'Choose model'**
   String get v2ConversationModel;
 
-  /// No description provided for @v2ConversationModelHelp.
+  /// No description provided for @v2NoAvailableModels.
   ///
   /// In en, this message translates to:
-  /// **'Choose a model by provider. Selecting a local model loads it and starts the service.'**
-  String get v2ConversationModelHelp;
-
-  /// No description provided for @v2NoLocalChatModels.
-  ///
-  /// In en, this message translates to:
-  /// **'No models'**
-  String get v2NoLocalChatModels;
+  /// **'No available models, please add a provider or local model'**
+  String get v2NoAvailableModels;
 
   /// No description provided for @v2AssistantDefaultModel.
   ///
@@ -4829,41 +4325,11 @@ abstract class AppLocalizations {
   /// **'This result was truncated. Only the saved excerpt can be viewed or exported.'**
   String get v2ToolResultTruncated;
 
-  /// No description provided for @v2ProviderPreset.
-  ///
-  /// In en, this message translates to:
-  /// **'Preset'**
-  String get v2ProviderPreset;
-
-  /// No description provided for @v2ProviderCustom.
-  ///
-  /// In en, this message translates to:
-  /// **'Custom'**
-  String get v2ProviderCustom;
-
-  /// No description provided for @v2ProviderPresetHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Preset providers cannot be deleted. You can configure or disable them.'**
-  String get v2ProviderPresetHelp;
-
   /// No description provided for @v2ProviderEnabled.
   ///
   /// In en, this message translates to:
   /// **'Enable provider'**
   String get v2ProviderEnabled;
-
-  /// No description provided for @v2ProviderOn.
-  ///
-  /// In en, this message translates to:
-  /// **'Enabled'**
-  String get v2ProviderOn;
-
-  /// No description provided for @v2ProviderOff.
-  ///
-  /// In en, this message translates to:
-  /// **'Disabled'**
-  String get v2ProviderOff;
 
   /// No description provided for @v2ProviderModelCount.
   ///
@@ -4967,12 +4433,6 @@ abstract class AppLocalizations {
   /// **'Local · {engine}'**
   String v2LocalProvider(String engine);
 
-  /// No description provided for @v2LocalProviderHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Managed in the local model library; load or stop models to control the runtime.'**
-  String get v2LocalProviderHelp;
-
   /// No description provided for @v2LocalModelLoaded.
   ///
   /// In en, this message translates to:
@@ -5032,24 +4492,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Debug'**
   String get settingsDebug;
-
-  /// No description provided for @localModelImport.
-  ///
-  /// In en, this message translates to:
-  /// **'Import local model'**
-  String get localModelImport;
-
-  /// No description provided for @localModelChooseImport.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose and import'**
-  String get localModelChooseImport;
-
-  /// No description provided for @localModelImportHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'The selected file or folder is copied into app storage. Import starts after selection.'**
-  String get localModelImportHelp;
 
   /// No description provided for @discoveryQuery.
   ///
@@ -5813,24 +5255,6 @@ abstract class AppLocalizations {
   /// **'Send preview message'**
   String get uiLabSend;
 
-  /// No description provided for @uiLabExactValue.
-  ///
-  /// In en, this message translates to:
-  /// **'Value'**
-  String get uiLabExactValue;
-
-  /// No description provided for @uiLabNumericHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Drag for a rough value, or type up to two decimal places.'**
-  String get uiLabNumericHint;
-
-  /// No description provided for @uiLabNumericError.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter a value from {min} to {max}, with at most two decimal places.'**
-  String uiLabNumericError(String min, String max);
-
   /// No description provided for @uiLabMessages.
   ///
   /// In en, this message translates to:
@@ -5842,12 +5266,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Centered at the top for 3 seconds. A new message replaces the previous one; you can also dismiss it.'**
   String get uiLabMessagesHint;
-
-  /// No description provided for @uiLabDismissMessage.
-  ///
-  /// In en, this message translates to:
-  /// **'Dismiss message'**
-  String get uiLabDismissMessage;
 
   /// No description provided for @uiLabMessageSuccess.
   ///

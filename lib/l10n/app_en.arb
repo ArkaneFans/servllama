@@ -65,24 +65,7 @@
     }
   },
   "chatSelectModel": "Select model",
-  "chatRefreshModels": "Refresh models",
-  "chatLoadedModels": "Loaded models",
-  "chatAvailableModels": "Available models",
-  "chatNoModels": "No {title}",
-  "@chatNoModels": {
-    "placeholders": {
-      "title": {
-        "type": "String"
-      }
-    }
-  },
-  "chatHeroTitle": "Start chatting",
-  "chatHeroDescriptionReady": "Send a message to start chatting with your local model.",
-  "chatHeroDescriptionStartServer": "Start the server first, then load a model to begin your AI conversation.",
-  "chatHeroDescriptionSelectModel": "The server is running. Load a model to begin your AI conversation.",
   "chatStartServer": "Start server",
-  "chatStartingServer": "Starting...",
-  "chatLoadingModel": "Loading model...",
   "chatInputHintStartServer": "Model not loaded. Please load a model.",
   "chatInputHintLoadingModel": "Model loading...",
   "chatInputHintSelectModel": "Choose a model first",
@@ -90,35 +73,7 @@
   "chatInputHintEnterMessage": "Enter a message",
   "chatSend": "Send",
   "chatStop": "Stop",
-  "chatUnloadModel": "Unload model",
-  "chatModelStatusLoaded": "Loaded",
-  "chatModelStatusLoading": "Loading",
   "chatModelStatusAvailable": "Available to load",
-  "chatModelStatusFailed": "Load failed",
-  "chatModelLoadTimeout": "Model load timed out: {model}",
-  "@chatModelLoadTimeout": {
-    "placeholders": {
-      "model": {}
-    }
-  },
-  "chatModelLoadFailed": "Failed to load model: {model}",
-  "@chatModelLoadFailed": {
-    "placeholders": {
-      "model": {}
-    }
-  },
-  "chatModelUnloadTimeout": "Model unload timed out: {model}",
-  "@chatModelUnloadTimeout": {
-    "placeholders": {
-      "model": {}
-    }
-  },
-  "chatModelRequestFailed": "Request failed: {detail}",
-  "@chatModelRequestFailed": {
-    "placeholders": {
-      "detail": {}
-    }
-  },
   "chatReasoningProcess": "Reasoning",
   "chatCopyMessage": "Copy",
   "chatEditMessage": "Edit",
@@ -131,9 +86,6 @@
   "chatEditMessageTitle": "Edit message",
   "chatEditMessageHint": "Update this message",
   "chatAttachImage": "Attach image",
-  "chatRemoveImage": "Remove image",
-  "chatImageLimitExceeded": "Maximum 5 images per message",
-  "chatImageSizeExceeded": "Image size cannot exceed 10MB",
   "settingsTitle": "Settings",
   "settingsSectionGeneral": "General",
   "settingsSectionChat": "Chat",
@@ -178,7 +130,6 @@
       }
     }
   },
-  "settingsUnavailable": "Coming soon",
   "settingsAbout": "About",
   "settingsThemeModeSheetTitle": "Theme mode",
   "settingsLanguageSheetTitle": "App language",
@@ -186,27 +137,9 @@
   "themeModeLight": "Light",
   "themeModeDark": "Dark",
   "languageModeSystem": "Follow system",
-  "languageModeChinese": "Simplified Chinese",
-  "languageModeEnglish": "English",
   "aboutTitle": "About",
   "aboutDescription": "An LLM inference server on your phone",
-  "aboutVersion": "Version {version}",
-  "@aboutVersion": {
-    "placeholders": {
-      "version": {
-        "type": "String"
-      }
-    }
-  },
   "aboutVersionCopied": "Version copied",
-  "aboutLlamaCppVersion": "llama.cpp {version}",
-  "@aboutLlamaCppVersion": {
-    "placeholders": {
-      "version": {
-        "type": "String"
-      }
-    }
-  },
   "aboutStarOnGitHub": "Star on GitHub",
   "aboutLicense": "Open source license",
   "aboutVersionLabel": "Version",
@@ -231,7 +164,6 @@
   "serverCopyBaseUrl": "Copy API Base URL",
   "serverForegroundNotificationTitle": "ServLlama is running",
   "serverForegroundNotificationText": "ServLlama server is running in the background",
-  "serverStartFailedCheckLogs": "Server failed to start. Check logs.",
   "serverStartFailed": "Failed to start: {error}",
   "@serverStartFailed": {
     "placeholders": {
@@ -325,9 +257,6 @@
   "serverConfigResetDialogTitle": "Restore default config",
   "serverConfigResetDialogContent": "All settings will be reset to defaults. Continue?",
   "serverConfigResetAction": "Restore defaults",
-  "modelManagementTitle": "Model management",
-  "modelManagementImport": "Import model",
-  "modelManagementImporting": "Importing...",
   "modelManagementImportSuccess": "Model imported: {modelName}",
   "@modelManagementImportSuccess": {
     "placeholders": {
@@ -355,8 +284,6 @@
       }
     }
   },
-  "modelManagementEmptyTitle": "No models imported yet",
-  "modelManagementEmptyDescription": "After tapping \"Import model\", your local GGUF model list will appear here.",
   "modelManagementDeleteBusy": "Deleting model. Please wait.",
   "modelManagementDeleteSuccess": "Model deleted: {modelName}",
   "@modelManagementDeleteSuccess": {
@@ -375,23 +302,10 @@
     }
   },
   "modelManagementDeleteDialogTitle": "Delete model",
-  "modelManagementDeleteDialogContent": "Delete {modelName}? This removes the model file and cannot be undone.",
-  "@modelManagementDeleteDialogContent": {
-    "placeholders": {
-      "modelName": {
-        "type": "String"
-      }
-    }
-  },
   "modelManagementDeleteTooltip": "Delete",
-  "modelMmprojBadgeLabel": "Multimodal",
-  "modelTextBadgeLabel": "Text",
   "modelManagementSettingsTooltip": "Settings",
   "modelSettingsNameLabel": "Model name",
-  "modelSettingsMmprojLabel": "Multimodal projector",
   "modelSettingsImportMmproj": "Import mmproj file",
-  "modelSettingsDownloadMmproj": "Download mmproj",
-  "modelSettingsReplaceMmproj": "Replace mmproj",
   "modelSettingsRemoveMmproj": "Remove mmproj",
   "modelManagementMmprojImportSuccess": "mmproj imported: {modelName}",
   "@modelManagementMmprojImportSuccess": {
@@ -492,7 +406,6 @@
   "appLogsFilterModel": "Model",
   "appLogsFilterDownload": "Download",
   "appLogsFilterErrors": "Errors only",
-  "engineSectionTitle": "Inference engine",
   "serverStatusIdle": "Stopped",
   "serverStatusPreparing": "Starting",
   "serverStatusStopping": "Stopping",
@@ -565,17 +478,13 @@
   },
   "serverOpenAccessWarning": "The service listens on all interfaces without an API key, so any device on the same network can access it.",
   "modelLibraryTitle": "Models",
-  "modelLibraryAddTitle": "Add a model",
   "modelLibraryFilterAll": "All",
   "modelLibraryDownloadingSection": "Downloading",
   "modelLibraryInstalledSection": "Installed",
-  "modelAddDownload": "Download from a hub",
-  "modelAddDownloadDesc": "Hugging Face and ModelScope, with resume support",
   "modelAddGguf": "Import a GGUF file",
   "modelAddGgufDesc": "A single GGUF model file for llama.cpp",
   "modelAddMnnDir": "Import an MNN directory",
   "modelAddMnnDirDesc": "An MNN model is a self-contained model directory",
-  "modelFormatExplainer": "GGUF is a single file; MNN models are whole directories. The engine badge on each card tells them apart.",
   "modelLibraryEmptyTitle": "No models yet",
   "modelLibraryEmptyDescription": "Tap + to add a model",
   "modelLibrarySearchHint": "Search model names",
@@ -592,50 +501,21 @@
   "modelLibraryStatusRunning": "Running",
   "modelLibraryStatusIdle": "Idle",
   "modelLibraryActiveCannotDelete": "The running model cannot be deleted",
-  "modelLibrarySwitchEngineBlocked": "Stop the running service before switching engines.",
-  "modelLibraryActivationFailed": "Could not activate the model. Check the server logs.",
   "modelCapabilityChinese": "Chinese",
   "modelCapabilityEnglish": "English",
   "modelCapabilityVision": "Vision",
   "modelCapabilityToolCalling": "Tool calling",
   "discoverTitle": "Discover models",
   "discoverTabFeatured": "Featured",
-  "discoverTabSearch": "Search",
-  "discoverDeviceMemory": "{available} of {total} RAM available",
-  "@discoverDeviceMemory": {
-    "placeholders": {
-      "available": {
-        "type": "String"
-      },
-      "total": {
-        "type": "String"
-      }
-    }
-  },
-  "discoverDeviceMemoryUnknown": "Device memory unknown; feasibility is not checked.",
   "discoverSearchHint": "Search repositories",
-  "discoverSearchDisclaimer": "Search results come straight from the hub and have not been verified on a device.",
-  "discoverBackToFeatured": "View device-verified picks",
   "discoverSortTrending": "Trending",
   "discoverSortDownloads": "Downloads",
   "discoverSortLikes": "Likes",
-  "discoverSortUpdated": "Recently updated",
-  "discoverFormatAll": "All formats",
-  "discoverFeaturedNote": "Every model here has been run on a real device.",
   "discoverNoResults": "No matching repositories",
-  "discoverSearchPrompt": "Type a model name to search both hubs.",
   "discoverErrorNetwork": "Network unreachable. Check the connection or switch route.",
   "discoverErrorUnauthorized": "This repository needs a token. Add one in Settings.",
   "discoverErrorNotFound": "Repository not found.",
   "discoverErrorMalformed": "The hub returned an unexpected response.",
-  "discoverResultCount": "{count} results",
-  "@discoverResultCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "discoverDownloadsCount": "{count} downloads",
   "@discoverDownloadsCount": {
     "placeholders": {
@@ -654,7 +534,6 @@
     }
   },
   "repoQuantSectionTitle": "Quantization",
-  "repoFilesSectionTitle": "Files",
   "repoDownloadAction": "Download",
   "repoDownloadQueued": "In the download queue",
   "repoVisionOn": "Vision · On",
@@ -690,14 +569,6 @@
   },
   "modelSettingsProjectorDownloadPending": "Finish or cancel projector downloads before renaming or deleting the model.",
   "repoVisionNoMmproj": "This repository has no mmproj files.",
-  "repoEstimatedMemory": "Needs about {size}",
-  "@repoEstimatedMemory": {
-    "placeholders": {
-      "size": {
-        "type": "String"
-      }
-    }
-  },
   "repoNoGgufFiles": "This repository has no GGUF files.",
   "repoNoMnnFiles": "This repository has no MNN model files.",
   "repoMnnWholeDirectory": "MNN models download as a whole directory ({count} files).",
@@ -865,23 +736,10 @@
   "settingsMaxConcurrentDownloads": "Parallel downloads",
   "settingsMaxConcurrentDownloadsDescription": "Maximum simultaneous tasks",
   "settingsSectionStorage": "Storage",
-  "settingsStorageModels": "Models",
-  "settingsStorageDownloads": "Unfinished downloads",
   "settingsClearStaging": "Clear unfinished downloads",
   "settingsClearStagingSubtitle": "Remove temporary files",
   "settingsClearStagingDone": "Cleared unfinished downloads",
   "aboutMnnVersion": "MNN version",
-  "aboutMnnVersionDetail": "MNN version: {value}",
-  "@aboutMnnVersionDetail": {
-    "placeholders": {
-      "value": {
-        "type": "String"
-      }
-    }
-  },
-  "chatEmptyTitle": "Pick a model to start",
-  "chatEmptyDescription": "The service starts on its own once a model is chosen.",
-  "chatEmptyAction": "Choose a model",
   "chatChooseEngineToStart": "Choose the inference engine to start",
   "chatEngineDefaultModel": "Default model: {model}",
   "@chatEngineDefaultModel": {
@@ -893,8 +751,6 @@
   },
   "chatCurrentRunning": "Running now",
   "chatLoadModelAction": "Load",
-  "chatPreparingModel": "Preparing model",
-  "chatEmptyNoModelsDescription": "Download a model first. Everything runs on this device afterwards.",
   "mnnBackendTitle": "MNN inference backend",
   "mnnBackendNextStart": "Changes apply the next time a model is loaded.",
   "mnnBackendActive": "Loaded backend: {backend}",
@@ -971,21 +827,15 @@
   },
   "mnnMmapCacheClearFailed": "Could not clear the mmap cache.",
   "v2FirstAssistants": "Assistants",
-  "v2Chat": "Chat",
   "v2Models": "Models",
   "v2Add": "Add",
   "v2AddProvider": "Add provider",
   "v2OperationFailed": "Operation failed",
-  "v2NoInstructions": "Default conversation behavior",
   "v2Duplicate": "Duplicate",
   "v2AssistantEditor": "Assistant settings",
   "v2Name": "Name",
   "v2Instructions": "System instructions",
-  "v2Connection": "Provider",
-  "v2LocalInference": "Local inference",
   "v2MissingTarget": "Target unavailable. Check that its provider is enabled and the model is listed, or choose another.",
-  "v2Model": "Model",
-  "v2CurrentLocal": "Current local model",
   "v2ModelId": "Model ID",
   "v2Connections": "Providers",
   "v2ConnectionsEmpty": "Add a provider and its models to use them in chat.",
@@ -996,12 +846,9 @@
   "v2ShowApiKey": "Show API key",
   "v2HideApiKey": "Hide API key",
   "v2ApiPath": "API path",
-  "v2ModelsHelp": "Model IDs, one per line (manual entry supported)",
   "v2Images": "Image input supported",
   "v2Tools": "Tool calls supported",
   "v2FetchModels": "Fetch models",
-  "v2TestConnection": "Test provider",
-  "v2TestPassed": "Test succeeded. Changes are not saved yet.",
   "v2Profile": "User profile",
   "v2KeepOneAssistant": "Create another assistant before deleting the last one.",
   "v2DeleteConnectionHelp": "Deleting this provider clears model selections for its assistants. Conversations and messages remain; select a model before sending.",
@@ -1019,8 +866,6 @@
   "v2UserName": "User name",
   "v2ProfileDescription": "Description",
   "v2ProfileDescriptionHint": "A short introduction about yourself…",
-  "v2StartLocal": "Load this conversation's local model",
-  "v2RemoteReady": "Chat directly with the selected provider",
   "v2Skills": "Skills",
   "v2ImportSkill": "Import skill (ZIP / Markdown)",
   "v2SkillImportPaste": "Paste Markdown",
@@ -1106,7 +951,6 @@
   "v2Executing": "Executing",
   "v2Failed": "Failed",
   "v2UnknownOutcomeHelp": "The operation may have taken effect. It will not retry automatically. Verify the outcome before starting a new run.",
-  "v2Details": "Arguments, target and receipt",
   "v2YourAnswer": "Your answer",
   "v2Reject": "Reject",
   "v2ApproveOnce": "Allow once",
@@ -1164,15 +1008,11 @@
   "v2PreviewAudio": "Preview reference audio",
   "v2VoiceModelMissing": "The original model is unavailable. You can export this reference audio and create a new voice after installing a compatible model.",
   "v2PlaybackSpeed": "Playback speed (keeps the generated audio)",
-  "v2InputSnapshot": "Task input snapshot",
-  "v2SpeechPackageHelp": "Each recipe is a self-contained package. An import ZIP must contain speech-package.json at its root.",
-  "v2ImportSpeechPackage": "Import model ZIP",
   "v2Ready": "Ready",
   "v2ModelIncomplete": "Incomplete or paused",
   "v2ResumeDownload": "Resume download",
   "v2PauseDownload": "Pause download",
   "v2DeleteSpeechModelHelp": "Delete local model files. Existing results remain. Cancel queued jobs first; reference voices require a compatible model.",
-  "v2AvailableModels": "Available recipes",
   "v2ModelLicenseHelp": "Review the upstream model card, supported languages and license before downloading.",
   "v2ModelCard": "Model card",
   "v2DownloadModel": "Download",
@@ -1193,7 +1033,6 @@
   "v2SynthesisParameters": "Speaker: {speaker} · Synthesis speed: {speed}",
   "v2SampleRate": "Output sample rate: {rate} Hz",
   "v2DownloadSize": "Download size: about {size} MiB",
-  "v2TranscriptDestination": "Destination: {name}",
   "@v2SynthesisParameters": {
     "placeholders": {
       "speaker": {
@@ -1218,18 +1057,10 @@
       }
     }
   },
-  "@v2TranscriptDestination": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
   "v2RetrySpeech": "Retry as a new task",
   "v2TranscriptSegment": "Segment {index}",
   "v2ReadAloudHelp": "The final answer is ready to edit and synthesize. Use up to 4,000 characters per task; split longer answers.",
   "v2NativeRestart": "Speech cleanup is unconfirmed. Restart the app before running another speech task. Task records are retained.",
-  "v2CancelImport": "Cancel import",
   "v2OriginalChatMissing": "The original destination is unavailable. Choose a conversation or assistant draft. The transcript is retained.",
   "v2AssistantDraft": "New conversation · {name}",
   "@v2AssistantDraft": {
@@ -1297,8 +1128,7 @@
     }
   },
   "v2ConversationModel": "Choose model",
-  "v2ConversationModelHelp": "Choose a model by provider. Selecting a local model loads it and starts the service.",
-  "v2NoLocalChatModels": "No models",
+  "v2NoAvailableModels": "No available models, please add a provider or local model",
   "v2AssistantDefaultModel": "Chat model",
   "v2NoDefaultModel": "No model selected",
   "v2ClearDefaultModel": "Clear model selection",
@@ -1351,12 +1181,7 @@
       }
     }
   },
-  "v2ProviderPreset": "Preset",
-  "v2ProviderCustom": "Custom",
-  "v2ProviderPresetHelp": "Preset providers cannot be deleted. You can configure or disable them.",
   "v2ProviderEnabled": "Enable provider",
-  "v2ProviderOn": "Enabled",
-  "v2ProviderOff": "Disabled",
   "v2ProviderModelCount": "{count} models",
   "v2ProviderModelsEmpty": "No models added. Add models manually or fetch them in provider settings.",
   "v2AddModel": "Add model manually",
@@ -1374,7 +1199,6 @@
   "v2SelectVisible": "Select search results",
   "v2DeselectVisible": "Deselect search results",
   "v2LocalProvider": "Local · {engine}",
-  "v2LocalProviderHelp": "Managed in the local model library; load or stop models to control the runtime.",
   "v2LocalModelLoaded": "Loaded",
   "v2LocalModelUnloaded": "Not loaded",
   "@v2ProviderModelCount": {
@@ -1413,9 +1237,6 @@
   "settingsMigrationPreviewSubtitle": "Preview the new data migration flow",
   "settingsMnnTest": "MNN test",
   "settingsDebug": "Debug",
-  "localModelImport": "Import local model",
-  "localModelChooseImport": "Choose and import",
-  "localModelImportHelp": "The selected file or folder is copied into app storage. Import starts after selection.",
   "discoveryQuery": "Search preset names or engines",
   "discoveryReset": "Reset filters",
   "discoveryPurpose": "Purpose",
@@ -1544,12 +1365,8 @@
   "uiLabVoiceHint": "Transcription & synthesis · Example",
   "uiLabComposer": "Type a message to try the interaction",
   "uiLabSend": "Send preview message",
-  "uiLabExactValue": "Value",
-  "uiLabNumericHint": "Drag for a rough value, or type up to two decimal places.",
-  "uiLabNumericError": "Enter a value from {min} to {max}, with at most two decimal places.",
   "uiLabMessages": "Messages",
   "uiLabMessagesHint": "Centered at the top for 3 seconds. A new message replaces the previous one; you can also dismiss it.",
-  "uiLabDismissMessage": "Dismiss message",
   "uiLabMessageSuccess": "Success",
   "uiLabMessageInfo": "Info",
   "uiLabMessageWarning": "Warning",
@@ -1557,16 +1374,6 @@
   "uiLabMessageInfoText": "This is a design preview. Your real data stays unchanged.",
   "uiLabMessageWarningText": "Choose a model before continuing. (Example)",
   "uiLabMessageErrorText": "Connection failed. Check your settings and retry. (Example)",
-  "@uiLabNumericError": {
-    "placeholders": {
-      "min": {
-        "type": "String"
-      },
-      "max": {
-        "type": "String"
-      }
-    }
-  },
   "uiLabThemeColor": "Theme color",
   "uiLabViolet": "Mist violet",
   "uiLabTea": "Tea violet",

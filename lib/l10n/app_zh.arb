@@ -65,24 +65,7 @@
     }
   },
   "chatSelectModel": "选择模型",
-  "chatRefreshModels": "刷新模型",
-  "chatLoadedModels": "已加载模型",
-  "chatAvailableModels": "可用模型",
-  "chatNoModels": "暂无{title}",
-  "@chatNoModels": {
-    "placeholders": {
-      "title": {
-        "type": "String"
-      }
-    }
-  },
-  "chatHeroTitle": "开始对话",
-  "chatHeroDescriptionReady": "输入一条消息，开始与你的本地模型对话。",
-  "chatHeroDescriptionStartServer": "请先启动服务器，然后加载一个模型，马上开始你的AI对话~",
-  "chatHeroDescriptionSelectModel": "服务器已启动，请加载一个模型，马上开始你的 AI 对话~",
   "chatStartServer": "启动服务器",
-  "chatStartingServer": "启动中...",
-  "chatLoadingModel": "加载模型中...",
   "chatInputHintStartServer": "模型未加载，请加载模型",
   "chatInputHintLoadingModel": "模型加载中...",
   "chatInputHintSelectModel": "请先选择模型",
@@ -90,35 +73,7 @@
   "chatInputHintEnterMessage": "输入消息",
   "chatSend": "发送",
   "chatStop": "停止",
-  "chatUnloadModel": "卸载模型",
-  "chatModelStatusLoaded": "已加载",
-  "chatModelStatusLoading": "加载中",
   "chatModelStatusAvailable": "可加载",
-  "chatModelStatusFailed": "加载失败",
-  "chatModelLoadTimeout": "模型加载超时：{model}，请稍后重试",
-  "@chatModelLoadTimeout": {
-    "placeholders": {
-      "model": {}
-    }
-  },
-  "chatModelLoadFailed": "模型加载失败：{model}",
-  "@chatModelLoadFailed": {
-    "placeholders": {
-      "model": {}
-    }
-  },
-  "chatModelUnloadTimeout": "模型卸载超时：{model}",
-  "@chatModelUnloadTimeout": {
-    "placeholders": {
-      "model": {}
-    }
-  },
-  "chatModelRequestFailed": "请求失败：{detail}",
-  "@chatModelRequestFailed": {
-    "placeholders": {
-      "detail": {}
-    }
-  },
   "chatReasoningProcess": "深度思考",
   "chatCopyMessage": "复制",
   "chatEditMessage": "编辑",
@@ -131,9 +86,6 @@
   "chatEditMessageTitle": "编辑消息",
   "chatEditMessageHint": "修改这条消息",
   "chatAttachImage": "添加图片",
-  "chatRemoveImage": "移除图片",
-  "chatImageLimitExceeded": "每条消息最多添加5张图片",
-  "chatImageSizeExceeded": "图片大小不能超过10MB",
   "settingsTitle": "设置",
   "settingsSectionGeneral": "通用",
   "settingsSectionChat": "聊天",
@@ -178,7 +130,6 @@
       }
     }
   },
-  "settingsUnavailable": "暂未开放",
   "settingsAbout": "关于",
   "settingsThemeModeSheetTitle": "主题模式",
   "settingsLanguageSheetTitle": "应用语言",
@@ -186,27 +137,9 @@
   "themeModeLight": "浅色",
   "themeModeDark": "深色",
   "languageModeSystem": "跟随系统",
-  "languageModeChinese": "简体中文",
-  "languageModeEnglish": "English",
   "aboutTitle": "关于",
   "aboutDescription": "手机上的大模型推理服务器",
-  "aboutVersion": "版本 {version}",
-  "@aboutVersion": {
-    "placeholders": {
-      "version": {
-        "type": "String"
-      }
-    }
-  },
   "aboutVersionCopied": "版本号已复制",
-  "aboutLlamaCppVersion": "llama.cpp {version}",
-  "@aboutLlamaCppVersion": {
-    "placeholders": {
-      "version": {
-        "type": "String"
-      }
-    }
-  },
   "aboutStarOnGitHub": "在 GitHub 上点亮 Star",
   "aboutLicense": "开源许可",
   "aboutVersionLabel": "版本",
@@ -231,7 +164,6 @@
   "serverCopyBaseUrl": "复制 API Base URL",
   "serverForegroundNotificationTitle": "ServLlama 正在运行",
   "serverForegroundNotificationText": "ServLlama 服务器正在后台运行",
-  "serverStartFailedCheckLogs": "启动失败，请查看日志。",
   "serverStartFailed": "启动失败: {error}",
   "@serverStartFailed": {
     "placeholders": {
@@ -325,9 +257,6 @@
   "serverConfigResetDialogTitle": "恢复默认配置",
   "serverConfigResetDialogContent": "所有配置项将恢复默认值，确定继续吗？",
   "serverConfigResetAction": "恢复默认",
-  "modelManagementTitle": "模型管理",
-  "modelManagementImport": "导入模型",
-  "modelManagementImporting": "导入中...",
   "modelManagementImportSuccess": "模型导入成功: {modelName}",
   "@modelManagementImportSuccess": {
     "placeholders": {
@@ -355,8 +284,6 @@
       }
     }
   },
-  "modelManagementEmptyTitle": "还没有导入模型",
-  "modelManagementEmptyDescription": "点击右下角“导入模型”后，这里会显示本地 GGUF 模型列表。",
   "modelManagementDeleteBusy": "正在删除模型，请稍后。",
   "modelManagementDeleteSuccess": "模型已删除: {modelName}",
   "@modelManagementDeleteSuccess": {
@@ -375,23 +302,10 @@
     }
   },
   "modelManagementDeleteDialogTitle": "删除模型",
-  "modelManagementDeleteDialogContent": "确定删除 {modelName} 吗？这会移除模型文件，且无法恢复。",
-  "@modelManagementDeleteDialogContent": {
-    "placeholders": {
-      "modelName": {
-        "type": "String"
-      }
-    }
-  },
   "modelManagementDeleteTooltip": "删除",
-  "modelMmprojBadgeLabel": "多模态",
-  "modelTextBadgeLabel": "文本",
   "modelManagementSettingsTooltip": "设置",
   "modelSettingsNameLabel": "模型名称",
-  "modelSettingsMmprojLabel": "多模态投影器",
   "modelSettingsImportMmproj": "导入 mmproj 文件",
-  "modelSettingsDownloadMmproj": "下载 mmproj",
-  "modelSettingsReplaceMmproj": "更换 mmproj",
   "modelSettingsRemoveMmproj": "移除 mmproj",
   "modelManagementMmprojImportSuccess": "mmproj 导入成功: {modelName}",
   "@modelManagementMmprojImportSuccess": {
@@ -478,7 +392,6 @@
   "appLogsFilterModel": "模型",
   "appLogsFilterDownload": "下载",
   "appLogsFilterErrors": "仅错误",
-  "engineSectionTitle": "推理引擎",
   "serverStatusIdle": "未运行",
   "serverStatusPreparing": "准备中",
   "serverStatusStopping": "正在停止",
@@ -506,17 +419,13 @@
   "runtimeErrorUnknown": "发生错误：{detail}",
   "serverOpenAccessWarning": "当前监听所有网络接口且未设置 API Key，同一网络中的设备都可访问此服务。",
   "modelLibraryTitle": "模型库",
-  "modelLibraryAddTitle": "添加模型",
   "modelLibraryFilterAll": "全部",
   "modelLibraryDownloadingSection": "下载中",
   "modelLibraryInstalledSection": "已安装",
-  "modelAddDownload": "从模型仓库下载",
-  "modelAddDownloadDesc": "支持 Hugging Face 与魔搭，断点续传",
   "modelAddGguf": "导入 GGUF 文件",
   "modelAddGgufDesc": "llama.cpp 使用的单个 gguf 模型文件",
   "modelAddMnnDir": "导入 MNN 模型目录",
   "modelAddMnnDirDesc": "MNN模型是独立的模型目录",
-  "modelFormatExplainer": "GGUF 是单个文件，MNN 模型是整个目录。卡片上的引擎徽标用于区分两者。",
   "modelLibraryEmptyTitle": "还没有模型",
   "modelLibraryEmptyDescription": "点击 + 添加模型",
   "modelLibrarySearchHint": "搜索模型名称",
@@ -526,38 +435,25 @@
   "modelLibraryStatusRunning": "运行中",
   "modelLibraryStatusIdle": "空闲",
   "modelLibraryActiveCannotDelete": "运行中的模型不可删除",
-  "modelLibrarySwitchEngineBlocked": "当前服务正在运行，请先停止服务再切换引擎。",
-  "modelLibraryActivationFailed": "模型激活失败，请查看服务器日志。",
   "modelCapabilityChinese": "中文",
   "modelCapabilityEnglish": "英文",
   "modelCapabilityVision": "视觉",
   "modelCapabilityToolCalling": "工具调用",
   "discoverTitle": "发现模型",
   "discoverTabFeatured": "精选",
-  "discoverTabSearch": "搜索",
-  "discoverDeviceMemory": "可用内存 {available} / 共 {total}",
-  "discoverDeviceMemoryUnknown": "无法读取设备内存，未做可行性判断。",
   "discoverSearchHint": "搜索模型仓库",
-  "discoverSearchDisclaimer": "搜索结果直接来自仓库，未经真机验证。",
-  "discoverBackToFeatured": "查看真机验证的精选模型",
   "discoverSortTrending": "综合",
   "discoverSortDownloads": "下载量",
   "discoverSortLikes": "喜欢数",
-  "discoverSortUpdated": "最近更新",
-  "discoverFormatAll": "全部格式",
-  "discoverFeaturedNote": "以下模型均经过真机验证。",
   "discoverNoResults": "没有匹配的仓库",
-  "discoverSearchPrompt": "输入模型名称，在双源仓库中搜索。",
   "discoverErrorNetwork": "网络不可达，请检查连接或切换线路。",
   "discoverErrorUnauthorized": "该仓库需要访问令牌，请在设置中填写。",
   "discoverErrorNotFound": "未找到该仓库。",
   "discoverErrorMalformed": "仓库返回了无法解析的响应。",
-  "discoverResultCount": "共 {count} 个结果",
   "discoverDownloadsCount": "{count} 次下载",
   "discoverUpdatedUnknown": "更新时间未知",
   "discoverUpdatedAt": "{date} 更新",
   "repoQuantSectionTitle": "量化档位",
-  "repoFilesSectionTitle": "文件",
   "repoDownloadAction": "下载",
   "repoDownloadQueued": "已加入下载任务",
   "repoVisionOn": "视觉 · 开",
@@ -593,7 +489,6 @@
   },
   "modelSettingsProjectorDownloadPending": "投影器下载完成或取消后，可重命名或删除模型。",
   "repoVisionNoMmproj": "该仓库没有 mmproj 文件。",
-  "repoEstimatedMemory": "约需 {size}",
   "repoNoGgufFiles": "该仓库没有 GGUF 文件。",
   "repoNoMnnFiles": "该仓库没有 MNN 模型文件。",
   "repoMnnWholeDirectory": "MNN 模型按整个目录下载（{count} 个文件）。",
@@ -666,16 +561,10 @@
   "settingsMaxConcurrentDownloads": "并行下载数",
   "settingsMaxConcurrentDownloadsDescription": "同时运行的最大任务数",
   "settingsSectionStorage": "存储",
-  "settingsStorageModels": "模型",
-  "settingsStorageDownloads": "未完成的下载",
   "settingsClearStaging": "清理未完成的下载",
   "settingsClearStagingSubtitle": "移除临时文件",
   "settingsClearStagingDone": "已清理未完成的下载",
   "aboutMnnVersion": "MNN 版本",
-  "aboutMnnVersionDetail": "MNN 版本：{value}",
-  "chatEmptyTitle": "选一个模型开始",
-  "chatEmptyDescription": "选定模型后服务会自动启动。",
-  "chatEmptyAction": "选择模型",
   "chatChooseEngineToStart": "选择要启动的推理引擎",
   "chatEngineDefaultModel": "默认模型：{model}",
   "@chatEngineDefaultModel": {
@@ -687,8 +576,6 @@
   },
   "chatCurrentRunning": "当前运行",
   "chatLoadModelAction": "加载",
-  "chatPreparingModel": "模型准备中",
-  "chatEmptyNoModelsDescription": "先下载一个模型，之后全程在本机运行。",
   "mnnBackendTitle": "MNN 推理后端",
   "mnnBackendNextStart": "下次加载模型时生效。",
   "mnnBackendActive": "已加载的后端：{backend}",
@@ -758,21 +645,15 @@
   },
   "mnnMmapCacheClearFailed": "无法清理 mmap 缓存。",
   "v2FirstAssistants": "助手",
-  "v2Chat": "聊天",
   "v2Models": "模型",
   "v2Add": "新增",
   "v2AddProvider": "添加供应商",
   "v2OperationFailed": "操作未完成",
-  "v2NoInstructions": "使用默认对话行为",
   "v2Duplicate": "复制",
   "v2AssistantEditor": "助手设置",
   "v2Name": "名称",
   "v2Instructions": "系统指令",
-  "v2Connection": "供应商",
-  "v2LocalInference": "本地推理",
   "v2MissingTarget": "目标不可用，请检查供应商是否启用、模型是否仍在列表中，或重新选择。",
-  "v2Model": "模型",
-  "v2CurrentLocal": "当前本地模型",
   "v2ModelId": "模型 ID",
   "v2Connections": "供应商",
   "v2ConnectionsEmpty": "添加供应商并维护模型列表，即可在聊天中选择。",
@@ -783,12 +664,9 @@
   "v2ShowApiKey": "显示 API Key",
   "v2HideApiKey": "隐藏 API Key",
   "v2ApiPath": "API 路径",
-  "v2ModelsHelp": "模型 ID，每行一个（可手工输入）",
   "v2Images": "支持图片输入",
   "v2Tools": "支持工具调用",
   "v2FetchModels": "获取模型列表",
-  "v2TestConnection": "测试供应商",
-  "v2TestPassed": "测试成功，尚未保存。",
   "v2Profile": "用户档案",
   "v2KeepOneAssistant": "请先创建另一个助手，再删除最后一个助手。",
   "v2DeleteConnectionHelp": "删除此供应商将清空相关助手的模型选择。历史会话与消息保留，发送消息前请重新选择模型。",
@@ -806,8 +684,6 @@
   "v2UserName": "用户名称",
   "v2ProfileDescription": "描述",
   "v2ProfileDescriptionHint": "简单介绍一下自己…",
-  "v2StartLocal": "加载当前会话的本地模型",
-  "v2RemoteReady": "直接与所选供应商对话",
   "v2Skills": "技能",
   "v2ImportSkill": "导入技能（ZIP / Markdown）",
   "v2SkillImportPaste": "粘贴 Markdown",
@@ -893,7 +769,6 @@
   "v2Executing": "执行中",
   "v2Failed": "失败",
   "v2UnknownOutcomeHelp": "操作可能已经生效，不会自动重试。核查结果后再明确发起新的运行。",
-  "v2Details": "参数、目标与回执",
   "v2YourAnswer": "你的回答",
   "v2Reject": "拒绝",
   "v2ApproveOnce": "允许本次",
@@ -951,15 +826,11 @@
   "v2PreviewAudio": "试听参考音频",
   "v2VoiceModelMissing": "原模型已不可用。可导出参考音频，安装兼容模型后重新创建音色。",
   "v2PlaybackSpeed": "播放倍速（不改变已合成音频）",
-  "v2InputSnapshot": "任务输入快照",
-  "v2SpeechPackageHelp": "语音模型按固定配方安装，每个包独立保存模型、词表、codec 和音色依赖。导入 ZIP 根目录须包含 speech-package.json。",
-  "v2ImportSpeechPackage": "导入模型 ZIP",
   "v2Ready": "可用",
   "v2ModelIncomplete": "文件不完整或下载已暂停",
   "v2ResumeDownload": "继续下载",
   "v2PauseDownload": "暂停下载",
   "v2DeleteSpeechModelHelp": "删除本机模型文件。已完成的结果会保留；队列中的任务须先取消，参考音色将需要重新选择模型。",
-  "v2AvailableModels": "可下载配方",
   "v2ModelLicenseHelp": "下载前请查看上游模型说明、支持语言和使用许可。",
   "v2ModelCard": "模型说明",
   "v2DownloadModel": "下载",
@@ -980,7 +851,6 @@
   "v2SynthesisParameters": "说话人：{speaker} · 合成语速：{speed}",
   "v2SampleRate": "输出采样率：{rate} Hz",
   "v2DownloadSize": "下载大小约 {size} MiB",
-  "v2TranscriptDestination": "投递到：{name}",
   "@v2SynthesisParameters": {
     "placeholders": {
       "speaker": {
@@ -1005,18 +875,10 @@
       }
     }
   },
-  "@v2TranscriptDestination": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
   "v2RetrySpeech": "重新创建任务",
   "v2TranscriptSegment": "第 {index} 段",
   "v2ReadAloudHelp": "已填入最终回答正文，可编辑后合成。单次最多 4000 字；长回答请分段处理。",
   "v2NativeRestart": "语音资源释放尚未确认。请重启应用后再运行语音任务；当前记录会保留。",
-  "v2CancelImport": "取消导入",
   "v2OriginalChatMissing": "原目标已失效或无法确认，请选择其他会话或助手草稿。转录结果仍会保留。",
   "v2AssistantDraft": "新对话 · {name}",
   "@v2AssistantDraft": {
@@ -1067,8 +929,7 @@
   "v2SearchTimeout": "搜索超时，请稍后重试或切换供应商。",
   "v2SearchOpenFailed": "无法打开此来源链接。",
   "v2ConversationModel": "选择模型",
-  "v2ConversationModelHelp": "按供应商选择模型。点击本地模型后加载并启动服务。",
-  "v2NoLocalChatModels": "暂无模型",
+  "v2NoAvailableModels": "没有可用模型, 请添加供应商或本地模型",
   "v2AssistantDefaultModel": "聊天模型",
   "v2NoDefaultModel": "未选择模型",
   "v2ClearDefaultModel": "清除模型选择",
@@ -1121,12 +982,7 @@
       }
     }
   },
-  "v2ProviderPreset": "预设",
-  "v2ProviderCustom": "自定义",
-  "v2ProviderPresetHelp": "预设供应商不可删除，可以修改配置或禁用。",
   "v2ProviderEnabled": "启用供应商",
-  "v2ProviderOn": "已启用",
-  "v2ProviderOff": "已禁用",
   "v2ProviderModelCount": "{count} 个模型",
   "v2ProviderModelsEmpty": "尚未添加模型，请在供应商设置中手动添加或获取模型。",
   "v2AddModel": "手动添加模型",
@@ -1144,7 +1000,6 @@
   "v2SelectVisible": "选择搜索结果",
   "v2DeselectVisible": "取消选择搜索结果",
   "v2LocalProvider": "本地 · {engine}",
-  "v2LocalProviderHelp": "从本地模型库管理，通过加载和停止控制运行。",
   "v2LocalModelLoaded": "已加载",
   "v2LocalModelUnloaded": "未加载",
   "@v2ProviderModelCount": {
@@ -1183,9 +1038,6 @@
   "settingsMigrationPreviewSubtitle": "模拟新版数据迁移流程",
   "settingsMnnTest": "MNN 测试",
   "settingsDebug": "调试",
-  "localModelImport": "导入本地模型",
-  "localModelChooseImport": "选择并导入",
-  "localModelImportHelp": "选择文件或目录后即开始导入，文件将复制到应用存储中。",
   "discoveryQuery": "搜索预设名称或引擎",
   "discoveryReset": "重置筛选",
   "discoveryPurpose": "用途",
@@ -1314,12 +1166,8 @@
   "uiLabVoiceHint": "转录与合成 · 示例",
   "uiLabComposer": "输入一条消息，体验交互",
   "uiLabSend": "发送预览消息",
-  "uiLabExactValue": "精确值",
-  "uiLabNumericHint": "滑动粗调，右侧输入精确值，最多两位小数。",
-  "uiLabNumericError": "请输入 {min}–{max} 范围内的数值，最多两位小数。",
   "uiLabMessages": "消息提示",
   "uiLabMessagesHint": "顶部居中悬浮，3 秒后消失。新消息替换旧消息，也可手动关闭。",
-  "uiLabDismissMessage": "关闭提示",
   "uiLabMessageSuccess": "成功",
   "uiLabMessageInfo": "信息",
   "uiLabMessageWarning": "警告",
@@ -1327,16 +1175,6 @@
   "uiLabMessageInfoText": "当前为样式预览，操作不会影响真实数据。",
   "uiLabMessageWarningText": "尚未选择模型，请先完成选择。（示例）",
   "uiLabMessageErrorText": "连接失败，请检查设置后重试。（示例）",
-  "@uiLabNumericError": {
-    "placeholders": {
-      "min": {
-        "type": "String"
-      },
-      "max": {
-        "type": "String"
-      }
-    }
-  },
   "uiLabThemeColor": "切换主题色",
   "uiLabViolet": "雾紫",
   "uiLabTea": "茶紫",

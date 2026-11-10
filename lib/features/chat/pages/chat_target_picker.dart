@@ -128,6 +128,9 @@ class _ChatTargetPickerState extends State<ChatTargetPicker> {
     final chat = context.watch<ChatProvider?>();
     final l = context.l10n;
     final query = search.text.trim().toLowerCase();
+    final hasModels =
+        p.assets.any((a) => a.kind == AssetKind.llm) ||
+        p.connections.any((c) => c.enabled && c.models.isNotEmpty);
     final current = widget.onSelected == null
         ? widget.initialTarget
         : chat?.currentTarget ?? widget.initialTarget;
@@ -146,6 +149,18 @@ class _ChatTargetPickerState extends State<ChatTargetPicker> {
                 '${l.v2OperationFailed}\n$error',
                 key: const Key('chat_target_error'),
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+          ),
+        ),
+      if (!hasModels)
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              l.v2NoAvailableModels,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -340,7 +355,7 @@ class _ChatTargetPickerState extends State<ChatTargetPicker> {
         if (selecting || refreshing) const LinearProgressIndicator(),
         Expanded(
           child: slivers.isEmpty
-              ? Center(child: Text(l.modelLibraryEmptySearchTitle))
+              ? const SizedBox.shrink()
               : CustomScrollView(
                   controller: scroll,
                   keyboardDismissBehavior:

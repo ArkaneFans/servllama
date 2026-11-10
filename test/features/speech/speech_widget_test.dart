@@ -149,7 +149,6 @@ void main() {
             .data,
         'Read this exact text',
       );
-      expect(find.text(l.v2InputSnapshot), findsNothing);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       await tester.pumpWidget(
@@ -243,7 +242,6 @@ void main() {
       expect(find.byType(SpeechJobPage), findsOneWidget);
       expect(find.text('Reviewed transcript'), findsOneWidget);
       expect(find.textContaining(l.v2SpeechCreatedAt), findsOneWidget);
-      expect(find.text(l.v2InputSnapshot), findsNothing);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       await tester.pumpWidget(app(const SpeechPage()));
