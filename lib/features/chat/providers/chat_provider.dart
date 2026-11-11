@@ -85,6 +85,19 @@ class ChatProvider extends ChangeNotifier {
       .where((a) => a.id == currentTarget?.assetId && a.kind == AssetKind.llm)
       .firstOrNull;
 
+  ReasoningLevel get reasoningLevel =>
+      currentAssistant?.reasoningLevel ?? ReasoningLevel.auto;
+
+  ModelCapabilities get targetCapabilities {
+    final target = currentTarget;
+    if (target == null) return ModelCapabilities.textOnly;
+    return target.isRemote
+        ? _assistants!
+              .connection(target.connectionId)!
+              .capabilitiesFor(target.modelId!)
+        : const ModelCapabilities(supportsThinking: true);
+  }
+
   String? get targetLabel {
     final target = currentTarget;
     if (target == null) return null;
@@ -422,7 +435,12 @@ class ChatProvider extends ChangeNotifier {
     final key = remote ? connection.apiKey : runtime.apiKey;
     return ChatRunConfig(
       assistant: copy,
-      connection: connection,
+      connection: remote
+          ? connection
+          : connection.changed({
+              'models': [modelId],
+              'modelCapabilities': {modelId: targetCapabilities.toJson()},
+            }),
       key: key,
       modelId: modelId,
       isLocal: !remote,
@@ -459,6 +477,16 @@ class ChatProvider extends ChangeNotifier {
       _sessionList.updateQuery('');
       _refreshBinding();
     });
+  }
+
+  Future<void> setReasoningLevel(ReasoningLevel level) async {
+    if (!canManageSessions) return;
+    final assistant = currentAssistant!;
+    await _changeConversation(
+      () => _assistants!.updateAssistant(assistant.id, {
+        'reasoningLevel': level.name,
+      }),
+    );
   }
 
   Future<void> selectTarget(

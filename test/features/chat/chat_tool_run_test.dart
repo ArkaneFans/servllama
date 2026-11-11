@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -26,6 +27,7 @@ import 'package:servllama/features/chat/services/llama_chat_api_client.dart';
 class _Protocol extends ChatProtocolClient {
   bool callTools = true;
   int? receivedMaxTokens;
+  final reasoningLevels = <ReasoningLevel>[];
   Duration outputDelay = Duration.zero;
   Completer<void>? paused;
   List<AiEvent> Function(List<AiTurn> turns, List<AiTool> tools)? responder;
@@ -41,9 +43,11 @@ class _Protocol extends ChatProtocolClient {
     List<AiTool> tools = const [],
     double temperature = .7,
     int? maxTokens,
+    ReasoningLevel reasoningLevel = ReasoningLevel.auto,
     String? runId,
   }) async* {
     receivedMaxTokens = maxTokens;
+    reasoningLevels.add(reasoningLevel);
     if (paused != null) {
       paused!.complete();
       throw await cancelToken.whenCancel;
@@ -96,6 +100,7 @@ void main() {
     protocol: AiProtocol.openai,
     baseUrl: 'https://example.org',
     models: ['model'],
+    modelCapabilities: {'model': ModelCapabilities(supportsThinking: true)},
   );
 
   setUp(() async {
@@ -167,6 +172,34 @@ void main() {
     }
     expect(service.pendingCount, 1);
   }
+
+  test(
+    'thinking level stays frozen through tools and changes on the next run',
+    () async {
+      activeAssistant = assistant.changed({'reasoningLevel': 'high'});
+      final running = runner.sendMessage('Hello');
+      await waitForApproval();
+      final run = service.activeRunId!;
+      activeAssistant = assistant.changed({'reasoningLevel': 'low'});
+      await service.decide('$run:ask', true, answer: 'Yes');
+      await running;
+      expect(protocol.reasoningLevels, [
+        ReasoningLevel.high,
+        ReasoningLevel.high,
+      ]);
+      final row = (await db.query(
+        'SELECT snapshot FROM generation_runs WHERE id=?',
+        [run],
+      )).single;
+      expect(
+        jsonDecode(row.read<String>('snapshot'))['assistant']['reasoningLevel'],
+        'high',
+      );
+      protocol.callTools = false;
+      await runner.sendMessage('Again');
+      expect(protocol.reasoningLevels.last, ReasoningLevel.low);
+    },
+  );
 
   test(
     'cancelling before any text retains the tool-only reply and its revision',

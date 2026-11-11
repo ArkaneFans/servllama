@@ -316,6 +316,7 @@ void main() {
       );
       await tester.tap(find.byKey(const Key('model_images')));
       await tester.tap(find.byKey(const Key('model_tools')));
+      await tester.tap(find.byKey(const Key('model_thinking')));
       await tester.tap(find.byKey(const Key('provider_model_save_button')));
       await tester.pumpAndSettle();
       // Capability edits are stored immediately, without pressing save.
@@ -324,6 +325,7 @@ void main() {
       expect(saved.nameFor('kept'), 'Primary model');
       expect(saved.capabilitiesFor('kept').supportsImages, isFalse);
       expect(saved.capabilitiesFor('kept').supportsTools, isFalse);
+      expect(saved.capabilitiesFor('kept').supportsThinking, isTrue);
       expect(saved.capabilitiesFor('other').supportsImages, isTrue);
       expect(saved.capabilitiesFor('other').supportsTools, isTrue);
       // The unsaved configuration draft is discarded when leaving.

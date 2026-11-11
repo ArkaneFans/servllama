@@ -17,6 +17,8 @@ import 'package:servllama/core/models/inference_engine.dart';
 import 'package:servllama/core/models/library_model.dart';
 import 'package:servllama/core/providers/engine_runtime_provider.dart';
 import 'package:servllama/core/providers/model_management_provider.dart';
+import 'package:servllama/features/assistants/models/assistant.dart';
+import 'package:servllama/features/assistants/widgets/reasoning_level_picker.dart';
 import 'package:servllama/features/chat/controllers/chat_scroll_coordinator.dart';
 import 'package:servllama/features/chat/controllers/streaming_chat_message_notifier.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
@@ -826,6 +828,17 @@ class _ChatInputPanel extends StatelessWidget {
           pendingImageAttachments: snapshot.pendingImageAttachments,
           onRemoveImageAttachment: provider.removeImageAttachment,
           modelIcon: snapshot.modelIcon,
+          supportsThinking: snapshot.supportsThinking,
+          reasoningLevel: snapshot.reasoningLevel,
+          onOpenReasoning: !snapshot.canOpenModels
+              ? null
+              : () {
+                  showReasoningLevelPicker(
+                    context,
+                    value: snapshot.reasoningLevel,
+                    onChanged: provider.setReasoningLevel,
+                  );
+                },
         ),
       ],
     );
@@ -1179,6 +1192,8 @@ class _ChatInputSnapshot {
     required this.isSending,
     required this.pendingImageAttachments,
     required this.modelIcon,
+    required this.supportsThinking,
+    required this.reasoningLevel,
   });
 
   factory _ChatInputSnapshot.fromProvider(ChatProvider provider) {
@@ -1198,6 +1213,8 @@ class _ChatInputSnapshot {
         provider.pendingImageAttachments,
       ),
       modelIcon: provider.modelIconData,
+      supportsThinking: provider.targetCapabilities.supportsThinking,
+      reasoningLevel: provider.reasoningLevel,
     );
   }
 
@@ -1211,6 +1228,8 @@ class _ChatInputSnapshot {
   final bool isSending;
   final List<String> pendingImageAttachments;
   final ChatModelIconData? modelIcon;
+  final bool supportsThinking;
+  final ReasoningLevel reasoningLevel;
 
   @override
   bool operator ==(Object other) {
@@ -1224,7 +1243,9 @@ class _ChatInputSnapshot {
         other.canAttachImages == canAttachImages &&
         other.isSending == isSending &&
         listEquals(other.pendingImageAttachments, pendingImageAttachments) &&
-        other.modelIcon == modelIcon;
+        other.modelIcon == modelIcon &&
+        other.supportsThinking == supportsThinking &&
+        other.reasoningLevel == reasoningLevel;
   }
 
   @override
@@ -1239,6 +1260,8 @@ class _ChatInputSnapshot {
     isSending,
     Object.hashAll(pendingImageAttachments),
     modelIcon,
+    supportsThinking,
+    reasoningLevel,
   );
 }
 

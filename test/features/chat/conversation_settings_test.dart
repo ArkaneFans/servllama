@@ -165,6 +165,7 @@ class _Protocol extends ChatProtocolClient {
     List<AiTool> tools = const [],
     double temperature = .7,
     int? maxTokens,
+    ReasoningLevel reasoningLevel = ReasoningLevel.auto,
     String? runId,
   }) async* {
     models.add(model);

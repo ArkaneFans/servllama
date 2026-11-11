@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/core/utils/new_id.dart';
 import 'package:servllama/features/assistants/models/assistant.dart';
+import 'package:servllama/features/assistants/widgets/reasoning_level_picker.dart';
 import 'package:servllama/features/assistants/providers/assistant_provider.dart';
 import 'package:servllama/features/assistants/widgets/avatar_editor.dart';
 import 'package:servllama/features/assistants/widgets/identity_avatar.dart';
@@ -523,6 +524,23 @@ class _AssistantEditorState extends State<AssistantEditor> {
                           onPressed: () => _saveFields({'chatTarget': null}),
                           icon: const Icon(Icons.clear),
                         ),
+                ),
+                ListTile(
+                  key: const Key('assistant_reasoning'),
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(current.reasoningLevel.icon),
+                  title: Text(l.reasoningDepth),
+                  subtitle: Text(current.reasoningLevel.label(l)),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => showReasoningLevelPicker(
+                    context,
+                    value: current.reasoningLevel,
+                    onChanged: (level) async {
+                      await _provider.updateAssistant(widget.assistant.id, {
+                        'reasoningLevel': level.name,
+                      });
+                    },
+                  ),
                 ),
               ],
             ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:servllama/app/app_palette.dart';
+import 'package:servllama/features/assistants/models/assistant.dart';
+import 'package:servllama/features/assistants/widgets/reasoning_level_picker.dart';
 import 'package:servllama/features/chat/models/chat_model_icon_data.dart';
 import 'package:servllama/features/chat/widgets/chat_image_widgets.dart';
 import 'package:servllama/l10n/l10n.dart';
@@ -27,6 +29,9 @@ class ChatInputBar extends StatelessWidget {
     required this.pendingImageAttachments,
     required this.onRemoveImageAttachment,
     this.modelIcon,
+    this.supportsThinking = false,
+    this.reasoningLevel = ReasoningLevel.auto,
+    this.onOpenReasoning,
   });
 
   final TextEditingController controller;
@@ -52,6 +57,9 @@ class ChatInputBar extends StatelessWidget {
   /// model's brand identity icon. Null keeps the fallback so an unconfigured
   /// conversation still shows a neutral picker affordance.
   final ChatModelIconData? modelIcon;
+  final bool supportsThinking;
+  final ReasoningLevel reasoningLevel;
+  final VoidCallback? onOpenReasoning;
 
   @override
   Widget build(BuildContext context) {
@@ -159,6 +167,23 @@ class ChatInputBar extends StatelessWidget {
                       style: actionStyle,
                       icon: _ModelSelectorGlyph(icon: modelIcon),
                     ),
+                    if (supportsThinking)
+                      IconButton(
+                        key: const Key('chat_reasoning_button'),
+                        tooltip:
+                            '${l.reasoningDepth}: ${reasoningLevel.label(l)}',
+                        onPressed: onOpenReasoning,
+                        style: actionStyle.copyWith(
+                          foregroundColor: WidgetStateProperty.resolveWith(
+                            (states) =>
+                                states.contains(WidgetState.disabled) ||
+                                    reasoningLevel == ReasoningLevel.off
+                                ? c.onSurfaceVariant
+                                : c.primary,
+                          ),
+                        ),
+                        icon: Icon(reasoningLevel.icon, size: 20),
+                      ),
                     const Spacer(),
                     IconButton(
                       key: const Key('chat_gallery_button'),

@@ -2,6 +2,20 @@ import 'package:servllama/features/agent/models/web_search.dart';
 
 enum AiProtocol { openai, anthropic, gemini }
 
+enum ReasoningLevel {
+  off(0, 'none'),
+  auto(-1, 'auto'),
+  low(1000, 'low'),
+  medium(2000, 'medium'),
+  high(8000, 'high'),
+  xhigh(16000, 'xhigh'),
+  max(32000, 'max');
+
+  const ReasoningLevel(this.budgetTokens, this.effort);
+  final int budgetTokens;
+  final String effort;
+}
+
 class ChatTarget {
   const ChatTarget.local(this.assetId) : connectionId = null, modelId = null;
   const ChatTarget.remote(this.connectionId, this.modelId) : assetId = null;
@@ -38,6 +52,7 @@ class Assistant {
     this.instructions = '',
     this.chatTarget,
     this.temperature = .7,
+    this.reasoningLevel = ReasoningLevel.auto,
     this.maxTokens = 2048,
     this.contextChars = 24000,
     this.maxTurns = 8,
@@ -56,6 +71,7 @@ class Assistant {
       maxToolCalls,
       timeoutSeconds;
   final double temperature;
+  final ReasoningLevel reasoningLevel;
   final ChatTarget? chatTarget;
   final List<String> tools, skillIds, mcpServerIds;
   final WebSearchOptions webSearch;
@@ -67,6 +83,7 @@ class Assistant {
     'instructions': instructions,
     'chatTarget': chatTarget?.toJson(),
     'temperature': temperature,
+    'reasoningLevel': reasoningLevel.name,
     'maxTokens': maxTokens,
     'contextChars': contextChars,
     'maxTurns': maxTurns,
@@ -85,6 +102,7 @@ class Assistant {
     instructions: j['instructions'] ?? '',
     chatTarget: _readChatTarget(j),
     temperature: (j['temperature'] as num? ?? .7).toDouble(),
+    reasoningLevel: ReasoningLevel.values.byName(j['reasoningLevel'] ?? 'auto'),
     maxTokens: j['maxTokens'] ?? 2048,
     contextChars: j['contextChars'] ?? 24000,
     maxTurns: j['maxTurns'] ?? 8,
@@ -120,16 +138,19 @@ class ModelCapabilities {
   const ModelCapabilities({
     this.supportsImages = true,
     this.supportsTools = true,
+    this.supportsThinking = false,
   });
-  final bool supportsImages, supportsTools;
+  final bool supportsImages, supportsTools, supportsThinking;
   Map<String, dynamic> toJson() => {
     'supportsImages': supportsImages,
     'supportsTools': supportsTools,
+    'supportsThinking': supportsThinking,
   };
   factory ModelCapabilities.fromJson(Map<String, dynamic> json) =>
       ModelCapabilities(
         supportsImages: json['supportsImages'] ?? true,
         supportsTools: json['supportsTools'] ?? true,
+        supportsThinking: json['supportsThinking'] ?? false,
       );
 }
 

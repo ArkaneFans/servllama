@@ -2290,6 +2290,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2ConversationModel => 'Choose model';
 
   @override
+  String get modelSupportsThinking => 'Supports thinking';
+
+  @override
+  String get reasoningDepth => 'Thinking depth';
+
+  @override
+  String get reasoningDepthHelp =>
+      'Auto uses the server default. Higher levels may take more time and tokens.';
+
+  @override
+  String get reasoningOff => 'Off';
+
+  @override
+  String get reasoningAuto => 'Auto';
+
+  @override
+  String get reasoningLow => 'Low';
+
+  @override
+  String get reasoningMedium => 'Medium';
+
+  @override
+  String get reasoningHigh => 'High';
+
+  @override
+  String get reasoningXhigh => 'Extra high';
+
+  @override
+  String get reasoningMax => 'Maximum';
+
+  @override
   String get v2NoAvailableModels =>
       'No available models, please add a provider or local model';
 

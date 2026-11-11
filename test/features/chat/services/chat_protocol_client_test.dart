@@ -28,6 +28,7 @@ void main() {
         id: 'a',
         name: 'A',
         chatTarget: const ChatTarget.remote('c', 'model'),
+        reasoningLevel: ReasoningLevel.high,
         tools: const ['clock'],
       );
       await repo.saveAssistant(a);
@@ -41,6 +42,12 @@ void main() {
       await repo.deleteConnection('c');
       final loaded = await repo.assistants();
       expect(loaded.first.tools, ['clock']);
+      expect(loaded.first.reasoningLevel, ReasoningLevel.high);
+      expect(loaded.last.reasoningLevel, ReasoningLevel.high);
+      expect(
+        Assistant.fromJson({'id': 'old', 'name': 'Old'}).reasoningLevel,
+        ReasoningLevel.auto,
+      );
       expect(loaded.last.tools, ['file_read']);
       expect(loaded.first.chatTarget, isNull);
       expect(loaded.last.chatTarget, isNull);
@@ -286,6 +293,9 @@ void main() {
         name: 'test',
         protocol: protocol,
         baseUrl: 'http://127.0.0.1:${server.port}/v1',
+        modelCapabilities: const {
+          'model': ModelCapabilities(supportsThinking: true),
+        },
       );
       final logger = AppLogger();
       addTearDown(logger.dispose);
@@ -297,6 +307,7 @@ void main() {
             'model',
             [const AiTurn(role: 'user', text: 'time?')],
             system: 'instructions',
+            reasoningLevel: ReasoningLevel.high,
             tools: [
               const AiTool('clock', 'Time', {
                 'type': 'object',
@@ -329,6 +340,21 @@ void main() {
         expect(jsonEncode(continuation), contains('sig'));
       }
       expect(request, isNotNull);
+      switch (protocol) {
+        case AiProtocol.openai:
+          expect(request!['reasoning_effort'], 'high');
+        case AiProtocol.anthropic:
+          expect(request!['thinking'], {
+            'type': 'adaptive',
+            'display': 'summarized',
+          });
+          expect(request!['output_config'], {'effort': 'high'});
+        case AiProtocol.gemini:
+          expect(request!['generationConfig']['thinkingConfig'], {
+            'includeThoughts': true,
+            'thinkingBudget': 8000,
+          });
+      }
       final events = logger.entriesFor(LogChannel.client);
       expect(
         events.where(
