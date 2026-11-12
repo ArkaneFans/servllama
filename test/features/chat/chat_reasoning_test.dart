@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/features/assistants/models/assistant.dart';
 import 'package:servllama/features/assistants/pages/assistants_page.dart';
-import 'package:servllama/features/assistants/widgets/reasoning_level_picker.dart';
+import 'package:servllama/features/assistants/widgets/reasoning_level_icon.dart';
 import 'package:servllama/features/chat/pages/chat_page.dart';
 import 'package:servllama/features/chat/widgets/chat_input_bar.dart';
 
@@ -105,8 +105,8 @@ void main() {
       await tester.pumpAndSettle();
       final button = find.byKey(const Key('chat_reasoning_button'));
       expect(
-        (tester.widget<IconButton>(button).icon as Icon).icon,
-        ReasoningLevel.high.icon,
+        (tester.widget<IconButton>(button).icon as ReasoningLevelIcon).level,
+        ReasoningLevel.high,
       );
       await tester.tap(button);
       await tester.pumpAndSettle();

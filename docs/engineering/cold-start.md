@@ -166,15 +166,7 @@ can therefore make every later explicit-bundle SVG load fail. The library's
 pending cache also retains failed loads, so reopening a page cannot repair it.
 This is a compilation/isolate boundary, not a GPU picture lifetime problem.
 
-## Reference and verification
-
-The launch priority now follows ServLlama main, rather than copying Kelivo's
-pre-runApp business snapshot. Kelivo normally admits its database and loads one
-shared `BusinessPreferences` snapshot before `runApp`, then projects provider
-state and initializes chat locally without a whole-app page readiness gate.
-We borrow that shared-owner/local-boundary principle, not its storage layout.
-RikkaHub's shared state and startup profiling offer similar boundaries, but its
-Kotlin/Compose Baseline/Startup Profiles are not a Flutter loading mechanism.
+## Verification
 
 Successful background restoration and idle preparation emit no per-task timing
 logs or Dart timeline spans, and there is no first-frame timing log. Existing

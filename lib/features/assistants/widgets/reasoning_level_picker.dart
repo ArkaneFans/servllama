@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:servllama/features/assistants/models/assistant.dart';
+import 'package:servllama/features/assistants/widgets/reasoning_level_icon.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
 import 'package:servllama/l10n/l10n.dart';
 import 'package:servllama/shared/widgets/async_action.dart';
@@ -13,16 +14,6 @@ extension ReasoningLevelPresentation on ReasoningLevel {
     ReasoningLevel.high => l.reasoningHigh,
     ReasoningLevel.xhigh => l.reasoningXhigh,
     ReasoningLevel.max => l.reasoningMax,
-  };
-
-  IconData get icon => switch (this) {
-    ReasoningLevel.off => Icons.lightbulb_outline_rounded,
-    ReasoningLevel.auto => Icons.auto_awesome_outlined,
-    ReasoningLevel.low => Icons.lightbulb_circle_outlined,
-    ReasoningLevel.medium => Icons.lightbulb_rounded,
-    ReasoningLevel.high => Icons.tips_and_updates_outlined,
-    ReasoningLevel.xhigh => Icons.tips_and_updates_rounded,
-    ReasoningLevel.max => Icons.psychology_rounded,
   };
 }
 
@@ -88,7 +79,7 @@ class _ReasoningLevelPickerState extends State<ReasoningLevelPicker> {
           children: [
             Text(l.reasoningDepth, style: theme.textTheme.titleLarge),
             const SizedBox(height: 20),
-            Icon(selected.icon, size: 48, color: color),
+            ReasoningLevelIcon(level: selected, size: 48, color: color),
             const SizedBox(height: 12),
             Text(
               selected.label(l),

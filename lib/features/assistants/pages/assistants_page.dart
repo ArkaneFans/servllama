@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/core/utils/new_id.dart';
 import 'package:servllama/features/assistants/models/assistant.dart';
+import 'package:servllama/features/assistants/widgets/reasoning_level_icon.dart';
 import 'package:servllama/features/assistants/widgets/reasoning_level_picker.dart';
 import 'package:servllama/features/assistants/providers/assistant_provider.dart';
 import 'package:servllama/features/assistants/widgets/avatar_editor.dart';
@@ -528,7 +529,7 @@ class _AssistantEditorState extends State<AssistantEditor> {
                 ListTile(
                   key: const Key('assistant_reasoning'),
                   contentPadding: EdgeInsets.zero,
-                  leading: Icon(current.reasoningLevel.icon),
+                  leading: ReasoningLevelIcon(level: current.reasoningLevel),
                   title: Text(l.reasoningDepth),
                   subtitle: Text(current.reasoningLevel.label(l)),
                   trailing: const Icon(Icons.chevron_right),

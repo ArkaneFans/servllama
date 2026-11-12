@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:servllama/app/app_palette.dart';
 import 'package:servllama/features/assistants/models/assistant.dart';
+import 'package:servllama/features/assistants/widgets/reasoning_level_icon.dart';
 import 'package:servllama/features/assistants/widgets/reasoning_level_picker.dart';
 import 'package:servllama/features/chat/models/chat_model_icon_data.dart';
 import 'package:servllama/features/chat/widgets/chat_image_widgets.dart';
@@ -182,7 +183,10 @@ class ChatInputBar extends StatelessWidget {
                                 : c.primary,
                           ),
                         ),
-                        icon: Icon(reasoningLevel.icon, size: 20),
+                        icon: ReasoningLevelIcon(
+                          level: reasoningLevel,
+                          size: 20,
+                        ),
                       ),
                     const Spacer(),
                     IconButton(
