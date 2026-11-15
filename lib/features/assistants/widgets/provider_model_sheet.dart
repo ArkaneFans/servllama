@@ -41,6 +41,7 @@ class _ProviderModelSheetState extends State<ProviderModelSheet> {
   late final name = TextEditingController(text: widget.modelName);
   late bool images = widget.capabilities.supportsImages;
   late bool tools = widget.capabilities.supportsTools;
+  late bool thinking = widget.capabilities.supportsThinking;
   bool nameEdited = false;
 
   @override
@@ -60,6 +61,7 @@ class _ProviderModelSheetState extends State<ProviderModelSheet> {
         capabilities: ModelCapabilities(
           supportsImages: images,
           supportsTools: tools,
+          supportsThinking: thinking,
         ),
       ),
     );
@@ -185,6 +187,15 @@ class _ProviderModelSheetState extends State<ProviderModelSheet> {
                           value: tools,
                           onChanged: (value) => setState(() => tools = value),
                         ),
+                        SwitchListTile(
+                          key: const Key('model_thinking'),
+                          contentPadding: EdgeInsets.zero,
+                          secondary: const Icon(Icons.psychology_outlined),
+                          title: Text(l.modelSupportsThinking),
+                          value: thinking,
+                          onChanged: (value) =>
+                              setState(() => thinking = value),
+                        ),
                       ],
                     ),
                   ],
@@ -218,6 +229,7 @@ String modelCapabilityLabel(BuildContext context, ModelCapabilities value) {
   return [
     l.v2ModelText,
     if (value.supportsImages) l.v2ModelImages,
+    if (value.supportsThinking) l.modelSupportsThinking,
     if (value.supportsTools) l.v2ModelTools,
   ].join(' · ');
 }

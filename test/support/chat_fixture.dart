@@ -113,6 +113,7 @@ class ChatFixture {
 class FixtureProtocol extends ChatProtocolClient {
   final inputs = <List<AiTurn>>[];
   final models = <String>[];
+  final reasoningLevels = <ReasoningLevel>[];
   List<AiEvent> events = const [
     AiEvent(text: 'Reply'),
     AiEvent(stopReason: 'stop'),
@@ -132,9 +133,11 @@ class FixtureProtocol extends ChatProtocolClient {
     List<AiTool> tools = const [],
     double temperature = .7,
     int? maxTokens,
+    ReasoningLevel reasoningLevel = ReasoningLevel.auto,
     String? runId,
   }) async* {
     models.add(model);
+    reasoningLevels.add(reasoningLevel);
     inputs.add(List.of(turns));
     if (!started.isCompleted) started.complete();
     for (final event in events) {

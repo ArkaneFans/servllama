@@ -5,6 +5,7 @@ import 'package:servllama/core/utils/new_id.dart';
 import 'package:servllama/core/network/server_sent_events.dart';
 import 'package:servllama/core/security/log_redactor.dart';
 import 'package:servllama/features/assistants/models/assistant.dart';
+import 'package:servllama/features/chat/services/reasoning_request.dart';
 import 'package:servllama/features/chat/models/ai_turn.dart';
 
 /// One request/response round only. Tool scheduling belongs to ChatRunner.
@@ -195,6 +196,29 @@ class ChatProtocolClient {
     List<AiTool> tools = const [],
     double temperature = .7,
     int? maxTokens,
+    ReasoningLevel reasoningLevel = ReasoningLevel.auto,
+  }) {
+    final body = _requestBody(
+      c,
+      model,
+      turns,
+      system: system,
+      tools: tools,
+      temperature: temperature,
+      maxTokens: maxTokens,
+    );
+    applyReasoningRequest(body, c, model, reasoningLevel);
+    return body;
+  }
+
+  Map<String, dynamic> _requestBody(
+    AiConnection c,
+    String model,
+    List<AiTurn> turns, {
+    String system = '',
+    List<AiTool> tools = const [],
+    double temperature = .7,
+    int? maxTokens,
   }) {
     switch (c.protocol) {
       case AiProtocol.openai:
@@ -268,7 +292,7 @@ class ChatProtocolClient {
                 {'text': system},
               ],
             },
-          'generationConfig': {
+          'generationConfig': <String, dynamic>{
             'temperature': temperature,
             if (maxTokens != null) 'maxOutputTokens': maxTokens,
           },
@@ -388,6 +412,7 @@ class ChatProtocolClient {
     List<AiTool> tools = const [],
     double temperature = .7,
     int? maxTokens,
+    ReasoningLevel reasoningLevel = ReasoningLevel.auto,
     String? runId,
   }) async* {
     final watch = Stopwatch()..start();
@@ -417,6 +442,7 @@ class ChatProtocolClient {
         tools: tools,
         temperature: temperature,
         maxTokens: maxTokens,
+        reasoningLevel: reasoningLevel,
         onStatus: (value) => status = value,
       )) {
         if (firstOutputMs == null &&
@@ -478,6 +504,7 @@ class ChatProtocolClient {
     List<AiTool> tools = const [],
     double temperature = .7,
     int? maxTokens,
+    ReasoningLevel reasoningLevel = ReasoningLevel.auto,
     required void Function(int?) onStatus,
   }) async* {
     c.validate();
@@ -500,6 +527,7 @@ class ChatProtocolClient {
         tools: tools,
         temperature: temperature,
         maxTokens: maxTokens,
+        reasoningLevel: reasoningLevel,
       ),
       options: Options(
         responseType: ResponseType.stream,

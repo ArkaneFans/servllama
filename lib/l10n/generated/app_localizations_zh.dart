@@ -2171,6 +2171,36 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2ConversationModel => '选择模型';
 
   @override
+  String get modelSupportsThinking => '支持思考';
+
+  @override
+  String get reasoningDepth => '思考深度';
+
+  @override
+  String get reasoningDepthHelp => '自动沿用服务端默认设置。更高档位可能增加响应时间和 token 用量。';
+
+  @override
+  String get reasoningOff => '关闭';
+
+  @override
+  String get reasoningAuto => '自动';
+
+  @override
+  String get reasoningLow => '低';
+
+  @override
+  String get reasoningMedium => '中';
+
+  @override
+  String get reasoningHigh => '高';
+
+  @override
+  String get reasoningXhigh => '超高';
+
+  @override
+  String get reasoningMax => '最大';
+
+  @override
   String get v2NoAvailableModels => '没有可用模型, 请添加供应商或本地模型';
 
   @override

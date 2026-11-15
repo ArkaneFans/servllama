@@ -1052,6 +1052,7 @@ class ChatRunner extends ChangeNotifier {
               ? (toolSession?.definitions ?? [])
               : const [],
           temperature: config.assistant.temperature,
+          reasoningLevel: config.assistant.reasoningLevel,
         )) {
           text.write(e.text);
           if (e.stopReason != null) completed = e;

@@ -4151,6 +4151,66 @@ abstract class AppLocalizations {
   /// **'Choose model'**
   String get v2ConversationModel;
 
+  /// No description provided for @modelSupportsThinking.
+  ///
+  /// In en, this message translates to:
+  /// **'Supports thinking'**
+  String get modelSupportsThinking;
+
+  /// No description provided for @reasoningDepth.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking depth'**
+  String get reasoningDepth;
+
+  /// No description provided for @reasoningDepthHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto uses the server default. Higher levels may take more time and tokens.'**
+  String get reasoningDepthHelp;
+
+  /// No description provided for @reasoningOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get reasoningOff;
+
+  /// No description provided for @reasoningAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get reasoningAuto;
+
+  /// No description provided for @reasoningLow.
+  ///
+  /// In en, this message translates to:
+  /// **'Low'**
+  String get reasoningLow;
+
+  /// No description provided for @reasoningMedium.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium'**
+  String get reasoningMedium;
+
+  /// No description provided for @reasoningHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'High'**
+  String get reasoningHigh;
+
+  /// No description provided for @reasoningXhigh.
+  ///
+  /// In en, this message translates to:
+  /// **'Extra high'**
+  String get reasoningXhigh;
+
+  /// No description provided for @reasoningMax.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum'**
+  String get reasoningMax;
+
   /// No description provided for @v2NoAvailableModels.
   ///
   /// In en, this message translates to:
