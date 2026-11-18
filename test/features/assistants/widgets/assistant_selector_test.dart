@@ -66,6 +66,14 @@ void main() {
             .selected,
         isTrue,
       );
+      expect(
+        find.descendant(of: sheet, matching: find.byIcon(Icons.check_rounded)),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const Key('assistant_picker_edit_assistant')).hitTestable(),
+        findsOneWidget,
+      );
       await tester.scrollUntilVisible(
         last,
         200,
@@ -75,6 +83,10 @@ void main() {
         ),
       );
       expect(last.hitTestable(), findsOneWidget);
+      expect(
+        find.byKey(const Key('assistant_picker_edit_choice-17')).hitTestable(),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
 
       await tester.tap(last);

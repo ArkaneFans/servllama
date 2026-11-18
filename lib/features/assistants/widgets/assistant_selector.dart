@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:servllama/features/assistants/pages/assistants_page.dart';
 import 'package:servllama/features/assistants/providers/assistant_provider.dart';
 import 'package:servllama/features/assistants/widgets/identity_avatar.dart';
 import 'package:servllama/features/chat/providers/chat_provider.dart';
@@ -130,9 +131,22 @@ class _AssistantPickerSheet extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          trailing: selected
-                              ? const Icon(Icons.check_rounded)
-                              : null,
+                          trailing: IconButton(
+                            key: Key('assistant_picker_edit_${assistant.id}'),
+                            tooltip: context.l10n.v2AssistantEditor,
+                            color: selected
+                                ? colors.onPrimaryContainer
+                                : colors.onSurfaceVariant,
+                            icon: const Icon(Icons.edit_outlined),
+                            onPressed: enabled
+                                ? () => Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (_) =>
+                                          AssistantEditor(assistant: assistant),
+                                    ),
+                                  )
+                                : null,
+                          ),
                           onTap: enabled
                               ? () => Navigator.of(context).pop(assistant.id)
                               : null,

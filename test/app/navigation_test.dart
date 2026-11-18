@@ -467,6 +467,110 @@ void main() {
   });
 
   testWidgets(
+    'assistant picker stays open beneath the editor and preserves the current chat',
+    (tester) async {
+      screen(tester, const Size(360, 800));
+      await tester.pumpWidget(app());
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('chat_input_field')),
+        'Keep this input while editing',
+      );
+      await open(tester, 'drawer_assistant_selector');
+      final sheet = find.byKey(const Key('assistant_picker_sheet'));
+      final pickerRoute = ModalRoute.of(tester.element(sheet));
+
+      for (final id in ['daily', 'study']) {
+        final assistant = assistants.assistants.singleWhere((a) => a.id == id);
+        expect(sheet, findsOneWidget);
+        expect(
+          find.descendant(
+            of: sheet,
+            matching: find.byIcon(Icons.check_rounded),
+          ),
+          findsNothing,
+        );
+        for (final rowId in ['daily', 'study']) {
+          expect(
+            find.byKey(Key('assistant_picker_edit_$rowId')).hitTestable(),
+            findsOneWidget,
+          );
+          expect(
+            tester
+                .widget<ListTile>(
+                  find.byKey(Key('assistant_picker_item_$rowId')),
+                )
+                .selected,
+            rowId == 'daily',
+          );
+        }
+
+        await tester.tap(find.byKey(Key('assistant_picker_edit_$id')));
+        await tester.pumpAndSettle();
+        expect(sheet, findsNothing);
+        expect(
+          find.byKey(const Key('assistant_picker_sheet'), skipOffstage: false),
+          findsOneWidget,
+        );
+        expect(find.byType(AssistantEditor), findsOneWidget);
+        expect(input(tester, 'assistant_name').controller.text, assistant.name);
+        expect(chat.selectedSession?.id, 'original');
+        expect(chat.currentAssistantId, 'daily');
+        expect(assistants.activeId, 'daily');
+        expect(chat.inputText, 'Keep this input while editing');
+        expect(chat.currentTarget?.toJson(), target.toJson());
+
+        final updatedName = '${assistant.name} updated';
+        await tester.enterText(
+          find.byKey(const Key('assistant_name')),
+          updatedName,
+        );
+        await back(tester);
+        await settleSql(
+          tester,
+          () => find.byType(AssistantEditor).evaluate().isEmpty,
+        );
+        expect(
+          assistants.assistants.singleWhere((a) => a.id == id).name,
+          updatedName,
+        );
+        expect(find.byType(ChatPage), findsOneWidget);
+        expect(sheet, findsOneWidget);
+        expect(ModalRoute.of(tester.element(sheet)), same(pickerRoute));
+        expect(
+          find.descendant(of: sheet, matching: find.text(updatedName)),
+          findsOneWidget,
+        );
+        expect(
+          tester
+              .widget<PushSidebar>(find.byType(PushSidebar))
+              .controller!
+              .isOpen,
+          isTrue,
+        );
+        expect(chat.selectedSession?.id, 'original');
+        expect(chat.currentAssistantId, 'daily');
+        expect(assistants.activeId, 'daily');
+        expect(
+          input(tester, 'chat_input_field').controller.text,
+          'Keep this input while editing',
+        );
+        expect(chat.currentTarget?.toJson(), target.toJson());
+        expect(tester.takeException(), isNull);
+      }
+      for (final name in ['Daily updated', 'Study updated']) {
+        expect(
+          find.descendant(of: sheet, matching: find.text(name)),
+          findsOneWidget,
+        );
+      }
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
     'profile and new settings menus are reachable and update in place',
     (tester) async {
       screen(tester, const Size(360, 800));

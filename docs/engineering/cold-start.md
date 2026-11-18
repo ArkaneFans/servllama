@@ -1,216 +1,127 @@
-# Cold start and bounded idle preparation
+# Cold start and idle preparation
 
-## Three boundaries
+## Startup flow
 
-1. `main` admits business data before `runApp`: one-time credential migration,
-   1.x-to-2.0 Hive import, separate one-time MNN inventory registration and SQL
-   cleanup of old soft-deleted LLM rows, message storage and interrupted Run/tool
-   recovery. Hive migration uses the existing choice and skip flow.
-   MNN registration runs independently after
-   Hive admission; failures use the ordinary startup retry entry. All admission
-   precedes construction of business providers.
-2. `ServLlamaApp` immediately displays `MainScaffold`, as on main. Locale,
-   theme, timeout, runtime status and assistant/provider metadata restore
-   independently without a whole-app readiness future. `AppProviderScope`
-   only composes the existing owners; it performs no I/O or readiness gating.
-   `ChatPage` starts its history read after the first frame, without
-   automatically prefetching message bodies.
-3. `AppIdleWarmup`, above the Navigator, prepares a finite set of small local
-   caches after paint. Routes can always use the same loaders on demand.
+1. `main` completes business-data admission before constructing providers:
+   credential migration, legacy Hive/message-store import, independent MNN
+   inventory registration, old missing-model SQL cleanup and interrupted
+   Run/tool recovery. Pending Hive import uses `BootstrapGate` for the existing
+   choice, skip and retry flow; admission failures use the same retry entry.
+2. `ServLlamaApp` displays `MainScaffold` while locale, theme, timeout, runtime
+   status and assistant metadata restore independently. `AppProviderScope`
+   composes the owners without I/O or a combined readiness gate. `ChatPage`
+   loads history after its first frame with `preloadMessages: false`.
+3. After paint, download restoration and MCP startup begin independently of
+   user inactivity. `AppIdleWarmup`, above the Navigator, then runs the finite
+   optional preparation plan described below.
 
-There is no `AppStartupState.prepare`, `AppStartupGate`, explicit
-`deferFirstFrame`/`allowFirstFrame`, splash preserve/remove callback, arbitrary
-startup delay or minimum splash duration. Flutter and Android own native
-launch-screen removal; native launch icon assets are unchanged. Restoring the
-launch theme does not animate as a user theme change. Because settings load
-asynchronously, the first frame may use system locale/theme before restoration,
-just as main does. Fast homepage paint takes priority over an all-ready frame.
+Ordinary launches check durable migration markers. MNN registration remains
+independent of the Hive import choice, reads plugin metadata without initializing
+inference, and commits its marker with the SQL registrations. Missing-model
+cleanup follows registration and preserves model files, speech assets and
+history. Credential migration finishes before business providers or MCP startup;
+normal configuration reads then use the existing SQLite/Preferences snapshots.
 
-## Independent restoration and early interaction
+Flutter and Android own launch-screen removal. The app adds no first-frame
+hold, minimum splash duration or startup delay. The initial frame may use system
+locale/theme; applying the restored theme does not animate as a user change.
 
-Assistant restoration and the model library share the ready-LLM SQL query, without
-filesystem inventories or native initialization. After Hive admission, `main`
-invokes `UnifiedModelRepository.registerLegacyMnnInventory()` once under the
-independent `mnnSqlInventoryComplete` marker. This covers both 1.x upgrades and
-existing 2.0 installations; it never reads Hive or enters the Hive migration UI.
-Skipping Hive import still admits old private MNN models. The step reads model
-metadata through the plugin, without initializing inference or starting serving.
-Rows and the MNN marker commit together, independently of Hive; failures leave
-registration pending for startup retry. After MNN admission, startup removes old
-LLM rows with `state='missing'`, clears their current assistant references and
-commits the independent `legacyMissingLlmAssetsRemoved` marker in one SQL
-transaction. This cleanup preserves model files, speech registrations and
-history. Its order prevents residual MNN folders from restoring deleted entries.
-Ordinary startup then only checks the completion markers. Missing/disabled SQL
-references are still validated. Model
-mutations register their results before notifying existing providers to refresh;
-a saved row does not guarantee that files remain available or a model can load.
+## Restoration and early interaction
 
-`AssistantProvider.ensureLoaded` shares its initial metadata read with route
-loads. Mutations join that read before changing settings. The provider publishes
-its restored fields together; a provider/profile page entered early shows only
-its own loading/retry state and does not expose empty editable settings as if
-restoration had completed. A module failure does not close unrelated routes.
+Each owner shares its initial read with demand callers. Settings edits join that
+read so restoration cannot overwrite an early edit. Assistant/profile/provider
+pages show their own loading or retry state until their snapshot is ready; a
+failure leaves unrelated routes available. Only first-use assistant seeding
+waits for locale restoration to resolve the initial name from ARB.
 
-Only first-use assistant seeding joins locale restoration to resolve its name
-from ARB. Existing assistant snapshots do not wait for that label, and the
-homepage remains ungated. The localized initial name is persisted as ordinary
-editable assistant data; language changes never rename existing assistants.
+Assistant restoration and the model library share the ready-LLM SQL query.
+Inventory scans and native initialization stay outside that read. Model mutations
+commit registrations before refreshing providers, and operations still validate
+missing or disabled references.
 
-Provider keys and MCP headers now persist inside their existing SQLite config
-rows. Download tokens and the local HTTP service key persist with their existing
-Preferences. These are app-private files, not application-level encrypted stores;
-Android backup remains disabled. Log redaction and credential-free Run snapshots
-remain independent privacy boundaries.
+Runtime operations join `EngineRuntimeProvider.ensureRestored` before using
+saved selections or native resource ownership. Restoration reads service status
+without loading weights, starting an idle server or replaying interrupted work.
+Explicit chat/server starts use the saved server configuration; model switches
+use `activateModel` and the existing stop/start flow. Runtime selection and the
+assistant's chat target remain separate.
 
-The shared provider/server snapshot contains its credentials. Editors initialize
-controllers synchronously from it, including known empty values for new entries;
-there is no separate secret-reference lookup, credential cache or editor
-credential-loading state. This avoids both empty-key first frames and the MCP
-buttons' unnecessary disabled-to-enabled 200 ms foreground animation. Real
-save/connect operations retain their existing busy states and normal animations.
-An omitted provider key edit preserves it; explicitly clearing the field saves
-an empty key. A repository-owned credential revision advances only when the key
-changes, revoking frozen requests even if a key is changed away and back. MCP
-header changes replace stale connections; unrelated edits still reuse them.
+Chat input stays in memory. Metadata restoration preserves text typed into the
+initial input; assistant/conversation switches clear it. Sending and selection
+wait only for their required metadata, and conversation creation uses its
+existing single-flight guard.
 
-`CredentialMigration` runs in existing database admission before business
-providers or MCP startup. It reads the old encrypted-Preferences namespace once,
-moves referenced provider/MCP credentials into their existing config rows and
-service/download values into Preferences, then cleans the old namespace and
-publishes `inlineCredentialsComplete`. Config rows commit together; failed
-Preferences writes, SQL commits and cleanup remain retryable without overwriting
-already migrated values. Missing referenced credentials or malformed headers
-fail admission rather than becoming empty settings. Retry uses `BootstrapGate`,
-not a new gate or idle task. Later launches only check the completion marker;
-ordinary business code never uses the secure-storage plugin. The dependency is
-temporarily retained solely so existing installs can migrate, and can be removed
-after the supported upgrade window. Downgrading to the old credential format is
-not supported.
+## Idle preparation
 
-Chat input is one in-memory text buffer, cleared when switching assistants or
-conversations. Metadata restoration preserves text typed into the initial input;
-returning from a secondary route preserves the current input context. Database
-schema 2 removes the legacy `chat_drafts` table during upgrade. Sent messages and
-generation recovery checkpoints retain their existing storage.
-Sending and assistant/model selection stay locally unavailable until required
-assistant metadata is ready. Conversation creation registers its single-flight
-lock before awaiting restoration.
-
-The sidebar assistant entry opens a modal bottom sheet with a scrollable avatar
-list and a highlighted current assistant. Picking a row uses
-`ChatProvider.selectAssistant` to open a blank new chat and filter its
-history; existing conversations retain their assigned assistant. Dismissing the
-sheet preserves the current conversation and input. The entry and sheet rows
-share the existing metadata readiness and conversation-operation guards.
-
-Runtime operations join `ensureRestored` before using persisted engine/model
-selection or native ownership. Local-chat startup also waits before deciding
-whether to reuse/stop a resident model. Restoration never loads model weights,
-starts an idle server, changes the assistant's target or replays a Run. MNN
-restoration reads service status, not `initializeEngine`. Explicit start and
-native cleanup retain the existing cancellation and resource-lease boundaries.
-Server and chat starts both use the saved server configuration, including its
-listen mode, port, API key and engine parameters. Explicit model selection uses
-`EngineRuntimeProvider.activateModel`: reuse the running model, or stop the old
-engine before selecting and starting the new model. This applies to same-engine
-and cross-engine switches; there is no separate private/published mode or lock.
-Assistant selection and runtime selection remain separate, so starting/stopping
-from a service shortcut never changes the chat target.
-Locale/theme/timeout edits similarly join their initial read, so an early edit
-cannot later be overwritten by restoration.
-
-## Background services and idle work
-
-Real services are not optional prefetch. After paint, existing download
-metadata/restoration and MCP startup begin independently. They do not wait for
-history, queue order or user inactivity. Download display-name reservations
-restore in memory; allocation and final commits still check real collisions.
-
-The sequential idle plan contains only:
+The sequential plan in `ServLlamaApp._warmupTasks` contains:
 
 - Server configuration, the small Skill list and About metadata.
-- Bundled AI/MCP/app SVG bytecode, one variant per slot, in the current palette.
-  Other palettes/consumers load through the same bounded cache on demand.
-- Pending owned-file deletion intents, last. This is durable maintenance,
-  not a scan of installed models or chat history. Failed intents survive exit.
+- Bundled AI/MCP/app SVG bytecode in the current palette, one variant per slot.
+- Pending owned-file deletion intents, last; failures remain durable for retry.
 
-Model inventory scans, installed-model lists, speech initialization, discovery
-catalogs, recent message windows and historical logs are no longer part of the
-launch plan. Their existing page/operation loaders remain demand-driven. Speech
-entry recovers interrupted jobs before execution without automatically replaying
-them. Logs join the existing bounded single-flight historical read when opened.
-Explicit refresh after a mutation must still read fresh state rather than
-reuse an older prefetch.
+Each step waits beyond a requested frame and checks Flutter's idle scheduling
+strategy. Pointer gestures, animations, generation, message loading, engine
+transitions, model mutations and active speech/audio take priority. Backgrounding
+pauses the next step; resuming continues. Disposal abandons pending steps while
+in-flight I/O settles under its original owner. Optional failures are isolated
+and attempted once; demand loaders and explicit retry own recovery.
 
-Every idle step waits beyond a requested frame and checks Flutter's idle
-scheduling strategy. Gestures, animations, generation, message loading, engine
-transitions, imports and active audio/jobs take priority. Backgrounding defers
-the next step; resuming continues. Disposal abandons pending steps, but in-flight
-I/O settles under its original owner. Optional failures are isolated and are
-attempted once; demand loaders/explicit retry own recovery. There is no second
-business scheduler, offstage page tree or unbounded native warming.
+Installed-model scans, discovery catalogs, speech initialization, message bodies
+and historical logs load on demand. Speech entry recovers interrupted jobs before
+execution without replaying them. Logs share a bounded historical read. Explicit
+refresh after a mutation reads fresh state. Preparation reuses these owners and
+caches without constructing offstage pages or adding another business scheduler.
 
-The SVG cache holds compiled `ByteData` only. Official `SvgPicture` owns GPU
-picture decoding, fitting and disposal; no retained app-owned painter is used.
-Ready bytes are available synchronously, while demand consumers join compilation
-and keep stable dimensions. Current-theme preparation is an optimization, not a
-requirement for correct first-frame rendering.
+`BundledSvgCache` stores compiled `ByteData`; `SvgPicture` owns GPU decoding,
+fitting and disposal. Ready bytes are synchronous, and concurrent demand loads
+share compilation. MCP uses one neutral compiled shape with paint-time tinting
+for its light/dark consumers; other logos retain color-aware compilation.
 
-The monochrome MCP mark uses one neutral compiled shape and framework paint-time
-tinting. Both fixed `onSurfaceVariant` (settings/list) and `outline` (empty state)
-colors in the light/dark palettes use this shared loader. Preparing or displaying
-either consumer also prepares the other, even before idle warmup reaches the
-mark; size and tint changes do not start a second compilation. Other, potentially
-multicolor logos retain color-aware compilation and unsupported tints retain the
-framework fallback. This adds no startup gate, extra MCP warmup slot or app-owned
-GPU picture cache.
+Asset reads stay on the UI isolate. Only XML bytes and an immutable color theme
+enter the compiler through `SvgBytesLoader`. Passing a live asset bundle to
+`SvgAssetLoader` can capture unsendable cached Futures in flutter_svg's Release
+compute closure. Keep this boundary covered by the device verifier below.
 
-Asset reads stay on the UI isolate. Only SVG XML bytes and the immutable color
-theme enter flutter_svg's compiler, via `SvgBytesLoader`. Do not pass a live
-`rootBundle`/`CachingAssetBundle` to the compiler's `SvgAssetLoader`: in the
-resolved flutter_svg 2.3.0, its Release compute closure captures that loader,
-including the bundle's unsendable cached Futures. Ordinary `loadString` calls
-can therefore make every later explicit-bundle SVG load fail. The library's
-pending cache also retains failed loads, so reopening a page cannot repair it.
-This is a compilation/isolate boundary, not a GPU picture lifetime problem.
+## Core implementation paths
+
+Paths are relative to the repository root.
+
+| Mechanism | Implementation |
+|---|---|
+| Admission and migration/retry UI | [lib/main.dart](../../lib/main.dart): `_initializeBusiness`; [bootstrap_gate.dart](../../lib/app/bootstrap/bootstrap_gate.dart) |
+| Data migration | [credential_migration.dart](../../lib/core/database/credential_migration.dart), [legacy_importer.dart](../../lib/core/database/legacy_importer.dart), [unified_model_repository.dart](../../lib/core/repositories/unified_model_repository.dart): `registerLegacyMnnInventory`, `cleanupLegacyMissingModels` |
+| App composition, background startup and idle plan | [app.dart](../../lib/app/app.dart): `_startBackground`, `_warmupTasks`; [app_provider_scope.dart](../../lib/app/providers/app_provider_scope.dart) |
+| Idle scheduling and failure isolation | [app_idle_warmup.dart](../../lib/app/bootstrap/app_idle_warmup.dart), [startup_task.dart](../../lib/app/bootstrap/startup_task.dart) |
+| Assistant and runtime restoration | [assistant_provider.dart](../../lib/features/assistants/providers/assistant_provider.dart): `ensureLoaded`; [engine_runtime_provider.dart](../../lib/core/providers/engine_runtime_provider.dart): `ensureRestored` |
+| History and owned-file cleanup | [chat_page.dart](../../lib/features/chat/pages/chat_page.dart), [chat_provider.dart](../../lib/features/chat/providers/chat_provider.dart), [chat_session_repository.dart](../../lib/features/chat/repositories/chat_session_repository.dart) |
+| Shared SVG bytecode and rendering | [bundled_svg_asset.dart](../../lib/shared/widgets/bundled_svg_asset.dart) |
 
 ## Verification
 
-Successful background restoration and idle preparation emit no per-task timing
-logs or Dart timeline spans, and there is no first-frame timing log. Existing
-business initialization diagnostics remain; `StartupTask` records only failures
-with phase/task/error-type metadata, never keys, payloads or private paths.
-Migration/manual retry must be measured separately.
+Focused host coverage lives in [test/app/](../../test/app/) (`app_first_frame_test`,
+`bootstrap_gate_test`, `app_idle_warmup_test`, `providers/async_settings_restore_test`),
+[test/core/database/credential_migration_test.dart](../../test/core/database/credential_migration_test.dart),
+[test/core/repositories/mnn_inventory_registration_test.dart](../../test/core/repositories/mnn_inventory_registration_test.dart)
+and [test/shared/widgets/bundled_svg_asset_test.dart](../../test/shared/widgets/bundled_svg_asset_test.dart).
+Check first paint while reads are blocked, local retry, coalesced early demand,
+input preservation, native ownership and idle deferral. SVG tests compare rendered
+pixels in both palettes, including MCP tints and route reentry.
 
-Regression coverage blocks business reads while checking homepage first paint,
-module-local error behavior, migration/retry visibility, coalesced early demand,
-inline credential restoration/migration, early input preservation and native ownership
-restoration. SVG tests still capture actual RGBA pixels for every bundled mark
-in both palettes and compare with `SvgPicture.asset`, including demand/reentry.
-
-Those host tests are not sufficient for the Release compiler: flutter_svg
-2.3.0 compiles synchronously in Debug and uses a real isolate in Release.
-`tool/verify_bundled_svg.dart` is a separate Release-only entrypoint that primes
-real bundle string caches, then checks actual rendered alpha pixels for every
-mark in both palettes, demand coalescing, route reentry and fallback colors.
-MCP checks also cover both real consumer tints, shared compiled bytes and unchanged
-rendered RGBA colors rather than merely accepting an eventually visible fallback.
-It opens no business database or settings. On an idle test device, build it with:
+Host tests do not exercise flutter_svg's Release compiler isolate. On an idle
+test device, build [tool/verify_bundled_svg.dart](../../tool/verify_bundled_svg.dart):
 
 ```text
 flutter build apk --release --target-platform android-arm64 --target tool/verify_bundled_svg.dart
 ```
 
-Verify matching signing before `adb install -r`, then look for `SVG_VERIFY PASS`
-in logcat. Afterwards rebuild the normal `lib/main.dart` Release APK and reinstall
-with `-r`. Never uninstall or clear application data just to run this check.
+Install with matching signing via `adb install -r` and check `SVG_VERIFY PASS` in
+logcat. Then rebuild/reinstall the normal `lib/main.dart` Release APK. Preserve
+application data throughout. The verifier checks real bundle caches and rendered
+pixels without opening business storage.
 
-Compare release builds on the same device/data over multiple ordinary cold
-starts. Check both homepage latency and immediate provider/model/speech/log
-navigation before idle preparation finishes. Include input during restoration,
-gestures, background/resume and ongoing generation. Use DevTools and Android
-system startup traces; `am start -W` alone cannot establish business readiness.
-Removing application-level waits does not imply zero native icon time or prove
-a measured hardware improvement. Host tests/build audits do not replace device
-validation.
+Compare repeated ordinary Release cold starts on the same device/data, separately
+from migration or manual retry. Check homepage paint and immediate navigation,
+input, gestures, background/resume and ongoing generation before warmup finishes.
+Use DevTools and Android startup traces; `am start -W` alone does not establish
+business readiness. `StartupTask` logs failures only; successful restoration and
+warmup add no per-task timing logs. Build success does not establish device speed.
