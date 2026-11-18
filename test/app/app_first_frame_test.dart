@@ -46,11 +46,11 @@ void main() {
     await tester.pump();
     expect(fixture.downloads.transferModes, [true]);
     expect(fixture.chat.historyLoads, 1);
-    fixture.chat.updateDraft('typed before restoration');
+    fixture.chat.updateInputText('typed before restoration');
     pending.complete();
     await tester.pumpAndSettle();
     expect(fixture.chat.currentAssistantId, 'a');
-    expect(fixture.chat.currentDraft, 'typed before restoration');
+    expect(fixture.chat.inputText, 'typed before restoration');
     expect(fixture.chat.canManageSessions, isTrue);
     await tester.pumpWidget(const SizedBox());
     expect(tester.takeException(), isNull);

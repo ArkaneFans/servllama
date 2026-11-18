@@ -197,28 +197,6 @@ class ToolInvocations extends Table {
   List<String> get customConstraints => const ['UNIQUE (run_id, call_id)'];
 }
 
-@DataClassName('DbChatDrafts', companion: 'ChatDraftsCompanion')
-class ChatDrafts extends Table {
-  TextColumn get key => text()();
-  TextColumn get conversationId => text()
-      .nullable()
-      .references(Conversations, #id, onDelete: KeyAction.cascade)
-      .unique()();
-  TextColumn get assistantId => text()
-      .nullable()
-      .references(Assistants, #id, onDelete: KeyAction.cascade)
-      .unique()();
-  TextColumn get content => text()();
-
-  @override
-  Set<Column<Object>> get primaryKey => {key};
-
-  @override
-  List<String> get customConstraints => const [
-    'CHECK ((conversation_id IS NULL) != (assistant_id IS NULL))',
-  ];
-}
-
 @DataClassName('DbModelAssets', companion: 'ModelAssetsCompanion')
 class ModelAssets extends Table {
   TextColumn get id => text()();
@@ -327,7 +305,6 @@ class AppMetadata extends Table {
     RevisionAttachments,
     GenerationRuns,
     ToolInvocations,
-    ChatDrafts,
     ModelAssets,
     SpeechJobs,
     VoiceProfiles,
@@ -356,9 +333,12 @@ class AppDatabase extends _$AppDatabase {
   }();
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
   @override
   MigrationStrategy get migration => MigrationStrategy(
+    onUpgrade: (m, from, to) async {
+      if (from < 2) await m.deleteTable('chat_drafts');
+    },
     beforeOpen: (_) async {
       await customStatement('PRAGMA foreign_keys = ON');
       await customStatement('PRAGMA busy_timeout = 5000');

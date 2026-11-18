@@ -115,17 +115,10 @@ class StartupDownloads extends DownloadProvider {
 }
 
 class StartupChat extends ChatProvider {
-  int draftLoads = 0, historyLoads = 0;
-
-  @override
-  Future<void> prepareDrafts() async {
-    draftLoads++;
-    await super.prepareDrafts();
-  }
+  int historyLoads = 0;
 
   @override
   Future<void> load({bool preloadMessages = true}) async {
     historyLoads++;
-    await prepareDrafts();
   }
 }

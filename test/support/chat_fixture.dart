@@ -100,7 +100,6 @@ class ChatFixture {
     assistants.removeListener(_bind);
     runtime.removeListener(_bind);
     chat.dispose();
-    await chat.flushDrafts();
     assistants.dispose();
     runtime.dispose();
     runtime.resources.dispose();

@@ -59,6 +59,12 @@ file-cleanup mechanism.
 
 ## Verification
 
+ASR insertion requires review and writes only to the current in-memory chat
+input. The dialog identifies a changed chat context, and confirmation rechecks
+the current context and replacement text. Enqueue snapshots retain the context
+ID without copying unsent chat text; completed transcripts remain ordinary saved
+speech results.
+
 Host coverage checks catalog metadata, recipe dispatch, GGUF validation,
 companion download/import and model-discovery filtering.
 Run `flutter analyze` and the speech/download discovery tests after changes.

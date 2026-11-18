@@ -2046,7 +2046,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2ExportWav => 'Export WAV';
 
   @override
-  String get v2InsertTranscript => 'Insert into chat draft';
+  String get v2InsertTranscript => 'Insert into chat input';
 
   @override
   String get v2PlayPause => 'Play / pause';
@@ -2121,14 +2121,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'Only text is inserted. Nothing is sent automatically; original audio is not uploaded.';
 
   @override
-  String get v2ReplaceDraft => 'Replace draft';
+  String get v2ReplaceInput => 'Replace input';
 
   @override
-  String get v2AppendDraft => 'Append to draft';
+  String get v2AppendInput => 'Append to input';
 
   @override
   String get v2TranscriptInserted =>
-      'Transcript inserted into the selected chat draft.';
+      'Transcript inserted into the current input.';
 
   @override
   String get v2ReadAloud => 'Read aloud';
@@ -2165,20 +2165,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'Speech cleanup is unconfirmed. Restart the app before running another speech task. Task records are retained.';
 
   @override
-  String get v2OriginalChatMissing =>
-      'The original destination is unavailable. Choose a conversation or assistant draft. The transcript is retained.';
+  String get v2TranscriptContextChanged =>
+      'The chat has changed. Confirm inserting the transcript into the current input.';
 
   @override
-  String v2AssistantDraft(String name) {
-    return 'New conversation · $name';
-  }
-
-  @override
-  String get v2TranscriptTarget => 'Destination draft';
-
-  @override
-  String get v2DraftChanged =>
-      'The destination draft changed. Open it again before confirming a replacement.';
+  String get v2InputChanged =>
+      'The chat or input has changed. Open it again before confirming.';
 
   @override
   String get v2IncompleteAnswer =>
@@ -2297,7 +2289,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reasoningDepthHelp =>
-      'Auto uses the server default. Higher levels may take more time and tokens.';
+      'Higher levels may take more time and tokens';
 
   @override
   String get reasoningOff => 'Off';
@@ -2342,7 +2334,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get v2ChangeConversationAssistantHelp =>
-      'Keep this conversation’s model, messages, versions and draft. Future replies use the new assistant’s instructions and permissions; historical attribution stays unchanged.';
+      'Keep this conversation’s model, messages, versions and current input. Future replies use the new assistant’s instructions and permissions; historical attribution stays unchanged.';
 
   @override
   String get v2ChooseConversationModel => 'Please select a model';
@@ -2354,7 +2346,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get v2DeleteAssistantHelp =>
-      'Deleting this assistant also deletes all associated conversations, messages, and drafts. This cannot be undone.';
+      'Deleting this assistant also deletes all associated conversations and messages. This cannot be undone.';
 
   @override
   String get v2SwitchAssistantNewChat =>

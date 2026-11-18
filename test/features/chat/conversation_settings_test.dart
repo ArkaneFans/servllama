@@ -27,7 +27,6 @@ import 'package:servllama/features/chat/pages/chat_page.dart';
 import 'package:servllama/features/chat/pages/chat_target_picker.dart';
 import 'package:servllama/features/chat/providers/chat_provider.dart';
 import 'package:servllama/features/chat/repositories/chat_session_repository.dart';
-import 'package:servllama/features/chat/repositories/chat_draft_repository.dart';
 import 'package:servllama/features/chat/services/chat_protocol_client.dart';
 import 'package:servllama/features/chat/widgets/chat_session_drawer_section.dart';
 import 'package:servllama/features/chat/widgets/chat_speech_button.dart';
@@ -241,7 +240,6 @@ void main() {
   tearDown(() async {
     assistants.removeListener(bind);
     chat.dispose();
-    await chat.flushDrafts();
     assistants.dispose();
     runtime.resources.dispose();
     AppDatabase.current = null;
@@ -316,7 +314,7 @@ void main() {
       await tester.tap(find.byKey(const Key('chat_send_button')));
       await tester.pumpAndSettle();
       expect(find.text(l.v2ChooseConversationModel), findsOneWidget);
-      expect(chat.currentDraft, 'Keep this draft');
+      expect(chat.inputText, 'Keep this draft');
       expect(chat.selectedSession, isNull);
       expect(protocol.models, isEmpty);
       await tester.runAsync(() async {
@@ -523,7 +521,7 @@ void main() {
   );
 
   testWidgets(
-    'assistant selector starts a new draft while explicit reassignment keeps the conversation',
+    'assistant selector opens a blank new chat while explicit reassignment keeps the conversation',
     (tester) async {
       // Persistence of debounced drafts is covered by the real-clock tests below.
       AppDatabase.current = null;
@@ -532,7 +530,7 @@ void main() {
           await repository.saveSession(session('original', 'a'));
           await chat.load();
           await chat.selectSession('original');
-          chat.updateDraft('Retained conversation draft');
+          chat.updateInputText('Retained conversation draft');
         });
         await tester.pumpWidget(app(const MainScaffold()));
         await tester.pumpAndSettle();
@@ -541,13 +539,31 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(const Key('drawer_assistant_selector')));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('B').last);
+        expect(find.byKey(const Key('assistant_picker_sheet')), findsOneWidget);
+        expect(
+          tester
+              .widget<ListTile>(
+                find.byKey(const Key('assistant_picker_item_a')),
+              )
+              .selected,
+          isTrue,
+        );
+        await tester.binding.handlePopRoute();
         await tester.pumpAndSettle();
+        expect(chat.selectedSession?.id, 'original');
+        expect(chat.currentAssistantId, 'a');
+        expect(chat.inputText, 'Retained conversation draft');
+        await tester.tap(find.byKey(const Key('drawer_assistant_selector')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('assistant_picker_item_b')));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('assistant_picker_sheet')), findsNothing);
         expect(chat.selectedSession, isNull);
         expect(chat.currentAssistantId, 'b');
-        expect(chat.currentDraft, isEmpty);
+        expect(chat.inputText, isEmpty);
         expect(chat.sessions.single.assistantId, 'a');
         await chat.selectSession('original');
+        chat.updateInputText('Current conversation input');
         await tester.pumpAndSettle();
         Future<void> chooseB() async {
           await tester.longPress(
@@ -576,7 +592,7 @@ void main() {
         expect(chat.currentAssistantId, 'b');
         expect(chat.selectedSession!.id, 'original');
         expect(chat.currentModelId, isNull);
-        expect(chat.currentDraft, 'Retained conversation draft');
+        expect(chat.inputText, 'Current conversation input');
         expect(tester.takeException(), isNull);
       } finally {
         await tester.pumpWidget(const SizedBox.shrink());
@@ -677,42 +693,44 @@ void main() {
   );
 
   testWidgets(
-    'transcript returns to its assistant draft and rechecks deletion on confirmation',
+    'transcript insertion targets current input and rechecks context on confirmation',
     (tester) async {
       AppDatabase.current = null;
       try {
         await tester.runAsync(() async {
+          await repository.saveSession(session('target', 'a'));
           await chat.load();
-          chat.updateDraft('A unsent');
+          chat.updateInputText('A unsent');
           await chat.selectAssistant('b');
-          chat.updateDraft('B unsent');
+          chat.updateInputText('B unsent');
         });
-        await tester.pumpWidget(transcriptAction(transcript('draft:a')));
+        await tester.pumpWidget(transcriptAction(transcript('new:a')));
         await tester.tap(find.text('Insert'));
         await tester.pumpAndSettle();
         final l = AppLocalizations.of(
           tester.element(find.byType(AlertDialog)),
         )!;
-        expect(find.text(l.v2AssistantDraft('A')), findsOneWidget);
-        expect(find.text(l.v2OriginalChatMissing), findsNothing);
-        await tester.tap(find.text(l.v2AppendDraft));
+        expect(find.byType(DropdownButtonFormField<String>), findsNothing);
+        expect(find.text(l.v2TranscriptContextChanged), findsOneWidget);
+        await tester.tap(find.text(l.v2AppendInput));
         await tester.pumpAndSettle();
-        expect(chat.draftFor('draft:a'), 'A unsent\nTranscript');
-        expect(chat.currentDraft, 'B unsent');
+        expect(chat.inputText, 'B unsent\nTranscript');
         expect(chat.currentAssistantId, 'b');
         expect(protocol.models, isEmpty);
         await tester.pump(const Duration(seconds: 5));
         await tester.pumpAndSettle();
 
+        await tester.runAsync(() => chat.selectSession('target'));
+        chat.updateInputText('Input before deletion');
+        await tester.pumpWidget(transcriptAction(transcript('target')));
         await tester.tap(find.text('Insert'));
         await tester.pumpAndSettle();
         await tester.runAsync(() => chat.deleteAssistant('a'));
-        expect(chat.hasDraftDestination('draft:a'), isFalse);
-        await tester.tap(find.text(l.v2AppendDraft));
+        expect(chat.selectedSession, isNull);
+        await tester.tap(find.text(l.v2AppendInput));
         await tester.pumpAndSettle();
-        expect(find.textContaining(l.v2OriginalChatMissing), findsOneWidget);
-        expect(chat.draftFor('draft:a'), isEmpty);
-        expect(chat.currentDraft, 'B unsent');
+        expect(find.textContaining(l.v2InputChanged), findsOneWidget);
+        expect(chat.inputText, isEmpty);
         expect(tester.takeException(), isNull);
       } finally {
         await tester.pumpWidget(const SizedBox.shrink());
@@ -794,29 +812,48 @@ void main() {
   );
 
   test(
-    'assistant and conversation drafts do not carry text or attachments across contexts',
+    'assistant and conversation switches clear in-memory text and attachments',
     () async {
       await chat.load();
-      chat.updateDraft('A unsent');
+      chat.updateInputText('A unsent');
       chat.addImageAttachment('/fixture/a.png');
       await chat.selectAssistant('b');
-      expect(chat.currentDraft, isEmpty);
+      expect(chat.inputText, isEmpty);
       expect(chat.pendingImageAttachments, isEmpty);
-      chat.updateDraft('B unsent');
+      chat.updateInputText('B unsent');
       await chat.selectTarget(two);
       await chat.ensureConversation();
       final id = chat.selectedSession!.id;
-      expect(chat.currentDraft, 'B unsent');
+      expect(chat.inputText, 'B unsent');
       await chat.selectAssistant('a');
-      expect(chat.currentDraft, 'A unsent');
-      expect(chat.pendingImageAttachments, ['/fixture/a.png']);
-      await chat.selectSession(id);
-      expect(chat.currentDraft, 'B unsent');
+      expect(chat.inputText, isEmpty);
       expect(chat.pendingImageAttachments, isEmpty);
-      await chat.flushDrafts();
-      final stored = await ChatDraftRepository(db).load();
-      expect(stored['draft:a'], 'A unsent');
-      expect(stored[id], 'B unsent');
+      await chat.selectSession(id);
+      expect(chat.inputText, isEmpty);
+      expect(chat.pendingImageAttachments, isEmpty);
+    },
+  );
+
+  test(
+    'new-chat input is transient and reselecting the assistant clears it',
+    () async {
+      await chat.load();
+      chat.updateInputText('Unsent text');
+      chat.addImageAttachment('/fixture/a.png');
+      expect(
+        await db.query(
+          "SELECT name FROM sqlite_master WHERE name='chat_drafts'",
+        ),
+        isEmpty,
+      );
+      await expectLater(
+        chat.selectAssistant('missing'),
+        throwsA(isA<StateError>()),
+      );
+      expect(chat.inputText, 'Unsent text');
+      await chat.selectAssistant('a');
+      expect(chat.inputText, isEmpty);
+      expect(chat.pendingImageAttachments, isEmpty);
     },
   );
 
@@ -824,19 +861,19 @@ void main() {
     'first user message commits ownership atomically and preserves draft after storage failure',
     () async {
       await chat.load();
-      chat.updateDraft('retained');
+      chat.updateInputText('retained');
       await db.execute(
         "CREATE TRIGGER reject_conversation BEFORE INSERT ON conversations BEGIN SELECT RAISE(ABORT,'fixture'); END",
       );
       await expectLater(chat.sendMessage('retained'), throwsA(anything));
       expect(await db.query('SELECT id FROM messages'), isEmpty);
-      expect(chat.currentDraft, 'retained');
+      expect(chat.inputText, 'retained');
       await db.execute('DROP TRIGGER reject_conversation');
       await chat.sendMessage('retained');
       final saved = (await repository.loadSessions()).single;
       expect(saved.assistantId, 'a');
       expect(chat.currentTarget?.modelId, 'one');
-      expect(chat.currentDraft, isEmpty);
+      expect(chat.inputText, isEmpty);
     },
   );
 
@@ -957,79 +994,76 @@ void main() {
   );
 
   test(
-    'assistant deletion removes only owned conversations and drafts, and survives restart',
+    'assistant deletion removes owned conversations and survives restart without input caches',
     () async {
       await assistants.setChatTarget('b', two);
-      await repository.saveSession(session('a1', 'a'));
-      await repository.saveSession(session('a2', 'a'));
-      await repository.saveSession(session('moved', 'a'));
-      await repository.saveSession(session('b1', 'b'));
+      for (final record in [
+        session('a1', 'a'),
+        session('a2', 'a'),
+        session('moved', 'a'),
+        session('b1', 'b'),
+      ]) {
+        await repository.saveSession(record);
+      }
       await chat.load();
-      chat.updateDraft('Remove A draft');
-      chat.addImageAttachment('/fixture/a.png');
-      await chat.selectAssistant('b');
-      chat.updateDraft('Keep B draft');
-      chat.addImageAttachment('/fixture/b.png');
       await chat.reassignAssistant('moved', 'b');
-      chat.updateDraft('Keep moved draft', key: 'moved');
       await chat.selectSession('a1');
-      chat.updateDraft('Remove A1 draft');
+      chat.updateInputText('Discard deleted conversation input');
       chat.addImageAttachment('/fixture/a1.png');
-      chat.updateDraft('Remove A2 draft', key: 'a2');
-      final saving = chat.flushDrafts();
       final deleting = chat.deleteAssistant('a');
       expect(chat.canManageSessions, isFalse);
-      await chat.reassignAssistant('a2', 'b');
-      await Future.wait([saving, deleting]);
-      expect(chat.canManageSessions, isTrue);
-      expect(chat.currentAssistantId, 'b');
+      await deleting;
+      expect(assistants.assistants.single.id, 'b');
       expect(chat.selectedSession, isNull);
       expect(chat.visibleMessages, isEmpty);
       expect(chat.sessions.map((s) => s.id), unorderedEquals(['moved', 'b1']));
-      expect(chat.currentDraft, 'Keep B draft');
-      expect(chat.pendingImageAttachments, ['/fixture/b.png']);
-      for (final key in ['draft:a', 'a1', 'a2']) {
-        expect(chat.draftFor(key), isEmpty);
-        expect(chat.hasDraftDestination(key), isFalse);
-        chat.updateDraft('A late callback must not restore this', key: key);
-      }
-      await chat.flushDrafts();
-      final saved = await ChatDraftRepository(db).load();
-      expect(saved.keys, unorderedEquals(['draft:b', 'moved']));
+      expect(chat.inputText, isEmpty);
+      expect(chat.pendingImageAttachments, isEmpty);
       await chat.selectSession('moved');
-      expect(chat.currentAssistantId, 'b');
-      expect(chat.currentTarget?.modelId, 'two');
-      expect(chat.currentDraft, 'Keep moved draft');
+      expect(chat.currentModelId, 'two');
+      chat.updateInputText('Only in memory');
       final restored = ChatProvider(
         repository: repository,
         protocolClient: _Protocol(),
       );
+      restored.bind(assistants, runtime);
       try {
-        restored.bind(assistants, runtime);
         await restored.load();
+        await restored.selectSession('moved');
         expect(
           restored.sessions.map((s) => s.id),
           unorderedEquals(['moved', 'b1']),
         );
-        expect(restored.currentDraft, 'Keep B draft');
-        expect(restored.draftFor('draft:a'), isEmpty);
-        await restored.selectSession('moved');
-        expect(restored.currentDraft, 'Keep moved draft');
+        expect(restored.inputText, isEmpty);
+        expect(restored.currentModelId, 'two');
         expect(restored.canSend, isTrue);
       } finally {
         restored.dispose();
-        await restored.flushDrafts();
       }
     },
   );
 
   test(
-    'a failed assistant deletion retains UI, history, attachments and drafts',
+    'deleting another assistant preserves the active conversation input',
+    () async {
+      await repository.saveSession(session('a1', 'a'));
+      await repository.saveSession(session('b1', 'b'));
+      await chat.load();
+      await chat.selectSession('b1');
+      chat.updateInputText('Current B input');
+      await chat.deleteAssistant('a');
+      expect(chat.selectedSession?.id, 'b1');
+      expect(chat.inputText, 'Current B input');
+    },
+  );
+
+  test(
+    'a failed assistant deletion retains UI, history, attachments and input',
     () async {
       await chat.load();
       await chat.sendMessage('Keep history');
       final id = chat.selectedSession!.id;
-      chat.updateDraft('Keep draft');
+      chat.updateInputText('Keep draft');
       chat.addImageAttachment('/fixture/keep.png');
       await db.execute(
         "CREATE TRIGGER reject_assistant_delete BEFORE DELETE ON assistants BEGIN SELECT RAISE(ABORT,'fixture'); END",
@@ -1040,9 +1074,8 @@ void main() {
       expect(assistants.assistants, hasLength(2));
       expect(chat.selectedSession!.id, id);
       expect(chat.visibleMessages, hasLength(2));
-      expect(chat.currentDraft, 'Keep draft');
+      expect(chat.inputText, 'Keep draft');
       expect(chat.pendingImageAttachments, ['/fixture/keep.png']);
-      expect((await ChatDraftRepository(db).load())[id], 'Keep draft');
       await db.execute('DROP TRIGGER reject_assistant_delete');
       await chat.deleteAssistant('a');
       expect(chat.visibleMessages, isEmpty);
@@ -1063,7 +1096,7 @@ void main() {
           await repository.saveSession(session('owned', 'a'));
           await chat.load();
           await chat.selectSession('owned');
-          chat.updateDraft('Keep until confirmed');
+          chat.updateInputText('Keep until confirmed');
         });
         tester.view.physicalSize = const Size(360, 800);
         tester.view.devicePixelRatio = 1;
@@ -1093,7 +1126,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(assistants.assistants, hasLength(2));
         expect(chat.selectedSession!.id, 'owned');
-        expect(chat.currentDraft, 'Keep until confirmed');
+        expect(chat.inputText, 'Keep until confirmed');
         await openConfirmation();
         await changeOnScreen(
           tester,
@@ -1144,33 +1177,27 @@ void main() {
   );
 
   test(
-    'cold state restoration keeps session selection data and text drafts',
+    'restart restores conversation ownership and model without unsent input',
     () async {
-      await ChatDraftRepository(db).saveChanges({'draft:a': 'Unsent'});
       await chat.load();
-      expect(chat.currentDraft, 'Unsent');
+      chat.updateInputText('Unsent');
       await chat.selectTarget(two);
       await chat.ensureConversation();
       final id = chat.selectedSession!.id;
-      await chat.flushDrafts();
+      expect(chat.inputText, 'Unsent');
       final restored = ChatProvider(
         repository: repository,
         protocolClient: _Protocol(),
       );
+      restored.bind(assistants, runtime);
       try {
-        restored.bind(assistants, runtime);
         await restored.load();
         await restored.selectSession(id);
         expect(restored.currentAssistantId, 'a');
         expect(restored.currentModelId, 'two');
-        expect(restored.currentDraft, 'Unsent');
-        expect(
-          await ChatDraftRepository(db).load(),
-          isNot(contains('draft:a')),
-        );
+        expect(restored.inputText, isEmpty);
       } finally {
         restored.dispose();
-        await restored.flushDrafts();
       }
     },
   );

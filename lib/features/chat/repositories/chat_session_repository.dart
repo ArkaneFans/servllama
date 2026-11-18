@@ -220,7 +220,7 @@ class ChatSessionRepository {
       for (final id in ids) {
         await _deleteMessageRows(db, await ChatRecordStore(db).messageIds(id));
       }
-      // Conversation, draft and run/receipt foreign keys follow current ownership.
+      // Conversation and run/receipt foreign keys follow current ownership.
       await db.execute('DELETE FROM assistants WHERE id=?', [assistantId]);
       return ids;
     });

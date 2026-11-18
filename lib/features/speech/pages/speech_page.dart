@@ -19,12 +19,11 @@ class SpeechPage extends StatefulWidget {
   const SpeechPage({
     super.key,
     this.conversationId,
-    this.draftAtEnqueue,
     this.forChat = false,
     this.initialText,
     this.initialKind,
   });
-  final String? conversationId, draftAtEnqueue;
+  final String? conversationId;
   final bool forChat;
   final String? initialText;
   final AssetKind? initialKind;
@@ -106,7 +105,6 @@ class _SpeechPageState extends State<SpeechPage> {
             : 1,
         voice: voice,
         conversationId: widget.conversationId,
-        draftAtEnqueue: widget.draftAtEnqueue,
       );
       if (!mounted) return;
       setState(() => _jobs[kind] = j.id);

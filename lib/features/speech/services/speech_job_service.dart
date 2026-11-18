@@ -216,7 +216,6 @@ class SpeechJobService extends ChangeNotifier {
     double speed = 1,
     VoiceProfile? voice,
     String? conversationId,
-    String? draftAtEnqueue,
   }) async {
     if (!ready) throw StateError('Speech is not ready');
     if (jobs.where((j) => j.state.active).length >= 8) {
@@ -281,7 +280,6 @@ class SpeechJobService extends ChangeNotifier {
         'speed': speed,
         'voice': voiceSnapshot,
         'conversationId': conversationId,
-        'draftAtEnqueue': draftAtEnqueue,
       });
       final job = SpeechJob(
         id: id,
@@ -665,7 +663,6 @@ class SpeechJobService extends ChangeNotifier {
           ? null
           : VoiceProfile.fromJson(Map<String, dynamic>.from(voice)),
       conversationId: source['conversationId'] as String?,
-      draftAtEnqueue: source['draftAtEnqueue'] as String?,
     );
     _event('speech.job.retried', next, fields: {'previous_job': previous.id});
     return next;

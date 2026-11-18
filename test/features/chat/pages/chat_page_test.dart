@@ -29,7 +29,7 @@ void main() {
   }
 
   testWidgets(
-    'composer sends a message and new chat returns to the assistant draft',
+    'composer sends a message and new chat opens a blank input',
     (tester) => withPage(tester, () async {
       await tester.pumpWidget(fixture.app(const ChatPage()));
       await tester.runAsync(() => fixture.chat.load(preloadMessages: false));
@@ -59,7 +59,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Reply'), findsOneWidget);
-      expect(fixture.chat.currentDraft, isEmpty);
+      expect(fixture.chat.inputText, isEmpty);
       await tester.tap(find.byTooltip('New conversation'));
       await settleBusiness(tester, () => fixture.chat.selectedSession == null);
       expect(find.byKey(const Key('chat_welcome_greeting')), findsOneWidget);

@@ -16,7 +16,11 @@ class ChatSpeechButton extends StatelessWidget {
     if (service == null) return const SizedBox.shrink();
     return IconButton(
       tooltip: context.l10n.v2TranscribeToChat,
-      style: IconButton.styleFrom(minimumSize: const Size(48,48), padding: EdgeInsets.zero, alignment: Alignment.centerLeft),
+      style: IconButton.styleFrom(
+        minimumSize: const Size(48, 48),
+        padding: EdgeInsets.zero,
+        alignment: Alignment.centerLeft,
+      ),
       icon: const Icon(Icons.mic_none),
       onPressed: !service.ready
           ? null
@@ -27,8 +31,7 @@ class ChatSpeechButton extends StatelessWidget {
                 MaterialPageRoute(
                   builder: (_) => SpeechPage(
                     forChat: true,
-                    conversationId: chat.draftKey,
-                    draftAtEnqueue: chat.currentDraft,
+                    conversationId: chat.inputContextKey,
                   ),
                 ),
               );
@@ -42,97 +45,57 @@ class ChatSpeechButton extends StatelessWidget {
 
 Future<void> insertTranscript(BuildContext context, SpeechJob job) async {
   final chat = context.read<ChatProvider>(), l = context.l10n;
-  String key = job.snapshot['conversationId'] as String? ?? chat.draftKey;
-  final missing = !chat.hasDraftDestination(key);
-  if (missing) key = chat.newDraftKey;
-  final newDrafts = chat.newConversationDrafts;
-  var reviewedDraft = chat.draftFor(key);
+  final key = chat.inputContextKey;
+  final reviewedInput = chat.inputText;
+  final original = job.snapshot['conversationId'] as String?;
   final choice = await showDialog<String>(
     context: context,
-    builder: (c) => StatefulBuilder(
-      builder: (c, change) => AlertDialog(
-        title: Text(l.v2InsertTranscript),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (missing) Text(l.v2OriginalChatMissing),
-              DropdownButtonFormField<String>(
-                initialValue: key,
-                isExpanded: true,
-                decoration: InputDecoration(labelText: l.v2TranscriptTarget),
-                items: [
-                  ...newDrafts.entries.map(
-                    (entry) => DropdownMenuItem(
-                      value: entry.key,
-                      child: Text(
-                        entry.value.isEmpty
-                            ? l.chatNewSession
-                            : l.v2AssistantDraft(entry.value),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                  ...chat.sessions.map(
-                    (s) => DropdownMenuItem(
-                      value: s.id,
-                      child: Text(s.title, overflow: TextOverflow.ellipsis),
-                    ),
-                  ),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    change(() {
-                      key = value;
-                      reviewedDraft = chat.draftFor(key);
-                    });
-                  }
-                },
-              ),
-              const SizedBox(height: 8),
-              Text(
-                chat.draftFor(key),
-                maxLines: 4,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 8),
-              Text(l.v2NoAutomaticAudioUpload),
-            ],
-          ),
+    builder: (c) => AlertDialog(
+      title: Text(l.v2InsertTranscript),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (original != null && original != key)
+              Text(l.v2TranscriptContextChanged),
+            Text(chat.selectedSession?.title ?? l.chatNewSession),
+            const SizedBox(height: 8),
+            Text(reviewedInput, maxLines: 4, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 8),
+            Text(l.v2NoAutomaticAudioUpload),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c),
-            child: Text(l.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(c, 'replace'),
-            child: Text(l.v2ReplaceDraft),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(c, 'append'),
-            child: Text(l.v2AppendDraft),
-          ),
-        ],
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(c),
+          child: Text(l.commonCancel),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(c, 'replace'),
+          child: Text(l.v2ReplaceInput),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(c, 'append'),
+          child: Text(l.v2AppendInput),
+        ),
+      ],
     ),
   );
   if (choice == null || !context.mounted) return;
-  if (!chat.hasDraftDestination(key)) {
-    throw StateError(l.v2OriginalChatMissing);
+  if (chat.inputContextKey != key) {
+    throw StateError(l.v2InputChanged);
   }
-  final previous = chat.draftFor(key);
-  if (choice == 'replace' && previous != reviewedDraft) {
-    throw StateError(l.v2DraftChanged);
+  final previous = chat.inputText;
+  if (choice == 'replace' && previous != reviewedInput) {
+    throw StateError(l.v2InputChanged);
   }
-  chat.updateDraft(
+  chat.updateInputText(
     choice == 'replace' || previous.isEmpty
         ? job.text
         : '$previous\n${job.text}',
-    key: key,
   );
-  await chat.flushDrafts();
   if (!context.mounted) return;
   AppMessage.show(context, l.v2TranscriptInserted);
 }

@@ -8,12 +8,12 @@ import 'package:servllama/features/chat/repositories/chat_session_repository.dar
 
 void main() {
   test(
-    'draft preparation never reads the history or message membership',
+    'typing in a new chat never reads the history or message membership',
     () async {
       final repository = _DelayedHistory();
       final chat = ChatProvider(repository: repository);
       addTearDown(chat.dispose);
-      await chat.prepareDrafts();
+      chat.updateInputText('Unsent text');
       expect(repository.reads, 0);
       expect(chat.selectedSession, isNull);
       expect(chat.isShowingDraftSession, isTrue);

@@ -142,7 +142,6 @@ void main() {
   tearDown(() async {
     assistants.removeListener(bind);
     chat.dispose();
-    await chat.flushDrafts();
     assistants.dispose();
     runtime.dispose();
     runtime.resources.dispose();
@@ -363,7 +362,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(input(tester, 'chat_input_field').focusNode.hasFocus, isFalse);
     expect(tester.testTextInput.isVisible, isFalse);
-    expect(chat.currentDraft, 'Keep this draft');
+    expect(chat.inputText, 'Keep this draft');
     await tester.tap(find.byKey(const Key('chat_input_field')));
     await tester.pumpAndSettle();
     expect(tester.testTextInput.isVisible, isTrue);
@@ -454,7 +453,7 @@ void main() {
       expect(find.byType(ChatPage), findsOneWidget);
       expect(chat.selectedSession?.id, 'original');
       expect(chat.currentTarget?.toJson(), target.toJson());
-      expect(chat.currentDraft, 'Keep this draft');
+      expect(chat.inputText, 'Keep this draft');
       expect(input(tester, 'chat_input_field').focusNode.hasFocus, isFalse);
       expect(input(tester, 'drawer_search_input').focusNode.hasFocus, isFalse);
       expect(tester.testTextInput.isVisible, isFalse);
@@ -939,7 +938,7 @@ void main() {
     (tester) async {
       screen(tester, const Size(390, 844));
       await chat.createSession();
-      chat.updateDraft('Keep the welcome draft');
+      chat.updateInputText('Keep the welcome draft');
       await tester.pumpWidget(app());
       await tester.pumpAndSettle();
       for (final id in ['server', 'speech']) {
@@ -955,7 +954,7 @@ void main() {
         }
         await tester.pageBack();
         await tester.pumpAndSettle();
-        expect(chat.currentDraft, 'Keep the welcome draft');
+        expect(chat.inputText, 'Keep the welcome draft');
         expect(chat.currentTarget, target);
         expect(chat.selectedSession, isNull);
         expect(runtime.isRunning, isFalse);

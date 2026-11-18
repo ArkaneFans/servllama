@@ -821,7 +821,7 @@
   "v2ExportTxt": "导出 TXT",
   "v2ExportSrt": "导出 SRT",
   "v2ExportWav": "导出 WAV",
-  "v2InsertTranscript": "插入聊天草稿",
+  "v2InsertTranscript": "填入聊天输入框",
   "v2PlayPause": "播放 / 暂停",
   "v2PreviewAudio": "试听参考音频",
   "v2VoiceModelMissing": "原模型已不可用。可导出参考音频，安装兼容模型后重新创建音色。",
@@ -844,9 +844,9 @@
   "v2SaveAndPreview": "保存并创建试听任务",
   "v2TranscribeToChat": "语音转文字",
   "v2NoAutomaticAudioUpload": "只插入文本，不自动发送消息或上传原始音频。",
-  "v2ReplaceDraft": "替换草稿",
-  "v2AppendDraft": "追加到草稿",
-  "v2TranscriptInserted": "转录文本已写入指定聊天草稿。",
+  "v2ReplaceInput": "替换输入内容",
+  "v2AppendInput": "追加到输入框",
+  "v2TranscriptInserted": "转写内容已填入当前输入框。",
   "v2ReadAloud": "朗读回答",
   "v2SynthesisParameters": "说话人：{speaker} · 合成语速：{speed}",
   "v2SampleRate": "输出采样率：{rate} Hz",
@@ -879,17 +879,8 @@
   "v2TranscriptSegment": "第 {index} 段",
   "v2ReadAloudHelp": "已填入最终回答正文，可编辑后合成。单次最多 4000 字；长回答请分段处理。",
   "v2NativeRestart": "语音资源释放尚未确认。请重启应用后再运行语音任务；当前记录会保留。",
-  "v2OriginalChatMissing": "原目标已失效或无法确认，请选择其他会话或助手草稿。转录结果仍会保留。",
-  "v2AssistantDraft": "新对话 · {name}",
-  "@v2AssistantDraft": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "v2TranscriptTarget": "投递到草稿",
-  "v2DraftChanged": "目标草稿已变化，请重新打开并确认后再替换。",
+  "v2TranscriptContextChanged": "聊天已切换，确认将转写内容填入当前输入框。",
+  "v2InputChanged": "聊天或输入内容已变化，请重新打开并确认。",
   "v2IncompleteAnswer": "这条回答尚未完整生成，请完成回答后再朗读。",
   "@v2TranscriptSegment": {
     "placeholders": {
@@ -931,7 +922,7 @@
   "v2ConversationModel": "选择模型",
   "modelSupportsThinking": "支持思考",
   "reasoningDepth": "思考深度",
-  "reasoningDepthHelp": "自动沿用服务端默认设置。更高档位可能增加响应时间和 token 用量。",
+  "reasoningDepthHelp": "更高档位可能增加响应时间和 token 用量",
   "reasoningOff": "关闭",
   "reasoningAuto": "自动",
   "reasoningLow": "低",
@@ -945,10 +936,10 @@
   "v2ClearDefaultModel": "清除模型选择",
   "v2UnassignedAssistant": "助手未指定或已删除",
   "v2ChangeConversationAssistant": "更换此会话的助手",
-  "v2ChangeConversationAssistantHelp": "保留本会话的模型、消息、版本和草稿。之后的生成使用新助手的提示词与权限，历史消息署名保持不变。",
+  "v2ChangeConversationAssistantHelp": "保留本会话的模型、消息、版本和当前输入。之后的生成使用新助手的提示词与权限，历史消息署名保持不变。",
   "v2ChooseConversationModel": "请选择模型",
   "v2ConnectionConversationCount": "{count} 个会话使用此供应商，删除后需重新选择模型。",
-  "v2DeleteAssistantHelp": "删除助手会同时删除关联的所有会话、消息和草稿。此操作不可撤销。",
+  "v2DeleteAssistantHelp": "删除助手会同时删除关联的所有会话和消息。此操作不可撤销。",
   "@v2ConnectionConversationCount": {
     "placeholders": {
       "count": {

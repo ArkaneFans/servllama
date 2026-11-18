@@ -3734,7 +3734,7 @@ abstract class AppLocalizations {
   /// No description provided for @v2InsertTranscript.
   ///
   /// In en, this message translates to:
-  /// **'Insert into chat draft'**
+  /// **'Insert into chat input'**
   String get v2InsertTranscript;
 
   /// No description provided for @v2PlayPause.
@@ -3869,22 +3869,22 @@ abstract class AppLocalizations {
   /// **'Only text is inserted. Nothing is sent automatically; original audio is not uploaded.'**
   String get v2NoAutomaticAudioUpload;
 
-  /// No description provided for @v2ReplaceDraft.
+  /// No description provided for @v2ReplaceInput.
   ///
   /// In en, this message translates to:
-  /// **'Replace draft'**
-  String get v2ReplaceDraft;
+  /// **'Replace input'**
+  String get v2ReplaceInput;
 
-  /// No description provided for @v2AppendDraft.
+  /// No description provided for @v2AppendInput.
   ///
   /// In en, this message translates to:
-  /// **'Append to draft'**
-  String get v2AppendDraft;
+  /// **'Append to input'**
+  String get v2AppendInput;
 
   /// No description provided for @v2TranscriptInserted.
   ///
   /// In en, this message translates to:
-  /// **'Transcript inserted into the selected chat draft.'**
+  /// **'Transcript inserted into the current input.'**
   String get v2TranscriptInserted;
 
   /// No description provided for @v2ReadAloud.
@@ -3935,29 +3935,17 @@ abstract class AppLocalizations {
   /// **'Speech cleanup is unconfirmed. Restart the app before running another speech task. Task records are retained.'**
   String get v2NativeRestart;
 
-  /// No description provided for @v2OriginalChatMissing.
+  /// No description provided for @v2TranscriptContextChanged.
   ///
   /// In en, this message translates to:
-  /// **'The original destination is unavailable. Choose a conversation or assistant draft. The transcript is retained.'**
-  String get v2OriginalChatMissing;
+  /// **'The chat has changed. Confirm inserting the transcript into the current input.'**
+  String get v2TranscriptContextChanged;
 
-  /// No description provided for @v2AssistantDraft.
+  /// No description provided for @v2InputChanged.
   ///
   /// In en, this message translates to:
-  /// **'New conversation · {name}'**
-  String v2AssistantDraft(String name);
-
-  /// No description provided for @v2TranscriptTarget.
-  ///
-  /// In en, this message translates to:
-  /// **'Destination draft'**
-  String get v2TranscriptTarget;
-
-  /// No description provided for @v2DraftChanged.
-  ///
-  /// In en, this message translates to:
-  /// **'The destination draft changed. Open it again before confirming a replacement.'**
-  String get v2DraftChanged;
+  /// **'The chat or input has changed. Open it again before confirming.'**
+  String get v2InputChanged;
 
   /// No description provided for @v2IncompleteAnswer.
   ///
@@ -4166,7 +4154,7 @@ abstract class AppLocalizations {
   /// No description provided for @reasoningDepthHelp.
   ///
   /// In en, this message translates to:
-  /// **'Auto uses the server default. Higher levels may take more time and tokens.'**
+  /// **'Higher levels may take more time and tokens'**
   String get reasoningDepthHelp;
 
   /// No description provided for @reasoningOff.
@@ -4250,7 +4238,7 @@ abstract class AppLocalizations {
   /// No description provided for @v2ChangeConversationAssistantHelp.
   ///
   /// In en, this message translates to:
-  /// **'Keep this conversation’s model, messages, versions and draft. Future replies use the new assistant’s instructions and permissions; historical attribution stays unchanged.'**
+  /// **'Keep this conversation’s model, messages, versions and current input. Future replies use the new assistant’s instructions and permissions; historical attribution stays unchanged.'**
   String get v2ChangeConversationAssistantHelp;
 
   /// No description provided for @v2ChooseConversationModel.
@@ -4268,7 +4256,7 @@ abstract class AppLocalizations {
   /// No description provided for @v2DeleteAssistantHelp.
   ///
   /// In en, this message translates to:
-  /// **'Deleting this assistant also deletes all associated conversations, messages, and drafts. This cannot be undone.'**
+  /// **'Deleting this assistant also deletes all associated conversations and messages. This cannot be undone.'**
   String get v2DeleteAssistantHelp;
 
   /// No description provided for @v2SwitchAssistantNewChat.

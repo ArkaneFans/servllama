@@ -39,7 +39,7 @@ class ChatScrollCoordinator extends ChangeNotifier {
       return;
     }
     final provider = _provider;
-    final selectedConversationKey = provider?.draftKey ?? 'draft';
+    final selectedConversationKey = provider?.inputContextKey ?? 'draft';
     if (selectedConversationKey != conversationKey) {
       return;
     }

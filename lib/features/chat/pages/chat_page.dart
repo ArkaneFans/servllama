@@ -73,10 +73,10 @@ class _ChatView extends StatefulWidget {
 class _ChatViewState extends State<_ChatView> {
   final ChatScrollCoordinator _scrollCoordinator = ChatScrollCoordinator();
   final TextEditingController _inputController = TextEditingController();
-  ChatProvider? _draftProvider;
-  void _saveInput() => _draftProvider?.updateDraft(_inputController.text);
+  ChatProvider? _inputProvider;
+  void _saveInput() => _inputProvider?.updateInputText(_inputController.text);
   void _restoreInput() {
-    final value = _draftProvider?.currentDraft ?? '';
+    final value = _inputProvider?.inputText ?? '';
     if (_inputController.text != value) {
       _inputController.value = TextEditingValue(
         text: value,
@@ -108,10 +108,10 @@ class _ChatViewState extends State<_ChatView> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final provider = context.read<ChatProvider>();
-    if (!identical(_draftProvider, provider)) {
-      _draftProvider?.removeListener(_restoreInput);
+    if (!identical(_inputProvider, provider)) {
+      _inputProvider?.removeListener(_restoreInput);
       _inputController.removeListener(_saveInput);
-      _draftProvider = provider;
+      _inputProvider = provider;
       provider.addListener(_restoreInput);
       _inputController.addListener(_saveInput);
       _restoreInput();
@@ -121,8 +121,7 @@ class _ChatViewState extends State<_ChatView> {
 
   @override
   void dispose() {
-    _draftProvider?.removeListener(_restoreInput);
-    unawaited(_draftProvider?.flushDrafts());
+    _inputProvider?.removeListener(_restoreInput);
     _scrollCoordinator.dispose();
     _inputController.dispose();
     super.dispose();
@@ -259,18 +258,18 @@ class _ChatViewState extends State<_ChatView> {
     final chat = context.read<ChatProvider>();
     if (!chat.canSelectModels) return;
     if (chat.hasAssistantContext) {
-      var source = chat.draftKey;
+      var source = chat.inputContextKey;
       await showChatTargetPicker(
         context,
         initialTarget: chat.currentTarget,
         onSelected: (picked) async {
-          if (!chat.canSelectModels || chat.draftKey != source) {
+          if (!chat.canSelectModels || chat.inputContextKey != source) {
             throw StateError('Conversation changed; reopen the model picker');
           }
           try {
             await chat.selectTarget(picked, startLocal: true);
           } finally {
-            source = chat.draftKey;
+            source = chat.inputContextKey;
           }
         },
       );
@@ -1106,7 +1105,7 @@ class _ChatTitleSnapshot {
 
   factory _ChatTitleSnapshot.fromProvider(ChatProvider provider) {
     return _ChatTitleSnapshot(
-      conversationKey: provider.draftKey,
+      conversationKey: provider.inputContextKey,
       title: provider.selectedSession?.title,
     );
   }
@@ -1139,7 +1138,7 @@ class _ChatBodySnapshot {
 
   factory _ChatBodySnapshot.fromProvider(ChatProvider provider) {
     return _ChatBodySnapshot(
-      conversationKey: provider.draftKey,
+      conversationKey: provider.inputContextKey,
       isLoadingMessages: provider.isLoadingMessages,
       visibleMessages: provider.visibleMessages,
       visibleMessagesRevision: provider.visibleMessagesRevision,

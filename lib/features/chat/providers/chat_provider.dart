@@ -7,7 +7,6 @@ import 'dart:convert';
 import 'package:servllama/core/database/app_database.dart';
 import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/features/chat/repositories/generation_run_repository.dart';
-import 'package:servllama/features/chat/repositories/chat_draft_repository.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:servllama/core/models/inference_engine.dart';
@@ -67,15 +66,13 @@ class ChatProvider extends ChangeNotifier {
   AssistantProvider? _assistants;
   EngineRuntimeProvider? _runtime;
   bool get isRemote => _generation.isRemote;
-  bool _draftInitialized = false,
-      _changingSettings = false,
-      _preparingLocal = false;
-  String? _draftAssistantId, _attachmentContext;
-  final Map<String, List<String>> _attachmentDrafts = {};
+  bool _changingSettings = false, _preparingLocal = false;
+  String? _newChatAssistantId, _inputContext;
+  String _inputText = '';
   bool get hasAssistantContext => _assistants != null;
   String? get currentAssistantId => selectedSession != null
       ? selectedSession!.assistantId
-      : _draftAssistantId ?? _assistants?.activeId;
+      : _newChatAssistantId ?? _assistants?.activeId;
   Assistant? get currentAssistant => _assistants?.assistants
       .where((a) => a.id == currentAssistantId)
       .firstOrNull;
@@ -132,149 +129,45 @@ class ChatProvider extends ChangeNotifier {
     );
   }
 
-  void _initializeDraft() {
-    if (_draftInitialized || _assistants?.loaded != true) return;
-    _draftInitialized = true;
-    _draftAssistantId = _assistants!.activeId;
-    _adoptLegacyDraft();
+  void _initializeAssistant() {
+    if (_assistants?.loaded == true) {
+      _newChatAssistantId ??= _assistants!.activeId;
+    }
   }
 
-  void _adoptLegacyDraft() {
-    if (currentAssistantId == null ||
-        selectedSession != null ||
-        !_drafts.containsKey('draft')) {
-      return;
-    }
-    if (_unownedDraftEdited) {
-      _drafts[draftKey] = _drafts['draft']!;
-      _unownedDraftEdited = false;
-    } else {
-      _drafts.putIfAbsent(draftKey, () => _drafts['draft']!);
-    }
-    _drafts.remove('draft');
+  void _syncInputContext() {
+    final key = inputContextKey;
+    if (_inputContext == key) return;
+    // Metadata restoration assigns early input to the initial assistant.
+    final initializing =
+        (_inputContext == null || _inputContext == 'new:') &&
+        key.startsWith('new:');
+    _inputContext = key;
+    if (!initializing) _clearInput();
   }
 
-  void _syncDraftImages() {
-    final key = draftKey;
-    if (_attachmentContext == key) return;
-    if (_attachmentContext != null) {
-      _attachmentDrafts[_attachmentContext!] = List.of(
-        _generation.pendingImageAttachments,
-      );
-    }
-    _attachmentContext = key;
-    _generation.replaceImageAttachments(
-      _attachmentDrafts[key] ?? const [],
-      notify: false,
-    );
-  }
-
-  void _moveDraft(String from, String to) {
-    _drafts[to] = _drafts.remove(from) ?? '';
-    _attachmentDrafts.remove(from);
-    _attachmentContext = to;
+  void _clearInput() {
+    _inputText = '';
+    _generation.replaceImageAttachments(const [], notify: false);
   }
 
   void _conversationChanged() {
-    _syncDraftImages();
+    _syncInputContext();
     _refreshBinding();
     _notify();
   }
 
   ChatSessionRecord _initializeSession(ChatSessionRecord session) =>
       session.copyWith(assistantId: currentAssistantId);
-  final Map<String, String> _drafts = {};
-  final Map<String, String> _persistedDrafts = {};
-  bool _draftsLoaded = false;
-  Future<void>? _draftLoad;
-  Future<void> _draftWrites = Future.value();
-  bool _deletingAssistant = false;
-  Timer? _draftDebounce;
   Future<String>? _creatingConversation;
-  String _assistantDraftKey(String? id) => id == null ? 'draft' : 'draft:$id';
-  String get draftKey =>
-      selectedSession?.id ?? _assistantDraftKey(currentAssistantId);
-  String get newDraftKey {
-    final preferred = _assistantDraftKey(
-      (currentAssistant ?? _assistants?.active)?.id,
-    );
-    final drafts = newConversationDrafts;
-    return drafts.containsKey(preferred) ? preferred : drafts.keys.first;
-  }
+  String get inputContextKey =>
+      selectedSession?.id ?? 'new:${currentAssistantId ?? ''}';
+  String get inputText => _inputText;
 
-  /// Available unsent destinations, labelled by assistant rather than model.
-  Map<String, String> get newConversationDrafts =>
-      _assistants?.assistants.isNotEmpty == true
-      ? {
-          for (final assistant in _assistants!.assistants)
-            _assistantDraftKey(assistant.id): assistant.name,
-        }
-      : const {'draft': ''};
-  bool hasDraftDestination(String key) =>
-      newConversationDrafts.containsKey(key) ||
-      sessions.any((session) => session.id == key);
-  String get currentDraft => _drafts[draftKey] ?? '';
-  String draftFor(String key) => _drafts[key] ?? '';
-  bool _unownedDraftEdited = false;
-
-  void updateDraft(String value, {String? key}) {
-    final destination = key ?? draftKey;
-    if (!hasDraftDestination(destination)) return;
-    if (_drafts[destination] == value) return;
-    _drafts[destination] = value;
-    if (destination == 'draft' && _assistants?.loaded == false) {
-      _unownedDraftEdited = true;
-    }
-    _draftDebounce?.cancel();
-    _draftDebounce = Timer(
-      const Duration(milliseconds: 300),
-      () => unawaited(flushDrafts()),
-    );
+  void updateInputText(String value) {
+    if (_inputText == value) return;
+    _inputText = value;
     if (!_disposed) notifyListeners();
-  }
-
-  Future<void> _loadDrafts() => _draftLoad ??= () async {
-    if (_draftsLoaded) return;
-    final db = AppDatabase.current;
-    if (db != null) {
-      final saved = await ChatDraftRepository(db).load();
-      _persistedDrafts.addAll(saved);
-      for (final entry in saved.entries) {
-        _drafts.putIfAbsent(entry.key, () => entry.value);
-      }
-    }
-    _draftsLoaded = true;
-    _adoptLegacyDraft();
-  }();
-  Future<void> flushDrafts() async {
-    _draftDebounce?.cancel();
-    final db = AppDatabase.current;
-    if (db == null) return;
-    try {
-      await _loadDrafts();
-      if (_deletingAssistant) return;
-      final snapshot = Map<String, String>.of(_drafts);
-      final saved = _draftWrites.then((_) async {
-        final changes = <String, String?>{
-          for (final key in {..._persistedDrafts.keys, ...snapshot.keys})
-            if (_persistedDrafts[key] != snapshot[key]) key: snapshot[key],
-        };
-        if (changes.isEmpty) return;
-        await ChatDraftRepository(db).saveChanges(changes);
-        _persistedDrafts
-          ..clear()
-          ..addAll(snapshot);
-      });
-      _draftWrites = saved.catchError((Object _) {});
-      await saved;
-    } catch (e) {
-      AppLogger.instance.event(
-        'client.draft.save_failed',
-        channel: LogChannel.client,
-        level: LogLevel.error,
-        fields: AppLogger.errorFields(e),
-      );
-    }
   }
 
   String? get stopReason => _generation.stopReason;
@@ -299,10 +192,8 @@ class ChatProvider extends ChangeNotifier {
               (!_assistants!.loaded || _assistants!.error != null)) {
             throw StateError('Assistant settings unavailable');
           }
-          _initializeDraft();
-          await _loadDrafts();
+          _initializeAssistant();
           final now = DateTime.now();
-          final oldKey = draftKey;
           final session = _initializeSession(
             ChatSessionRecord(
               id: _idGenerator.generate('session'),
@@ -313,12 +204,11 @@ class ChatProvider extends ChangeNotifier {
           );
           await _repository.saveSession(session);
           _sessionList.upsertSession(session, notify: false);
-          _moveDraft(oldKey, session.id);
+          _inputContext = session.id;
           _conversation.beginSessionSelection(
             session.id,
             keepVisibleMessages: false,
           );
-          await flushDrafts();
           return session.id;
         }().whenComplete(() {
           _creatingConversation = null;
@@ -332,13 +222,13 @@ class ChatProvider extends ChangeNotifier {
   void bind(AssistantProvider assistants, EngineRuntimeProvider runtime) {
     _assistants = assistants;
     _runtime = runtime;
-    _initializeDraft();
+    _initializeAssistant();
     if (selectedSession == null &&
         currentAssistant == null &&
         assistants.active != null) {
-      _draftAssistantId = assistants.activeId;
+      _newChatAssistantId = assistants.activeId;
     }
-    _syncDraftImages();
+    _syncInputContext();
     _generation.initializeSession = _initializeSession;
     _generation.isAuthorized = (config) => config.authorizedBy(
       assistants.assistants
@@ -385,7 +275,6 @@ class ChatProvider extends ChangeNotifier {
           );
     final key = jsonEncode([
       selectedSession?.id,
-      _draftsLoaded,
       assistant?.id,
       assistant?.revision,
       target?.toJson(),
@@ -471,8 +360,8 @@ class ChatProvider extends ChangeNotifier {
     if (assistant == null) throw StateError('Assistant unavailable');
     await _changeConversation(() async {
       await assistants!.select(id);
-      _draftAssistantId = id;
-      _draftInitialized = true;
+      _clearInput();
+      _newChatAssistantId = id;
       _conversation.clearSelection();
       _sessionList.updateQuery('');
       _refreshBinding();
@@ -616,7 +505,7 @@ class ChatProvider extends ChangeNotifier {
       _generation.pendingImageAttachments;
 
   bool get canManageSessions =>
-      (!hasAssistantContext || (_assistants!.loaded && _draftsLoaded)) &&
+      (!hasAssistantContext || _assistants!.loaded) &&
       !isLoading &&
       _creatingConversation == null &&
       !_changingSettings &&
@@ -664,8 +553,6 @@ class ChatProvider extends ChangeNotifier {
       : filteredSessions;
 
   Future<void> load({bool preloadMessages = true}) async {
-    await prepareDrafts();
-    if (_disposed) return;
     await _sessionList.load();
     if (_disposed) return;
     _refreshBinding();
@@ -676,13 +563,6 @@ class ChatProvider extends ChangeNotifier {
         _sessionList.sessions.take(initialMessagePreloadCount),
       );
     }
-  }
-
-  /// The fresh-chat input needs drafts, not every history membership list.
-  Future<void> prepareDrafts() async {
-    await _loadDrafts();
-    if (_disposed) return;
-    _refreshBinding();
   }
 
   Future<void> cleanupFiles() => _repository.cleanupFiles();
@@ -725,7 +605,7 @@ class ChatProvider extends ChangeNotifier {
       return;
     }
     final assistant = currentAssistant ?? _assistants?.active;
-    _draftAssistantId = assistant?.id;
+    _newChatAssistantId = assistant?.id;
     _conversation.clearSelection();
   }
 
@@ -747,47 +627,25 @@ class ChatProvider extends ChangeNotifier {
     final assistants = _assistants;
     if (assistants == null) throw StateError('Assistant unavailable');
     await _changeConversation(() async {
-      // Also persist adoption of any legacy unowned draft before deleting its
-      // assistant; a crash after commit must not adopt that draft again.
-      await flushDrafts();
-      // Drain earlier saves and suspend debounce writes until memory matches
-      // the committed deletion, so stale drafts cannot be written back.
-      _deletingAssistant = true;
-      try {
-        await _loadDrafts();
-        await _draftWrites;
-        final ids = await _repository.deleteAssistantAndSessions(assistantId);
-        _forgetDeletedSessions(ids, assistantId: assistantId);
-        await assistants.load();
-        if (_draftAssistantId == assistantId) {
-          _draftAssistantId = assistants.activeId;
-        }
-        _syncDraftImages();
-        AppLogger.instance.event(
-          'client.assistant.deleted',
-          channel: LogChannel.client,
-          fields: {'assistant': assistantId, 'conversations': ids.length},
-        );
-      } finally {
-        _deletingAssistant = false;
-        await flushDrafts();
+      final ids = await _repository.deleteAssistantAndSessions(assistantId);
+      _forgetDeletedSessions(ids);
+      if (_newChatAssistantId == assistantId) {
+        _newChatAssistantId = null;
+        if (selectedSession == null) _clearInput();
       }
+      await assistants.load();
+      _initializeAssistant();
+      _syncInputContext();
+      AppLogger.instance.event(
+        'client.assistant.deleted',
+        channel: LogChannel.client,
+        fields: {'assistant': assistantId, 'conversations': ids.length},
+      );
     });
   }
 
-  void _forgetDeletedSessions(Set<String> ids, {String? assistantId}) {
-    final keys = {
-      ...ids,
-      if (assistantId != null) _assistantDraftKey(assistantId),
-    };
-    for (final key in keys) {
-      _drafts.remove(key);
-      _attachmentDrafts.remove(key);
-    }
-    if (keys.contains(_attachmentContext)) {
-      _attachmentContext = null;
-      _generation.replaceImageAttachments(const [], notify: false);
-    }
+  void _forgetDeletedSessions(Set<String> ids) {
+    if (ids.contains(_inputContext)) _clearInput();
     _sessionList.removeSessions(ids, notify: false);
     _conversation.forgetSessions(ids, notify: false);
   }
@@ -799,8 +657,7 @@ class ChatProvider extends ChangeNotifier {
     await _changeConversation(() async {
       await _repository.deleteSession(sessionId);
       _forgetDeletedSessions({sessionId});
-      _syncDraftImages();
-      await flushDrafts();
+      _syncInputContext();
     });
   }
 
@@ -845,22 +702,19 @@ class ChatProvider extends ChangeNotifier {
   }) async {
     if (_creatingConversation != null) await _creatingConversation;
     if (!canSend) return;
-    final key = draftKey;
-    final submittedDraft = draftFor(key);
+    final key = inputContextKey;
+    final submittedInput = inputText;
     await _generation.sendMessage(
       text,
       imageAttachments: imageAttachments,
       onCommitted: () {
-        var destination = key;
-        if (selectedSession != null && key != selectedSession!.id) {
-          destination = selectedSession!.id;
-          _moveDraft(key, destination);
+        if (selectedSession != null && _inputContext == key) {
+          _inputContext = selectedSession!.id;
         }
-        if (draftFor(destination) == submittedDraft &&
-            submittedDraft.trim() == text.trim()) {
-          updateDraft('', key: destination);
+        if (inputText == submittedInput &&
+            submittedInput.trim() == text.trim()) {
+          updateInputText('');
         }
-        unawaited(flushDrafts());
       },
     );
   }
@@ -940,8 +794,6 @@ class ChatProvider extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
-    _draftDebounce?.cancel();
-    unawaited(flushDrafts());
     _sessionList.removeListener(_notify);
     _conversation.removeListener(_conversationChanged);
     _models.removeListener(_notify);

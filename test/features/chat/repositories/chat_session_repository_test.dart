@@ -9,7 +9,6 @@ import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/models/chat_message_version_record.dart';
 import 'package:servllama/features/chat/models/chat_session_record.dart';
 import 'package:servllama/features/chat/models/message_author.dart';
-import 'package:servllama/features/chat/repositories/chat_draft_repository.dart';
 import 'package:servllama/features/chat/repositories/chat_session_repository.dart';
 import 'package:servllama/features/chat/repositories/generation_run_repository.dart';
 
@@ -243,14 +242,6 @@ void main() {
       await db.execute(
         "INSERT INTO voice_profiles VALUES('voice','Voice','asset','{}')",
       );
-      final drafts = ChatDraftRepository(db);
-      await drafts.saveChanges({
-        'draft:a': 'A draft',
-        'a1': 'A1 draft',
-        'a2': 'A2 draft',
-        'draft:b': 'B draft',
-        'moved': 'Keep draft',
-      });
 
       expect(await repository.deleteAssistantAndSessions('a'), {'a1', 'a2'});
       expect((await assistants.assistants()).single.id, 'b');
@@ -266,13 +257,8 @@ void main() {
       expect(await external.exists(), isTrue);
       expect(await db.query('SELECT * FROM speech_jobs'), hasLength(1));
       expect(await db.query('SELECT * FROM voice_profiles'), hasLength(1));
-      expect(await drafts.load(), {
-        'draft:b': 'B draft',
-        'moved': 'Keep draft',
-      });
       await repository.deleteSession('moved');
       expect(await shared.exists(), isFalse);
-      expect(await drafts.load(), {'draft:b': 'B draft'});
     },
   );
 
@@ -293,7 +279,6 @@ void main() {
             ],
           ),
         );
-        await ChatDraftRepository(db).saveChanges({'c': 'Unsent'});
         final table = assistant ? 'assistants' : 'conversations';
         await db.execute(
           "CREATE TRIGGER reject_delete BEFORE DELETE ON $table BEGIN SELECT RAISE(ABORT,'fixture'); END",
@@ -306,7 +291,6 @@ void main() {
         );
         expect(await repository.loadMessage('m'), isNotNull);
         expect(await repository.loadSessions(), hasLength(1));
-        expect(await ChatDraftRepository(db).load(), {'c': 'Unsent'});
         expect(await db.query('SELECT * FROM pending_file_deletions'), isEmpty);
         expect(await attachment.exists(), isTrue);
       },

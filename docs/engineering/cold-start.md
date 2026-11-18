@@ -13,7 +13,7 @@
    theme, timeout, runtime status and assistant/provider metadata restore
    independently without a whole-app readiness future. `AppProviderScope`
    only composes the existing owners; it performs no I/O or readiness gating.
-   `ChatPage` starts its draft/history read after the first frame, without
+   `ChatPage` starts its history read after the first frame, without
    automatically prefetching message bodies.
 3. `AppIdleWarmup`, above the Navigator, prepares a finite set of small local
    caches after paint. Routes can always use the same loaders on demand.
@@ -88,12 +88,21 @@ temporarily retained solely so existing installs can migrate, and can be removed
 after the supported upgrade window. Downgrading to the old credential format is
 not supported.
 
-Drafts and assistant metadata may finish in either order. Saved drafts merge
-without overwriting new input; text typed before the owning assistant is known
-moves to that assistant's draft and takes precedence over an older saved value.
-Sending and assistant/model selection stay locally unavailable until their
-required draft/assistant state exists. Conversation creation registers its
-single-flight lock before awaiting restoration.
+Chat input is one in-memory text buffer, cleared when switching assistants or
+conversations. Metadata restoration preserves text typed into the initial input;
+returning from a secondary route preserves the current input context. Database
+schema 2 removes the legacy `chat_drafts` table during upgrade. Sent messages and
+generation recovery checkpoints retain their existing storage.
+Sending and assistant/model selection stay locally unavailable until required
+assistant metadata is ready. Conversation creation registers its single-flight
+lock before awaiting restoration.
+
+The sidebar assistant entry opens a modal bottom sheet with a scrollable avatar
+list and a highlighted current assistant. Picking a row uses
+`ChatProvider.selectAssistant` to open a blank new chat and filter its
+history; existing conversations retain their assigned assistant. Dismissing the
+sheet preserves the current conversation and input. The entry and sheet rows
+share the existing metadata readiness and conversation-operation guards.
 
 Runtime operations join `ensureRestored` before using persisted engine/model
 selection or native ownership. Local-chat startup also waits before deciding
@@ -176,7 +185,7 @@ Migration/manual retry must be measured separately.
 
 Regression coverage blocks business reads while checking homepage first paint,
 module-local error behavior, migration/retry visibility, coalesced early demand,
-inline credential restoration/migration, typed-draft preservation and early native ownership
+inline credential restoration/migration, early input preservation and native ownership
 restoration. SVG tests still capture actual RGBA pixels for every bundled mark
 in both palettes and compare with `SvgPicture.asset`, including demand/reentry.
 

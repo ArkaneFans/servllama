@@ -1945,7 +1945,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2ExportWav => '导出 WAV';
 
   @override
-  String get v2InsertTranscript => '插入聊天草稿';
+  String get v2InsertTranscript => '填入聊天输入框';
 
   @override
   String get v2PlayPause => '播放 / 暂停';
@@ -2016,13 +2016,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2NoAutomaticAudioUpload => '只插入文本，不自动发送消息或上传原始音频。';
 
   @override
-  String get v2ReplaceDraft => '替换草稿';
+  String get v2ReplaceInput => '替换输入内容';
 
   @override
-  String get v2AppendDraft => '追加到草稿';
+  String get v2AppendInput => '追加到输入框';
 
   @override
-  String get v2TranscriptInserted => '转录文本已写入指定聊天草稿。';
+  String get v2TranscriptInserted => '转写内容已填入当前输入框。';
 
   @override
   String get v2ReadAloud => '朗读回答';
@@ -2057,18 +2057,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get v2NativeRestart => '语音资源释放尚未确认。请重启应用后再运行语音任务；当前记录会保留。';
 
   @override
-  String get v2OriginalChatMissing => '原目标已失效或无法确认，请选择其他会话或助手草稿。转录结果仍会保留。';
+  String get v2TranscriptContextChanged => '聊天已切换，确认将转写内容填入当前输入框。';
 
   @override
-  String v2AssistantDraft(String name) {
-    return '新对话 · $name';
-  }
-
-  @override
-  String get v2TranscriptTarget => '投递到草稿';
-
-  @override
-  String get v2DraftChanged => '目标草稿已变化，请重新打开并确认后再替换。';
+  String get v2InputChanged => '聊天或输入内容已变化，请重新打开并确认。';
 
   @override
   String get v2IncompleteAnswer => '这条回答尚未完整生成，请完成回答后再朗读。';
@@ -2177,7 +2169,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get reasoningDepth => '思考深度';
 
   @override
-  String get reasoningDepthHelp => '自动沿用服务端默认设置。更高档位可能增加响应时间和 token 用量。';
+  String get reasoningDepthHelp => '更高档位可能增加响应时间和 token 用量';
 
   @override
   String get reasoningOff => '关闭';
@@ -2220,7 +2212,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get v2ChangeConversationAssistantHelp =>
-      '保留本会话的模型、消息、版本和草稿。之后的生成使用新助手的提示词与权限，历史消息署名保持不变。';
+      '保留本会话的模型、消息、版本和当前输入。之后的生成使用新助手的提示词与权限，历史消息署名保持不变。';
 
   @override
   String get v2ChooseConversationModel => '请选择模型';
@@ -2231,7 +2223,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get v2DeleteAssistantHelp => '删除助手会同时删除关联的所有会话、消息和草稿。此操作不可撤销。';
+  String get v2DeleteAssistantHelp => '删除助手会同时删除关联的所有会话和消息。此操作不可撤销。';
 
   @override
   String get v2SwitchAssistantNewChat => '切换助手并新建会话';

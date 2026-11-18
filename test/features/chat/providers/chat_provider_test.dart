@@ -27,15 +27,15 @@ void main() {
         AiEvent(text: 'reply'),
         AiEvent(stopReason: 'stop'),
       ];
-      chat.updateDraft('Question');
-      await chat.sendMessage(chat.currentDraft);
+      chat.updateInputText('Question');
+      await chat.sendMessage(chat.inputText);
       final session = chat.selectedSession!;
       final messages = await fixture.repository.loadAllMessages(session);
       expect(session.assistantId, 'assistant');
       expect(messages.map((m) => m.content), ['Question', 'First reply']);
       expect(messages.last.reasoningContent, 'Think');
       expect(messages.last.modelName, 'model-one');
-      expect(chat.currentDraft, isEmpty);
+      expect(chat.inputText, isEmpty);
       expect(chat.isSending, isFalse);
       expect(fixture.protocol.models, ['model-one']);
       expect(

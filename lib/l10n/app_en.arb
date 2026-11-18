@@ -1003,7 +1003,7 @@
   "v2ExportTxt": "Export TXT",
   "v2ExportSrt": "Export SRT",
   "v2ExportWav": "Export WAV",
-  "v2InsertTranscript": "Insert into chat draft",
+  "v2InsertTranscript": "Insert into chat input",
   "v2PlayPause": "Play / pause",
   "v2PreviewAudio": "Preview reference audio",
   "v2VoiceModelMissing": "The original model is unavailable. You can export this reference audio and create a new voice after installing a compatible model.",
@@ -1026,9 +1026,9 @@
   "v2SaveAndPreview": "Save and create preview task",
   "v2TranscribeToChat": "Voice to text",
   "v2NoAutomaticAudioUpload": "Only text is inserted. Nothing is sent automatically; original audio is not uploaded.",
-  "v2ReplaceDraft": "Replace draft",
-  "v2AppendDraft": "Append to draft",
-  "v2TranscriptInserted": "Transcript inserted into the selected chat draft.",
+  "v2ReplaceInput": "Replace input",
+  "v2AppendInput": "Append to input",
+  "v2TranscriptInserted": "Transcript inserted into the current input.",
   "v2ReadAloud": "Read aloud",
   "v2SynthesisParameters": "Speaker: {speaker} · Synthesis speed: {speed}",
   "v2SampleRate": "Output sample rate: {rate} Hz",
@@ -1061,17 +1061,8 @@
   "v2TranscriptSegment": "Segment {index}",
   "v2ReadAloudHelp": "The final answer is ready to edit and synthesize. Use up to 4,000 characters per task; split longer answers.",
   "v2NativeRestart": "Speech cleanup is unconfirmed. Restart the app before running another speech task. Task records are retained.",
-  "v2OriginalChatMissing": "The original destination is unavailable. Choose a conversation or assistant draft. The transcript is retained.",
-  "v2AssistantDraft": "New conversation · {name}",
-  "@v2AssistantDraft": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "v2TranscriptTarget": "Destination draft",
-  "v2DraftChanged": "The destination draft changed. Open it again before confirming a replacement.",
+  "v2TranscriptContextChanged": "The chat has changed. Confirm inserting the transcript into the current input.",
+  "v2InputChanged": "The chat or input has changed. Open it again before confirming.",
   "v2IncompleteAnswer": "This answer is incomplete. Finish generating it before reading it aloud.",
   "@v2TranscriptSegment": {
     "placeholders": {
@@ -1130,7 +1121,7 @@
   "v2ConversationModel": "Choose model",
   "modelSupportsThinking": "Supports thinking",
   "reasoningDepth": "Thinking depth",
-  "reasoningDepthHelp": "Auto uses the server default. Higher levels may take more time and tokens.",
+  "reasoningDepthHelp": "Higher levels may take more time and tokens",
   "reasoningOff": "Off",
   "reasoningAuto": "Auto",
   "reasoningLow": "Low",
@@ -1144,10 +1135,10 @@
   "v2ClearDefaultModel": "Clear model selection",
   "v2UnassignedAssistant": "Assistant not assigned or removed",
   "v2ChangeConversationAssistant": "Change this conversation’s assistant",
-  "v2ChangeConversationAssistantHelp": "Keep this conversation’s model, messages, versions and draft. Future replies use the new assistant’s instructions and permissions; historical attribution stays unchanged.",
+  "v2ChangeConversationAssistantHelp": "Keep this conversation’s model, messages, versions and current input. Future replies use the new assistant’s instructions and permissions; historical attribution stays unchanged.",
   "v2ChooseConversationModel": "Please select a model",
   "v2ConnectionConversationCount": "{count} conversations use this provider and will need another model selection.",
-  "v2DeleteAssistantHelp": "Deleting this assistant also deletes all associated conversations, messages, and drafts. This cannot be undone.",
+  "v2DeleteAssistantHelp": "Deleting this assistant also deletes all associated conversations and messages. This cannot be undone.",
   "@v2ConnectionConversationCount": {
     "placeholders": {
       "count": {
