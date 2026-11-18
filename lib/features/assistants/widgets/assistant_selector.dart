@@ -18,7 +18,12 @@ class AssistantSelector extends StatelessWidget {
       showDragHandle: true,
       useSafeArea: true,
       isScrollControlled: true,
-      builder: (_) => const _AssistantPickerSheet(),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: const _AssistantPickerSheet(),
+      ),
     );
     if (id != null && context.mounted) {
       await runUiAction(context, () => chat.selectAssistant(id));
@@ -69,15 +74,37 @@ class AssistantSelector extends StatelessWidget {
   }
 }
 
-class _AssistantPickerSheet extends StatelessWidget {
+class _AssistantPickerSheet extends StatefulWidget {
   const _AssistantPickerSheet();
+
+  @override
+  State<_AssistantPickerSheet> createState() => _AssistantPickerSheetState();
+}
+
+class _AssistantPickerSheetState extends State<_AssistantPickerSheet> {
+  final search = TextEditingController();
+
+  @override
+  void dispose() {
+    search.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final p = context.watch<AssistantProvider>();
     final chat = context.watch<ChatProvider>();
+    final l = context.l10n;
     final colors = Theme.of(context).colorScheme;
     final enabled = chat.canManageSessions && p.loaded && p.error == null;
+    final query = search.text.trim().toLowerCase();
+    final visible = query.isEmpty
+        ? p.assistants
+        : p.assistants
+              .where(
+                (assistant) => assistant.name.toLowerCase().contains(query),
+              )
+              .toList();
     return FractionallySizedBox(
       heightFactor: .8,
       child: SafeArea(
@@ -89,72 +116,111 @@ class _AssistantPickerSheet extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                context.l10n.v2AssistantManagement,
+                l.v2AssistantManagement,
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 16),
-              Expanded(
-                child: ListView.separated(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  itemCount: p.assistants.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final assistant = p.assistants[index];
-                    final selected = assistant.id == chat.currentAssistant?.id;
-                    return Semantics(
-                      selected: selected,
-                      child: Card(
-                        margin: EdgeInsets.zero,
-                        color: selected
-                            ? colors.primaryContainer
-                            : colors.surfaceContainerLow,
-                        clipBehavior: Clip.antiAlias,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
+              TextField(
+                key: const Key('assistant_picker_search'),
+                controller: search,
+                textInputAction: TextInputAction.search,
+                onChanged: (_) => setState(() {}),
+                onSubmitted: (_) => FocusScope.of(context).unfocus(),
+                decoration: InputDecoration(
+                  hintText: l.v2AssistantSearchHint,
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: search.text.isEmpty
+                      ? null
+                      : IconButton(
+                          key: const Key('assistant_picker_search_clear'),
+                          tooltip: l.v2AssistantSearchClear,
+                          icon: const Icon(Icons.close),
+                          onPressed: () => setState(search.clear),
                         ),
-                        child: ListTile(
-                          key: Key('assistant_picker_item_${assistant.id}'),
-                          enabled: enabled,
-                          selected: selected,
-                          selectedColor: colors.onPrimaryContainer,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 4,
-                          ),
-                          leading: IdentityAvatar(
-                            value: assistant.avatar,
-                            name: assistant.name,
-                            size: 40,
-                          ),
-                          title: Text(
-                            assistant.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          trailing: IconButton(
-                            key: Key('assistant_picker_edit_${assistant.id}'),
-                            tooltip: context.l10n.v2AssistantEditor,
-                            color: selected
-                                ? colors.onPrimaryContainer
-                                : colors.onSurfaceVariant,
-                            icon: const Icon(Icons.edit_outlined),
-                            onPressed: enabled
-                                ? () => Navigator.of(context).push(
-                                    MaterialPageRoute<void>(
-                                      builder: (_) =>
-                                          AssistantEditor(assistant: assistant),
-                                    ),
-                                  )
-                                : null,
-                          ),
-                          onTap: enabled
-                              ? () => Navigator.of(context).pop(assistant.id)
-                              : null,
-                        ),
-                      ),
-                    );
-                  },
                 ),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: visible.isEmpty
+                    ? Center(
+                        child: Text(
+                          l.v2AssistantNoResults,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: colors.onSurfaceVariant),
+                        ),
+                      )
+                    : ListView.separated(
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        padding: const EdgeInsets.only(bottom: 8),
+                        itemCount: visible.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 8),
+                        itemBuilder: (context, index) {
+                          final assistant = visible[index];
+                          final selected =
+                              assistant.id == chat.currentAssistant?.id;
+                          return Semantics(
+                            selected: selected,
+                            child: Card(
+                              margin: EdgeInsets.zero,
+                              color: selected
+                                  ? colors.primaryContainer
+                                  : colors.surfaceContainerLow,
+                              clipBehavior: Clip.antiAlias,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              child: ListTile(
+                                key: Key(
+                                  'assistant_picker_item_${assistant.id}',
+                                ),
+                                enabled: enabled,
+                                selected: selected,
+                                selectedColor: colors.onPrimaryContainer,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 4,
+                                ),
+                                leading: IdentityAvatar(
+                                  value: assistant.avatar,
+                                  name: assistant.name,
+                                  size: 40,
+                                ),
+                                title: Text(
+                                  assistant.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                trailing: IconButton(
+                                  key: Key(
+                                    'assistant_picker_edit_${assistant.id}',
+                                  ),
+                                  tooltip: l.v2AssistantEditor,
+                                  color: selected
+                                      ? colors.onPrimaryContainer
+                                      : colors.onSurfaceVariant,
+                                  icon: const Icon(Icons.edit_outlined),
+                                  onPressed: enabled
+                                      ? () => Navigator.of(context).push(
+                                          MaterialPageRoute<void>(
+                                            builder: (_) => AssistantEditor(
+                                              assistant: assistant,
+                                            ),
+                                          ),
+                                        )
+                                      : null,
+                                ),
+                                onTap: enabled
+                                    ? () => Navigator.of(
+                                        context,
+                                      ).pop(assistant.id)
+                                    : null,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
               ),
             ],
           ),

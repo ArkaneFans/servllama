@@ -478,6 +478,7 @@ void main() {
       );
       await open(tester, 'drawer_assistant_selector');
       final sheet = find.byKey(const Key('assistant_picker_sheet'));
+      final search = find.byKey(const Key('assistant_picker_search'));
       final pickerRoute = ModalRoute.of(tester.element(sheet));
 
       for (final id in ['daily', 'study']) {
@@ -505,6 +506,12 @@ void main() {
           );
         }
 
+        await tester.enterText(search, assistant.name.toUpperCase());
+        await tester.pump();
+        expect(
+          find.descendant(of: sheet, matching: find.byType(ListTile)),
+          findsOneWidget,
+        );
         await tester.tap(find.byKey(Key('assistant_picker_edit_$id')));
         await tester.pumpAndSettle();
         expect(sheet, findsNothing);
@@ -538,6 +545,10 @@ void main() {
         expect(sheet, findsOneWidget);
         expect(ModalRoute.of(tester.element(sheet)), same(pickerRoute));
         expect(
+          tester.widget<TextField>(search).controller!.text,
+          assistant.name.toUpperCase(),
+        );
+        expect(
           find.descendant(of: sheet, matching: find.text(updatedName)),
           findsOneWidget,
         );
@@ -557,6 +568,10 @@ void main() {
         );
         expect(chat.currentTarget?.toJson(), target.toJson());
         expect(tester.takeException(), isNull);
+        await tester.tap(
+          find.byKey(const Key('assistant_picker_search_clear')),
+        );
+        await tester.pump();
       }
       for (final name in ['Daily updated', 'Study updated']) {
         expect(
