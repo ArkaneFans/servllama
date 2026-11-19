@@ -5,6 +5,7 @@ import 'package:servllama/features/agent/repositories/agent_repository.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/models/chat_session_record.dart';
 import 'package:servllama/features/chat/models/message_author.dart';
+import 'package:servllama/features/chat/models/chat_timeline.dart';
 import 'package:servllama/features/chat/repositories/chat_record_store.dart';
 import 'package:servllama/features/chat/repositories/generation_run_repository.dart';
 
@@ -44,6 +45,36 @@ void main() {
     });
     return m;
   }
+
+  test(
+    'interrupted reasoning keeps revision order and settles at the last checkpoint',
+    () async {
+      final m = await draft('thinking');
+      final start = DateTime.utc(2026);
+      final b = ChatTimelineBuilder()
+        ..append(reasoning: 'Still thinking', at: start);
+      await runs.checkpoint(
+        'thinking',
+        m.copyWith(reasoningContent: 'Still thinking', timeline: b.snapshot),
+      );
+      final end = start.add(const Duration(seconds: 2));
+      await db.execute(
+        "UPDATE generation_runs SET updated_at=? WHERE id='thinking'",
+        [end.millisecondsSinceEpoch],
+      );
+      await runs.recover();
+      final saved = (await store.message('thinking'))!;
+      expect(saved.timeline.single.finishedAt, end);
+      expect(saved.timeline.single.end, 'Still thinking'.length);
+      expect(saved.reasoningContent, 'Still thinking');
+      expect(await db.query('SELECT id FROM tool_invocations'), isEmpty);
+      await runs.recover();
+      expect(
+        ChatTimelinePart.encode((await store.message('thinking'))!.timeline),
+        ChatTimelinePart.encode(saved.timeline),
+      );
+    },
+  );
 
   test(
     'recovery retains tool-only replies and never replays their receipts',

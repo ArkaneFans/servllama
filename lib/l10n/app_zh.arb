@@ -1229,5 +1229,12 @@
   "modelPickerParent": "上一级目录",
   "modelPickerCannotRead": "无法读取此目录，请检查存储权限或选择其他目录。",
   "modelPickerEmpty": "此目录中没有可选项目",
-  "modelPickerSelectDirectory": "使用此模型目录"
+  "modelPickerSelectDirectory": "使用此模型目录",
+  "chatTimelineTitle": "执行轨迹",
+  "chatTimelineCollapse": "收起执行轨迹",
+  "chatTimelineExpand": "显示前面的 {count} 个步骤",
+  "@chatTimelineExpand": {"placeholders": {"count": {"type": "int"}}},
+  "chatTimelineDuration": "{seconds} 秒",
+  "@chatTimelineDuration": {"placeholders": {"seconds": {"type": "String"}}},
+  "chatTimelineToolNotExecuted": "未找到执行记录"
 }

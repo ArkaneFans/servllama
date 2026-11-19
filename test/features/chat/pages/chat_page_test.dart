@@ -82,7 +82,9 @@ void main() {
       final reply = fixture.chat.visibleMessages.last;
       await tester.pumpWidget(fixture.app(const ChatPage()));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(Key('chat_message_reasoning_${reply.id}')));
+      await tester.tap(
+        find.byKey(ValueKey('timeline_reasoning_${reply.runId}:0')),
+      );
       await tester.pumpAndSettle();
       expect(find.text('Reasoning text'), findsOneWidget);
       String? copied;

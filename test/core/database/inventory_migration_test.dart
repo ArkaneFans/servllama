@@ -162,7 +162,7 @@ void main() {
         (await db.query(
           'PRAGMA user_version',
         )).single.read<int>('user_version'),
-        1,
+        db.schemaVersion,
       );
       final downloads = DownloadTaskRepository(database: db);
       task.files.first.receivedBytes = 42;

@@ -10,6 +10,7 @@ import 'package:servllama/features/chat/controllers/streaming_chat_message_notif
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/widgets/chat_image_widgets.dart';
 import 'package:servllama/features/chat/widgets/chat_tool_activity.dart';
+import 'package:servllama/features/chat/widgets/chat_agent_timeline.dart';
 import 'package:servllama/l10n/l10n.dart';
 
 class ChatMessageList extends StatelessWidget {
@@ -148,6 +149,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
     final foregroundColor = colorScheme.onSurface;
     final reasoningContent = message.reasoningContent?.trim() ?? '';
     final hasReasoningContent = reasoningContent.isNotEmpty;
+    final hasTimeline = !isUser && message.timeline.isNotEmpty;
     final hasToolRun =
         !isUser && message.runId != null && message.sessionId != null;
     final hasActiveTools =
@@ -264,13 +266,15 @@ class _MessageBubbleState extends State<_MessageBubble> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (hasToolRun)
+          if (hasTimeline)
+            ChatAgentTimeline(message: message, streaming: isDraft),
+          if (!hasTimeline && hasToolRun)
             ChatToolActivity(
               key: ValueKey((message.sessionId, message.runId)),
               conversationId: message.sessionId!,
               runId: message.runId!,
             ),
-          if (contentWidget != null) contentWidget,
+          if (!hasTimeline && contentWidget != null) contentWidget,
           if (showFooter) ...[
             if (contentWidget != null) const SizedBox(height: 10),
             footer,
@@ -306,7 +310,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
                 ),
               ],
             ] else ...[
-              if (hasReasoningContent) ...[
+              if (!hasTimeline && hasReasoningContent) ...[
                 Container(
                   key: Key('chat_message_reasoning_${message.id}'),
                   decoration: BoxDecoration(
@@ -373,8 +377,9 @@ class _MessageBubbleState extends State<_MessageBubble> {
                   ),
                 ),
               ],
-              if (contentWidget != null || showFooter) ...[
-                if (hasReasoningContent) const SizedBox(height: 12),
+              if (hasTimeline || contentWidget != null || showFooter) ...[
+                if (!hasTimeline && hasReasoningContent)
+                  const SizedBox(height: 12),
                 assistantContentBody,
               ],
             ],

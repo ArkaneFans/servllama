@@ -1428,5 +1428,12 @@
   "modelPickerParent": "Parent folder",
   "modelPickerCannotRead": "Cannot read this folder. Check storage access or choose another folder.",
   "modelPickerEmpty": "No selectable items in this folder",
-  "modelPickerSelectDirectory": "Use this model folder"
+  "modelPickerSelectDirectory": "Use this model folder",
+  "chatTimelineTitle": "Activity",
+  "chatTimelineCollapse": "Collapse activity",
+  "chatTimelineExpand": "Show {count} earlier steps",
+  "@chatTimelineExpand": {"description": "Expand hidden steps in an assistant activity block.", "placeholders": {"count": {"type": "int"}}},
+  "chatTimelineDuration": "{seconds} s",
+  "@chatTimelineDuration": {"description": "Elapsed execution or reasoning time in an activity step.", "placeholders": {"seconds": {"type": "String"}}},
+  "chatTimelineToolNotExecuted": "No execution record found"
 }

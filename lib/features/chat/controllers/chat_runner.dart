@@ -1,4 +1,5 @@
 import 'package:servllama/features/agent/services/agent_tool_service.dart';
+import 'package:servllama/features/chat/models/chat_timeline.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -229,6 +230,7 @@ class ChatRunner extends ChangeNotifier {
         content: normalizedContent,
         clearReasoningContent: true,
         clearRunId: true,
+        timeline: const [],
         createdAt: DateTime.now(),
       ),
     );
@@ -456,6 +458,7 @@ class ChatRunner extends ChangeNotifier {
       modelName: model.displayName,
       reasoningContent: '',
       clearImageFilePaths: true,
+      timeline: const [],
       versionIds: nextVersionIds,
       currentVersionIndex: nextVersionIndex,
     );
@@ -617,6 +620,7 @@ class ChatRunner extends ChangeNotifier {
         ? null
         : MessageAuthor(assistantId: assistant.id, name: assistant.name);
     _trace.clear();
+    final timeline = ChatTimelineBuilder();
     _inputContextKey = _finalAnswer = null;
     _runId = newId();
     final watch = Stopwatch()..start();
@@ -651,6 +655,7 @@ class ChatRunner extends ChangeNotifier {
                 ))
             .copyWith(
               runId: _runId,
+              timeline: const [],
               author: author,
               clearAuthor: author == null,
               versionIds: draftVersionIds,
@@ -720,9 +725,15 @@ class ChatRunner extends ChangeNotifier {
         final nextReasoningContent = delta.reasoningContent.isEmpty
             ? currentDraft.reasoningContent
             : '$currentReasoningContent${delta.reasoningContent}';
+        timeline.append(text: delta.content, reasoning: delta.reasoningContent);
+        if (delta.endRound) timeline.finish();
+        for (final call in delta.toolCalls) {
+          timeline.tool(call.id, call.name);
+        }
         _draftAssistantMessage = currentDraft.copyWith(
           content: nextContent,
           reasoningContent: nextReasoningContent,
+          timeline: timeline.snapshot,
         );
         streamingMessages.update(_draftAssistantMessage!, isStreaming: true);
         currentMessages = _messagesWithStreamingDraft(
@@ -749,6 +760,7 @@ class ChatRunner extends ChangeNotifier {
         if (draft != null && draft.content.trim().isNotEmpty) {
           _lastErrorMessage = errorMessage;
         } else {
+          timeline.append(text: errorMessage);
           _draftAssistantMessage = ChatMessageRecord(
             id: draft?.id ?? _idGenerator.generate('error'),
             role: ChatRole.assistant,
@@ -758,6 +770,8 @@ class ChatRunner extends ChangeNotifier {
             modelName: _model?.displayName,
             runId: _runId,
             author: author,
+            reasoningContent: draft?.reasoningContent,
+            timeline: timeline.snapshot,
             versionIds: draft?.versionIds ?? const <String>[],
             currentVersionIndex: draft?.currentVersionIndex ?? 0,
           );
@@ -775,6 +789,10 @@ class ChatRunner extends ChangeNotifier {
       }
     } finally {
       if (_activeCancelToken?.isCancelled == true) terminalState = 'cancelled';
+      timeline.finish();
+      if (_draftAssistantMessage case final draft?) {
+        _draftAssistantMessage = draft.copyWith(timeline: timeline.snapshot);
+      }
       try {
         if (began && _draftAssistantMessage != null) {
           await _persistDraftDelta(_draftAssistantMessage!, flush: true);
@@ -792,7 +810,8 @@ class ChatRunner extends ChangeNotifier {
               draft != null &&
               !hasDraftContent &&
               !hasDraftReasoning &&
-              (await _runs?.hasToolInvocations(_runId!) ?? false);
+              (draft.timeline.any((p) => p.kind == ChatTimelineKind.tool) ||
+                  (await _runs?.hasToolInvocations(_runId!) ?? false));
           ChatMessageRecord? finalized;
           await _atomic(() async {
             if (draft != null &&
@@ -929,6 +948,7 @@ class ChatRunner extends ChangeNotifier {
         createdAt: draft.createdAt,
         modelName: draft.modelName,
         reasoningContent: draft.reasoningContent,
+        timeline: draft.timeline,
         imageFilePaths: draft.imageFilePaths,
       ),
     );
@@ -998,6 +1018,7 @@ class ChatRunner extends ChangeNotifier {
                 .map(
                   (m) => encodeMessage(m)
                     ..remove('author')
+                    ..remove('timeline')
                     ..remove('versionIds')
                     ..remove('currentVersionIndex'),
                 )
@@ -1059,6 +1080,10 @@ class ChatRunner extends ChangeNotifier {
           yield ChatStreamDelta(content: e.text, reasoningContent: e.reasoning);
         }
         if (completed == null) throw StateError('Incomplete model turn');
+        if (completed.calls.isNotEmpty && !config.capabilities.supportsTools) {
+          throw StateError('Tool calls are disabled for this response');
+        }
+        yield ChatStreamDelta(toolCalls: completed.calls, endRound: true);
         final assistantTurn = AiTurn(
           role: 'assistant',
           text: text.toString(),
@@ -1072,9 +1097,6 @@ class ChatRunner extends ChangeNotifier {
             await _persistDraftDelta(_draftAssistantMessage!, flush: true);
           }
           return;
-        }
-        if (!config.capabilities.supportsTools) {
-          throw StateError('Tool calls are disabled for this response');
         }
         turns.add(assistantTurn);
         if (_draftAssistantMessage != null) {
@@ -1173,6 +1195,7 @@ class ChatRunner extends ChangeNotifier {
       createdAt: message.createdAt,
       modelName: message.modelName,
       reasoningContent: message.reasoningContent,
+      timeline: message.timeline,
       imageFilePaths: message.imageFilePaths,
     );
   }

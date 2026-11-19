@@ -128,6 +128,7 @@ class MessageRevisions extends Table {
   IntColumn get createdAt => integer()();
   TextColumn get content => text()();
   TextColumn get reasoningContent => text().nullable()();
+  TextColumn get timeline => text().withDefault(const Constant('[]'))();
   TextColumn get modelName => text().nullable()();
   TextColumn get author => text().nullable()();
 
@@ -333,11 +334,14 @@ class AppDatabase extends _$AppDatabase {
   }();
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onUpgrade: (m, from, to) async {
       if (from < 2) await m.deleteTable('chat_drafts');
+      if (from < 3) {
+        await m.addColumn(messageRevisions, messageRevisions.timeline);
+      }
     },
     beforeOpen: (_) async {
       await customStatement('PRAGMA foreign_keys = ON');

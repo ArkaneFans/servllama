@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:servllama/core/database/app_database.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
+import 'package:servllama/features/chat/models/chat_timeline.dart';
 import 'package:servllama/features/chat/repositories/chat_record_store.dart';
 
 class GenerationRunRepository {
@@ -63,10 +64,17 @@ class GenerationRunRepository {
   }) async {
     await db.transaction(() async {
       final written = await db.execute(
-        'UPDATE message_revisions SET content=?,reasoning_content=? '
+        'UPDATE message_revisions SET content=?,reasoning_content=?,timeline=? '
         'WHERE message_id=? AND run_id=? AND is_draft=1 '
         "AND EXISTS(SELECT 1 FROM generation_runs WHERE id=? AND state='running')",
-        [message.content, message.reasoningContent, message.id, id, id],
+        [
+          message.content,
+          message.reasoningContent,
+          ChatTimelinePart.encode(message.timeline),
+          message.id,
+          id,
+          id,
+        ],
       );
       if (written == 0) return;
       final needsContinuation = trace.any(
@@ -157,16 +165,40 @@ class GenerationRunRepository {
         for (final draft in drafts) {
           final id = draft.read<String>('id');
           final messageId = draft.read<String>('message_id');
+          final timeline = ChatTimelinePart.decode(
+            draft.read<String>('timeline'),
+          );
           if (draft.read<String>('content').trim().isNotEmpty ||
               (draft
                       .readNullable<String>('reasoning_content')
                       ?.trim()
                       .isNotEmpty ??
                   false) ||
-              hasTools) {
+              hasTools ||
+              timeline.any((p) => p.kind == ChatTimelineKind.tool)) {
+            final checkpointAt = DateTime.fromMillisecondsSinceEpoch(
+              row.read<int>('updated_at'),
+              isUtc: true,
+            );
+            final settled = timeline
+                .map(
+                  (part) =>
+                      part.kind == ChatTimelineKind.reasoning &&
+                          part.finishedAt == null
+                      ? part.extend(
+                          part.end,
+                          finishedAt:
+                              part.startedAt != null &&
+                                  part.startedAt!.isAfter(checkpointAt)
+                              ? part.startedAt
+                              : checkpointAt,
+                        )
+                      : part,
+                )
+                .toList();
             await db.execute(
-              'UPDATE message_revisions SET is_draft=0 WHERE id=?',
-              [id],
+              'UPDATE message_revisions SET is_draft=0,timeline=? WHERE id=?',
+              [ChatTimelinePart.encode(settled), id],
             );
           } else {
             final fallback = snapshot['fallbackVersionId'] as String?;

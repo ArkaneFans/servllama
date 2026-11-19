@@ -4,6 +4,7 @@ import 'package:servllama/features/assistants/models/assistant.dart';
 import 'package:servllama/features/chat/controllers/chat_runner.dart';
 import 'package:servllama/features/chat/models/ai_turn.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
+import 'package:servllama/features/chat/models/chat_timeline.dart';
 import 'package:servllama/features/chat/repositories/chat_record_store.dart';
 import '../../support/agent_database_fixture.dart';
 import 'package:servllama/features/chat/models/chat_run_config.dart';
@@ -107,6 +108,16 @@ void main() {
       );
       final key = ChatRunner.historyContextKey(config(), [user]);
       expect(ChatRunner.historyContextKey(config(), [user]), key);
+      expect(
+        ChatRunner.historyContextKey(config(), [
+          user.copyWith(
+            timeline: [
+              const ChatTimelinePart(kind: ChatTimelineKind.text, end: 8),
+            ],
+          ),
+        ]),
+        key,
+      );
       expect(
         ChatRunner.historyContextKey(config(), [
           user.copyWith(content: 'Edited'),

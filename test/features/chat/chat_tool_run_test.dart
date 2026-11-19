@@ -19,6 +19,8 @@ import 'package:servllama/features/chat/models/ai_turn.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/models/chat_model_option.dart';
 import 'package:servllama/features/chat/models/chat_run_config.dart';
+import 'package:servllama/features/chat/models/chat_timeline.dart';
+import 'package:servllama/features/chat/presentation/chat_timeline_projection.dart';
 import 'package:servllama/features/chat/repositories/chat_session_repository.dart';
 import 'package:servllama/features/chat/repositories/generation_run_repository.dart';
 import 'package:servllama/features/chat/services/chat_protocol_client.dart';
@@ -172,6 +174,138 @@ void main() {
     }
     expect(service.pendingCount, 1);
   }
+
+  test(
+    'ordered reasoning, tools and prose persist through reload, versions and edits',
+    () async {
+      protocol.responder = (turns, tools) => turns.last.role == 'tool'
+          ? [
+              const AiEvent(reasoning: 'Second thought'),
+              const AiEvent(text: 'Answer'),
+              const AiEvent(stopReason: 'stop'),
+            ]
+          : [
+              const AiEvent(reasoning: 'First '),
+              const AiEvent(reasoning: 'thought'),
+              const AiEvent(text: 'Checking.'),
+              const AiEvent(
+                stopReason: 'tool_calls',
+                calls: [
+                  AiToolCall(
+                    id: 'ask',
+                    name: 'ask_user',
+                    arguments: {'question': 'Continue?'},
+                  ),
+                ],
+              ),
+            ];
+      final running = runner.sendMessage('Hello');
+      await waitForApproval();
+      final run = service.activeRunId!;
+      final draft = conversation.visibleMessages.last;
+      final live = runner.streamingMessages
+          .listenableFor(draft.id)!
+          .value
+          .message;
+      expect(live.timeline.last.callId, 'ask');
+      final checkpoint = (await repository.loadMessage(draft.id))!;
+      expect(checkpoint.timeline.last.callId, 'ask');
+      expect(service.activeInvocations.single.payload['startedAt'], isNull);
+      final approvedAt = DateTime.now().millisecondsSinceEpoch;
+      await service.decide('$run:ask', true, answer: 'Yes');
+      await running;
+      final saved = (await repository.loadMessage(draft.id))!;
+      final receipts = await service.repository.forRun(saved.sessionId!, run);
+      final blocks = projectChatTimeline(saved, receipts);
+      expect(
+        blocks.map(
+          (b) => b.text ?? b.steps.map((s) => s.part.kind.name).join(','),
+        ),
+        ['reasoning', 'Checking.', 'tool,reasoning', 'Answer'],
+      );
+      expect(blocks[2].steps.last.text, 'Second thought');
+      expect(
+        saved.timeline
+            .where((p) => p.kind == ChatTimelineKind.reasoning)
+            .every((p) => p.finishedAt != null),
+        isTrue,
+      );
+      expect(receipts.single.payload['durationMs'], isA<int>());
+      expect(receipts.single.payload['startedAt'], isA<int>());
+      expect(
+        receipts.single.payload['startedAt'] as int,
+        greaterThanOrEqualTo(approvedAt),
+      );
+      final serialized = ChatTimelinePart.encode(saved.timeline);
+      protocol.responder = (_, _) => [
+        const AiEvent(text: 'New answer'),
+        const AiEvent(stopReason: 'stop'),
+      ];
+      await runner.regenerateFromMessage(saved.id);
+      expect(conversation.visibleMessages.last.timeline, hasLength(1));
+      await runner.selectMessageVersion(messageId: saved.id, versionIndex: 0);
+      expect(
+        ChatTimelinePart.encode(conversation.visibleMessages.last.timeline),
+        serialized,
+      );
+      await runner.editMessage(messageId: saved.id, newContent: 'Manual edit');
+      final edited = (await repository.loadMessage(saved.id))!;
+      expect(edited.timeline, isEmpty);
+      expect(edited.runId, isNull);
+      await runner.selectMessageVersion(messageId: saved.id, versionIndex: 0);
+      expect(
+        ChatTimelinePart.encode(conversation.visibleMessages.last.timeline),
+        serialized,
+      );
+    },
+  );
+
+  test(
+    'cancellation closes reasoning and retains queued tool references without execution',
+    () async {
+      protocol.responder = (_, _) => [
+        const AiEvent(reasoning: 'Plan'),
+        const AiEvent(
+          stopReason: 'tool_calls',
+          calls: [
+            AiToolCall(
+              id: 'first',
+              name: 'ask_user',
+              arguments: {'question': 'First?'},
+            ),
+            AiToolCall(
+              id: 'second',
+              name: 'ask_user',
+              arguments: {'question': 'Second?'},
+            ),
+          ],
+        ),
+      ];
+      final running = runner.sendMessage('Hello');
+      await waitForApproval();
+      runner.cancelStreaming();
+      await running;
+      final saved = (await repository.loadMessage(
+        conversation.visibleMessages.last.id,
+      ))!;
+      expect(saved.reasoningContent, 'Plan');
+      expect(saved.timeline.map((p) => p.kind), [
+        ChatTimelineKind.reasoning,
+        ChatTimelineKind.tool,
+        ChatTimelineKind.tool,
+      ]);
+      expect(saved.timeline.first.finishedAt, isNotNull);
+      final receipts = await service.repository.forRun(
+        saved.sessionId!,
+        saved.runId!,
+      );
+      expect(receipts, hasLength(1));
+      expect(receipts.single.state, 'cancelled');
+      final steps = projectChatTimeline(saved, receipts).single.steps;
+      expect(steps.last.invocation, isNull);
+      expect(steps.last.part.callId, 'second');
+    },
+  );
 
   test(
     'thinking level stays frozen through tools and changes on the next run',

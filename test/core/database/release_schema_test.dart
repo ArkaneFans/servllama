@@ -42,7 +42,7 @@ void main() {
     'release schema is known to Drift and rejects dangling ownership',
     () async {
       expect(db.allTables.length, 16);
-      expect(db.schemaVersion, 2);
+      expect(db.schemaVersion, 3);
       expect(
         (await db.query(
           'PRAGMA foreign_keys',
@@ -166,6 +166,52 @@ void main() {
   });
 
   test(
+    'version 2 upgrade preserves revisions and defaults old replies to an empty timeline',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'servllama-timeline-upgrade-',
+      );
+      var disk = AppDatabase.at(root);
+      try {
+        final records = ChatRecordStore(disk);
+        await records.saveSession(
+          ChatSessionRecord(
+            id: 'old',
+            title: 'Old chat',
+            createdAt: DateTime(2026),
+            updatedAt: DateTime(2026),
+          ),
+        );
+        await records.saveMessage(
+          ChatMessageRecord(
+            id: 'reply',
+            sessionId: 'old',
+            role: ChatRole.assistant,
+            content: 'Old answer',
+            reasoningContent: 'Old reasoning',
+            createdAt: DateTime(2026),
+          ),
+        );
+        await disk.execute(
+          'ALTER TABLE message_revisions DROP COLUMN timeline',
+        );
+        await disk.execute('PRAGMA user_version = 2');
+        await disk.close();
+        disk = AppDatabase.at(root);
+        final restored = (await ChatRecordStore(disk).message('reply'))!;
+        expect(restored.content, 'Old answer');
+        expect(restored.reasoningContent, 'Old reasoning');
+        expect(restored.timeline, isEmpty);
+        expect(disk.schemaVersion, 3);
+        expect(await disk.query('PRAGMA foreign_key_check'), isEmpty);
+      } finally {
+        await disk.close();
+        await root.delete(recursive: true);
+      }
+    },
+  );
+
+  test(
     'version 1 upgrade removes input drafts and preserves sent messages',
     () async {
       final root = await Directory.systemTemp.createTemp(
@@ -199,6 +245,9 @@ void main() {
           "INSERT INTO chat_drafts VALUES('existing','Unsent text')",
         );
         await disk.execute('PRAGMA user_version = 1');
+        await disk.execute(
+          'ALTER TABLE message_revisions DROP COLUMN timeline',
+        );
         await disk.close();
         disk = AppDatabase.at(root);
         expect(

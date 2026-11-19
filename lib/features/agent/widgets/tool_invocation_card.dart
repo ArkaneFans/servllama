@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -10,9 +11,14 @@ import 'package:servllama/shared/widgets/async_action.dart';
 
 /// Shared by the chat reply and the conversation's activity page.
 class ToolInvocationCard extends StatefulWidget {
-  const ToolInvocationCard({super.key, required this.invocation});
+  const ToolInvocationCard({
+    super.key,
+    required this.invocation,
+    this.inTimeline = false,
+  });
 
   final ToolInvocation invocation;
+  final bool inTimeline;
 
   @override
   State<ToolInvocationCard> createState() => _ToolInvocationCardState();
@@ -24,6 +30,37 @@ class _ToolInvocationCardState extends State<ToolInvocationCard> {
   bool _deciding = false;
   late String _arguments;
   String? _result;
+  bool _restored = false;
+  PageStorageBucket? _storage;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!widget.inTimeline) return;
+    _storage = PageStorage.maybeOf(context);
+    if (!_restored) {
+      _restored = true;
+      _expanded =
+          _storage?.readState(
+                context,
+                identifier: ('tool', widget.invocation.id),
+              )
+              as bool? ??
+          false;
+    }
+  }
+
+  @override
+  void deactivate() {
+    if (widget.inTimeline) {
+      _storage?.writeState(
+        context,
+        _expanded,
+        identifier: ('tool', widget.invocation.id),
+      );
+    }
+    super.deactivate();
+  }
 
   @override
   void initState() {
@@ -143,28 +180,23 @@ class _ToolInvocationCardState extends State<ToolInvocationCard> {
     final serverName = i.payload['serverName'] as String?;
     final error = i.payload['error'] as String?;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 6),
-      elevation: 0,
-      color: colors.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: canDecide ? BorderSide(color: colors.primary) : BorderSide.none,
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          InkWell(
-            key: ValueKey('tool_toggle_${i.id}'),
-            onTap: canDecide
-                ? null
-                : () => setState(() => _expanded = !_expanded),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          key: ValueKey('tool_toggle_${i.id}'),
+          onTap: canDecide
+              ? null
+              : () => setState(() => _expanded = !_expanded),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: widget.inTimeline ? 4 : 14,
+              vertical: widget.inTimeline ? 8 : 14,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (!widget.inTimeline)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: busy
@@ -183,128 +215,201 @@ class _ToolInvocationCardState extends State<ToolInvocationCard> {
                             color: colors.primary,
                           ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+                if (!widget.inTimeline) const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: theme.textTheme.bodyMedium,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if ((expanded || widget.inTimeline) && summary.isNotEmpty)
                         Text(
-                          name,
-                          style: theme.textTheme.bodyMedium,
+                          summary,
+                          style: theme.textTheme.bodySmall,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        if (expanded && summary.isNotEmpty)
-                          Text(
-                            summary,
-                            style: theme.textTheme.bodySmall,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        if (expanded && serverName != null)
-                          Text(
-                            serverName,
-                            style: theme.textTheme.bodySmall,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                      ],
-                    ),
+                      if (expanded && serverName != null)
+                        Text(
+                          serverName,
+                          style: theme.textTheme.bodySmall,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Tooltip(
-                    message: status,
-                    child: Icon(icon, size: 16, color: color),
-                  ),
-                  const SizedBox(width: 8),
-                  if (!canDecide)
-                    Icon(
-                      expanded ? Icons.expand_less : Icons.expand_more,
-                      size: 20,
-                    ),
+                ),
+                if ((i.payload['durationMs'] is int &&
+                        (i.payload['durationMs'] as int) >= 100) ||
+                    (i.state == 'executing' &&
+                        i.payload['startedAt'] is int &&
+                        service?.activeRunId == i.runId &&
+                        service?.activeConversationId == i.conversationId)) ...[
+                  const SizedBox(width: 6),
+                  _ExecutionDuration(invocation: i),
                 ],
-              ),
+                const SizedBox(width: 8),
+                Tooltip(
+                  message: status,
+                  child: Icon(icon, size: 16, color: color),
+                ),
+                const SizedBox(width: 8),
+                if (!canDecide)
+                  Icon(
+                    expanded ? Icons.expand_less : Icons.expand_more,
+                    size: 20,
+                  ),
+              ],
             ),
           ),
-          if (i.state == 'unknownOutcome')
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              child: Text(
-                l.v2UnknownOutcomeHelp,
-                style: theme.textTheme.bodySmall,
-              ),
+        ),
+        if (i.state == 'unknownOutcome')
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: Text(
+              l.v2UnknownOutcomeHelp,
+              style: theme.textTheme.bodySmall,
             ),
-          if (expanded)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+          ),
+        if (expanded)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  status,
+                  style: theme.textTheme.bodySmall?.copyWith(color: color),
+                ),
+                const SizedBox(height: 12),
+                if (asking && args['question'] is String)
+                  _ReceiptText(
+                    label: l.v2ToolQuestion,
+                    text: args['question'] as String,
+                  )
+                else
+                  _ReceiptText(label: l.v2ToolArguments, text: _arguments),
+                if (i.name == 'web_search')
+                  WebSearchReceipt(payload: i.payload),
+                if (error != null) _ReceiptText(label: l.v2Failed, text: error),
+                if (_result != null)
+                  _ReceiptText(label: l.v2ToolResult, text: _result!),
+                if (i.payload['resultTruncated'] == true)
                   Text(
-                    status,
-                    style: theme.textTheme.bodySmall?.copyWith(color: color),
+                    l.v2ToolResultTruncated,
+                    style: theme.textTheme.bodySmall,
                   ),
-                  const SizedBox(height: 12),
-                  if (asking && args['question'] is String)
-                    _ReceiptText(
-                      label: l.v2ToolQuestion,
-                      text: args['question'] as String,
-                    )
-                  else
-                    _ReceiptText(label: l.v2ToolArguments, text: _arguments),
-                  if (i.name == 'web_search')
-                    WebSearchReceipt(payload: i.payload),
-                  if (error != null)
-                    _ReceiptText(label: l.v2Failed, text: error),
-                  if (_result != null)
-                    _ReceiptText(label: l.v2ToolResult, text: _result!),
-                  if (i.payload['resultTruncated'] == true)
-                    Text(
-                      l.v2ToolResultTruncated,
-                      style: theme.textTheme.bodySmall,
-                    ),
-                  if (canDecide) ...[
-                    if (asking) ...[
-                      const SizedBox(height: 8),
-                      TextField(
-                        key: ValueKey('tool_answer_${i.id}'),
-                        controller: _answer,
-                        minLines: 1,
-                        maxLines: 4,
-                        enabled: !_deciding,
-                        onChanged: (_) => setState(() {}),
-                        decoration: InputDecoration(labelText: l.v2YourAnswer),
-                      ),
-                    ],
+                if (canDecide) ...[
+                  if (asking) ...[
                     const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: [
-                        OutlinedButton(
-                          key: ValueKey('tool_reject_${i.id}'),
-                          onPressed: _deciding ? null : () => _decide(false),
-                          child: Text(l.v2Reject),
-                        ),
-                        FilledButton(
-                          key: ValueKey('tool_approve_${i.id}'),
-                          onPressed:
-                              _deciding ||
-                                  (asking && _answer.text.trim().isEmpty)
-                              ? null
-                              : () => _decide(true),
-                          child: Text(
-                            asking ? l.v2ToolSendAnswer : l.v2ApproveOnce,
-                          ),
-                        ),
-                      ],
+                    TextField(
+                      key: ValueKey('tool_answer_${i.id}'),
+                      controller: _answer,
+                      minLines: 1,
+                      maxLines: 4,
+                      enabled: !_deciding,
+                      onChanged: (_) => setState(() {}),
+                      decoration: InputDecoration(labelText: l.v2YourAnswer),
                     ),
                   ],
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      OutlinedButton(
+                        key: ValueKey('tool_reject_${i.id}'),
+                        onPressed: _deciding ? null : () => _decide(false),
+                        child: Text(l.v2Reject),
+                      ),
+                      FilledButton(
+                        key: ValueKey('tool_approve_${i.id}'),
+                        onPressed:
+                            _deciding || (asking && _answer.text.trim().isEmpty)
+                            ? null
+                            : () => _decide(true),
+                        child: Text(
+                          asking ? l.v2ToolSendAnswer : l.v2ApproveOnce,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
-              ),
+              ],
             ),
-        ],
+          ),
+      ],
+    );
+    if (widget.inTimeline) return body;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 6),
+      elevation: 0,
+      color: colors.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: canDecide ? BorderSide(color: colors.primary) : BorderSide.none,
       ),
+      clipBehavior: Clip.antiAlias,
+      child: body,
+    );
+  }
+}
+
+class _ExecutionDuration extends StatefulWidget {
+  const _ExecutionDuration({required this.invocation});
+  final ToolInvocation invocation;
+  @override
+  State<_ExecutionDuration> createState() => _ExecutionDurationState();
+}
+
+class _ExecutionDurationState extends State<_ExecutionDuration> {
+  Timer? _timer;
+  void _sync() {
+    if (widget.invocation.state == 'executing') {
+      _timer ??= Timer.periodic(
+        const Duration(milliseconds: 100),
+        (_) => setState(() {}),
+      );
+    } else {
+      _timer?.cancel();
+      _timer = null;
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(_ExecutionDuration old) {
+    super.didUpdateWidget(old);
+    _sync();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final i = widget.invocation;
+    final duration =
+        i.payload['durationMs'] as int? ??
+        (DateTime.now().millisecondsSinceEpoch -
+            (i.payload['startedAt'] as int));
+    return Text(
+      context.l10n.chatTimelineDuration(
+        (duration.clamp(0, 1 << 52) / 1000).toStringAsFixed(1),
+      ),
+      style: Theme.of(context).textTheme.labelSmall,
     );
   }
 }

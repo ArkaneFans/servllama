@@ -5602,6 +5602,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Use this model folder'**
   String get modelPickerSelectDirectory;
+
+  /// No description provided for @chatTimelineTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Activity'**
+  String get chatTimelineTitle;
+
+  /// No description provided for @chatTimelineCollapse.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse activity'**
+  String get chatTimelineCollapse;
+
+  /// Expand hidden steps in an assistant activity block.
+  ///
+  /// In en, this message translates to:
+  /// **'Show {count} earlier steps'**
+  String chatTimelineExpand(int count);
+
+  /// Elapsed execution or reasoning time in an activity step.
+  ///
+  /// In en, this message translates to:
+  /// **'{seconds} s'**
+  String chatTimelineDuration(String seconds);
+
+  /// No description provided for @chatTimelineToolNotExecuted.
+  ///
+  /// In en, this message translates to:
+  /// **'No execution record found'**
+  String get chatTimelineToolNotExecuted;
 }
 
 class _AppLocalizationsDelegate

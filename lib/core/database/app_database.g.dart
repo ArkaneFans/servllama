@@ -2436,6 +2436,18 @@ class $MessageRevisionsTable extends MessageRevisions
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _timelineMeta = const VerificationMeta(
+    'timeline',
+  );
+  @override
+  late final GeneratedColumn<String> timeline = GeneratedColumn<String>(
+    'timeline',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('[]'),
+  );
   static const VerificationMeta _modelNameMeta = const VerificationMeta(
     'modelName',
   );
@@ -2467,6 +2479,7 @@ class $MessageRevisionsTable extends MessageRevisions
     createdAt,
     content,
     reasoningContent,
+    timeline,
     modelName,
     author,
   ];
@@ -2546,6 +2559,12 @@ class $MessageRevisionsTable extends MessageRevisions
         ),
       );
     }
+    if (data.containsKey('timeline')) {
+      context.handle(
+        _timelineMeta,
+        timeline.isAcceptableOrUnknown(data['timeline']!, _timelineMeta),
+      );
+    }
     if (data.containsKey('model_name')) {
       context.handle(
         _modelNameMeta,
@@ -2603,6 +2622,10 @@ class $MessageRevisionsTable extends MessageRevisions
         DriftSqlType.string,
         data['${effectivePrefix}reasoning_content'],
       ),
+      timeline: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}timeline'],
+      )!,
       modelName: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}model_name'],
@@ -2631,6 +2654,7 @@ class DbMessageRevisions extends DataClass
   final int createdAt;
   final String content;
   final String? reasoningContent;
+  final String timeline;
   final String? modelName;
   final String? author;
   const DbMessageRevisions({
@@ -2643,6 +2667,7 @@ class DbMessageRevisions extends DataClass
     required this.createdAt,
     required this.content,
     this.reasoningContent,
+    required this.timeline,
     this.modelName,
     this.author,
   });
@@ -2662,6 +2687,7 @@ class DbMessageRevisions extends DataClass
     if (!nullToAbsent || reasoningContent != null) {
       map['reasoning_content'] = Variable<String>(reasoningContent);
     }
+    map['timeline'] = Variable<String>(timeline);
     if (!nullToAbsent || modelName != null) {
       map['model_name'] = Variable<String>(modelName);
     }
@@ -2686,6 +2712,7 @@ class DbMessageRevisions extends DataClass
       reasoningContent: reasoningContent == null && nullToAbsent
           ? const Value.absent()
           : Value(reasoningContent),
+      timeline: Value(timeline),
       modelName: modelName == null && nullToAbsent
           ? const Value.absent()
           : Value(modelName),
@@ -2710,6 +2737,7 @@ class DbMessageRevisions extends DataClass
       createdAt: serializer.fromJson<int>(json['createdAt']),
       content: serializer.fromJson<String>(json['content']),
       reasoningContent: serializer.fromJson<String?>(json['reasoningContent']),
+      timeline: serializer.fromJson<String>(json['timeline']),
       modelName: serializer.fromJson<String?>(json['modelName']),
       author: serializer.fromJson<String?>(json['author']),
     );
@@ -2727,6 +2755,7 @@ class DbMessageRevisions extends DataClass
       'createdAt': serializer.toJson<int>(createdAt),
       'content': serializer.toJson<String>(content),
       'reasoningContent': serializer.toJson<String?>(reasoningContent),
+      'timeline': serializer.toJson<String>(timeline),
       'modelName': serializer.toJson<String?>(modelName),
       'author': serializer.toJson<String?>(author),
     };
@@ -2742,6 +2771,7 @@ class DbMessageRevisions extends DataClass
     int? createdAt,
     String? content,
     Value<String?> reasoningContent = const Value.absent(),
+    String? timeline,
     Value<String?> modelName = const Value.absent(),
     Value<String?> author = const Value.absent(),
   }) => DbMessageRevisions(
@@ -2756,6 +2786,7 @@ class DbMessageRevisions extends DataClass
     reasoningContent: reasoningContent.present
         ? reasoningContent.value
         : this.reasoningContent,
+    timeline: timeline ?? this.timeline,
     modelName: modelName.present ? modelName.value : this.modelName,
     author: author.present ? author.value : this.author,
   );
@@ -2774,6 +2805,7 @@ class DbMessageRevisions extends DataClass
       reasoningContent: data.reasoningContent.present
           ? data.reasoningContent.value
           : this.reasoningContent,
+      timeline: data.timeline.present ? data.timeline.value : this.timeline,
       modelName: data.modelName.present ? data.modelName.value : this.modelName,
       author: data.author.present ? data.author.value : this.author,
     );
@@ -2791,6 +2823,7 @@ class DbMessageRevisions extends DataClass
           ..write('createdAt: $createdAt, ')
           ..write('content: $content, ')
           ..write('reasoningContent: $reasoningContent, ')
+          ..write('timeline: $timeline, ')
           ..write('modelName: $modelName, ')
           ..write('author: $author')
           ..write(')'))
@@ -2808,6 +2841,7 @@ class DbMessageRevisions extends DataClass
     createdAt,
     content,
     reasoningContent,
+    timeline,
     modelName,
     author,
   );
@@ -2824,6 +2858,7 @@ class DbMessageRevisions extends DataClass
           other.createdAt == this.createdAt &&
           other.content == this.content &&
           other.reasoningContent == this.reasoningContent &&
+          other.timeline == this.timeline &&
           other.modelName == this.modelName &&
           other.author == this.author);
 }
@@ -2838,6 +2873,7 @@ class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
   final Value<int> createdAt;
   final Value<String> content;
   final Value<String?> reasoningContent;
+  final Value<String> timeline;
   final Value<String?> modelName;
   final Value<String?> author;
   final Value<int> rowid;
@@ -2851,6 +2887,7 @@ class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
     this.createdAt = const Value.absent(),
     this.content = const Value.absent(),
     this.reasoningContent = const Value.absent(),
+    this.timeline = const Value.absent(),
     this.modelName = const Value.absent(),
     this.author = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -2865,6 +2902,7 @@ class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
     required int createdAt,
     required String content,
     this.reasoningContent = const Value.absent(),
+    this.timeline = const Value.absent(),
     this.modelName = const Value.absent(),
     this.author = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -2883,6 +2921,7 @@ class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
     Expression<int>? createdAt,
     Expression<String>? content,
     Expression<String>? reasoningContent,
+    Expression<String>? timeline,
     Expression<String>? modelName,
     Expression<String>? author,
     Expression<int>? rowid,
@@ -2897,6 +2936,7 @@ class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
       if (createdAt != null) 'created_at': createdAt,
       if (content != null) 'content': content,
       if (reasoningContent != null) 'reasoning_content': reasoningContent,
+      if (timeline != null) 'timeline': timeline,
       if (modelName != null) 'model_name': modelName,
       if (author != null) 'author': author,
       if (rowid != null) 'rowid': rowid,
@@ -2913,6 +2953,7 @@ class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
     Value<int>? createdAt,
     Value<String>? content,
     Value<String?>? reasoningContent,
+    Value<String>? timeline,
     Value<String?>? modelName,
     Value<String?>? author,
     Value<int>? rowid,
@@ -2927,6 +2968,7 @@ class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
       createdAt: createdAt ?? this.createdAt,
       content: content ?? this.content,
       reasoningContent: reasoningContent ?? this.reasoningContent,
+      timeline: timeline ?? this.timeline,
       modelName: modelName ?? this.modelName,
       author: author ?? this.author,
       rowid: rowid ?? this.rowid,
@@ -2963,6 +3005,9 @@ class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
     if (reasoningContent.present) {
       map['reasoning_content'] = Variable<String>(reasoningContent.value);
     }
+    if (timeline.present) {
+      map['timeline'] = Variable<String>(timeline.value);
+    }
     if (modelName.present) {
       map['model_name'] = Variable<String>(modelName.value);
     }
@@ -2987,6 +3032,7 @@ class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
           ..write('createdAt: $createdAt, ')
           ..write('content: $content, ')
           ..write('reasoningContent: $reasoningContent, ')
+          ..write('timeline: $timeline, ')
           ..write('modelName: $modelName, ')
           ..write('author: $author, ')
           ..write('rowid: $rowid')

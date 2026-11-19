@@ -11,10 +11,12 @@ class ChatToolActivity extends StatefulWidget {
     super.key,
     required this.conversationId,
     required this.runId,
+    this.builder,
   });
 
   final String conversationId;
   final String runId;
+  final Widget Function(BuildContext, List<ToolInvocation>)? builder;
 
   @override
   State<ChatToolActivity> createState() => _ChatToolActivityState();
@@ -73,7 +75,7 @@ class _ChatToolActivityState extends State<ChatToolActivity> {
 
   @override
   Widget build(BuildContext context) {
-    if (_service == null) return const SizedBox.shrink();
+    if (_service == null) return _receipts(const []);
     if (_live) return _receipts(_lastLive);
     return FutureBuilder<List<ToolInvocation>>(
       key: ValueKey((widget.conversationId, widget.runId)),
@@ -81,21 +83,27 @@ class _ChatToolActivityState extends State<ChatToolActivity> {
       initialData: _lastLive,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Wrap(
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 8,
-              children: [
-                Text(context.l10n.v2ToolHistoryFailed),
-                TextButton(
-                  onPressed: () => setState(() {
-                    _history = _loadHistory();
-                  }),
-                  child: Text(context.l10n.v2ToolRetryLoad),
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (widget.builder != null) _receipts(snapshot.data ?? const []),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  children: [
+                    Text(context.l10n.v2ToolHistoryFailed),
+                    TextButton(
+                      onPressed: () => setState(() {
+                        _history = _loadHistory();
+                      }),
+                      child: Text(context.l10n.v2ToolRetryLoad),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           );
         }
         return _receipts(snapshot.data ?? const []);
@@ -104,6 +112,7 @@ class _ChatToolActivityState extends State<ChatToolActivity> {
   }
 
   Widget _receipts(List<ToolInvocation> records) {
+    if (widget.builder case final builder?) return builder(context, records);
     if (records.isEmpty) return const SizedBox.shrink();
     return Padding(
       key: ValueKey('chat_tools_${widget.runId}'),

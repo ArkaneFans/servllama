@@ -6,6 +6,7 @@ import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/models/chat_message_version_record.dart';
 import 'package:servllama/features/chat/models/chat_session_record.dart';
 import 'package:servllama/features/chat/models/message_author.dart';
+import 'package:servllama/features/chat/models/chat_timeline.dart';
 import 'package:servllama/features/chat/repositories/chat_record_codec.dart';
 
 /// The relational chat mapping shared by normal writes, recovery and Hive import.
@@ -105,6 +106,7 @@ class ChatRecordStore {
         createdAt: m.createdAt,
         modelName: m.modelName,
         reasoningContent: m.reasoningContent,
+        timeline: m.timeline,
         imageFilePaths: m.imageFilePaths,
       ),
       draft: running,
@@ -149,10 +151,10 @@ class ChatRecordStore {
             [v.messageId],
           )).single.read<int>('next');
     await db.execute(
-      'INSERT INTO message_revisions(id,message_id,position,run_id,is_draft,created_at,content,reasoning_content,model_name,author) '
-      'VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET '
+      'INSERT INTO message_revisions(id,message_id,position,run_id,is_draft,created_at,content,reasoning_content,model_name,author,timeline) '
+      'VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET '
       'is_draft=excluded.is_draft,content=excluded.content,reasoning_content=excluded.reasoning_content,'
-      'model_name=excluded.model_name,author=excluded.author,run_id=excluded.run_id,created_at=excluded.created_at',
+      'model_name=excluded.model_name,author=excluded.author,run_id=excluded.run_id,created_at=excluded.created_at,timeline=excluded.timeline',
       [
         v.id,
         v.messageId,
@@ -164,6 +166,7 @@ class ChatRecordStore {
         v.reasoningContent,
         v.modelName,
         v.author == null ? null : jsonEncode(v.author!.toJson()),
+        ChatTimelinePart.encode(v.timeline),
       ],
     );
     await db.execute('DELETE FROM revision_attachments WHERE revision_id=?', [
@@ -230,6 +233,7 @@ class ChatRecordStore {
         author: v.author,
         modelName: v.modelName,
         reasoningContent: v.reasoningContent,
+        timeline: v.timeline,
         imageFilePaths: v.imageFilePaths,
         versionIds: ids[id]!,
         currentVersionIndex: ids[id]!.indexOf(selected),
@@ -265,6 +269,7 @@ class ChatRecordStore {
       createdAt: DateTime.fromMillisecondsSinceEpoch(r.read<int>('created_at')),
       modelName: r.readNullable<String>('model_name'),
       reasoningContent: r.readNullable<String>('reasoning_content'),
+      timeline: ChatTimelinePart.decode(r.read<String>('timeline')),
       author: author == null
           ? null
           : MessageAuthor.fromJson(jsonDecode(author)),

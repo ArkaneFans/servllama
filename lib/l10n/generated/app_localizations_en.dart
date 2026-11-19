@@ -3091,4 +3091,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get modelPickerSelectDirectory => 'Use this model folder';
+
+  @override
+  String get chatTimelineTitle => 'Activity';
+
+  @override
+  String get chatTimelineCollapse => 'Collapse activity';
+
+  @override
+  String chatTimelineExpand(int count) {
+    return 'Show $count earlier steps';
+  }
+
+  @override
+  String chatTimelineDuration(String seconds) {
+    return '$seconds s';
+  }
+
+  @override
+  String get chatTimelineToolNotExecuted => 'No execution record found';
 }

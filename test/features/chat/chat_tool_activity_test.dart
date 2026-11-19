@@ -1,12 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/core/database/app_database.dart';
+import 'package:servllama/app/app_theme.dart';
 import 'package:servllama/features/agent/models/agent_records.dart';
 import 'package:servllama/features/agent/repositories/agent_repository.dart';
 import 'package:servllama/features/agent/services/agent_tool_service.dart';
@@ -18,6 +22,7 @@ import 'package:servllama/features/chat/controllers/streaming_chat_message_notif
 import 'package:servllama/features/chat/models/ai_turn.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/models/chat_run_config.dart';
+import 'package:servllama/features/chat/models/chat_timeline.dart';
 import 'package:servllama/features/chat/widgets/chat_message_list.dart';
 import 'package:servllama/features/chat/widgets/chat_tool_activity.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
@@ -143,10 +148,11 @@ void main() {
     );
   }
 
-  Widget app(Widget child, {double scale = 1}) =>
+  Widget app(Widget child, {double scale = 1, ThemeData? theme}) =>
       ChangeNotifierProvider<AgentToolService>.value(
         value: service,
         child: MaterialApp(
+          theme: theme,
           locale: const Locale('en'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
@@ -160,9 +166,18 @@ void main() {
         ),
       );
 
-  Widget chat(ChatMessageRecord m, {bool live = false, double scale = 1}) =>
-      app(
-        ChatMessageList(
+  Widget chat(
+    ChatMessageRecord m, {
+    bool live = false,
+    double scale = 1,
+    ThemeData? theme,
+    GlobalKey? capture,
+  }) => app(
+    RepaintBoundary(
+      key: capture,
+      child: ColoredBox(
+        color: theme?.scaffoldBackgroundColor ?? Colors.white,
+        child: ChatMessageList(
           controller: scroll,
           streamingMessages: streaming,
           messages: [m],
@@ -176,8 +191,11 @@ void main() {
           onShowMessageActions: (_) async {},
           onSelectMessageVersion: (_, _) async {},
         ),
-        scale: scale,
-      );
+      ),
+    ),
+    scale: scale,
+    theme: theme,
+  );
 
   Future<Future<AiTurn> Function()> pending(
     WidgetTester tester,
@@ -194,6 +212,248 @@ void main() {
     await tester.pump();
     return () => result;
   }
+
+  testWidgets(
+    'trajectory fits phone themes and large text while keeping detail controls usable',
+    (tester) async {
+      const previewFont = String.fromEnvironment('TIMELINE_PREVIEW_FONT');
+      if (const bool.fromEnvironment('TIMELINE_PREVIEW') &&
+          previewFont.isNotEmpty) {
+        await tester.runAsync(() async {
+          final loader = FontLoader('TimelinePreview')
+            ..addFont(
+              File(
+                previewFont,
+              ).readAsBytes().then((bytes) => ByteData.sublistView(bytes)),
+            );
+          await loader.load();
+          await (FontLoader('MaterialIcons')
+                ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf')))
+              .load();
+        });
+      }
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final start = DateTime.utc(2026);
+      final builder = ChatTimelineBuilder();
+      builder.append(reasoning: '先查看资料，再检查当前时间。', at: start);
+      builder.finish(at: start.add(const Duration(seconds: 2)));
+      builder.tool('search', 'web_search');
+      builder.append(text: '已找到相关资料，我再核对一下。\n');
+      builder.tool('clock', 'clock');
+      builder.append(
+        reasoning: '信息已核对，整理成简明结论。',
+        at: start.add(const Duration(seconds: 3)),
+      );
+      builder.finish(at: start.add(const Duration(milliseconds: 4200)));
+      builder.append(text: '这是最终回答。每一步的工具参数和结果都可以展开查看。');
+      await repository.insert(
+        receipt(
+          'search',
+          name: 'web_search',
+          payload: {
+            'arguments': {'query': '本地模型运行说明'},
+            'result': '已找到 3 条参考资料。',
+            'durationMs': 650,
+          },
+        ),
+      );
+      await repository.insert(
+        receipt(
+          'clock',
+          name: 'clock',
+          payload: {
+            'arguments': {},
+            'result': '2026-11-19 21:30',
+            'durationMs': 10,
+          },
+        ),
+      );
+      final m = message.copyWith(
+        content: '已找到相关资料，我再核对一下。\n这是最终回答。每一步的工具参数和结果都可以展开查看。',
+        reasoningContent: '先查看资料，再检查当前时间。信息已核对，整理成简明结论。',
+        timeline: builder.snapshot,
+      );
+      for (final (name, theme) in [
+        ('light', AppTheme.light()),
+        ('dark', AppTheme.dark()),
+      ]) {
+        final displayTheme = previewFont.isEmpty
+            ? theme
+            : theme.copyWith(
+                textTheme: theme.textTheme.apply(fontFamily: 'TimelinePreview'),
+              );
+        final capture = GlobalKey();
+        await tester.pumpWidget(chat(m, theme: displayTheme, capture: capture));
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey('tool_toggle_run:clock')),
+          findsOneWidget,
+        );
+        expect(tester.takeException(), isNull);
+        if (const bool.fromEnvironment('TIMELINE_PREVIEW')) {
+          await tester.runAsync(() async {
+            final image =
+                await (capture.currentContext!.findRenderObject()
+                        as RenderRepaintBoundary)
+                    .toImage(pixelRatio: 2);
+            try {
+              final bytes = await image.toByteData(
+                format: ui.ImageByteFormat.png,
+              );
+              await File(
+                '.dart_tool/agent-timeline-$name.png',
+              ).writeAsBytes(bytes!.buffer.asUint8List());
+            } finally {
+              image.dispose();
+            }
+          });
+        }
+      }
+      await tester.pumpWidget(chat(m, scale: 2, theme: AppTheme.light()));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('tool_toggle_run:clock')),
+      );
+      await tester.tap(find.byKey(const ValueKey('tool_toggle_run:clock')));
+      await tester.pumpAndSettle();
+      expect(find.text('2026-11-19 21:30'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'timeline interleaves prose, folds old steps and keeps unresolved receipts visible',
+    (tester) async {
+      final builder = ChatTimelineBuilder()
+        ..append(reasoning: 'Plan')
+        ..append(text: 'Checking.');
+      for (var i = 0; i < 5; i++) {
+        builder.tool('t$i', 'clock');
+        await repository.insert(receipt('t$i'));
+      }
+      builder.append(text: 'Final answer');
+      final m = message.copyWith(
+        content: 'Checking.Final answer',
+        reasoningContent: 'Plan',
+        timeline: builder.snapshot,
+      );
+      await tester.pumpWidget(chat(m));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('run:t0')), findsNothing);
+      expect(find.byKey(const ValueKey('run:t3')), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text('Checking.')).dy,
+        lessThan(tester.getTopLeft(find.byKey(const ValueKey('run:t3'))).dy),
+      );
+      expect(
+        tester.getTopLeft(find.text('Final answer')).dy,
+        greaterThan(
+          tester.getBottomLeft(find.byKey(const ValueKey('run:t4'))).dy,
+        ),
+      );
+      final toggle = find.byKey(const ValueKey('timeline_expand_run:2'));
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('run:t0')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('tool_toggle_run:t0')));
+      await tester.pumpAndSettle();
+      expect(find.text('saved output'), findsOneWidget);
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      await repository.transition('run:t1', 'succeeded', 'unknownOutcome', {
+        'arguments': {},
+        'error': 'Uncertain',
+      });
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(chat(m));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('run:t1')), findsOneWidget);
+      expect(find.text('No execution record found'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'streaming timeline updates bodies without reloading receipts; version changes reset the view',
+    (tester) async {
+      await open();
+      final builder = ChatTimelineBuilder()
+        ..tool('live', 'clock')
+        ..append(text: 'Before');
+      var m = message.copyWith(content: 'Before', timeline: builder.snapshot);
+      streaming.update(m, isStreaming: true);
+      await tester.pumpWidget(chat(m, live: true));
+      await repository.insert(receipt('live', state: 'executing'));
+      await service.refresh();
+      await tester.pump();
+      expect(find.byType(ToolInvocationCard), findsOneWidget);
+      expect(
+        tester
+            .widget<ToolInvocationCard>(find.byType(ToolInvocationCard))
+            .inTimeline,
+        isTrue,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('run:0')),
+          matching: find.byType(CircularProgressIndicator),
+        ),
+        findsOneWidget,
+      );
+      final reads = repository.reads;
+      builder.append(text: ' after');
+      m = m.copyWith(content: 'Before after', timeline: builder.snapshot);
+      streaming.update(m, isStreaming: true);
+      await tester.pump();
+      expect(find.text('Before after'), findsOneWidget);
+      expect(repository.reads, reads);
+      await session!.close();
+      streaming.remove(m.id);
+      await repository.insert(receipt('other', run: 'alternative'));
+      final nextBuilder = ChatTimelineBuilder()
+        ..tool('other', 'clock')
+        ..append(text: 'Other answer');
+      await tester.pumpWidget(
+        chat(
+          m.copyWith(
+            runId: 'alternative',
+            content: 'Other answer',
+            timeline: nextBuilder.snapshot,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('run:live')), findsNothing);
+      expect(find.byKey(const ValueKey('alternative:other')), findsOneWidget);
+      expect(find.text('Other answer'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'timeline retains its prose and retry when receipt loading fails',
+    (tester) async {
+      final b = ChatTimelineBuilder()
+        ..tool('saved', 'clock')
+        ..append(text: 'Readable answer');
+      await repository.insert(receipt('saved'));
+      repository.failNext = true;
+      await tester.pumpWidget(
+        chat(
+          message.copyWith(content: 'Readable answer', timeline: b.snapshot),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Readable answer'), findsOneWidget);
+      expect(find.text('Could not load tool activity.'), findsOneWidget);
+      await tester.tap(find.text('Reload'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('run:saved')), findsOneWidget);
+      expect(find.text('Readable answer'), findsOneWidget);
+      expect(find.text('Could not load tool activity.'), findsNothing);
+    },
+  );
 
   testWidgets(
     'reply shows ordered receipts for its selected run and keeps footer last',
@@ -296,7 +556,21 @@ void main() {
     'question is answered in chat and cannot be approved or replayed afterward',
     (tester) async {
       await open();
-      await tester.pumpWidget(chat(message.copyWith(content: ''), live: true));
+      await tester.pumpWidget(
+        chat(
+          message.copyWith(
+            content: '',
+            timeline: const [
+              ChatTimelinePart(
+                kind: ChatTimelineKind.tool,
+                callId: 'ask',
+                toolName: 'ask_user',
+              ),
+            ],
+          ),
+          live: true,
+        ),
+      );
       final result = await pending(
         tester,
         const AiToolCall(

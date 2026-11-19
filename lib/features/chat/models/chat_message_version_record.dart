@@ -1,5 +1,6 @@
 import 'package:hive/hive.dart';
 import 'package:servllama/features/chat/models/message_author.dart';
+import 'package:servllama/features/chat/models/chat_timeline.dart';
 
 part 'chat_message_version_record.g.dart';
 
@@ -14,6 +15,7 @@ class ChatMessageVersionRecord {
     this.runId,
     this.author,
     this.reasoningContent,
+    this.timeline = const [],
     this.imageFilePaths = const [],
   });
 
@@ -34,6 +36,7 @@ class ChatMessageVersionRecord {
 
   final String? runId;
   final MessageAuthor? author;
+  final List<ChatTimelinePart> timeline;
 
   @HiveField(5)
   final String? reasoningContent;

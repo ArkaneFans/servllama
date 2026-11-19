@@ -2922,4 +2922,23 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get modelPickerSelectDirectory => '使用此模型目录';
+
+  @override
+  String get chatTimelineTitle => '执行轨迹';
+
+  @override
+  String get chatTimelineCollapse => '收起执行轨迹';
+
+  @override
+  String chatTimelineExpand(int count) {
+    return '显示前面的 $count 个步骤';
+  }
+
+  @override
+  String chatTimelineDuration(String seconds) {
+    return '$seconds 秒';
+  }
+
+  @override
+  String get chatTimelineToolNotExecuted => '未找到执行记录';
 }

@@ -480,6 +480,7 @@ class ToolSession {
         'search': config.assistant.webSearch.toJson(),
     };
     var state = 'prepared';
+    final executionWatch = Stopwatch();
     await owner.repository.insert(
       ToolInvocation(
         id: id,
@@ -492,6 +493,14 @@ class ToolSession {
       ),
     );
     Future<void> move(String to) async {
+      if (to == 'executing') {
+        payload['startedAt'] = DateTime.now().toUtc().millisecondsSinceEpoch;
+        executionWatch.start();
+      } else if (executionWatch.isRunning) {
+        executionWatch.stop();
+        payload['finishedAt'] = DateTime.now().toUtc().millisecondsSinceEpoch;
+        payload['durationMs'] = executionWatch.elapsedMilliseconds;
+      }
       if (!await owner.repository.transition(id, state, to, payload)) {
         throw StateError('Tool state changed');
       }
