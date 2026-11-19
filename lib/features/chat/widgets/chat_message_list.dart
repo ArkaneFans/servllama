@@ -429,6 +429,7 @@ class _MessageIdentity extends StatelessWidget {
     final avatar = IdentityAvatar(
       value: (isUser ? provider?.profile.avatar : assistant?.avatar) ?? '',
       name: name,
+      size: 36,
     );
     return Row(
       key: Key('chat_message_identity_${message.id}'),

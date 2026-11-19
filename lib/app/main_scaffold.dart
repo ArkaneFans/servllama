@@ -117,12 +117,12 @@ class _MainScaffoldState extends State<MainScaffold> {
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const AssistantSelector(),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
                         Wrap(
                           alignment: WrapAlignment.spaceBetween,
                           spacing: 4,
@@ -319,7 +319,8 @@ class _DrawerActionButton extends StatelessWidget {
         tooltip: tooltip,
         onPressed: onPressed,
         style: IconButton.styleFrom(
-          minimumSize: const Size(40, 40),
+          fixedSize: const Size(48, 48),
+          padding: EdgeInsets.zero,
           backgroundColor: colors.surfaceContainerLow,
           foregroundColor: colors.onSurfaceVariant,
         ),

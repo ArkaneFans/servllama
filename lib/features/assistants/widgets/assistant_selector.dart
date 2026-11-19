@@ -40,34 +40,34 @@ class AssistantSelector extends StatelessWidget {
     final enabled = chat.canManageSessions && p.loaded && p.error == null;
     return Material(
       type: MaterialType.transparency,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Tooltip(
-          message: l.v2SwitchAssistantNewChat,
-          child: ListTile(
-            key: const Key('drawer_assistant_selector'),
-            enabled: enabled,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18),
-            ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-            minLeadingWidth: 32,
-            horizontalTitleGap: 10,
-            leading: IdentityAvatar(
-              value: assistant?.avatar ?? '',
-              name: assistant?.name ?? '',
-              size: 32,
-              fallbackIcon: Icons.smart_toy_outlined,
-            ),
-            title: Text(
-              assistant?.name ?? l.v2UnassignedAssistant,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            trailing: const Icon(Icons.unfold_more_rounded, size: 22),
-            onTap: enabled ? () => _showPicker(context, chat) : null,
+      child: Tooltip(
+        message: l.v2SwitchAssistantNewChat,
+        child: ListTile(
+          key: const Key('drawer_assistant_selector'),
+          enabled: enabled,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
           ),
+          contentPadding: EdgeInsets.zero,
+          minLeadingWidth: 48,
+          horizontalTitleGap: 12,
+          leading: IdentityAvatar(
+            value: assistant?.avatar ?? '',
+            name: assistant?.name ?? '',
+            size: 48,
+            fallbackIcon: Icons.smart_toy_outlined,
+          ),
+          title: Text(
+            assistant?.name ?? l.v2UnassignedAssistant,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          trailing: const SizedBox.square(
+            dimension: 48,
+            child: Center(child: Icon(Icons.unfold_more_rounded, size: 22)),
+          ),
+          onTap: enabled ? () => _showPicker(context, chat) : null,
         ),
       ),
     );

@@ -54,15 +54,15 @@ class _IdentityAvatarState extends State<IdentityAvatar> {
           ? Icon(
               widget.fallbackIcon,
               size: widget.size * .55,
-              color: colors.onSecondaryContainer,
+              color: colors.primary,
             )
           : Text(
               text.characters.first,
               textScaler: TextScaler.noScaling,
               style: TextStyle(
                 fontSize: widget.size * .48,
-                fontWeight: FontWeight.w600,
-                color: colors.onSecondaryContainer,
+                fontWeight: FontWeight.normal,
+                color: colors.primary,
               ),
             ),
     );
@@ -74,7 +74,7 @@ class _IdentityAvatarState extends State<IdentityAvatar> {
           width: widget.size,
           height: widget.size,
           decoration: BoxDecoration(
-            color: colors.secondaryContainer,
+            color: colors.primaryContainer,
             shape: BoxShape.circle,
           ),
           clipBehavior: Clip.antiAlias,

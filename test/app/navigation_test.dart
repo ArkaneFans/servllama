@@ -27,6 +27,7 @@ import 'package:servllama/features/assistants/models/assistant.dart';
 import 'package:servllama/features/assistants/pages/assistants_page.dart';
 import 'package:servllama/features/assistants/pages/connections_page.dart';
 import 'package:servllama/features/assistants/pages/profile_page.dart';
+import 'package:servllama/features/assistants/widgets/identity_avatar.dart';
 import 'package:servllama/features/assistants/providers/assistant_provider.dart';
 import 'package:servllama/features/assistants/repositories/assistant_repository.dart';
 import 'package:servllama/features/chat/models/chat_session_record.dart';
@@ -418,13 +419,32 @@ void main() {
     );
     final actionStyle = tester.widget<IconButton>(drawerAction).style!;
     final drawerColors = Theme.of(tester.element(drawerAction)).colorScheme;
-    expect(
-      actionStyle.minimumSize?.resolve(<WidgetState>{}),
-      const Size(40, 40),
-    );
+    expect(actionStyle.fixedSize?.resolve(<WidgetState>{}), const Size(48, 48));
     expect(
       actionStyle.backgroundColor?.resolve(<WidgetState>{}),
       drawerColors.surfaceContainerLow,
+    );
+    final assistantEntry = find.byKey(const Key('drawer_assistant_selector'));
+    final avatar = find.descendant(
+      of: assistantEntry,
+      matching: find.byType(IdentityAvatar),
+    );
+    final assistantAction = find.descendant(
+      of: find.byKey(const Key('drawer_assistants_action')),
+      matching: find.byType(IconButton),
+    );
+    expect(tester.getSize(avatar), const Size(48, 48));
+    expect(tester.getCenter(avatar).dx, tester.getCenter(assistantAction).dx);
+    expect(
+      tester
+          .getCenter(
+            find.descendant(
+              of: assistantEntry,
+              matching: find.byIcon(Icons.unfold_more_rounded),
+            ),
+          )
+          .dx,
+      tester.getCenter(drawerAction).dx,
     );
     for (final route in <String, Type>{
       'drawer_assistants_action': AssistantsPage,
