@@ -7,6 +7,7 @@ import 'package:servllama/features/agent/models/agent_records.dart';
 import 'package:servllama/features/agent/services/agent_tool_service.dart';
 import 'package:servllama/features/agent/widgets/web_search_receipt.dart';
 import 'package:servllama/l10n/l10n.dart';
+import 'package:servllama/shared/widgets/text_sheen.dart';
 import 'package:servllama/shared/widgets/async_action.dart';
 
 /// Shared by the chat reply and the conversation's activity page.
@@ -220,11 +221,19 @@ class _ToolInvocationCardState extends State<ToolInvocationCard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        name,
-                        style: theme.textTheme.bodyMedium,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                      TextSheen(
+                        key: ValueKey('tool_title_sheen_${i.id}'),
+                        enabled:
+                            busy &&
+                            service?.activeRunId == i.runId &&
+                            service?.activeConversationId == i.conversationId,
+                        color: theme.textTheme.bodyMedium?.color,
+                        child: Text(
+                          name,
+                          style: theme.textTheme.bodyMedium,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                       if ((expanded || widget.inTimeline) && summary.isNotEmpty)
                         Text(

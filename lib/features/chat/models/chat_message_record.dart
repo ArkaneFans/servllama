@@ -2,6 +2,7 @@ import 'package:hive/hive.dart';
 import 'package:servllama/features/chat/models/message_author.dart';
 import 'package:servllama/features/chat/models/chat_message_version_record.dart';
 import 'package:servllama/features/chat/models/chat_timeline.dart';
+import 'package:servllama/features/chat/models/tool_call_preview.dart';
 
 part 'chat_message_record.g.dart';
 
@@ -27,6 +28,7 @@ class ChatMessageRecord {
     this.modelName,
     this.reasoningContent,
     this.timeline = const [],
+    this.toolCallPreviews = const {},
     this.imageFilePaths = const [],
     this.versionIds = const [],
     this.currentVersionIndex = 0,
@@ -50,6 +52,7 @@ class ChatMessageRecord {
   final String? runId;
   final MessageAuthor? author;
   final List<ChatTimelinePart> timeline;
+  final Map<String, ToolCallPreview> toolCallPreviews;
 
   @HiveField(4)
   final String? modelName;
@@ -84,6 +87,7 @@ class ChatMessageRecord {
         clearReasoningContent: version.reasoningContent == null,
         imageFilePaths: version.imageFilePaths,
         timeline: version.timeline,
+        toolCallPreviews: const {},
         currentVersionIndex: index,
       );
 
@@ -103,6 +107,7 @@ class ChatMessageRecord {
     bool clearModelName = false,
     bool clearReasoningContent = false,
     List<ChatTimelinePart>? timeline,
+    Map<String, ToolCallPreview>? toolCallPreviews,
     List<String>? imageFilePaths,
     bool clearImageFilePaths = false,
     List<String>? versionIds,
@@ -122,6 +127,7 @@ class ChatMessageRecord {
           ? null
           : reasoningContent ?? this.reasoningContent,
       timeline: timeline ?? this.timeline,
+      toolCallPreviews: toolCallPreviews ?? this.toolCallPreviews,
       imageFilePaths: clearImageFilePaths
           ? const []
           : imageFilePaths ?? this.imageFilePaths,

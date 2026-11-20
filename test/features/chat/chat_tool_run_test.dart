@@ -1,3 +1,5 @@
+import 'package:servllama/features/chat/models/stream_chunk.dart';
+import '../../support/stream_chunks.dart';
 import 'dart:io';
 import 'dart:async';
 import 'dart:convert';
@@ -32,10 +34,11 @@ class _Protocol extends ChatProtocolClient {
   final reasoningLevels = <ReasoningLevel>[];
   Duration outputDelay = Duration.zero;
   Completer<void>? paused;
-  List<AiEvent> Function(List<AiTurn> turns, List<AiTool> tools)? responder;
+  List<StreamChunk> Function(List<AiTurn> turns, List<AiTool> tools)? responder;
+  Stream<StreamChunk> Function(CancelToken token)? streamResponder;
 
   @override
-  Stream<AiEvent> complete(
+  Stream<StreamChunk> complete(
     AiConnection c,
     String key,
     String model,
@@ -50,6 +53,10 @@ class _Protocol extends ChatProtocolClient {
   }) async* {
     receivedMaxTokens = maxTokens;
     reasoningLevels.add(reasoningLevel);
+    if (streamResponder case final respond?) {
+      yield* respond(cancelToken);
+      return;
+    }
     if (paused != null) {
       paused!.complete();
       throw await cancelToken.whenCancel;
@@ -65,19 +72,21 @@ class _Protocol extends ChatProtocolClient {
       return;
     }
     if (callTools && tools.isNotEmpty && turns.last.role != 'tool') {
-      yield const AiEvent(
-        stopReason: 'tool_calls',
-        calls: [
-          AiToolCall(
-            id: 'ask',
-            name: 'ask_user',
-            arguments: {'question': 'Continue?'},
-          ),
-        ],
+      yield* Stream.fromIterable(
+        fixtureChunks(
+          stopReason: 'tool_calls',
+          calls: [
+            AiToolCall(
+              id: 'ask',
+              name: 'ask_user',
+              arguments: {'question': 'Continue?'},
+            ),
+          ],
+        ),
       );
     } else {
-      yield const AiEvent(text: 'Final answer');
-      yield const AiEvent(stopReason: 'stop');
+      yield* Stream.fromIterable(fixtureChunks(text: 'Final answer'));
+      yield* Stream.fromIterable(fixtureChunks(stopReason: 'stop'));
     }
   }
 }
@@ -176,19 +185,196 @@ void main() {
   }
 
   test(
+    'partial parameters are visible before execution and cancel as incomplete history',
+    () async {
+      final entered = Completer<void>();
+      protocol.streamResponder = (token) async* {
+        yield const ToolCallStart(
+          id: 'series',
+          callId: 'ask',
+          toolName: 'ask_user',
+        );
+        yield const ToolCallDelta(
+          id: 'series',
+          inputDelta: '{"question":"private-preview',
+        );
+        entered.complete();
+        throw await token.whenCancel;
+      };
+      final running = runner.sendMessage('Hello');
+      await entered.future;
+      final live = runner.streamingMessages
+          .listenableFor(conversation.visibleMessages.last.id)!
+          .value
+          .message;
+      expect(
+        live.toolCallPreviews['series']!.input,
+        contains('private-preview'),
+      );
+      expect(live.timeline.single.inputComplete, isFalse);
+      expect(service.activeInvocations, isEmpty);
+      expect(service.pendingCount, 0);
+      runner.cancelStreaming();
+      await running;
+      final saved = (await repository.loadMessage(live.id))!;
+      expect(saved.timeline.single.streamId, 'series');
+      expect(saved.timeline.single.inputComplete, isFalse);
+      expect(saved.toolCallPreviews, isEmpty);
+      expect(
+        ChatTimelinePart.encode(saved.timeline),
+        isNot(contains('private-preview')),
+      );
+      expect(
+        await service.repository.forRun(saved.sessionId!, saved.runId!),
+        isEmpty,
+      );
+    },
+  );
+
+  test(
+    'validated individual call waits for whole round before approval',
+    () async {
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      protocol.streamResponder = (token) async* {
+        yield const ToolCallStart(
+          id: 'series',
+          callId: 'ask',
+          toolName: 'ask_user',
+        );
+        yield const ToolCallDelta(
+          id: 'series',
+          inputDelta: '{"question":"Continue?"}',
+        );
+        yield const ToolCallEnd(
+          id: 'series',
+          call: AiToolCall(
+            id: 'ask',
+            name: 'ask_user',
+            arguments: {'question': 'Continue?'},
+          ),
+        );
+        entered.complete();
+        await Future.any([release.future, token.whenCancel]);
+        if (token.isCancelled) throw token.cancelError!;
+        yield const Finish(stopReason: 'tool_calls');
+      };
+      final running = runner.sendMessage('Hello');
+      await entered.future;
+      expect(
+        runner.streamingMessages
+            .listenableFor(conversation.visibleMessages.last.id)!
+            .value
+            .message
+            .timeline
+            .single
+            .inputComplete,
+        isTrue,
+      );
+      expect(service.activeInvocations, isEmpty);
+      release.complete();
+      await waitForApproval();
+      expect(service.activeInvocations.single.callId, 'ask');
+      runner.cancelStreaming();
+      await running;
+    },
+  );
+
+  test(
+    'a failed later call or dropped round never executes earlier validated calls',
+    () async {
+      protocol.streamResponder = (_) async* {
+        yield const ToolCallStart(
+          id: 'series',
+          callId: 'ask',
+          toolName: 'ask_user',
+        );
+        yield const ToolCallEnd(
+          id: 'series',
+          call: AiToolCall(
+            id: 'ask',
+            name: 'ask_user',
+            arguments: {'question': 'Continue?'},
+          ),
+        );
+        yield const ToolCallStart(
+          id: 'broken',
+          callId: 'second',
+          toolName: 'ask_user',
+        );
+        yield const ToolCallDelta(id: 'broken', inputDelta: '{"question":');
+        throw const FormatException('Invalid tool arguments JSON');
+      };
+      await runner.sendMessage('Hello');
+      expect(service.activeInvocations, isEmpty);
+      expect(service.pendingCount, 0);
+      final saved = (await repository.loadMessage(
+        conversation.visibleMessages.last.id,
+      ))!;
+      expect(
+        saved.timeline.where((p) => p.kind == ChatTimelineKind.tool),
+        hasLength(2),
+      );
+      expect(
+        saved.timeline
+            .where((p) => p.kind == ChatTimelineKind.tool)
+            .last
+            .inputComplete,
+        isFalse,
+      );
+      expect(
+        await service.repository.forRun(saved.sessionId!, saved.runId!),
+        isEmpty,
+      );
+    },
+  );
+
+  test(
+    'reused vendor call IDs cannot attach a new node to an old receipt',
+    () async {
+      protocol.responder = (_, _) => fixtureChunks(
+        calls: const [
+          AiToolCall(
+            id: 'ask',
+            name: 'ask_user',
+            arguments: {'question': 'Continue?'},
+          ),
+        ],
+        stopReason: 'tool_calls',
+      );
+      final running = runner.sendMessage('Hello');
+      await waitForApproval();
+      final run = service.activeRunId!;
+      await service.decide('$run:ask', true, answer: 'Yes');
+      await running;
+      final saved = (await repository.loadMessage(
+        conversation.visibleMessages.last.id,
+      ))!;
+      expect(
+        saved.timeline.where((p) => p.kind == ChatTimelineKind.tool),
+        hasLength(1),
+      );
+      expect(
+        await service.repository.forRun(saved.sessionId!, run),
+        hasLength(1),
+      );
+    },
+  );
+
+  test(
     'ordered reasoning, tools and prose persist through reload, versions and edits',
     () async {
       protocol.responder = (turns, tools) => turns.last.role == 'tool'
           ? [
-              const AiEvent(reasoning: 'Second thought'),
-              const AiEvent(text: 'Answer'),
-              const AiEvent(stopReason: 'stop'),
+              ...fixtureChunks(reasoning: 'Second thought'),
+              ...fixtureChunks(text: 'Answer'),
+              ...fixtureChunks(stopReason: 'stop'),
             ]
           : [
-              const AiEvent(reasoning: 'First '),
-              const AiEvent(reasoning: 'thought'),
-              const AiEvent(text: 'Checking.'),
-              const AiEvent(
+              ...fixtureChunks(reasoning: 'First '),
+              ...fixtureChunks(reasoning: 'thought'),
+              ...fixtureChunks(text: 'Checking.'),
+              ...fixtureChunks(
                 stopReason: 'tool_calls',
                 calls: [
                   AiToolCall(
@@ -238,8 +424,8 @@ void main() {
       );
       final serialized = ChatTimelinePart.encode(saved.timeline);
       protocol.responder = (_, _) => [
-        const AiEvent(text: 'New answer'),
-        const AiEvent(stopReason: 'stop'),
+        ...fixtureChunks(text: 'New answer'),
+        ...fixtureChunks(stopReason: 'stop'),
       ];
       await runner.regenerateFromMessage(saved.id);
       expect(conversation.visibleMessages.last.timeline, hasLength(1));
@@ -264,8 +450,8 @@ void main() {
     'cancellation closes reasoning and retains queued tool references without execution',
     () async {
       protocol.responder = (_, _) => [
-        const AiEvent(reasoning: 'Plan'),
-        const AiEvent(
+        ...fixtureChunks(reasoning: 'Plan'),
+        ...fixtureChunks(
           stopReason: 'tool_calls',
           calls: [
             AiToolCall(

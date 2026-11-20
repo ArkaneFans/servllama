@@ -1,6 +1,7 @@
 import 'package:servllama/features/agent/models/agent_records.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/models/chat_timeline.dart';
+import 'package:servllama/features/chat/models/tool_call_preview.dart';
 
 class ChatTimelineStep {
   const ChatTimelineStep({
@@ -8,18 +9,24 @@ class ChatTimelineStep {
     required this.part,
     this.text = '',
     this.invocation,
+    this.preview,
+    this.streaming = false,
   });
   final String key, text;
   final ChatTimelinePart part;
   final ToolInvocation? invocation;
+  final ToolCallPreview? preview;
+  final bool streaming;
 
-  bool get needsAttention => const {
-    'prepared',
-    'approved',
-    'pendingApproval',
-    'executing',
-    'unknownOutcome',
-  }.contains(invocation?.state);
+  bool get needsAttention =>
+      const {
+        'prepared',
+        'approved',
+        'pendingApproval',
+        'executing',
+        'unknownOutcome',
+      }.contains(invocation?.state) ||
+      (streaming && part.kind == ChatTimelineKind.tool && invocation == null);
 }
 
 class ChatTimelineBlock {
@@ -35,8 +42,9 @@ class ChatTimelineBlock {
 /// old metadata uses the original reasoning/tools/body layout without guessing.
 List<ChatTimelineBlock> projectChatTimeline(
   ChatMessageRecord message,
-  List<ToolInvocation> records,
-) {
+  List<ToolInvocation> records, {
+  bool streaming = false,
+}) {
   final receipts = {
     for (final record in records)
       if (record.runId == message.runId &&
@@ -64,9 +72,9 @@ List<ChatTimelineBlock> projectChatTimeline(
       case ChatTimelineKind.tool:
         valid &=
             message.runId != null &&
-            part.callId != null &&
-            part.callId!.isNotEmpty &&
-            calls.add(part.callId!);
+            (part.callId?.isNotEmpty == true ||
+                part.streamId?.isNotEmpty == true) &&
+            calls.add(part.callId ?? part.streamId!);
     }
   }
   valid &=
@@ -103,14 +111,18 @@ List<ChatTimelineBlock> projectChatTimeline(
   }
 
   for (final (index, part) in parts.indexed) {
-    final key = '${message.runId ?? message.id}:$index';
+    final key = part.streamId == null
+        ? '${message.runId ?? message.id}:$index'
+        : '${message.runId ?? message.id}:${part.streamId}:$index';
     if (part.kind == ChatTimelineKind.text) {
       final text = message.content.substring(part.start, part.end);
       if (text.trim().isEmpty) continue;
       flush();
       blocks.add(ChatTimelineBlock.text(key, text));
     } else {
-      if (part.kind == ChatTimelineKind.tool) used.add(part.callId!);
+      if (part.kind == ChatTimelineKind.tool && part.callId != null) {
+        used.add(part.callId!);
+      }
       pending.add(
         ChatTimelineStep(
           key: key,
@@ -118,7 +130,9 @@ List<ChatTimelineBlock> projectChatTimeline(
           text: part.kind == ChatTimelineKind.reasoning
               ? reasoning.substring(part.start, part.end)
               : '',
-          invocation: receipts[part.callId],
+          invocation: part.inputComplete ? receipts[part.callId] : null,
+          preview: message.toolCallPreviews[part.streamId],
+          streaming: streaming,
         ),
       );
     }

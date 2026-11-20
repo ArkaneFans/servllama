@@ -10,7 +10,8 @@ import 'package:servllama/core/services/foreground_task_service.dart';
 import 'package:crypto/crypto.dart';
 import 'package:servllama/features/chat/models/ai_turn.dart';
 import 'package:servllama/features/chat/models/chat_run_config.dart';
-import 'package:servllama/features/chat/models/chat_stream_delta.dart';
+import 'package:servllama/features/chat/models/stream_chunk.dart';
+import 'package:servllama/features/chat/services/stream_chunk_handler.dart';
 import 'package:servllama/features/chat/repositories/generation_run_repository.dart';
 import 'package:servllama/features/chat/services/chat_protocol_client.dart';
 import 'package:servllama/features/chat/services/image_attachment_service.dart';
@@ -620,7 +621,8 @@ class ChatRunner extends ChangeNotifier {
         ? null
         : MessageAuthor(assistantId: assistant.id, name: assistant.name);
     _trace.clear();
-    final timeline = ChatTimelineBuilder();
+    final chunks = StreamChunkHandler();
+    final timeline = chunks.timeline;
     _inputContextKey = _finalAnswer = null;
     _runId = newId();
     final watch = Stopwatch()..start();
@@ -718,22 +720,12 @@ class ChatRunner extends ChangeNotifier {
         if (currentDraft == null) {
           continue;
         }
-        final nextContent = delta.content.isEmpty
-            ? currentDraft.content
-            : '${currentDraft.content}${delta.content}';
-        final currentReasoningContent = currentDraft.reasoningContent ?? '';
-        final nextReasoningContent = delta.reasoningContent.isEmpty
-            ? currentDraft.reasoningContent
-            : '$currentReasoningContent${delta.reasoningContent}';
-        timeline.append(text: delta.content, reasoning: delta.reasoningContent);
-        if (delta.endRound) timeline.finish();
-        for (final call in delta.toolCalls) {
-          timeline.tool(call.id, call.name);
-        }
+        if (!chunks.handle(delta)) continue;
         _draftAssistantMessage = currentDraft.copyWith(
-          content: nextContent,
-          reasoningContent: nextReasoningContent,
+          content: chunks.content,
+          reasoningContent: chunks.reasoning.isEmpty ? null : chunks.reasoning,
           timeline: timeline.snapshot,
+          toolCallPreviews: chunks.previews,
         );
         streamingMessages.update(_draftAssistantMessage!, isStreaming: true);
         currentMessages = _messagesWithStreamingDraft(
@@ -764,7 +756,7 @@ class ChatRunner extends ChangeNotifier {
           _draftAssistantMessage = ChatMessageRecord(
             id: draft?.id ?? _idGenerator.generate('error'),
             role: ChatRole.assistant,
-            content: errorMessage,
+            content: '${draft?.content ?? ''}$errorMessage',
             createdAt: DateTime.now(),
             sessionId: session.id,
             modelName: _model?.displayName,
@@ -957,6 +949,7 @@ class ChatRunner extends ChangeNotifier {
     return draft.copyWith(
       versionIds: ids,
       currentVersionIndex: ids.indexOf(versionId),
+      toolCallPreviews: const {},
     );
   }
 
@@ -1028,7 +1021,7 @@ class ChatRunner extends ChangeNotifier {
       )
       .toString();
 
-  Stream<ChatStreamDelta> _response(
+  Stream<StreamChunk> _response(
     String modelId,
     List<ChatMessageRecord> messages,
     CancelToken token,
@@ -1054,13 +1047,19 @@ class ChatRunner extends ChangeNotifier {
       config,
       token,
     );
+    final usedCallIds = <String>{};
     try {
       while (true) {
         revalidateAuthorization();
         if (token.isCancelled) throw token.cancelError!;
         final text = StringBuffer();
         final system = config.system + (toolSession?.skillInstructions ?? '');
-        AiEvent? completed;
+        Finish? completed;
+        final calls = <AiToolCall>[];
+        final openCalls = <String>{};
+        final callOrder = <String>[];
+        final endedCalls = <String, AiToolCall>{};
+        final callIds = <String>{};
         await for (final e in _protocol.complete(
           config.connection,
           config.key,
@@ -1075,23 +1074,54 @@ class ChatRunner extends ChangeNotifier {
           temperature: config.assistant.temperature,
           reasoningLevel: config.assistant.reasoningLevel,
         )) {
-          text.write(e.text);
-          if (e.stopReason != null) completed = e;
-          yield ChatStreamDelta(content: e.text, reasoningContent: e.reasoning);
+          if (completed != null) {
+            throw StateError('Provider output after finish');
+          }
+          switch (e) {
+            case TextDelta():
+              text.write(e.text);
+            case ToolCallStart():
+              if (e.callId != null && usedCallIds.contains(e.callId)) {
+                throw const FormatException('Repeated tool call ID in Run');
+              }
+              if (!config.capabilities.supportsTools) {
+                throw StateError('Tool calls are disabled for this response');
+              }
+              if (!openCalls.add(e.id)) {
+                throw const FormatException('Repeated tool start');
+              }
+              callOrder.add(e.id);
+            case ToolCallDelta():
+              if (e.callId != null && usedCallIds.contains(e.callId)) {
+                throw const FormatException('Repeated tool call ID in Run');
+              }
+            case ToolCallEnd():
+              if (!openCalls.remove(e.id) ||
+                  !callIds.add(e.call.id) ||
+                  !usedCallIds.add(e.call.id)) {
+                throw const FormatException('Invalid tool completion');
+              }
+              endedCalls[e.id] = e.call;
+            case Finish():
+              completed = e;
+            default:
+              break;
+          }
+          yield e;
         }
-        if (completed == null) throw StateError('Incomplete model turn');
-        if (completed.calls.isNotEmpty && !config.capabilities.supportsTools) {
-          throw StateError('Tool calls are disabled for this response');
+        if (completed == null || openCalls.isNotEmpty) {
+          throw StateError('Incomplete model turn');
         }
-        yield ChatStreamDelta(toolCalls: completed.calls, endRound: true);
+        calls.addAll(callOrder.map((id) => endedCalls[id]!));
+        yield const AssistantRoundEnd();
         final assistantTurn = AiTurn(
           role: 'assistant',
           text: text.toString(),
-          calls: completed.calls,
+          calls: calls,
           providerParts: completed.providerParts,
         );
         _trace.add(assistantTurn);
-        if (completed.calls.isEmpty) {
+        if (calls.isEmpty) {
           _finalAnswer = text.toString();
           if (_draftAssistantMessage != null) {
             await _persistDraftDelta(_draftAssistantMessage!, flush: true);
@@ -1102,16 +1132,20 @@ class ChatRunner extends ChangeNotifier {
         if (_draftAssistantMessage != null) {
           await _persistDraftDelta(_draftAssistantMessage!, flush: true);
         }
-        for (final call in completed.calls) {
+        for (final call in calls) {
           if (toolSession == null) throw StateError('Tool service unavailable');
           final result = await toolSession.invoke(call);
           turns.add(result);
           _trace.add(result);
+          yield ToolCallResult(callId: call.id);
           if (_draftAssistantMessage != null) {
             await _persistDraftDelta(_draftAssistantMessage!, flush: true);
           }
         }
-        yield const ChatStreamDelta(content: '\n\n');
+        final separatorId = '$_runId:separator:${_trace.length}';
+        yield TextStart(separatorId);
+        yield TextDelta(id: separatorId, text: '\n\n');
+        yield TextEnd(separatorId);
       }
     } finally {
       await toolSession?.close();

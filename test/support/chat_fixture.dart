@@ -1,3 +1,5 @@
+import 'package:servllama/features/chat/models/stream_chunk.dart';
+import 'stream_chunks.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -113,16 +115,16 @@ class FixtureProtocol extends ChatProtocolClient {
   final inputs = <List<AiTurn>>[];
   final models = <String>[];
   final reasoningLevels = <ReasoningLevel>[];
-  List<AiEvent> events = const [
-    AiEvent(text: 'Reply'),
-    AiEvent(stopReason: 'stop'),
+  List<StreamChunk> events = [
+    ...fixtureChunks(text: 'Reply'),
+    ...fixtureChunks(stopReason: 'stop'),
   ];
   Object? error;
   Completer<void>? blocked;
   final started = Completer<void>();
 
   @override
-  Stream<AiEvent> complete(
+  Stream<StreamChunk> complete(
     AiConnection connection,
     String key,
     String model,

@@ -1,3 +1,5 @@
+import 'package:servllama/features/chat/models/stream_chunk.dart';
+import '../../support/stream_chunks.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -28,7 +30,7 @@ class _Protocol extends ChatProtocolClient {
   Object? failure;
 
   @override
-  Stream<AiEvent> complete(
+  Stream<StreamChunk> complete(
     AiConnection c,
     String key,
     String model,
@@ -45,8 +47,10 @@ class _Protocol extends ChatProtocolClient {
     systems.add(system);
     onRequest?.call();
     if (failure != null) throw failure!;
-    if (!empty) yield AiEvent(text: 'Reply ${inputs.length}');
-    yield const AiEvent(stopReason: 'stop');
+    if (!empty) {
+      yield* Stream.fromIterable(fixtureChunks(text: 'Reply ${inputs.length}'));
+    }
+    yield* Stream.fromIterable(fixtureChunks(stopReason: 'stop'));
   }
 }
 

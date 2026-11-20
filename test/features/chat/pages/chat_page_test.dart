@@ -1,7 +1,7 @@
+import '../../../support/stream_chunks.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:servllama/features/chat/models/ai_turn.dart';
 import 'package:servllama/features/chat/pages/chat_page.dart';
 
 import '../../../support/chat_fixture.dart';
@@ -73,17 +73,21 @@ void main() {
   testWidgets(
     'reasoning expands and copy uses the visible reply',
     (tester) => withPage(tester, () async {
-      fixture.protocol.events = const [
-        AiEvent(reasoning: 'Reasoning text'),
-        AiEvent(text: 'Answer text'),
-        AiEvent(stopReason: 'stop'),
+      fixture.protocol.events = [
+        ...fixtureChunks(reasoning: 'Reasoning text'),
+        ...fixtureChunks(text: 'Answer text'),
+        ...fixtureChunks(stopReason: 'stop'),
       ];
       await tester.runAsync(() => fixture.chat.sendMessage('Question'));
       final reply = fixture.chat.visibleMessages.last;
       await tester.pumpWidget(fixture.app(const ChatPage()));
       await tester.pumpAndSettle();
       await tester.tap(
-        find.byKey(ValueKey('timeline_reasoning_${reply.runId}:0')),
+        find.byKey(
+          ValueKey(
+            'timeline_reasoning_${reply.runId}:${reply.timeline.first.streamId}:0',
+          ),
+        ),
       );
       await tester.pumpAndSettle();
       expect(find.text('Reasoning text'), findsOneWidget);
@@ -152,9 +156,9 @@ void main() {
     (tester) => withPage(tester, () async {
       await tester.runAsync(() => fixture.chat.sendMessage('Question'));
       final id = fixture.chat.visibleMessages.last.id;
-      fixture.protocol.events = const [
-        AiEvent(text: 'Another reply'),
-        AiEvent(stopReason: 'stop'),
+      fixture.protocol.events = [
+        ...fixtureChunks(text: 'Another reply'),
+        ...fixtureChunks(stopReason: 'stop'),
       ];
       await tester.pumpWidget(fixture.app(const ChatPage()));
       await tester.pumpAndSettle();

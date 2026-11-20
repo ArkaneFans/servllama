@@ -23,9 +23,13 @@ import 'package:servllama/features/chat/models/ai_turn.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/models/chat_run_config.dart';
 import 'package:servllama/features/chat/models/chat_timeline.dart';
+import 'package:servllama/features/chat/models/stream_chunk.dart';
+import 'package:servllama/features/chat/services/stream_chunk_handler.dart';
 import 'package:servllama/features/chat/widgets/chat_message_list.dart';
+import 'package:servllama/features/chat/widgets/chat_agent_timeline.dart';
 import 'package:servllama/features/chat/widgets/chat_tool_activity.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
+import 'package:servllama/shared/widgets/text_sheen.dart';
 import '../../support/mcp_tool_fixture.dart';
 import '../../support/agent_database_fixture.dart';
 
@@ -370,6 +374,137 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('run:t1')), findsOneWidget);
       expect(find.text('No execution record found'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'partial tool node previews input and becomes the existing receipt card',
+    (tester) async {
+      await open();
+      final h = StreamChunkHandler();
+      h.handle(
+        const ToolCallStart(id: 'series', callId: 'live', toolName: 'clock'),
+      );
+      h.handle(const ToolCallDelta(id: 'series', inputDelta: '{"zone":'));
+      var m = message.copyWith(
+        content: '',
+        clearReasoningContent: true,
+        timeline: h.timeline.snapshot,
+        toolCallPreviews: h.previews,
+      );
+      streaming.update(m, isStreaming: true);
+      await tester.pumpWidget(chat(m, live: true));
+      await tester.pump();
+      expect(find.text('clock'), findsOneWidget);
+      expect(find.text('Preparing tool call…'), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byType(ChatAgentTimeline),
+          matching: find.byType(CircularProgressIndicator),
+        ),
+        findsOneWidget,
+      );
+      expect(find.byType(ShaderMask), findsOneWidget);
+      expect(find.byType(ToolInvocationCard), findsNothing);
+      final reads = repository.reads;
+      await tester.tap(
+        find.byKey(const ValueKey('timeline_tool_preview_series')),
+      );
+      await tester.pump();
+      expect(find.text('{"zone":'), findsOneWidget);
+      h.handle(const ToolCallDelta(id: 'series', inputDelta: '"UTC"}'));
+      m = m.copyWith(
+        timeline: h.timeline.snapshot,
+        toolCallPreviews: h.previews,
+      );
+      streaming.update(m, isStreaming: true);
+      await tester.pump();
+      expect(find.text('{"zone":"UTC"}'), findsOneWidget);
+      expect(repository.reads, reads);
+      h.handle(
+        const ToolCallEnd(
+          id: 'series',
+          call: AiToolCall(
+            id: 'live',
+            name: 'clock',
+            arguments: {'zone': 'UTC'},
+          ),
+        ),
+      );
+      streaming.update(
+        m.copyWith(timeline: h.timeline.snapshot, toolCallPreviews: h.previews),
+        isStreaming: true,
+      );
+      await repository.insert(receipt('live', state: 'executing'));
+      final readsBeforeRefresh = repository.reads;
+      await service.refresh();
+      await tester.pump();
+      expect(find.byType(ToolInvocationCard), findsOneWidget);
+      expect(find.byType(ShaderMask), findsOneWidget);
+      expect(find.text('Preparing tool call…'), findsNothing);
+      expect(
+        find.byKey(const ValueKey('timeline_tool_preview_series')),
+        findsNothing,
+      );
+      expect(repository.reads, readsBeforeRefresh + 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'unfinished input stops its animations and keeps a static tool node',
+    (tester) async {
+      await open();
+      final h = StreamChunkHandler();
+      h.handle(
+        const ToolCallStart(
+          id: 'stopped-series',
+          callId: 'call',
+          toolName: 'clock',
+        ),
+      );
+      h.handle(
+        const ToolCallDelta(id: 'stopped-series', inputDelta: '{"zone":'),
+      );
+      final m = message.copyWith(
+        content: '',
+        clearReasoningContent: true,
+        timeline: h.timeline.snapshot,
+        toolCallPreviews: h.previews,
+      );
+      streaming.update(m, isStreaming: true);
+      await tester.pumpWidget(chat(m, live: true));
+      await tester.pump();
+      expect(find.byType(ShaderMask), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(ChatAgentTimeline),
+          matching: find.byType(CircularProgressIndicator),
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('timeline_tool_preview_stopped-series')),
+      );
+      await tester.pump();
+      expect(find.text('{"zone":'), findsOneWidget);
+
+      streaming.remove(m.id);
+      final stopped = m.copyWith(toolCallPreviews: const {});
+      await tester.pumpWidget(chat(stopped));
+      await tester.pumpAndSettle();
+      expect(find.text('clock'), findsOneWidget);
+      expect(find.byType(ShaderMask), findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byIcon(Icons.block_outlined), findsOneWidget);
+      expect(find.text('Tool call incomplete'), findsNothing);
+      expect(find.text('Preparing tool call…'), findsNothing);
+      expect(find.text('No execution record found'), findsNothing);
+      expect(find.text('{"zone":'), findsNothing);
+      expect(find.byType(ToolInvocationCard), findsNothing);
+      expect(service.activeInvocations, isEmpty);
+      expect(tester.widget<TextSheen>(find.byType(TextSheen)).enabled, isFalse);
       expect(tester.takeException(), isNull);
     },
   );

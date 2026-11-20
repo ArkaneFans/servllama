@@ -77,6 +77,23 @@ void main() {
   );
 
   test(
+    'recovery keeps a tool that never received its vendor ID as incomplete',
+    () async {
+      final m = await draft('partial-tool');
+      final b = ChatTimelineBuilder()..toolStream('series', name: 'clock');
+      await runs.checkpoint('partial-tool', m.copyWith(timeline: b.snapshot));
+      await runs.recover();
+      final saved = (await store.message('partial-tool'))!;
+      expect(saved.timeline.single.streamId, 'series');
+      expect(saved.timeline.single.callId, isNull);
+      expect(saved.timeline.single.inputComplete, isFalse);
+      expect(saved.toolCallPreviews, isEmpty);
+      expect(await db.query('SELECT id FROM tool_invocations'), isEmpty);
+      expect(await runs.latestState('c'), 'interrupted');
+    },
+  );
+
+  test(
     'recovery retains tool-only replies and never replays their receipts',
     () async {
       final tools = AgentRepository(db);

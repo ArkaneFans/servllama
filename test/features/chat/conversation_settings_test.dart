@@ -1,3 +1,5 @@
+import 'package:servllama/features/chat/models/stream_chunk.dart';
+import '../../support/stream_chunks.dart';
 import 'package:servllama/shared/widgets/app_scaffold.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -154,7 +156,7 @@ class _Protocol extends ChatProtocolClient {
   final firstRequest = Completer<void>();
   Completer<void>? blocker;
   @override
-  Stream<AiEvent> complete(
+  Stream<StreamChunk> complete(
     AiConnection c,
     String key,
     String model,
@@ -175,8 +177,8 @@ class _Protocol extends ChatProtocolClient {
       await Future.any([blocker!.future, cancelToken.whenCancel]);
     }
     if (cancelToken.isCancelled) throw cancelToken.cancelError!;
-    yield AiEvent(text: 'Reply from $model');
-    yield const AiEvent(stopReason: 'stop');
+    yield* Stream.fromIterable(fixtureChunks(text: 'Reply from $model'));
+    yield* Stream.fromIterable(fixtureChunks(stopReason: 'stop'));
   }
 }
 

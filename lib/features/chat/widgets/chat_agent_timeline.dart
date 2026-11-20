@@ -9,6 +9,7 @@ import 'package:servllama/features/chat/models/chat_timeline.dart';
 import 'package:servllama/features/chat/presentation/chat_timeline_projection.dart';
 import 'package:servllama/features/chat/widgets/chat_tool_activity.dart';
 import 'package:servllama/l10n/l10n.dart';
+import 'package:servllama/shared/widgets/text_sheen.dart';
 
 /// Message-owned view of existing Run receipts and revision-owned ranges.
 class ChatAgentTimeline extends StatelessWidget {
@@ -25,7 +26,11 @@ class ChatAgentTimeline extends StatelessWidget {
     Widget body(BuildContext context, List<ToolInvocation> receipts) => Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final block in projectChatTimeline(message, receipts))
+        for (final block in projectChatTimeline(
+          message,
+          receipts,
+          streaming: streaming,
+        ))
           Padding(
             key: ValueKey('timeline_block_${block.key}'),
             padding: const EdgeInsets.only(bottom: 12),
@@ -170,7 +175,10 @@ class _TimelineStep extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     final reasoning = step.part.kind == ChatTimelineKind.reasoning;
     final record = step.invocation;
-    final icon = reasoning
+    final stoppedInput = !reasoning && !step.part.inputComplete && !streaming;
+    final icon = stoppedInput
+        ? Icons.block_outlined
+        : reasoning
         ? Icons.psychology_alt_outlined
         : switch (record?.state) {
             'failed' || 'unknownOutcome' => Icons.error_outline,
@@ -186,11 +194,10 @@ class _TimelineStep extends StatelessWidget {
               _ => Icons.build_outlined,
             },
           };
-    final busy = const {
-      'prepared',
-      'approved',
-      'executing',
-    }.contains(record?.state);
+    final busy =
+        streaming &&
+        (const {'prepared', 'approved', 'executing'}.contains(record?.state) ||
+            (!reasoning && record == null));
     return CustomPaint(
       painter: _StepLine(
         first: first,
@@ -237,25 +244,78 @@ class _TimelineStep extends StatelessWidget {
                     invocation: record,
                     inTimeline: true,
                   )
-                : Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          step.part.toolName ?? context.l10n.v2ToolActivity,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                        Text(
-                          streaming
-                              ? context.l10n.v2ToolPrepared
-                              : context.l10n.chatTimelineToolNotExecuted,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
+                : _ToolPreviewStep(step: step, streaming: streaming),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ToolPreviewStep extends StatefulWidget {
+  const _ToolPreviewStep({required this.step, required this.streaming});
+  final ChatTimelineStep step;
+  final bool streaming;
+  @override
+  State<_ToolPreviewStep> createState() => _ToolPreviewStepState();
+}
+
+class _ToolPreviewStepState extends State<_ToolPreviewStep> {
+  bool _expanded = false;
+  @override
+  Widget build(BuildContext context) {
+    final step = widget.step;
+    final input = step.preview?.input ?? '';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            key: ValueKey('timeline_tool_preview_${step.part.streamId}'),
+            onTap: input.isEmpty
+                ? null
+                : () => setState(() => _expanded = !_expanded),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextSheen(
+                    key: ValueKey('timeline_tool_sheen_${step.part.streamId}'),
+                    enabled: widget.streaming,
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                    child: Text(
+                      (step.part.toolName?.isNotEmpty ?? false)
+                          ? step.part.toolName!
+                          : context.l10n.v2ToolActivity,
+                      style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ),
+                ),
+                if (input.isNotEmpty)
+                  Icon(
+                    _expanded ? Icons.expand_less : Icons.expand_more,
+                    size: 18,
+                  ),
+              ],
+            ),
           ),
+          if (!widget.streaming && step.part.inputComplete)
+            Text(
+              context.l10n.chatTimelineToolNotExecuted,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          if (_expanded && input.isNotEmpty)
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 140),
+              child: SingleChildScrollView(
+                child: SelectableText(
+                  input.length > 8192 ? '${input.substring(0, 8192)}…' : input,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
+                ),
+              ),
+            ),
         ],
       ),
     );

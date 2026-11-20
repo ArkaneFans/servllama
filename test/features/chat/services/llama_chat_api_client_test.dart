@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
-import 'package:servllama/features/chat/models/chat_stream_delta.dart';
+import 'package:servllama/features/chat/models/stream_chunk.dart';
 import 'package:servllama/features/chat/services/llama_chat_api_client.dart';
 
 void main() {
@@ -80,11 +80,14 @@ void main() {
           )
           .toList();
 
-      expect(chunks, <ChatStreamDelta>[
-        const ChatStreamDelta(reasoningContent: '先分析问题。'),
-        const ChatStreamDelta(content: '你'),
-        const ChatStreamDelta(content: '好', reasoningContent: '再组织答案。'),
+      expect(chunks.whereType<TextDelta>().map((e) => e.text), ['你', '好']);
+      expect(chunks.whereType<ReasoningDelta>().map((e) => e.text), [
+        '先分析问题。',
+        '再组织答案。',
       ]);
+      expect(chunks.whereType<ReasoningStart>(), hasLength(2));
+      expect(chunks.whereType<ReasoningEnd>(), hasLength(2));
+      expect(chunks.last, isA<Finish>());
       expect(server.lastChatRequestBody?['model'], 'alpha');
       expect(server.lastAuthorization, 'Bearer secret');
       expect(server.lastChatRequestBody?['messages'], <Map<String, Object?>>[
@@ -175,7 +178,34 @@ void main() {
             )
             .toList();
 
-        expect(chunks, <ChatStreamDelta>[const ChatStreamDelta(content: '你好')]);
+        expect(chunks.whereType<TextDelta>().single.text, '你好');
+        expect(chunks.last, isA<Finish>());
+      },
+    );
+
+    test(
+      'streamChatCompletion rejects EOF without a completion marker',
+      () async {
+        server.chatResponder = (request) async {
+          request.response.headers.contentType = ContentType(
+            'text',
+            'event-stream',
+          );
+          request.response.write(
+            'data: {"choices":[{"delta":{"content":"partial"}}]}\n\n',
+          );
+          await request.response.close();
+        };
+        await expectLater(
+          client
+              .streamChatCompletion(
+                modelId: 'alpha',
+                messages: [],
+                cancelToken: CancelToken(),
+              )
+              .toList(),
+          throwsStateError,
+        );
       },
     );
 

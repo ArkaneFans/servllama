@@ -7,6 +7,8 @@ import 'package:servllama/core/security/log_redactor.dart';
 import 'package:servllama/features/assistants/models/assistant.dart';
 import 'package:servllama/features/chat/services/reasoning_request.dart';
 import 'package:servllama/features/chat/models/ai_turn.dart';
+import 'package:servllama/features/chat/models/stream_chunk.dart';
+import 'package:servllama/features/chat/services/chat_stream_decoder.dart';
 
 /// One request/response round only. Tool scheduling belongs to ChatRunner.
 class ChatProtocolClient {
@@ -402,7 +404,7 @@ class ChatProtocolClient {
     ];
   }
 
-  Stream<AiEvent> complete(
+  Stream<StreamChunk> complete(
     AiConnection c,
     String key,
     String model,
@@ -446,9 +448,9 @@ class ChatProtocolClient {
         onStatus: (value) => status = value,
       )) {
         if (firstOutputMs == null &&
-            (event.text.isNotEmpty ||
-                event.reasoning.isNotEmpty ||
-                event.calls.isNotEmpty)) {
+            (event is TextDelta ||
+                event is ReasoningDelta ||
+                event is ToolCallStart)) {
           firstOutputMs = watch.elapsedMilliseconds;
           _logger.event(
             'client.request.first_output',
@@ -456,7 +458,7 @@ class ChatProtocolClient {
             fields: {...fields, 'elapsed_ms': firstOutputMs},
           );
         }
-        if (event.stopReason != null) {
+        if (event is Usage) {
           inputTokens = event.inputTokens;
           outputTokens = event.outputTokens;
         }
@@ -494,7 +496,7 @@ class ChatProtocolClient {
     }
   }
 
-  Stream<AiEvent> _complete(
+  Stream<StreamChunk> _complete(
     AiConnection c,
     String key,
     String model,
@@ -551,162 +553,25 @@ class ChatProtocolClient {
         ),
       );
     }
-    final calls = <int, _CallBuffer>{};
-    final parts = <int, Map<String, dynamic>>{};
-    var input = 0, output = 0;
-    String? finish;
+    final decoder = ChatStreamDecoder(c.protocol);
+    var doneMarker = false;
     await for (final event in decodeServerEvents(body.stream)) {
       if (cancelToken.isCancelled) throw cancelToken.cancelError!;
       if (event.data == '[DONE]') {
-        finish ??= 'stop';
+        doneMarker = true;
         break;
       }
       final data = jsonDecode(event.data) as Map<String, dynamic>;
       if (data['error'] != null || data['type'] == 'error') {
         throw StateError(LogRedactor.redact(jsonEncode(data['error'] ?? data)));
       }
-      switch (c.protocol) {
-        case AiProtocol.openai:
-          final usage = data['usage'] as Map?;
-          input = (usage?['prompt_tokens'] as int?) ?? input;
-          output = (usage?['completion_tokens'] as int?) ?? output;
-          for (final choice
-              in (data['choices'] as List? ?? []).whereType<Map>().take(1)) {
-            finish = choice['finish_reason'] as String? ?? finish;
-            final delta = choice['delta'] as Map? ?? {};
-            final text = delta['content'] as String? ?? '';
-            final reasoning = delta['reasoning_content'] as String? ?? '';
-            if (text.isNotEmpty || reasoning.isNotEmpty) {
-              yield AiEvent(text: text, reasoning: reasoning);
-            }
-            for (final tool
-                in (delta['tool_calls'] as List? ?? []).whereType<Map>()) {
-              final i = tool['index'] as int? ?? 0;
-              final b = calls.putIfAbsent(i, () => _CallBuffer());
-              b.id = tool['id'] as String? ?? b.id;
-              final fn = tool['function'] as Map? ?? {};
-              b.name += (fn['name'] as String? ?? '');
-              b.append(fn['arguments'] as String? ?? '');
-            }
-          }
-        case AiProtocol.anthropic:
-          final index = data['index'] as int? ?? 0;
-          switch (data['type']) {
-            case 'message_start':
-              input =
-                  (data['message']?['usage']?['input_tokens'] as int?) ?? input;
-            case 'content_block_start':
-              final block = Map<String, dynamic>.from(
-                data['content_block'] as Map,
-              );
-              parts[index] = block;
-              if (block['type'] == 'tool_use') {
-                calls[index] = _CallBuffer()
-                  ..id = block['id']
-                  ..name = block['name'];
-                if ((block['input'] as Map? ?? {}).isNotEmpty) {
-                  calls[index]!.append(jsonEncode(block['input']));
-                }
-              }
-              if (block['type'] == 'text' &&
-                  (block['text'] as String? ?? '').isNotEmpty) {
-                yield AiEvent(text: block['text']);
-              }
-            case 'content_block_delta':
-              final delta = data['delta'] as Map;
-              final block = parts[index];
-              switch (delta['type']) {
-                case 'text_delta':
-                  final t = delta['text'] as String;
-                  block?['text'] = (block['text'] ?? '').toString() + t;
-                  yield AiEvent(text: t);
-                case 'thinking_delta':
-                  final t = delta['thinking'] as String;
-                  block?['thinking'] = (block['thinking'] ?? '').toString() + t;
-                  yield AiEvent(reasoning: t);
-                case 'signature_delta':
-                  block?['signature'] =
-                      (block['signature'] ?? '').toString() +
-                      delta['signature'].toString();
-                case 'input_json_delta':
-                  calls[index]?.append(delta['partial_json'] as String? ?? '');
-              }
-            case 'message_delta':
-              finish = data['delta']?['stop_reason'] as String? ?? finish;
-              output = data['usage']?['output_tokens'] as int? ?? output;
-            case 'message_stop':
-              finish ??= 'end_turn';
-          }
-        case AiProtocol.gemini:
-          input = data['usageMetadata']?['promptTokenCount'] as int? ?? input;
-          output =
-              data['usageMetadata']?['candidatesTokenCount'] as int? ?? output;
-          for (final candidate
-              in (data['candidates'] as List? ?? []).whereType<Map>().take(1)) {
-            finish = candidate['finishReason'] as String? ?? finish;
-            for (final raw
-                in (candidate['content']?['parts'] as List? ?? [])
-                    .whereType<Map>()) {
-              final part = Map<String, dynamic>.from(raw);
-              parts[parts.length] = part;
-              if (part['text'] is String) {
-                yield part['thought'] == true
-                    ? AiEvent(reasoning: part['text'])
-                    : AiEvent(text: part['text']);
-              }
-              final fn = part['functionCall'] as Map?;
-              if (fn != null) {
-                calls[calls.length] = _CallBuffer()
-                  ..id = (fn['id'] ?? 'gemini_${calls.length}') as String
-                  ..name = fn['name'] as String
-                  ..append(jsonEncode(fn['args'] ?? {}));
-              }
-            }
-          }
-          if (data['promptFeedback']?['blockReason'] != null) {
-            throw StateError('Provider blocked the prompt');
-          }
-      }
-      if (calls.length > 32 || parts.length > 2048) {
-        throw const FormatException('Provider response limit exceeded');
+      for (final chunk in decoder.accept(data)) {
+        yield chunk;
       }
     }
     if (cancelToken.isCancelled) throw cancelToken.cancelError!;
-    if (finish == null) {
-      throw StateError('Provider stream interrupted before completion');
+    for (final chunk in decoder.finish(doneMarker: doneMarker)) {
+      yield chunk;
     }
-    final completed = <AiToolCall>[];
-    for (final entry in calls.entries) {
-      final call = entry.value.finish();
-      completed.add(call);
-      if (c.protocol == AiProtocol.anthropic) {
-        parts[entry.key]?['input'] = call.arguments;
-      }
-    }
-    yield AiEvent(
-      calls: completed,
-      providerParts: parts.values.toList(),
-      inputTokens: input,
-      outputTokens: output,
-      stopReason: finish,
-    );
-  }
-}
-
-class _CallBuffer {
-  String id = '', name = '', json = '';
-  void append(String value) {
-    json += value;
-    if (json.length > 128 * 1024) {
-      throw const FormatException('Tool arguments exceed limit');
-    }
-  }
-
-  AiToolCall finish() {
-    final args = jsonDecode(json.isEmpty ? '{}' : json);
-    if (id.isEmpty || name.isEmpty || args is! Map<String, dynamic>) {
-      throw const FormatException('Invalid tool call');
-    }
-    return AiToolCall(id: id, name: name, arguments: args);
   }
 }

@@ -8,9 +8,65 @@ import 'package:servllama/core/logging/app_logger.dart';
 import 'package:servllama/features/assistants/models/assistant.dart';
 import 'package:servllama/features/assistants/repositories/assistant_repository.dart';
 import 'package:servllama/features/chat/models/ai_turn.dart';
+import 'package:servllama/features/chat/models/stream_chunk.dart';
 import 'package:servllama/features/chat/services/chat_protocol_client.dart';
 
 void main() {
+  test(
+    'HTTP exposes unfinished tool parameters before response completion',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      final release = Completer<void>();
+      addTearDown(() {
+        if (!release.isCompleted) release.complete();
+      });
+      server.listen((r) async {
+        await r.drain<void>();
+        r.response.bufferOutput = false;
+        r.response.headers.contentType = ContentType('text', 'event-stream');
+        r.response.write(
+          'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call","function":{"name":"clock","arguments":"{"}}]}}]}\n\n',
+        );
+        await r.response.flush();
+        await release.future;
+        r.response.write(
+          'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"}"}}]},"finish_reason":"tool_calls"}]}\n\n',
+        );
+        await r.response.close();
+      });
+      final client = ChatProtocolClient();
+      addTearDown(() => client.dio.close(force: true));
+      final arrived = Completer<void>();
+      final chunks = <StreamChunk>[];
+      final receiving = client
+          .complete(
+            AiConnection(
+              id: 'c',
+              name: 'C',
+              protocol: AiProtocol.openai,
+              baseUrl: 'http://127.0.0.1:${server.port}',
+            ),
+            '',
+            'model',
+            [],
+            cancelToken: CancelToken(),
+          )
+          .forEach((e) {
+            chunks.add(e);
+            if (e is ToolCallDelta && !arrived.isCompleted) arrived.complete();
+          });
+      await arrived.future.timeout(const Duration(seconds: 5));
+      expect(chunks.whereType<ToolCallStart>(), hasLength(1));
+      expect(chunks.whereType<ToolCallEnd>(), isEmpty);
+      expect(chunks.whereType<Finish>(), isEmpty);
+      release.complete();
+      await receiving;
+      expect(chunks.whereType<ToolCallEnd>().single.call.arguments, isEmpty);
+      expect(chunks.last, isA<Finish>());
+    },
+  );
+
   test(
     'assistant copy preserves settings and provider deletion clears both model selections',
     () async {
@@ -318,15 +374,19 @@ void main() {
             runId: 'test-run',
           )
           .toList();
-      expect(received.map((e) => e.text).join(), '你好');
-      expect(received.last.calls.single.name, 'clock');
-      expect(received.last.calls.single.arguments, isEmpty);
+      final calls = received
+          .whereType<ToolCallEnd>()
+          .map((e) => e.call)
+          .toList();
+      expect(received.whereType<TextDelta>().map((e) => e.text).join(), '你好');
+      expect(calls.single.name, 'clock');
+      expect(calls.single.arguments, isEmpty);
       final continuation = client.requestBody(c, 'model', [
         AiTurn(
           role: 'assistant',
           text: '你好',
-          calls: received.last.calls,
-          providerParts: received.last.providerParts,
+          calls: calls,
+          providerParts: (received.last as Finish).providerParts,
         ),
         const AiTurn(
           role: 'tool',
