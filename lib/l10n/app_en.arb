@@ -1434,6 +1434,5 @@
   "chatTimelineExpand": "Show {count} earlier steps",
   "@chatTimelineExpand": {"description": "Expand hidden steps in an assistant activity block.", "placeholders": {"count": {"type": "int"}}},
   "chatTimelineDuration": "{seconds} s",
-  "@chatTimelineDuration": {"description": "Elapsed execution or reasoning time in an activity step.", "placeholders": {"seconds": {"type": "String"}}},
-  "chatTimelineToolNotExecuted": "No execution record found"
+  "@chatTimelineDuration": {"description": "Elapsed execution or reasoning time in an activity step.", "placeholders": {"seconds": {"type": "String"}}}
 }

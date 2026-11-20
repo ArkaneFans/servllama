@@ -11,21 +11,22 @@ import 'package:servllama/shared/widgets/text_sheen.dart';
 import 'package:servllama/shared/widgets/async_action.dart';
 
 /// Shared by the chat reply and the conversation's activity page.
-class ToolInvocationCard extends StatefulWidget {
-  const ToolInvocationCard({
+class ToolPartCard extends StatefulWidget {
+  const ToolPartCard({
     super.key,
     required this.invocation,
     this.inTimeline = false,
+    this.streaming = false,
   });
 
-  final ToolInvocation invocation;
-  final bool inTimeline;
+  final ToolActivity invocation;
+  final bool inTimeline, streaming;
 
   @override
-  State<ToolInvocationCard> createState() => _ToolInvocationCardState();
+  State<ToolPartCard> createState() => _ToolPartCardState();
 }
 
-class _ToolInvocationCardState extends State<ToolInvocationCard> {
+class _ToolPartCardState extends State<ToolPartCard> {
   final _answer = TextEditingController();
   bool _expanded = false;
   bool _deciding = false;
@@ -70,16 +71,18 @@ class _ToolInvocationCardState extends State<ToolInvocationCard> {
   }
 
   @override
-  void didUpdateWidget(covariant ToolInvocationCard oldWidget) {
+  void didUpdateWidget(covariant ToolPartCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.invocation.payload, widget.invocation.payload)) {
+    if (!identical(oldWidget.invocation.part, widget.invocation.part)) {
       _cacheText();
     }
   }
 
   void _cacheText() {
-    _arguments = _format(widget.invocation.payload['arguments'] ?? {});
-    final result = widget.invocation.payload['result'];
+    final part = widget.invocation.part;
+    final args = part.arguments;
+    _arguments = args == null ? part.input : _format(args);
+    final result = part.result;
     _result = result == null ? null : _format(result);
   }
 
@@ -121,6 +124,7 @@ class _ToolInvocationCardState extends State<ToolInvocationCard> {
   @override
   Widget build(BuildContext context) {
     final i = widget.invocation;
+    final payload = i.payload;
     final service = context.watch<AgentToolService?>();
     final canDecide =
         i.state == 'pendingApproval' && (service?.canDecide(i.id) ?? false);
@@ -129,7 +133,20 @@ class _ToolInvocationCardState extends State<ToolInvocationCard> {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final asking = i.name == 'ask_user';
-    final busy = const {'prepared', 'approved', 'executing'}.contains(i.state);
+    final active =
+        widget.streaming ||
+        (service?.activeRunId == i.runId &&
+            service?.activeConversationId == i.conversationId);
+    final busy =
+        active &&
+        const {
+          'streaming',
+          'ready',
+          'prepared',
+          'approved',
+          'executing',
+        }.contains(i.state);
+    final showStatus = !i.part.inputIsMutable && i.part.inputComplete;
     final status = switch (i.state) {
       'prepared' => l.v2ToolPrepared,
       'approved' => l.v2ToolApproved,
@@ -151,7 +168,9 @@ class _ToolInvocationCardState extends State<ToolInvocationCard> {
       'write_file' => l.v2ToolWriteAction,
       'ask_user' => l.v2ToolAsk,
       'read_skill' => l.v2ToolSkill,
-      _ => i.payload['displayName'] as String? ?? i.name,
+      _ =>
+        payload['displayName'] as String? ??
+            (i.name.isEmpty ? l.v2ToolActivity : i.name),
     };
     final color = switch (i.state) {
       'failed' || 'unknownOutcome' => colors.error,
@@ -167,7 +186,7 @@ class _ToolInvocationCardState extends State<ToolInvocationCard> {
         asking ? Icons.question_answer_outlined : Icons.pending_actions,
       _ => Icons.build_outlined,
     };
-    final args = i.payload['arguments'] as Map? ?? {};
+    final args = payload['arguments'] as Map? ?? {};
     final summary =
         switch (i.name) {
           'web_search' => args['query'],
@@ -178,8 +197,8 @@ class _ToolInvocationCardState extends State<ToolInvocationCard> {
             args.entries.take(2).map((e) => '${e.key}: ${e.value}').join(', '),
         }?.toString() ??
         '';
-    final serverName = i.payload['serverName'] as String?;
-    final error = i.payload['error'] as String?;
+    final serverName = payload['serverName'] as String?;
+    final error = payload['error'] as String?;
 
     final body = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -222,11 +241,8 @@ class _ToolInvocationCardState extends State<ToolInvocationCard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       TextSheen(
-                        key: ValueKey('tool_title_sheen_${i.id}'),
-                        enabled:
-                            busy &&
-                            service?.activeRunId == i.runId &&
-                            service?.activeConversationId == i.conversationId,
+                        key: ValueKey('tool_title_sheen_${i.part.id}'),
+                        enabled: busy,
                         color: theme.textTheme.bodyMedium?.color,
                         child: Text(
                           name,
@@ -252,20 +268,21 @@ class _ToolInvocationCardState extends State<ToolInvocationCard> {
                     ],
                   ),
                 ),
-                if ((i.payload['durationMs'] is int &&
-                        (i.payload['durationMs'] as int) >= 100) ||
+                if ((payload['durationMs'] is int &&
+                        (payload['durationMs'] as int) >= 100) ||
                     (i.state == 'executing' &&
-                        i.payload['startedAt'] is int &&
+                        payload['startedAt'] is int &&
                         service?.activeRunId == i.runId &&
                         service?.activeConversationId == i.conversationId)) ...[
                   const SizedBox(width: 6),
                   _ExecutionDuration(invocation: i),
                 ],
                 const SizedBox(width: 8),
-                Tooltip(
-                  message: status,
-                  child: Icon(icon, size: 16, color: color),
-                ),
+                if (showStatus)
+                  Tooltip(
+                    message: status,
+                    child: Icon(icon, size: 16, color: color),
+                  ),
                 const SizedBox(width: 8),
                 if (!canDecide)
                   Icon(
@@ -290,10 +307,11 @@ class _ToolInvocationCardState extends State<ToolInvocationCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  status,
-                  style: theme.textTheme.bodySmall?.copyWith(color: color),
-                ),
+                if (showStatus)
+                  Text(
+                    status,
+                    style: theme.textTheme.bodySmall?.copyWith(color: color),
+                  ),
                 const SizedBox(height: 12),
                 if (asking && args['question'] is String)
                   _ReceiptText(
@@ -302,12 +320,11 @@ class _ToolInvocationCardState extends State<ToolInvocationCard> {
                   )
                 else
                   _ReceiptText(label: l.v2ToolArguments, text: _arguments),
-                if (i.name == 'web_search')
-                  WebSearchReceipt(payload: i.payload),
+                if (i.name == 'web_search') WebSearchReceipt(payload: payload),
                 if (error != null) _ReceiptText(label: l.v2Failed, text: error),
                 if (_result != null)
                   _ReceiptText(label: l.v2ToolResult, text: _result!),
-                if (i.payload['resultTruncated'] == true)
+                if (payload['resultTruncated'] == true)
                   Text(
                     l.v2ToolResultTruncated,
                     style: theme.textTheme.bodySmall,
@@ -370,7 +387,7 @@ class _ToolInvocationCardState extends State<ToolInvocationCard> {
 
 class _ExecutionDuration extends StatefulWidget {
   const _ExecutionDuration({required this.invocation});
-  final ToolInvocation invocation;
+  final ToolActivity invocation;
   @override
   State<_ExecutionDuration> createState() => _ExecutionDurationState();
 }
@@ -409,11 +426,10 @@ class _ExecutionDurationState extends State<_ExecutionDuration> {
 
   @override
   Widget build(BuildContext context) {
-    final i = widget.invocation;
+    final part = widget.invocation.part;
     final duration =
-        i.payload['durationMs'] as int? ??
-        (DateTime.now().millisecondsSinceEpoch -
-            (i.payload['startedAt'] as int));
+        part.durationMs ??
+        DateTime.now().difference(part.startedAt!).inMilliseconds;
     return Text(
       context.l10n.chatTimelineDuration(
         (duration.clamp(0, 1 << 52) / 1000).toStringAsFixed(1),

@@ -61,8 +61,8 @@ final class ToolCallEnd extends StreamChunk {
   final AiToolCall call;
 }
 
-/// Produced by ChatRunner after AgentToolService commits the invocation. The
-/// receipt remains the authority for approval, execution state and saved output.
+/// Produced after AgentToolService commits the result in the owning ToolPart.
+/// Live state callbacks have already updated that same message slot.
 final class ToolCallResult extends StreamChunk {
   const ToolCallResult({required this.callId});
   final String callId;

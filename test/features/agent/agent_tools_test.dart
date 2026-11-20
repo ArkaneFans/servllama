@@ -1,10 +1,12 @@
+import 'package:servllama/features/agent/models/agent_records.dart';
+import 'package:servllama/features/chat/repositories/generation_run_repository.dart';
+import '../../support/tool_part_fixture.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/core/database/app_database.dart';
 import 'package:servllama/core/logging/app_logger.dart';
-import 'package:servllama/features/agent/models/agent_records.dart';
 import 'package:servllama/features/agent/repositories/agent_repository.dart';
 import 'package:servllama/features/agent/services/agent_tool_service.dart';
 import 'package:servllama/features/assistants/models/assistant.dart';
@@ -138,7 +140,7 @@ void main() {
         expect(result.text, contains('[truncated:'));
         expect(result.text, isNot(contains('\uFFFD')));
         expect(result.text, isNot(contains('read_file')));
-        final receipt = (await service.repository.invocation('next:large'))!;
+        final receipt = (await service.repository.toolActivity('next:large'))!;
         expect(receipt.state, failed ? 'failed' : 'succeeded');
         expect(receipt.payload['resultTruncated'], isTrue);
         expect(receipt.payload['result'], result.text);
@@ -245,7 +247,9 @@ void main() {
       await service.decide('run:connection-deleted', true);
       await expectation;
       expect(
-        (await service.repository.invocation('run:connection-deleted'))!.state,
+        (await service.repository.toolActivity(
+          'run:connection-deleted',
+        ))!.state,
         'cancelled',
       );
     },
@@ -339,7 +343,7 @@ void main() {
       expect(saved.revision, assistant.revision + 1);
       expect(session.config.assistant.skillIds, [skill.id]);
       expect(
-        (await service.repository.invocation('selected:ask'))!.state,
+        (await service.repository.toolActivity('selected:ask'))!.state,
         'cancelled',
       );
       expect(await service.repository.skills(), isEmpty);
@@ -496,7 +500,10 @@ void main() {
     ).saveAssistant(assistant.changed({'tools': [], 'revision': 2}));
     await service.revalidate();
     await expectation;
-    expect((await service.repository.invocation('run:t'))!.state, 'cancelled');
+    expect(
+      (await service.repository.toolActivity('run:t'))!.state,
+      'cancelled',
+    );
     expect(service.canDecide('run:t'), isFalse);
   });
   test(
@@ -504,7 +511,7 @@ void main() {
     () async {
       await seedAgentRun(db, 'old');
       await service.repository.insert(
-        const ToolInvocation(
+        toolActivity(
           id: 'old:t',
           runId: 'old',
           callId: 't',
@@ -514,14 +521,14 @@ void main() {
           payload: {},
         ),
       );
-      await service.repository.recover();
+      await GenerationRunRepository(db).recover();
       expect(
-        (await service.repository.invocation('old:t'))!.state,
+        (await service.repository.toolActivity('old:t'))!.state,
         'unknownOutcome',
       );
       await service.decide('old:t', true);
       expect(
-        (await service.repository.invocation('old:t'))!.state,
+        (await service.repository.toolActivity('old:t'))!.state,
         'unknownOutcome',
       );
     },

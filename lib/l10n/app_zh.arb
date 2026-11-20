@@ -1235,6 +1235,5 @@
   "chatTimelineExpand": "显示前面的 {count} 个步骤",
   "@chatTimelineExpand": {"placeholders": {"count": {"type": "int"}}},
   "chatTimelineDuration": "{seconds} 秒",
-  "@chatTimelineDuration": {"placeholders": {"seconds": {"type": "String"}}},
-  "chatTimelineToolNotExecuted": "未找到执行记录"
+  "@chatTimelineDuration": {"placeholders": {"seconds": {"type": "String"}}}
 }

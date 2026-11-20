@@ -1,6 +1,7 @@
 import 'package:hive/hive.dart';
 import 'package:servllama/features/chat/models/message_author.dart';
-import 'package:servllama/features/chat/models/chat_timeline.dart';
+
+import 'package:servllama/features/chat/models/message_part.dart';
 
 part 'chat_message_version_record.g.dart';
 
@@ -9,15 +10,17 @@ class ChatMessageVersionRecord {
   const ChatMessageVersionRecord({
     required this.id,
     required this.messageId,
-    required this.content,
+    String content = '',
     required this.createdAt,
     this.modelName,
     this.runId,
     this.author,
-    this.reasoningContent,
-    this.timeline = const [],
+    String? reasoningContent,
+    List<MessagePart>? parts,
     this.imageFilePaths = const [],
-  });
+  }) : _parts = parts,
+       _bodyText = parts == null ? content : '',
+       _bodyReasoning = parts == null ? reasoningContent : null;
 
   @HiveField(0)
   final String id;
@@ -26,7 +29,7 @@ class ChatMessageVersionRecord {
   final String messageId;
 
   @HiveField(2)
-  final String content;
+  String get content => messageText(parts);
 
   @HiveField(3)
   final DateTime createdAt;
@@ -36,10 +39,15 @@ class ChatMessageVersionRecord {
 
   final String? runId;
   final MessageAuthor? author;
-  final List<ChatTimelinePart> timeline;
+  final List<MessagePart>? _parts;
+  final String _bodyText;
+  final String? _bodyReasoning;
+  List<MessagePart> get parts =>
+      _parts ??
+      messagePartsFromText(content: _bodyText, reasoning: _bodyReasoning);
 
   @HiveField(5)
-  final String? reasoningContent;
+  String? get reasoningContent => messageReasoning(parts);
 
   @HiveField(6)
   final List<String> imageFilePaths;

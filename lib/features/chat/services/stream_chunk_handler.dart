@@ -1,78 +1,120 @@
-import 'package:servllama/features/chat/models/chat_timeline.dart';
+import 'dart:convert';
+import 'package:servllama/features/chat/models/message_part.dart';
 import 'package:servllama/features/chat/models/stream_chunk.dart';
-import 'package:servllama/features/chat/models/tool_call_preview.dart';
 
-/// One generation's ordered, immutable display snapshots. Receipts stay in the
-/// existing AgentToolService; no provisional argument is persisted or executed.
+/// One generation's ordered snapshots. Every stream and tool update addresses
+/// a stable part ID; text, arguments and results share the revision body.
 class StreamChunkHandler {
-  final timeline = ChatTimelineBuilder();
-  String content = '', reasoning = '';
-  final _tools = <String, ToolCallPreview>{};
-  Map<String, ToolCallPreview> get previews => Map.unmodifiable(_tools);
+  final _parts = <MessagePart>[];
+  List<MessagePart> get parts => List.unmodifiable(_parts);
+  String get content => messageText(_parts);
+  String get reasoning => messageReasoning(_parts) ?? '';
+
+  void updateTool(ToolPart part) {
+    final index = _parts.indexWhere((p) => p.id == part.id);
+    if (index < 0) {
+      _parts.add(part);
+    } else {
+      _parts[index] = part;
+    }
+  }
+
+  void appendText(String text, {String id = 'error'}) {
+    if (text.isEmpty) return;
+    finish();
+    final last = _parts.lastOrNull;
+    if (last is TextPart && last.id == id) {
+      _parts[_parts.length - 1] = TextPart(id, last.text + text);
+    } else {
+      _parts.add(TextPart(id, text));
+    }
+  }
+
+  void finish({DateTime? at, bool stopped = false}) {
+    final now = at ?? DateTime.now().toUtc();
+    for (var i = 0; i < _parts.length; i++) {
+      final p = _parts[i];
+      if (p is ReasoningPart && p.finishedAt == null) {
+        _parts[i] = p.copyWith(finishedAt: now);
+      } else if (stopped &&
+          p is ToolPart &&
+          (p.state == ToolState.streaming || p.state == ToolState.ready)) {
+        _parts[i] = p.copyWith(state: ToolState.cancelled);
+      }
+    }
+  }
 
   bool handle(StreamChunk chunk) {
     switch (chunk) {
       case TextStart():
-        timeline.finish();
+        finish();
       case TextDelta(:final id, :final text):
         if (text.isEmpty) return false;
-        content += text;
-        timeline.append(text: text, streamId: id);
+        appendText(text, id: id);
       case ReasoningStart(:final id):
-        timeline.reasoningStart(id);
+        finish();
+        _parts.add(ReasoningPart(id, '', startedAt: DateTime.now().toUtc()));
       case ReasoningDelta(:final id, :final text):
         if (text.isEmpty) return false;
-        reasoning += text;
-        timeline.append(reasoning: text, streamId: id);
+        final index = _parts.indexWhere(
+          (p) => p is ReasoningPart && p.id == id,
+        );
+        if (index < 0) {
+          _parts.add(
+            ReasoningPart(id, text, startedAt: DateTime.now().toUtc()),
+          );
+        } else {
+          final p = _parts[index] as ReasoningPart;
+          _parts[index] = p.copyWith(text: p.text + text);
+        }
       case ReasoningEnd(:final id):
-        timeline.endSeries(id);
+        final index = _parts.indexWhere(
+          (p) => p is ReasoningPart && p.id == id,
+        );
+        if (index >= 0) {
+          _parts[index] = (_parts[index] as ReasoningPart).copyWith(
+            finishedAt: DateTime.now().toUtc(),
+          );
+        }
       case ToolCallStart(:final id, :final callId, :final toolName):
-        if (_tools.containsKey(id)) {
+        if (_parts.any((p) => p.id == id)) {
           throw const FormatException('Repeated tool start');
         }
-        _tools[id] = ToolCallPreview(id: id, callId: callId, name: toolName);
-        timeline.toolStream(id, callId: callId, name: toolName);
+        finish();
+        _parts.add(ToolPart(id: id, callId: callId, name: toolName));
       case ToolCallDelta(
         :final id,
         :final callId,
         :final toolNameDelta,
         :final inputDelta,
       ):
-        final previous = _tools[id];
-        if (previous == null || previous.complete) {
+        final index = _parts.indexWhere((p) => p is ToolPart && p.id == id);
+        if (index < 0 || (_parts[index] as ToolPart).inputComplete) {
           throw const FormatException('Invalid tool delta');
         }
-        if (previous.input.length + inputDelta.length > 128 * 1024) {
+        final p = _parts[index] as ToolPart;
+        if (p.input.length + inputDelta.length > 128 * 1024) {
           throw const FormatException('Tool arguments exceed limit');
         }
-        final next = ToolCallPreview(
-          id: id,
-          callId: callId ?? previous.callId,
-          name: previous.name + toolNameDelta,
-          input: previous.input + inputDelta,
+        _parts[index] = p.copyWith(
+          callId: callId,
+          name: p.name + toolNameDelta,
+          input: p.input + inputDelta,
         );
-        _tools[id] = next;
-        timeline.toolStream(id, callId: next.callId, name: next.name);
       case ToolCallEnd(:final id, :final call):
-        final previous = _tools[id];
-        if (previous == null || previous.complete) {
+        final index = _parts.indexWhere((p) => p is ToolPart && p.id == id);
+        if (index < 0 || (_parts[index] as ToolPart).inputComplete) {
           throw const FormatException('Invalid tool end');
         }
-        _tools[id] = ToolCallPreview(
-          id: id,
-          callId: call.id,
-          name: call.name,
-          input: previous.input,
-          complete: true,
-        );
-        timeline.toolStream(
-          id,
+        _parts[index] = (_parts[index] as ToolPart).copyWith(
           callId: call.id,
           name: call.name,
           inputComplete: true,
+          input: jsonEncode(call.arguments),
+          state: ToolState.ready,
         );
       case Finish() || AssistantRoundEnd():
-        timeline.finish();
+        finish();
       case TextEnd() || ToolCallResult() || Usage():
         return false;
     }

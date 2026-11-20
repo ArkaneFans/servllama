@@ -18,6 +18,7 @@ import 'package:servllama/features/agent/services/tool_schema.dart';
 import 'package:servllama/features/agent/services/web_search_service.dart';
 import 'package:servllama/features/assistants/models/assistant.dart';
 import 'package:servllama/features/chat/models/ai_turn.dart';
+import 'package:servllama/features/chat/models/message_part.dart';
 import 'package:servllama/features/chat/models/chat_run_config.dart';
 
 class AgentToolService extends ChangeNotifier {
@@ -39,7 +40,6 @@ class AgentToolService extends ChangeNotifier {
       AgentRepository(await AppDatabase.shared()),
       await getApplicationSupportDirectory(),
     );
-    await s.repository.recover();
     current = s;
     return s;
   }
@@ -187,8 +187,9 @@ class AgentToolService extends ChangeNotifier {
   final WebSearchService webSearch;
   late final McpConnectionManager mcp;
   final Map<String, Completer<({bool allowed, String answer})>> _approvals = {};
-  List<ToolInvocation> _activeInvocations = const [];
-  List<ToolInvocation> get activeInvocations => _activeInvocations;
+  List<ToolActivity> _activeTools = const [];
+  List<ToolActivity> get activeTools => _activeTools;
+  int _refreshVersion = 0;
   ToolSession? _active;
   int get pendingCount => _approvals.length;
   String? get activeConversationId => _active?.conversationId;
@@ -200,12 +201,20 @@ class AgentToolService extends ChangeNotifier {
     String runId,
     String conversationId,
     ChatRunConfig config,
-    CancelToken token,
-  ) async {
+    CancelToken token, {
+    void Function(ToolPart)? onPartChanged,
+  }) async {
     if (_active != null) throw StateError('Another chat run is active');
-    final session = ToolSession._(this, runId, conversationId, config, token);
+    final session = ToolSession._(
+      this,
+      runId,
+      conversationId,
+      config,
+      token,
+      onPartChanged,
+    );
     _active = session;
-    _activeInvocations = const [];
+    _activeTools = const [];
     notifyListeners();
     try {
       await session._initialize();
@@ -235,13 +244,17 @@ class AgentToolService extends ChangeNotifier {
 
   Future<void> refresh() async {
     final session = _active;
+    final version = ++_refreshVersion;
     if (session != null) {
       final records = await repository.forRun(
         session.conversationId,
         session.runId,
       );
-      if (!identical(_active, session)) return;
-      _activeInvocations = List.unmodifiable(records);
+      if (!identical(_active, session) || version != _refreshVersion) return;
+      _activeTools = List.unmodifiable(records);
+      for (final record in records) {
+        session.onPartChanged?.call(record.part);
+      }
     }
     notifyListeners();
   }
@@ -249,7 +262,7 @@ class AgentToolService extends ChangeNotifier {
   Future<void> decide(String id, bool allowed, {String answer = ''}) async {
     final pending = _approvals[id];
     if (pending == null) return;
-    final record = await repository.invocation(id);
+    final record = await repository.toolActivity(id);
     if (record == null || record.runId != _active?.runId) return;
     final payload = {...record.payload, 'answer': answer};
     if (await repository.transition(
@@ -309,11 +322,13 @@ class ToolSession {
     this.conversationId,
     this.config,
     this.token,
+    this.onPartChanged,
   );
   final AgentToolService owner;
   final String runId, conversationId;
   final ChatRunConfig config;
   final CancelToken token;
+  final void Function(ToolPart)? onPartChanged;
   final List<AiTool> definitions = [];
   final Map<
     String,
@@ -451,11 +466,11 @@ class ToolSession {
           ? call.name
           : 'unrecognized',
     };
-    final existing = await owner.repository.invocation(id);
+    final existing = await owner.repository.toolActivity(id);
     final argsHash = sha256
         .convert(utf8.encode(jsonEncode(call.arguments)))
         .toString();
-    if (existing != null) {
+    if (existing != null && !existing.part.inputIsMutable) {
       if (existing.payload['argumentsHash'] != argsHash ||
           existing.name != call.name) {
         throw StateError('Conflicting tool call ID');
@@ -481,17 +496,14 @@ class ToolSession {
     };
     var state = 'prepared';
     final executionWatch = Stopwatch();
-    await owner.repository.insert(
-      ToolInvocation(
-        id: id,
-        runId: runId,
-        callId: call.id,
-        conversationId: conversationId,
-        name: call.name,
-        state: state,
-        payload: payload,
-      ),
+    await owner.repository.prepare(
+      runId,
+      conversationId,
+      call.id,
+      call.name,
+      payload,
     );
+    await owner.refresh();
     Future<void> move(String to) async {
       if (to == 'executing') {
         payload['startedAt'] = DateTime.now().toUtc().millisecondsSinceEpoch;
@@ -546,7 +558,9 @@ class ToolSession {
         owner._approvals.remove(id);
         if (!decision.allowed) {
           state = 'rejected';
-          return _result(call, 'User declined this tool call', error: true);
+          payload['result'] = 'User declined this tool call';
+          await move('rejected');
+          return _result(call, payload['result'] as String, error: true);
         }
         state = 'approved';
         answer = decision.answer;

@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/features/assistants/models/assistant.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
-import 'package:servllama/features/chat/models/chat_timeline.dart';
+import 'package:servllama/features/chat/models/message_part.dart';
 import 'package:servllama/features/chat/models/stream_chunk.dart';
 import 'package:servllama/features/chat/presentation/chat_timeline_projection.dart';
 import 'package:servllama/features/chat/services/chat_stream_decoder.dart';
@@ -30,8 +30,7 @@ ChatMessageRecord snapshot(StreamChunkHandler h) => ChatMessageRecord(
   createdAt: DateTime.utc(2026),
   content: h.content,
   reasoningContent: h.reasoning,
-  timeline: h.timeline.snapshot,
-  toolCallPreviews: h.previews,
+  parts: h.parts,
 );
 
 void main() {
@@ -51,14 +50,13 @@ void main() {
       }),
     );
     final early = snapshot(handler);
-    final streamId = early.timeline.last.streamId!;
-    expect(early.timeline.last.callId, isNull);
-    expect(early.timeline.last.inputComplete, isFalse);
-    expect(early.toolCallPreviews[streamId]!.input, '{"question":');
+    final streamId = early.parts.last.id;
+    expect((early.parts.last as ToolPart).callId, isNull);
+    expect((early.parts.last as ToolPart).inputComplete, isFalse);
+    expect((early.parts.last as ToolPart).input, '{"question":');
     expect(
       projectChatTimeline(
         early,
-        [],
         streaming: true,
       ).single.steps.last.needsAttention,
       isTrue,
@@ -76,21 +74,21 @@ void main() {
       handler.handle(chunk);
     }
     final finalMessage = snapshot(handler);
-    expect(finalMessage.timeline.map((p) => p.kind), [
-      ChatTimelineKind.reasoning,
-      ChatTimelineKind.tool,
-      ChatTimelineKind.text,
+    expect(finalMessage.parts.map((p) => p.kind), [
+      MessagePartKind.reasoning,
+      MessagePartKind.tool,
+      MessagePartKind.text,
     ]);
-    expect(finalMessage.timeline[1].streamId, streamId);
-    expect(finalMessage.timeline[1].callId, 'vendor');
-    expect(finalMessage.timeline[1].toolName, 'ask_user');
-    expect(finalMessage.timeline[1].inputComplete, isTrue);
-    expect(early.toolCallPreviews[streamId]!.complete, isFalse);
-    expect(early.timeline[1].callId, isNull);
-    final encoded = ChatTimelinePart.encode(finalMessage.timeline);
-    expect(encoded, isNot(contains('Continue?')));
-    expect(encoded, isNot(contains('Checking')));
-    expect(ChatTimelinePart.decode(encoded)[1].streamId, streamId);
+    expect(finalMessage.parts[1].id, streamId);
+    expect((finalMessage.parts[1] as ToolPart).callId, 'vendor');
+    expect((finalMessage.parts[1] as ToolPart).name, 'ask_user');
+    expect((finalMessage.parts[1] as ToolPart).inputComplete, isTrue);
+    expect((early.parts[1] as ToolPart).inputComplete, isFalse);
+    expect((early.parts[1] as ToolPart).callId, isNull);
+    final encoded = MessagePart.encode(finalMessage.parts);
+    expect(encoded, contains('Continue?'));
+    expect(encoded, contains('Checking'));
+    expect(MessagePart.decode(encoded)[1].id, streamId);
   });
 
   test('interleaved calls accumulate by index; IDs are scoped per request', () {
@@ -186,7 +184,7 @@ void main() {
         'delta': {'type': 'signature_delta', 'signature': 'opaque'},
       });
       receive({'type': 'content_block_stop', 'index': 0});
-      expect(h.timeline.snapshot.single.finishedAt, isNotNull);
+      expect((h.parts.single as ReasoningPart).finishedAt, isNotNull);
       receive({
         'type': 'content_block_start',
         'index': 1,
@@ -258,27 +256,24 @@ void main() {
     },
   );
 
-  test(
-    'cancellation history retains an incomplete node without partial payload',
-    () {
-      final h = StreamChunkHandler();
-      h.handle(const ToolCallStart(id: 's', toolName: 'clock'));
-      h.handle(const ToolCallDelta(id: 's', inputDelta: '{"secret":'));
-      h.timeline.finish();
-      final m = snapshot(h).copyWith(toolCallPreviews: const {});
-      final parts = ChatTimelinePart.decode(
-        ChatTimelinePart.encode(m.timeline),
-      );
-      final step = projectChatTimeline(
-        m.copyWith(timeline: parts),
-        [],
-      ).single.steps.single;
-      expect(step.part.inputComplete, isFalse);
-      expect(step.invocation, isNull);
-      expect(step.preview, isNull);
-      expect(ChatTimelinePart.encode(parts), isNot(contains('secret')));
-    },
-  );
+  test('cancellation preserves partial input without granting execution', () {
+    final h = StreamChunkHandler();
+    h.handle(const ToolCallStart(id: 's', toolName: 'clock'));
+    h.handle(const ToolCallDelta(id: 's', inputDelta: '{"secret":'));
+    h.finish(stopped: true);
+    final m = snapshot(h);
+    final parts = MessagePart.decode(MessagePart.encode(m.parts));
+    final step = projectChatTimeline(
+      m.copyWith(parts: parts),
+    ).single.steps.single;
+    final part = step.part as ToolPart;
+    expect(part.inputComplete, isFalse);
+    expect(part.arguments, isNull);
+    expect(part.result, isNull);
+    expect(part.startedAt, isNull);
+    expect(part.state, ToolState.cancelled);
+    expect(part.input, '{"secret":');
+  });
 
   test(
     'malformed, duplicate, conflicting, missing and oversized calls cannot finish',

@@ -1,20 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:ui' as ui;
-
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
-import 'package:servllama/core/database/app_database.dart';
 import 'package:servllama/app/app_theme.dart';
+import 'package:servllama/core/database/app_database.dart';
 import 'package:servllama/features/agent/models/agent_records.dart';
 import 'package:servllama/features/agent/repositories/agent_repository.dart';
 import 'package:servllama/features/agent/services/agent_tool_service.dart';
-import 'package:servllama/features/agent/widgets/tool_invocation_card.dart';
+import 'package:servllama/features/agent/widgets/tool_part_card.dart';
 import 'package:servllama/features/agent/widgets/web_search_receipt.dart';
 import 'package:servllama/features/assistants/models/assistant.dart';
 import 'package:servllama/features/assistants/repositories/assistant_repository.dart';
@@ -22,69 +18,52 @@ import 'package:servllama/features/chat/controllers/streaming_chat_message_notif
 import 'package:servllama/features/chat/models/ai_turn.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/models/chat_run_config.dart';
-import 'package:servllama/features/chat/models/chat_timeline.dart';
+import 'package:servllama/features/chat/models/message_part.dart';
 import 'package:servllama/features/chat/models/stream_chunk.dart';
 import 'package:servllama/features/chat/services/stream_chunk_handler.dart';
 import 'package:servllama/features/chat/widgets/chat_message_list.dart';
-import 'package:servllama/features/chat/widgets/chat_agent_timeline.dart';
-import 'package:servllama/features/chat/widgets/chat_tool_activity.dart';
 import 'package:servllama/l10n/generated/app_localizations.dart';
 import 'package:servllama/shared/widgets/text_sheen.dart';
-import '../../support/mcp_tool_fixture.dart';
 import '../../support/agent_database_fixture.dart';
-
-class _FixtureHttpOverrides extends HttpOverrides {
-  @override
-  HttpClient createHttpClient(SecurityContext? context) =>
-      super.createHttpClient(context)..findProxy = (_) => 'DIRECT';
-}
+import '../../support/mcp_tool_fixture.dart';
 
 class _Repository extends AgentRepository {
   _Repository(super.db);
-  @override
-  Future<void> insert(ToolInvocation invocation) async {
-    await seedAgentRun(
-      db,
-      invocation.runId,
-      conversationId: invocation.conversationId,
-    );
-    await super.insert(invocation);
-  }
-
   int reads = 0;
-  bool failNext = false;
-  Completer<List<ToolInvocation>>? delayed;
-
+  Completer<List<ToolActivity>>? delayNext;
   @override
-  Future<List<ToolInvocation>> forRun(String conversationId, String runId) {
+  Future<List<ToolActivity>> forRun(String conversationId, String runId) {
     reads++;
-    if (runId == 'delayed') return delayed!.future;
-    if (failNext) {
-      failNext = false;
-      return Future.error(StateError('fixture'));
+    if (delayNext case final delayed?) {
+      delayNext = null;
+      return delayed.future;
     }
     return super.forRun(conversationId, runId);
   }
 }
 
-ToolInvocation receipt(
-  String call, {
-  String run = 'run',
-  String conversation = 'conversation',
+class _DirectHttp extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) =>
+      super.createHttpClient(context)..findProxy = (_) => 'DIRECT';
+}
+
+ToolPart tool(
+  String id, {
   String name = 'clock',
-  String state = 'succeeded',
-  Map<String, dynamic> payload = const {
-    'arguments': {},
-    'result': 'saved output',
-  },
-}) => ToolInvocation(
-  id: '$run:$call',
-  runId: run,
-  callId: call,
-  conversationId: conversation,
+  ToolState state = ToolState.succeeded,
+  Map<String, dynamic> args = const {},
+  String? result = 'saved output',
+  Map<String, dynamic> metadata = const {},
+}) => ToolPart(
+  id: id,
+  callId: id,
   name: name,
+  input: jsonEncode(args),
+  inputComplete: true,
   state: state,
-  payload: payload,
+  result: result,
+  metadata: metadata,
 );
 
 void main() {
@@ -94,31 +73,33 @@ void main() {
   late AgentToolService service;
   late StreamingChatMessageNotifier streaming;
   late ScrollController scroll;
-  ToolSession? session;
+  late ChatMessageRecord current;
   late CancelToken token;
+  ToolSession? session;
   const assistant = Assistant(
     id: 'assistant',
     name: 'Assistant',
     tools: ['clock', 'ask_user'],
   );
-  final message = ChatMessageRecord(
-    id: 'reply',
-    sessionId: 'conversation',
-    runId: 'run',
-    role: ChatRole.assistant,
-    content: 'Final answer',
-    createdAt: DateTime(2026, 9, 27, 12, 34),
-    modelName: 'Actual model',
-  );
 
   setUp(() async {
     db = AppDatabase.memory();
-    directory = await Directory.systemTemp.createTemp('chat-tools-');
+    directory = await Directory.systemTemp.createTemp('chat-parts-');
     repository = _Repository(db);
     service = AgentToolService(repository, directory);
     streaming = StreamingChatMessageNotifier();
     scroll = ScrollController();
     token = CancelToken();
+    current = ChatMessageRecord(
+      id: 'reply',
+      sessionId: 'conversation',
+      runId: 'run',
+      versionIds: const ['run:fixture-version'],
+      role: ChatRole.assistant,
+      content: 'Final answer',
+      createdAt: DateTime(2026),
+      modelName: 'Actual model',
+    );
     await AssistantRepository(db).saveAssistant(assistant);
     await seedAgentRun(db, 'run');
   });
@@ -149,39 +130,40 @@ void main() {
         isLocal: true,
       ),
       token,
+      onPartChanged: (p) {
+        final parts = current.parts.toList();
+        final index = parts.indexWhere((old) => old.id == p.id);
+        if (index < 0) {
+          parts.add(p);
+        } else {
+          parts[index] = p;
+        }
+        current = current.copyWith(parts: List.unmodifiable(parts));
+        streaming.update(current, isStreaming: true);
+      },
     );
   }
-
-  Widget app(Widget child, {double scale = 1, ThemeData? theme}) =>
-      ChangeNotifierProvider<AgentToolService>.value(
-        value: service,
-        child: MaterialApp(
-          theme: theme,
-          locale: const Locale('en'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          builder: (context, child) => MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(textScaler: TextScaler.linear(scale)),
-            child: child!,
-          ),
-          home: Scaffold(body: child),
-        ),
-      );
 
   Widget chat(
     ChatMessageRecord m, {
     bool live = false,
     double scale = 1,
     ThemeData? theme,
-    GlobalKey? capture,
-  }) => app(
-    RepaintBoundary(
-      key: capture,
-      child: ColoredBox(
-        color: theme?.scaffoldBackgroundColor ?? Colors.white,
-        child: ChatMessageList(
+  }) => ChangeNotifierProvider<AgentToolService>.value(
+    value: service,
+    child: MaterialApp(
+      theme: theme,
+      locale: const Locale('en'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(scale)),
+        child: child!,
+      ),
+      home: Scaffold(
+        body: ChatMessageList(
           controller: scroll,
           streamingMessages: streaming,
           messages: [m],
@@ -197,8 +179,6 @@ void main() {
         ),
       ),
     ),
-    scale: scale,
-    theme: theme,
   );
 
   Future<Future<AiTurn> Function()> pending(
@@ -217,595 +197,222 @@ void main() {
     return () => result;
   }
 
-  testWidgets(
-    'trajectory fits phone themes and large text while keeping detail controls usable',
-    (tester) async {
-      const previewFont = String.fromEnvironment('TIMELINE_PREVIEW_FONT');
-      if (const bool.fromEnvironment('TIMELINE_PREVIEW') &&
-          previewFont.isNotEmpty) {
-        await tester.runAsync(() async {
-          final loader = FontLoader('TimelinePreview')
-            ..addFont(
-              File(
-                previewFont,
-              ).readAsBytes().then((bytes) => ByteData.sublistView(bytes)),
-            );
-          await loader.load();
-          await (FontLoader('MaterialIcons')
-                ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf')))
-              .load();
-        });
-      }
-      await tester.binding.setSurfaceSize(const Size(390, 844));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-      final start = DateTime.utc(2026);
-      final builder = ChatTimelineBuilder();
-      builder.append(reasoning: '先查看资料，再检查当前时间。', at: start);
-      builder.finish(at: start.add(const Duration(seconds: 2)));
-      builder.tool('search', 'web_search');
-      builder.append(text: '已找到相关资料，我再核对一下。\n');
-      builder.tool('clock', 'clock');
-      builder.append(
-        reasoning: '信息已核对，整理成简明结论。',
-        at: start.add(const Duration(seconds: 3)),
-      );
-      builder.finish(at: start.add(const Duration(milliseconds: 4200)));
-      builder.append(text: '这是最终回答。每一步的工具参数和结果都可以展开查看。');
-      await repository.insert(
-        receipt(
-          'search',
-          name: 'web_search',
-          payload: {
-            'arguments': {'query': '本地模型运行说明'},
-            'result': '已找到 3 条参考资料。',
-            'durationMs': 650,
-          },
-        ),
-      );
-      await repository.insert(
-        receipt(
-          'clock',
-          name: 'clock',
-          payload: {
-            'arguments': {},
-            'result': '2026-11-19 21:30',
-            'durationMs': 10,
-          },
-        ),
-      );
-      final m = message.copyWith(
-        content: '已找到相关资料，我再核对一下。\n这是最终回答。每一步的工具参数和结果都可以展开查看。',
-        reasoningContent: '先查看资料，再检查当前时间。信息已核对，整理成简明结论。',
-        timeline: builder.snapshot,
-      );
-      for (final (name, theme) in [
-        ('light', AppTheme.light()),
-        ('dark', AppTheme.dark()),
-      ]) {
-        final displayTheme = previewFont.isEmpty
-            ? theme
-            : theme.copyWith(
-                textTheme: theme.textTheme.apply(fontFamily: 'TimelinePreview'),
-              );
-        final capture = GlobalKey();
-        await tester.pumpWidget(chat(m, theme: displayTheme, capture: capture));
-        await tester.pumpAndSettle();
-        expect(
-          find.byKey(const ValueKey('tool_toggle_run:clock')),
-          findsOneWidget,
-        );
-        expect(tester.takeException(), isNull);
-        if (const bool.fromEnvironment('TIMELINE_PREVIEW')) {
-          await tester.runAsync(() async {
-            final image =
-                await (capture.currentContext!.findRenderObject()
-                        as RenderRepaintBoundary)
-                    .toImage(pixelRatio: 2);
-            try {
-              final bytes = await image.toByteData(
-                format: ui.ImageByteFormat.png,
-              );
-              await File(
-                '.dart_tool/agent-timeline-$name.png',
-              ).writeAsBytes(bytes!.buffer.asUint8List());
-            } finally {
-              image.dispose();
-            }
-          });
-        }
-      }
-      await tester.pumpWidget(chat(m, scale: 2, theme: AppTheme.light()));
-      await tester.pumpAndSettle();
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('tool_toggle_run:clock')),
-      );
-      await tester.tap(find.byKey(const ValueKey('tool_toggle_run:clock')));
-      await tester.pumpAndSettle();
-      expect(find.text('2026-11-19 21:30'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-  );
+  test('late refresh cannot replace a newer saved tool state', () async {
+    await open();
+    current = current.copyWith(parts: const []);
+    await repository.prepare('run', 'conversation', 'call', 'clock', {
+      'arguments': {},
+    });
+    final older = await repository.forRun('conversation', 'run');
+    final delayed = Completer<List<ToolActivity>>();
+    repository.delayNext = delayed;
+    final oldRefresh = service.refresh();
+    await repository.transition('run:call', 'prepared', 'executing', {
+      'arguments': {},
+      'startedAt': 10,
+    });
+    await service.refresh();
+    delayed.complete(older);
+    await oldRefresh;
+    expect(service.activeTools.single.state, 'executing');
+    expect(
+      current.parts.whereType<ToolPart>().single.state,
+      ToolState.executing,
+    );
+  });
+
+  testWidgets('saved parts render immediately in order without history reads', (
+    tester,
+  ) async {
+    current = current.copyWith(
+      parts: [
+        tool('first'),
+        tool('second', name: 'read_skill'),
+        const TextPart('body', 'Final answer'),
+      ],
+    );
+    await tester.pumpWidget(chat(current));
+    await tester.pumpAndSettle();
+    expect(repository.reads, 0);
+    expect(
+      tester.getTopLeft(find.byKey(const ValueKey('first'))).dy,
+      lessThan(tester.getTopLeft(find.byKey(const ValueKey('second'))).dy),
+    );
+    expect(
+      tester.getTopLeft(find.text('Actual model')).dy,
+      greaterThan(tester.getBottomLeft(find.text('Final answer')).dy),
+    );
+    await tester.tap(find.byKey(const ValueKey('tool_toggle_run:first')));
+    await tester.pumpAndSettle();
+    expect(find.text('saved output'), findsOneWidget);
+    expect(repository.reads, 0);
+    expect(find.text('No execution record found'), findsNothing);
+  });
+
+  testWidgets('partial input and result use the same expanded tool card', (
+    tester,
+  ) async {
+    final h = StreamChunkHandler();
+    h.handle(
+      const ToolCallStart(id: 'series', callId: 'live', toolName: 'clock'),
+    );
+    h.handle(const ToolCallDelta(id: 'series', inputDelta: '{"zone":'));
+    current = current.copyWith(parts: h.parts);
+    streaming.update(current, isStreaming: true);
+    streaming.update(current, isStreaming: true);
+    await tester.pumpWidget(chat(current, live: true));
+    await tester.pump();
+    final before = tester.state(find.byType(ToolPartCard));
+    expect(find.byType(ShaderMask), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('tool_toggle_run:live')));
+    await tester.pump();
+    expect(find.text('{"zone":'), findsOneWidget);
+    h.handle(const ToolCallDelta(id: 'series', inputDelta: '"UTC"}'));
+    current = current.copyWith(parts: h.parts);
+    streaming.update(current, isStreaming: true);
+    await tester.pump();
+    expect(find.text('{"zone":"UTC"}'), findsOneWidget);
+    h.handle(
+      const ToolCallEnd(
+        id: 'series',
+        call: AiToolCall(id: 'live', name: 'clock', arguments: {'zone': 'UTC'}),
+      ),
+    );
+    h.updateTool(
+      (h.parts.single as ToolPart).copyWith(
+        state: ToolState.succeeded,
+        result: 'Saved result',
+      ),
+    );
+    current = current.copyWith(parts: h.parts);
+    streaming.update(current, isStreaming: true);
+    await tester.pump();
+    expect(tester.state(find.byType(ToolPartCard)), same(before));
+    expect(find.text('Saved result'), findsOneWidget);
+    expect(find.byType(ShaderMask), findsNothing);
+    expect(repository.reads, 0);
+  });
 
   testWidgets(
-    'timeline interleaves prose, folds old steps and keeps unresolved receipts visible',
+    'stopped incomplete input keeps its parameters and static title',
     (tester) async {
-      final builder = ChatTimelineBuilder()
-        ..append(reasoning: 'Plan')
-        ..append(text: 'Checking.');
-      for (var i = 0; i < 5; i++) {
-        builder.tool('t$i', 'clock');
-        await repository.insert(receipt('t$i'));
-      }
-      builder.append(text: 'Final answer');
-      final m = message.copyWith(
-        content: 'Checking.Final answer',
-        reasoningContent: 'Plan',
-        timeline: builder.snapshot,
-      );
-      await tester.pumpWidget(chat(m));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('run:t0')), findsNothing);
-      expect(find.byKey(const ValueKey('run:t3')), findsOneWidget);
-      expect(
-        tester.getTopLeft(find.text('Checking.')).dy,
-        lessThan(tester.getTopLeft(find.byKey(const ValueKey('run:t3'))).dy),
-      );
-      expect(
-        tester.getTopLeft(find.text('Final answer')).dy,
-        greaterThan(
-          tester.getBottomLeft(find.byKey(const ValueKey('run:t4'))).dy,
-        ),
-      );
-      final toggle = find.byKey(const ValueKey('timeline_expand_run:2'));
-      await tester.tap(toggle);
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('run:t0')), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('tool_toggle_run:t0')));
-      await tester.pumpAndSettle();
-      expect(find.text('saved output'), findsOneWidget);
-      await tester.tap(toggle);
-      await tester.pumpAndSettle();
-      await repository.transition('run:t1', 'succeeded', 'unknownOutcome', {
-        'arguments': {},
-        'error': 'Uncertain',
-      });
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pumpWidget(chat(m));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('run:t1')), findsOneWidget);
-      expect(find.text('No execution record found'), findsNothing);
-      expect(tester.takeException(), isNull);
-    },
-  );
-
-  testWidgets(
-    'partial tool node previews input and becomes the existing receipt card',
-    (tester) async {
-      await open();
       final h = StreamChunkHandler();
-      h.handle(
-        const ToolCallStart(id: 'series', callId: 'live', toolName: 'clock'),
-      );
+      h.handle(const ToolCallStart(id: 'series', toolName: 'clock'));
       h.handle(const ToolCallDelta(id: 'series', inputDelta: '{"zone":'));
-      var m = message.copyWith(
-        content: '',
-        clearReasoningContent: true,
-        timeline: h.timeline.snapshot,
-        toolCallPreviews: h.previews,
-      );
-      streaming.update(m, isStreaming: true);
-      await tester.pumpWidget(chat(m, live: true));
-      await tester.pump();
-      expect(find.text('clock'), findsOneWidget);
-      expect(find.text('Preparing tool call…'), findsNothing);
-      expect(
-        find.descendant(
-          of: find.byType(ChatAgentTimeline),
-          matching: find.byType(CircularProgressIndicator),
-        ),
-        findsOneWidget,
-      );
-      expect(find.byType(ShaderMask), findsOneWidget);
-      expect(find.byType(ToolInvocationCard), findsNothing);
-      final reads = repository.reads;
-      await tester.tap(
-        find.byKey(const ValueKey('timeline_tool_preview_series')),
-      );
-      await tester.pump();
-      expect(find.text('{"zone":'), findsOneWidget);
-      h.handle(const ToolCallDelta(id: 'series', inputDelta: '"UTC"}'));
-      m = m.copyWith(
-        timeline: h.timeline.snapshot,
-        toolCallPreviews: h.previews,
-      );
-      streaming.update(m, isStreaming: true);
-      await tester.pump();
-      expect(find.text('{"zone":"UTC"}'), findsOneWidget);
-      expect(repository.reads, reads);
-      h.handle(
-        const ToolCallEnd(
-          id: 'series',
-          call: AiToolCall(
-            id: 'live',
-            name: 'clock',
-            arguments: {'zone': 'UTC'},
-          ),
-        ),
-      );
-      streaming.update(
-        m.copyWith(timeline: h.timeline.snapshot, toolCallPreviews: h.previews),
-        isStreaming: true,
-      );
-      await repository.insert(receipt('live', state: 'executing'));
-      final readsBeforeRefresh = repository.reads;
-      await service.refresh();
-      await tester.pump();
-      expect(find.byType(ToolInvocationCard), findsOneWidget);
-      expect(find.byType(ShaderMask), findsOneWidget);
-      expect(find.text('Preparing tool call…'), findsNothing);
-      expect(
-        find.byKey(const ValueKey('timeline_tool_preview_series')),
-        findsNothing,
-      );
-      expect(repository.reads, readsBeforeRefresh + 1);
-      expect(tester.takeException(), isNull);
-    },
-  );
-
-  testWidgets(
-    'unfinished input stops its animations and keeps a static tool node',
-    (tester) async {
-      await open();
-      final h = StreamChunkHandler();
-      h.handle(
-        const ToolCallStart(
-          id: 'stopped-series',
-          callId: 'call',
-          toolName: 'clock',
-        ),
-      );
-      h.handle(
-        const ToolCallDelta(id: 'stopped-series', inputDelta: '{"zone":'),
-      );
-      final m = message.copyWith(
-        content: '',
-        clearReasoningContent: true,
-        timeline: h.timeline.snapshot,
-        toolCallPreviews: h.previews,
-      );
-      streaming.update(m, isStreaming: true);
-      await tester.pumpWidget(chat(m, live: true));
+      current = current.copyWith(parts: h.parts);
+      streaming.update(current, isStreaming: true);
+      streaming.update(current, isStreaming: true);
+      await tester.pumpWidget(chat(current, live: true));
       await tester.pump();
       expect(find.byType(ShaderMask), findsOneWidget);
-      expect(
-        find.descendant(
-          of: find.byType(ChatAgentTimeline),
-          matching: find.byType(CircularProgressIndicator),
-        ),
-        findsOneWidget,
-      );
-      await tester.tap(
-        find.byKey(const ValueKey('timeline_tool_preview_stopped-series')),
-      );
-      await tester.pump();
-      expect(find.text('{"zone":'), findsOneWidget);
-
-      streaming.remove(m.id);
-      final stopped = m.copyWith(toolCallPreviews: const {});
-      await tester.pumpWidget(chat(stopped));
+      h.finish(stopped: true);
+      current = current.copyWith(parts: h.parts);
+      streaming.remove(current.id);
+      await tester.pumpWidget(chat(current));
       await tester.pumpAndSettle();
-      expect(find.text('clock'), findsOneWidget);
       expect(find.byType(ShaderMask), findsNothing);
       expect(find.byType(CircularProgressIndicator), findsNothing);
       expect(find.byIcon(Icons.block_outlined), findsOneWidget);
       expect(find.text('Tool call incomplete'), findsNothing);
       expect(find.text('Preparing tool call…'), findsNothing);
-      expect(find.text('No execution record found'), findsNothing);
-      expect(find.text('{"zone":'), findsNothing);
-      expect(find.byType(ToolInvocationCard), findsNothing);
-      expect(service.activeInvocations, isEmpty);
+      await tester.tap(find.byKey(const ValueKey('tool_toggle_run:series')));
+      await tester.pumpAndSettle();
+      expect(find.text('{"zone":'), findsOneWidget);
       expect(tester.widget<TextSheen>(find.byType(TextSheen)).enabled, isFalse);
-      expect(tester.takeException(), isNull);
     },
   );
 
-  testWidgets(
-    'streaming timeline updates bodies without reloading receipts; version changes reset the view',
-    (tester) async {
-      await open();
-      final builder = ChatTimelineBuilder()
-        ..tool('live', 'clock')
-        ..append(text: 'Before');
-      var m = message.copyWith(content: 'Before', timeline: builder.snapshot);
-      streaming.update(m, isStreaming: true);
-      await tester.pumpWidget(chat(m, live: true));
-      await repository.insert(receipt('live', state: 'executing'));
-      await service.refresh();
-      await tester.pump();
-      expect(find.byType(ToolInvocationCard), findsOneWidget);
-      expect(
-        tester
-            .widget<ToolInvocationCard>(find.byType(ToolInvocationCard))
-            .inTimeline,
-        isTrue,
-      );
-      expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('run:0')),
-          matching: find.byType(CircularProgressIndicator),
-        ),
-        findsOneWidget,
-      );
-      final reads = repository.reads;
-      builder.append(text: ' after');
-      m = m.copyWith(content: 'Before after', timeline: builder.snapshot);
-      streaming.update(m, isStreaming: true);
-      await tester.pump();
-      expect(find.text('Before after'), findsOneWidget);
-      expect(repository.reads, reads);
-      await session!.close();
-      streaming.remove(m.id);
-      await repository.insert(receipt('other', run: 'alternative'));
-      final nextBuilder = ChatTimelineBuilder()
-        ..tool('other', 'clock')
-        ..append(text: 'Other answer');
-      await tester.pumpWidget(
-        chat(
-          m.copyWith(
-            runId: 'alternative',
-            content: 'Other answer',
-            timeline: nextBuilder.snapshot,
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('run:live')), findsNothing);
-      expect(find.byKey(const ValueKey('alternative:other')), findsOneWidget);
-      expect(find.text('Other answer'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-  );
-
-  testWidgets(
-    'timeline retains its prose and retry when receipt loading fails',
-    (tester) async {
-      final b = ChatTimelineBuilder()
-        ..tool('saved', 'clock')
-        ..append(text: 'Readable answer');
-      await repository.insert(receipt('saved'));
-      repository.failNext = true;
-      await tester.pumpWidget(
-        chat(
-          message.copyWith(content: 'Readable answer', timeline: b.snapshot),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('Readable answer'), findsOneWidget);
-      expect(find.text('Could not load tool activity.'), findsOneWidget);
-      await tester.tap(find.text('Reload'));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('run:saved')), findsOneWidget);
-      expect(find.text('Readable answer'), findsOneWidget);
-      expect(find.text('Could not load tool activity.'), findsNothing);
-    },
-  );
-
-  testWidgets(
-    'reply shows ordered receipts for its selected run and keeps footer last',
-    (tester) async {
-      await repository.insert(receipt('first'));
-      await repository.insert(
-        receipt(
-          'second',
-          name: 'read_file',
-          payload: {
-            'arguments': {'path': 'notes.txt'},
-            'result': 'File contents',
-          },
-        ),
-      );
-      await repository.insert(
-        receipt('other', run: 'alternative', name: 'list_files'),
-      );
-      await repository.insert(
-        receipt('foreign', run: 'foreign', conversation: 'elsewhere'),
-      );
-      await tester.pumpWidget(chat(message));
-      await tester.pumpAndSettle();
-      expect(find.text('2 tool calls'), findsOneWidget);
-      expect(
-        tester.getTopLeft(find.byKey(const ValueKey('run:first'))).dy,
-        lessThan(
-          tester.getTopLeft(find.byKey(const ValueKey('run:second'))).dy,
-        ),
-      );
-      expect(find.byKey(const ValueKey('alternative:other')), findsNothing);
-      expect(
-        tester.getTopLeft(find.text('Final answer')).dy,
-        greaterThanOrEqualTo(
-          tester.getBottomLeft(find.byType(ChatToolActivity)).dy,
-        ),
-      );
-      expect(
-        tester.getTopLeft(find.text('Actual model')).dy,
-        greaterThan(tester.getBottomLeft(find.text('Final answer')).dy),
-      );
-
-      final reads = repository.reads;
-      await tester.tap(find.byKey(const ValueKey('tool_toggle_run:first')));
-      await tester.pumpAndSettle();
-      expect(find.text('saved output'), findsOneWidget);
-      await tester.pumpWidget(chat(message.copyWith(content: 'Updated text')));
-      await tester.pumpAndSettle();
-      expect(repository.reads, reads);
-      expect(await db.query('SELECT id FROM tool_invocations'), hasLength(4));
-
-      await tester.pumpWidget(chat(message.copyWith(runId: 'alternative')));
-      await tester.pumpAndSettle();
-      expect(find.text('List conversation files'), findsOneWidget);
-      expect(find.text('Current time'), findsNothing);
-      await tester.pumpWidget(chat(message.copyWith(clearRunId: true)));
-      await tester.pumpAndSettle();
-      expect(find.byType(ToolInvocationCard), findsNothing);
-    },
-  );
-
-  testWidgets(
-    'live statuses update without token-triggered reads and survive session close',
-    (tester) async {
-      await open();
-      final draft = message.copyWith(content: '');
-      streaming.update(draft, isStreaming: true);
-      await tester.pumpWidget(chat(draft, live: true));
-      await repository.insert(receipt('live', state: 'executing'));
-      await service.refresh();
-      await tester.pump();
-      expect(find.byTooltip('Executing'), findsOneWidget);
-      expect(find.text('...'), findsNothing);
-      final reads = repository.reads;
-      for (var n = 0; n < 3; n++) {
-        streaming.update(
-          draft.copyWith(content: 'Streaming $n'),
-          isStreaming: true,
-        );
-        await tester.pump();
-      }
-      expect(repository.reads, reads);
-      await repository.transition('run:live', 'executing', 'succeeded', {
-        'arguments': {},
-        'result': 'saved output',
-      });
-      await service.refresh();
-      await tester.pump();
-      expect(find.byTooltip('Completed'), findsOneWidget);
-      await session!.close();
-      streaming.remove(message.id);
-      await tester.pumpWidget(chat(draft));
-      await tester.pumpAndSettle();
-      expect(find.byTooltip('Completed'), findsOneWidget);
-      expect(find.text('Actual model'), findsOneWidget);
-    },
-  );
-
-  testWidgets(
-    'question is answered in chat and cannot be approved or replayed afterward',
-    (tester) async {
-      await open();
-      await tester.pumpWidget(
-        chat(
-          message.copyWith(
-            content: '',
-            timeline: const [
-              ChatTimelinePart(
-                kind: ChatTimelineKind.tool,
-                callId: 'ask',
-                toolName: 'ask_user',
-              ),
-            ],
-          ),
-          live: true,
-        ),
-      );
-      final result = await pending(
-        tester,
-        const AiToolCall(
-          id: 'ask',
-          name: 'ask_user',
-          arguments: {'question': 'Which format?'},
-        ),
-      );
-      expect(find.text('Waiting for your answer'), findsOneWidget);
-      final approve = find.byKey(const ValueKey('tool_approve_run:ask'));
-      expect(tester.widget<FilledButton>(approve).onPressed, isNull);
-      await tester.enterText(
-        find.byKey(const ValueKey('tool_answer_run:ask')),
-        'Markdown',
-      );
-      await tester.pump();
-      await tester.ensureVisible(approve);
-      await tester.tap(approve);
-      final answer = await tester.runAsync(result);
-      expect(jsonDecode(answer!.text)['answer'], 'Markdown');
-      await tester.pump();
-      expect(find.text('Send answer'), findsNothing);
-      expect(find.byTooltip('Completed'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('tool_toggle_run:ask')));
-      await tester.pump();
-      expect(find.textContaining('Markdown'), findsOneWidget);
-      expect(await repository.history('conversation'), hasLength(1));
-      expect(service.pendingCount, 0);
-    },
-  );
-
-  testWidgets(
-    'remote MCP approval executes once and exposes its saved result in the same card',
-    (tester) async {
-      final fixture = (await tester.runAsync(
-        () => McpToolFixture.start({
-          'content': [
-            {'type': 'text', 'text': 'Approved output'},
+  testWidgets('version changes use selected parts with no stale tool joins', (
+    tester,
+  ) async {
+    final original = current.copyWith(
+      parts: [tool('first'), const TextPart('body', 'Original')],
+    );
+    await tester.pumpWidget(chat(original));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      chat(
+        original.copyWith(
+          parts: [
+            tool('other', name: 'read_skill'),
+            const TextPart('body2', 'Alternative'),
           ],
-        }),
-      ))!;
-      addTearDown(fixture.close);
-      final remote = fixture.config;
-      final name = AgentToolService.mcpToolName(remote.id, 'echo');
-      final selected = assistant.changed({
-        'tools': [name],
-        'mcpServerIds': [remote.id],
-      });
-      await tester.runAsync(
-        () => HttpOverrides.runWithHttpOverrides(() async {
-          await AssistantRepository(db).saveAssistant(selected);
-          await repository.saveServer(remote);
-          await open(selected: selected);
-        }, _FixtureHttpOverrides()),
-      );
-      await tester.pumpWidget(chat(message.copyWith(content: ''), live: true));
-      final result = await pending(
-        tester,
-        AiToolCall(
-          id: 'remote',
-          name: name,
-          arguments: const {'text': 'Approved output'},
+          currentVersionIndex: 0,
         ),
-      );
-      expect(find.textContaining('Approved output'), findsNWidgets(2));
-      expect(find.text('Fixture MCP'), findsOneWidget);
-      final approve = find.byKey(const ValueKey('tool_approve_run:remote'));
-      await tester.ensureVisible(approve);
-      await tester.tap(approve);
-      expect((await tester.runAsync(result))!.isError, isFalse);
-      expect(fixture.calls, 1);
-      await tester.pump();
-      await tester.tap(find.byKey(const ValueKey('tool_toggle_run:remote')));
-      await tester.pump();
-      expect(find.text('Allow once'), findsNothing);
-      expect(find.byTooltip('Completed'), findsOneWidget);
-      expect(await repository.history('conversation'), hasLength(1));
-      await tester.runAsync(() => session!.close());
-    },
-  );
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('first')), findsNothing);
+    expect(find.byKey(const ValueKey('other')), findsOneWidget);
+    await tester.pumpWidget(
+      chat(original.copyWith(content: 'Manual', clearRunId: true)),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(ToolPartCard), findsNothing);
+    expect(find.text('Manual'), findsOneWidget);
+    expect(repository.reads, 0);
+  });
 
-  testWidgets('reject and cancellation remove inline decision controls', (
+  testWidgets('inline answer is persisted to the part and cannot replay', (
     tester,
   ) async {
     await open();
-    await tester.pumpWidget(chat(message.copyWith(content: ''), live: true));
+    current = current.copyWith(parts: const []);
+    streaming.update(current, isStreaming: true);
+    await tester.pumpWidget(chat(current, live: true));
+    final result = await pending(
+      tester,
+      const AiToolCall(
+        id: 'ask',
+        name: 'ask_user',
+        arguments: {'question': 'Which format?'},
+      ),
+    );
+    final approve = find.byKey(const ValueKey('tool_approve_run:ask'));
+    expect(tester.widget<FilledButton>(approve).onPressed, isNull);
+    await tester.enterText(
+      find.byKey(const ValueKey('tool_answer_run:ask')),
+      'Markdown',
+    );
+    await tester.pump();
+    await tester.ensureVisible(approve);
+    await tester.tap(approve);
+    expect(
+      jsonDecode((await tester.runAsync(result))!.text)['answer'],
+      'Markdown',
+    );
+    await tester.pump();
+    expect(find.byTooltip('Completed'), findsOneWidget);
+    expect(service.pendingCount, 0);
+    final saved = (await repository.forRun('conversation', 'run')).single.part;
+    expect(saved.result, contains('Markdown'));
+    expect(saved.state, ToolState.succeeded);
+    expect(find.text('Send answer'), findsNothing);
+  });
+
+  testWidgets('reject and cancel preserve the tool part and remove controls', (
+    tester,
+  ) async {
+    await open();
+    current = current.copyWith(parts: const []);
+    streaming.update(current, isStreaming: true);
+    await tester.pumpWidget(chat(current, live: true));
     final rejected = await pending(
       tester,
       const AiToolCall(
         id: 'reject',
         name: 'ask_user',
-        arguments: {'question': 'Optional question'},
+        arguments: {'question': 'Optional?'},
       ),
     );
-    final reject = find.byKey(const ValueKey('tool_reject_run:reject'));
-    await tester.ensureVisible(reject);
-    await tester.tap(reject);
+    await tester.tap(find.byKey(const ValueKey('tool_reject_run:reject')));
     expect((await tester.runAsync(rejected))!.isError, isTrue);
     await tester.pump();
     expect(find.byTooltip('Rejected'), findsOneWidget);
+    expect(
+      (await repository.toolActivity('run:reject'))!.part.result,
+      contains('declined'),
+    );
     final cancelled = await pending(
       tester,
       const AiToolCall(
@@ -823,16 +430,75 @@ void main() {
     expect(service.pendingCount, 0);
   });
 
+  testWidgets('MCP approval executes once and updates the same part', (
+    tester,
+  ) async {
+    final fixture = (await tester.runAsync(
+      () => McpToolFixture.start({
+        'content': [
+          {'type': 'text', 'text': 'Approved output'},
+        ],
+      }),
+    ))!;
+    addTearDown(fixture.close);
+    final name = AgentToolService.mcpToolName(fixture.config.id, 'echo');
+    final selected = assistant.changed({
+      'tools': [name],
+      'mcpServerIds': [fixture.config.id],
+    });
+    await tester.runAsync(
+      () => HttpOverrides.runWithHttpOverrides(() async {
+        await AssistantRepository(db).saveAssistant(selected);
+        await repository.saveServer(fixture.config);
+        await open(selected: selected);
+      }, _DirectHttp()),
+    );
+    current = current.copyWith(parts: const []);
+    streaming.update(current, isStreaming: true);
+    await tester.pumpWidget(chat(current, live: true));
+    final result = await pending(
+      tester,
+      AiToolCall(
+        id: 'remote',
+        name: name,
+        arguments: const {'text': 'Approved output'},
+      ),
+    );
+    expect(find.text('Fixture MCP'), findsOneWidget);
+    final before = tester.state(find.byType(ToolPartCard));
+    final approve = find.byKey(const ValueKey('tool_approve_run:remote'));
+    await tester.ensureVisible(approve);
+    await tester.tap(approve);
+    expect((await tester.runAsync(result))!.isError, isFalse);
+    expect(fixture.calls, 1);
+    await tester.pump();
+    expect(tester.state(find.byType(ToolPartCard)), same(before));
+    expect(find.byTooltip('Completed'), findsOneWidget);
+    expect(
+      (await repository.forRun('conversation', 'run')).single.part.result,
+      contains('Approved output'),
+    );
+    await tester.runAsync(() => session!.close());
+  });
+
   testWidgets(
-    'search sources expand in the shared card and MCP names come from the receipt',
+    'phone themes and large text retain results, search and approval titles',
     (tester) async {
-      await repository.insert(
-        receipt(
-          'search',
-          name: 'web_search',
-          payload: {
-            'arguments': {'query': 'Flutter documentation'},
-            'result': jsonEncode({
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      current = current.copyWith(
+        parts: [
+          ReasoningPart(
+            'r',
+            'Plan',
+            startedAt: DateTime.utc(2026),
+            finishedAt: DateTime.utc(2026).add(const Duration(seconds: 2)),
+          ),
+          tool(
+            'search',
+            name: 'web_search',
+            args: {'query': 'Flutter'},
+            result: jsonEncode({
               'provider': 'bing',
               'items': [
                 {
@@ -842,59 +508,30 @@ void main() {
                 },
               ],
             }),
-          },
-        ),
+          ),
+          const TextPart('body', 'Readable answer'),
+          tool(
+            'mcp',
+            name: 'mcp_hash',
+            state: ToolState.unknownOutcome,
+            metadata: {
+              'displayName': 'search_notes',
+              'serverName': 'Notes server',
+            },
+          ),
+        ],
       );
-      await repository.insert(
-        receipt(
-          'mcp',
-          name: 'mcp_12345678_hash',
-          state: 'failed',
-          payload: {
-            'arguments': {'query': 'notes'},
-            'displayName': 'search_notes',
-            'serverName': 'Notes server',
-            'error': 'Saved failure',
-          },
-        ),
-      );
-      await tester.pumpWidget(chat(message));
-      await tester.pumpAndSettle();
-      expect(find.byType(WebSearchReceipt), findsNothing);
-      expect(find.text('search_notes'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('tool_toggle_run:mcp')));
-      await tester.pumpAndSettle();
-      expect(find.text('Notes server'), findsOneWidget);
+      for (final theme in [AppTheme.light(), AppTheme.dark()]) {
+        await tester.pumpWidget(chat(current, theme: theme, scale: 1.5));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(find.text('search_notes'), findsOneWidget);
+      }
       await tester.tap(find.byKey(const ValueKey('tool_toggle_run:search')));
       await tester.pumpAndSettle();
       expect(find.byType(WebSearchReceipt), findsOneWidget);
       expect(find.text('Flutter docs'), findsOneWidget);
-    },
-  );
-
-  testWidgets(
-    'late history responses cannot leak into another version; load failure can retry',
-    (tester) async {
-      repository.delayed = Completer<List<ToolInvocation>>();
-      await tester.pumpWidget(chat(message.copyWith(runId: 'delayed')));
-      await repository.insert(receipt('current'));
-      await tester.pumpWidget(chat(message));
-      await tester.pumpAndSettle();
-      repository.delayed!.complete([
-        receipt('old', run: 'delayed', name: 'read_file'),
-      ]);
-      await tester.pumpAndSettle();
-      expect(find.text('Read conversation files'), findsNothing);
-      expect(find.text('Current time'), findsOneWidget);
-      repository.failNext = true;
-      await tester.pumpWidget(chat(message.copyWith(runId: 'retry')));
-      await tester.pumpAndSettle();
-      expect(find.text('Could not load tool activity.'), findsOneWidget);
-      await repository.insert(receipt('retry', run: 'retry'));
-      await tester.tap(find.text('Reload'));
-      await tester.pumpAndSettle();
-      expect(find.text('Could not load tool activity.'), findsNothing);
-      expect(find.text('Current time'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     },
   );
 }

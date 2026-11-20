@@ -13,7 +13,25 @@ Future<void> seedAgentRun(
     );
     await db.execute(
       'INSERT OR IGNORE INTO generation_runs(id,conversation_id,state,snapshot,checkpoint,updated_at) VALUES(?,?,?,?,?,0)',
-      [id, conversationId, 'running', '{}', '{}'],
+      [
+        id,
+        conversationId,
+        'running',
+        '{"versionId":"$id:fixture-version"}',
+        '{}',
+      ],
+    );
+    final next = (await db.query(
+      'SELECT COALESCE(MAX(position),-1)+1 AS next FROM messages WHERE conversation_id=?',
+      [conversationId],
+    )).single.read<int>('next');
+    await db.execute(
+      'INSERT OR IGNORE INTO messages(id,conversation_id,position,role) VALUES(?,?,?,?)',
+      ['$id:fixture-message', conversationId, next, 'assistant'],
+    );
+    await db.execute(
+      'INSERT OR IGNORE INTO message_revisions(id,message_id,position,run_id,is_draft,is_selected,created_at) VALUES(?,?,0,?,1,1,0)',
+      ['$id:fixture-version', '$id:fixture-message', id],
     );
   });
 }

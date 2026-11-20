@@ -1,5 +1,5 @@
 import 'package:servllama/features/agent/services/agent_tool_service.dart';
-import 'package:servllama/features/chat/models/chat_timeline.dart';
+import 'package:servllama/features/chat/models/message_part.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -231,7 +231,6 @@ class ChatRunner extends ChangeNotifier {
         content: normalizedContent,
         clearReasoningContent: true,
         clearRunId: true,
-        timeline: const [],
         createdAt: DateTime.now(),
       ),
     );
@@ -459,7 +458,7 @@ class ChatRunner extends ChangeNotifier {
       modelName: model.displayName,
       reasoningContent: '',
       clearImageFilePaths: true,
-      timeline: const [],
+      parts: const [],
       versionIds: nextVersionIds,
       currentVersionIndex: nextVersionIndex,
     );
@@ -622,7 +621,6 @@ class ChatRunner extends ChangeNotifier {
         : MessageAuthor(assistantId: assistant.id, name: assistant.name);
     _trace.clear();
     final chunks = StreamChunkHandler();
-    final timeline = chunks.timeline;
     _inputContextKey = _finalAnswer = null;
     _runId = newId();
     final watch = Stopwatch()..start();
@@ -657,7 +655,7 @@ class ChatRunner extends ChangeNotifier {
                 ))
             .copyWith(
               runId: _runId,
-              timeline: const [],
+              parts: const [],
               author: author,
               clearAuthor: author == null,
               versionIds: draftVersionIds,
@@ -712,6 +710,7 @@ class ChatRunner extends ChangeNotifier {
         model.id,
         promptMessages ?? sessionMessages,
         _activeCancelToken!,
+        chunks,
       )) {
         if (_isDisposed) {
           return;
@@ -721,12 +720,7 @@ class ChatRunner extends ChangeNotifier {
           continue;
         }
         if (!chunks.handle(delta)) continue;
-        _draftAssistantMessage = currentDraft.copyWith(
-          content: chunks.content,
-          reasoningContent: chunks.reasoning.isEmpty ? null : chunks.reasoning,
-          timeline: timeline.snapshot,
-          toolCallPreviews: chunks.previews,
-        );
+        _draftAssistantMessage = currentDraft.copyWith(parts: chunks.parts);
         streamingMessages.update(_draftAssistantMessage!, isStreaming: true);
         currentMessages = _messagesWithStreamingDraft(
           currentMessages,
@@ -752,7 +746,7 @@ class ChatRunner extends ChangeNotifier {
         if (draft != null && draft.content.trim().isNotEmpty) {
           _lastErrorMessage = errorMessage;
         } else {
-          timeline.append(text: errorMessage);
+          chunks.appendText(errorMessage);
           _draftAssistantMessage = ChatMessageRecord(
             id: draft?.id ?? _idGenerator.generate('error'),
             role: ChatRole.assistant,
@@ -763,7 +757,7 @@ class ChatRunner extends ChangeNotifier {
             runId: _runId,
             author: author,
             reasoningContent: draft?.reasoningContent,
-            timeline: timeline.snapshot,
+            parts: chunks.parts,
             versionIds: draft?.versionIds ?? const <String>[],
             currentVersionIndex: draft?.currentVersionIndex ?? 0,
           );
@@ -781,9 +775,9 @@ class ChatRunner extends ChangeNotifier {
       }
     } finally {
       if (_activeCancelToken?.isCancelled == true) terminalState = 'cancelled';
-      timeline.finish();
+      chunks.finish(stopped: true);
       if (_draftAssistantMessage case final draft?) {
-        _draftAssistantMessage = draft.copyWith(timeline: timeline.snapshot);
+        _draftAssistantMessage = draft.copyWith(parts: chunks.parts);
       }
       try {
         if (began && _draftAssistantMessage != null) {
@@ -802,8 +796,7 @@ class ChatRunner extends ChangeNotifier {
               draft != null &&
               !hasDraftContent &&
               !hasDraftReasoning &&
-              (draft.timeline.any((p) => p.kind == ChatTimelineKind.tool) ||
-                  (await _runs?.hasToolInvocations(_runId!) ?? false));
+              draft.parts.any((p) => p is ToolPart);
           ChatMessageRecord? finalized;
           await _atomic(() async {
             if (draft != null &&
@@ -940,17 +933,18 @@ class ChatRunner extends ChangeNotifier {
         createdAt: draft.createdAt,
         modelName: draft.modelName,
         reasoningContent: draft.reasoningContent,
-        timeline: draft.timeline,
+        parts: draft.parts,
         imageFilePaths: draft.imageFilePaths,
       ),
     );
     final ids = [...draft.versionIds];
     if (!ids.contains(versionId)) ids.add(versionId);
-    return draft.copyWith(
-      versionIds: ids,
-      currentVersionIndex: ids.indexOf(versionId),
-      toolCallPreviews: const {},
-    );
+    final saved = await _repository.loadMessageVersion(versionId);
+    if (saved == null) throw StateError('Final message version missing');
+    // The write may merge a newer durable tool state into the draft snapshot.
+    return draft
+        .copyWith(versionIds: ids)
+        .withVersion(saved, ids.indexOf(versionId));
   }
 
   Future<List<AiTurn>> _turns(
@@ -1011,7 +1005,7 @@ class ChatRunner extends ChangeNotifier {
                 .map(
                   (m) => encodeMessage(m)
                     ..remove('author')
-                    ..remove('timeline')
+                    ..remove('parts')
                     ..remove('versionIds')
                     ..remove('currentVersionIndex'),
                 )
@@ -1025,6 +1019,7 @@ class ChatRunner extends ChangeNotifier {
     String modelId,
     List<ChatMessageRecord> messages,
     CancelToken token,
+    StreamChunkHandler chunks,
   ) async* {
     final config = _activeConfig;
     if (config == null) {
@@ -1046,6 +1041,13 @@ class ChatRunner extends ChangeNotifier {
       _conversationId!,
       config,
       token,
+      onPartChanged: (part) {
+        chunks.updateTool(part);
+        final draft = _draftAssistantMessage;
+        if (draft == null || _isDisposed) return;
+        _draftAssistantMessage = draft.copyWith(parts: chunks.parts);
+        streamingMessages.update(_draftAssistantMessage!, isStreaming: true);
+      },
     );
     final usedCallIds = <String>{};
     try {
@@ -1229,7 +1231,7 @@ class ChatRunner extends ChangeNotifier {
       createdAt: message.createdAt,
       modelName: message.modelName,
       reasoningContent: message.reasoningContent,
-      timeline: message.timeline,
+      parts: message.parts,
       imageFilePaths: message.imageFilePaths,
     );
   }

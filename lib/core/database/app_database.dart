@@ -126,9 +126,7 @@ class MessageRevisions extends Table {
       .check(isSelected.isIn([0, 1]))
       .withDefault(const Constant(0))();
   IntColumn get createdAt => integer()();
-  TextColumn get content => text()();
-  TextColumn get reasoningContent => text().nullable()();
-  TextColumn get timeline => text().withDefault(const Constant('[]'))();
+  TextColumn get parts => text().withDefault(const Constant('[]'))();
   TextColumn get modelName => text().nullable()();
   TextColumn get author => text().nullable()();
 
@@ -177,25 +175,6 @@ class GenerationRuns extends Table {
 
   @override
   Set<Column<Object>> get primaryKey => {id};
-}
-
-@TableIndex(name: 'invocations_run', columns: {#runId, #createdAt})
-@DataClassName('DbToolInvocations', companion: 'ToolInvocationsCompanion')
-class ToolInvocations extends Table {
-  TextColumn get id => text()();
-  TextColumn get runId =>
-      text().references(GenerationRuns, #id, onDelete: KeyAction.cascade)();
-  TextColumn get callId => text()();
-  TextColumn get name => text()();
-  TextColumn get state => text()();
-  TextColumn get payload => text()();
-  IntColumn get createdAt => integer()();
-
-  @override
-  Set<Column<Object>> get primaryKey => {id};
-
-  @override
-  List<String> get customConstraints => const ['UNIQUE (run_id, call_id)'];
 }
 
 @DataClassName('DbModelAssets', companion: 'ModelAssetsCompanion')
@@ -305,7 +284,6 @@ class AppMetadata extends Table {
     MessageRevisions,
     RevisionAttachments,
     GenerationRuns,
-    ToolInvocations,
     ModelAssets,
     SpeechJobs,
     VoiceProfiles,
@@ -334,15 +312,9 @@ class AppDatabase extends _$AppDatabase {
   }();
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
   @override
   MigrationStrategy get migration => MigrationStrategy(
-    onUpgrade: (m, from, to) async {
-      if (from < 2) await m.deleteTable('chat_drafts');
-      if (from < 3) {
-        await m.addColumn(messageRevisions, messageRevisions.timeline);
-      }
-    },
     beforeOpen: (_) async {
       await customStatement('PRAGMA foreign_keys = ON');
       await customStatement('PRAGMA busy_timeout = 5000');

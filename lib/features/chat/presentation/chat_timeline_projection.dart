@@ -1,7 +1,6 @@
 import 'package:servllama/features/agent/models/agent_records.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
-import 'package:servllama/features/chat/models/chat_timeline.dart';
-import 'package:servllama/features/chat/models/tool_call_preview.dart';
+import 'package:servllama/features/chat/models/message_part.dart';
 
 class ChatTimelineStep {
   const ChatTimelineStep({
@@ -9,24 +8,16 @@ class ChatTimelineStep {
     required this.part,
     this.text = '',
     this.invocation,
-    this.preview,
     this.streaming = false,
   });
   final String key, text;
-  final ChatTimelinePart part;
-  final ToolInvocation? invocation;
-  final ToolCallPreview? preview;
+  final MessagePart part;
+  final ToolActivity? invocation;
   final bool streaming;
-
   bool get needsAttention =>
-      const {
-        'prepared',
-        'approved',
-        'pendingApproval',
-        'executing',
-        'unknownOutcome',
-      }.contains(invocation?.state) ||
-      (streaming && part.kind == ChatTimelineKind.tool && invocation == null);
+      part is ToolPart &&
+      ((part as ToolPart).state == ToolState.unknownOutcome ||
+          (streaming && (part as ToolPart).needsAttention));
 }
 
 class ChatTimelineBlock {
@@ -37,71 +28,13 @@ class ChatTimelineBlock {
   final List<ChatTimelineStep> steps;
 }
 
-/// Pure display projection; it neither executes tools nor restores Runs.
-/// Valid ordering metadata addresses existing bodies and receipts. Invalid or
-/// old metadata uses the original reasoning/tools/body layout without guessing.
+/// Pure projection of canonical parts; no database reads or live receipt join.
 List<ChatTimelineBlock> projectChatTimeline(
-  ChatMessageRecord message,
-  List<ToolInvocation> records, {
+  ChatMessageRecord message, {
   bool streaming = false,
 }) {
-  final receipts = {
-    for (final record in records)
-      if (record.runId == message.runId &&
-          record.conversationId == message.sessionId)
-        record.callId: record,
-  };
-  final reasoning = message.reasoningContent ?? '';
-  var textEnd = 0, reasoningEnd = 0;
-  final calls = <String>{};
-  var valid = message.timeline.isNotEmpty;
-  for (final part in message.timeline) {
-    switch (part.kind) {
-      case ChatTimelineKind.text:
-        valid &=
-            part.start == textEnd &&
-            part.end >= part.start &&
-            part.end <= message.content.length;
-        textEnd = part.end;
-      case ChatTimelineKind.reasoning:
-        valid &=
-            part.start == reasoningEnd &&
-            part.end >= part.start &&
-            part.end <= reasoning.length;
-        reasoningEnd = part.end;
-      case ChatTimelineKind.tool:
-        valid &=
-            message.runId != null &&
-            (part.callId?.isNotEmpty == true ||
-                part.streamId?.isNotEmpty == true) &&
-            calls.add(part.callId ?? part.streamId!);
-    }
-  }
-  valid &=
-      textEnd == message.content.length && reasoningEnd == reasoning.length;
-  final parts = valid
-      ? message.timeline
-      : <ChatTimelinePart>[
-          if (reasoning.isNotEmpty)
-            ChatTimelinePart(
-              kind: ChatTimelineKind.reasoning,
-              end: reasoning.length,
-            ),
-          for (final receipt in receipts.values)
-            ChatTimelinePart(
-              kind: ChatTimelineKind.tool,
-              callId: receipt.callId,
-              toolName: receipt.name,
-            ),
-          if (message.content.isNotEmpty)
-            ChatTimelinePart(
-              kind: ChatTimelineKind.text,
-              end: message.content.length,
-            ),
-        ];
   final blocks = <ChatTimelineBlock>[];
   var pending = <ChatTimelineStep>[];
-  final used = <String>{};
   void flush() {
     if (pending.isEmpty) return;
     blocks.add(
@@ -110,49 +43,32 @@ List<ChatTimelineBlock> projectChatTimeline(
     pending = [];
   }
 
-  for (final (index, part) in parts.indexed) {
-    final key = part.streamId == null
-        ? '${message.runId ?? message.id}:$index'
-        : '${message.runId ?? message.id}:${part.streamId}:$index';
-    if (part.kind == ChatTimelineKind.text) {
-      final text = message.content.substring(part.start, part.end);
-      if (text.trim().isEmpty) continue;
+  for (final p in message.parts) {
+    final key = '${message.id}:${p.id}';
+    if (p is TextPart) {
+      if (p.text.trim().isEmpty) continue;
       flush();
-      blocks.add(ChatTimelineBlock.text(key, text));
+      blocks.add(ChatTimelineBlock.text(key, p.text));
     } else {
-      if (part.kind == ChatTimelineKind.tool && part.callId != null) {
-        used.add(part.callId!);
-      }
       pending.add(
         ChatTimelineStep(
           key: key,
-          part: part,
-          text: part.kind == ChatTimelineKind.reasoning
-              ? reasoning.substring(part.start, part.end)
-              : '',
-          invocation: part.inputComplete ? receipts[part.callId] : null,
-          preview: message.toolCallPreviews[part.streamId],
+          part: p,
+          text: p is ReasoningPart ? p.text : '',
           streaming: streaming,
+          invocation: p is ToolPart
+              ? ToolActivity(
+                  runId: message.runId ?? '',
+                  conversationId: message.sessionId ?? '',
+                  revisionId: message.versionIds.isEmpty
+                      ? ''
+                      : message.versionIds[message.currentVersionIndex],
+                  part: p,
+                )
+              : null,
         ),
       );
     }
-  }
-  // A receipt may commit before the next draft checkpoint. Keep it inspectable
-  // even if a process interruption left its reference outside that checkpoint.
-  for (final receipt in receipts.values.where(
-    (r) => !used.contains(r.callId),
-  )) {
-    pending.add(
-      ChatTimelineStep(
-        key: receipt.id,
-        part: ChatTimelinePart(
-          kind: ChatTimelineKind.tool,
-          callId: receipt.callId,
-          toolName: receipt.name,
-        ),
-        invocation: receipt,
-      ),
-    );
   }
   flush();
   return List.unmodifiable(blocks);

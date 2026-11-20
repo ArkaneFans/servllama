@@ -2938,7 +2938,4 @@ class AppLocalizationsZh extends AppLocalizations {
   String chatTimelineDuration(String seconds) {
     return '$seconds 秒';
   }
-
-  @override
-  String get chatTimelineToolNotExecuted => '未找到执行记录';
 }

@@ -3,13 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:provider/provider.dart';
-import 'package:servllama/features/agent/services/agent_tool_service.dart';
+import 'package:servllama/features/chat/models/message_part.dart';
 import 'package:servllama/features/assistants/providers/assistant_provider.dart';
 import 'package:servllama/features/assistants/widgets/identity_avatar.dart';
 import 'package:servllama/features/chat/controllers/streaming_chat_message_notifier.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/widgets/chat_image_widgets.dart';
-import 'package:servllama/features/chat/widgets/chat_tool_activity.dart';
 import 'package:servllama/features/chat/widgets/chat_agent_timeline.dart';
 import 'package:servllama/l10n/l10n.dart';
 
@@ -149,17 +148,10 @@ class _MessageBubbleState extends State<_MessageBubble> {
     final foregroundColor = colorScheme.onSurface;
     final reasoningContent = message.reasoningContent?.trim() ?? '';
     final hasReasoningContent = reasoningContent.isNotEmpty;
-    final hasTimeline = !isUser && message.timeline.isNotEmpty;
+    final hasTimeline = !isUser && message.parts.isNotEmpty;
     final hasToolRun =
         !isUser && message.runId != null && message.sessionId != null;
-    final hasActiveTools =
-        hasToolRun &&
-        context.select<AgentToolService?, bool>(
-          (s) =>
-              s?.activeRunId == message.runId &&
-              s?.activeConversationId == message.sessionId &&
-              (s?.activeInvocations.isNotEmpty ?? false),
-        );
+    final hasActiveTools = message.parts.any((p) => p is ToolPart);
     final hasVisibleContent =
         message.content.isNotEmpty ||
         (isDraft && !hasReasoningContent && !hasActiveTools);
@@ -268,12 +260,6 @@ class _MessageBubbleState extends State<_MessageBubble> {
         children: [
           if (hasTimeline)
             ChatAgentTimeline(message: message, streaming: isDraft),
-          if (!hasTimeline && hasToolRun)
-            ChatToolActivity(
-              key: ValueKey((message.sessionId, message.runId)),
-              conversationId: message.sessionId!,
-              runId: message.runId!,
-            ),
           if (!hasTimeline && contentWidget != null) contentWidget,
           if (showFooter) ...[
             if (contentWidget != null) const SizedBox(height: 10),

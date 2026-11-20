@@ -84,9 +84,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(
         find.byKey(
-          ValueKey(
-            'timeline_reasoning_${reply.runId}:${reply.timeline.first.streamId}:0',
-          ),
+          ValueKey('timeline_reasoning_${reply.id}:${reply.parts.first.id}'),
         ),
       );
       await tester.pumpAndSettle();

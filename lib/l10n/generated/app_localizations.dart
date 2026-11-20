@@ -5626,12 +5626,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{seconds} s'**
   String chatTimelineDuration(String seconds);
-
-  /// No description provided for @chatTimelineToolNotExecuted.
-  ///
-  /// In en, this message translates to:
-  /// **'No execution record found'**
-  String get chatTimelineToolNotExecuted;
 }
 
 class _AppLocalizationsDelegate

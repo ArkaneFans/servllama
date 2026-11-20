@@ -3107,7 +3107,4 @@ class AppLocalizationsEn extends AppLocalizations {
   String chatTimelineDuration(String seconds) {
     return '$seconds s';
   }
-
-  @override
-  String get chatTimelineToolNotExecuted => 'No execution record found';
 }

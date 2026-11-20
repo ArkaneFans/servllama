@@ -1,3 +1,4 @@
+import 'package:servllama/features/agent/models/agent_records.dart';
 import 'package:servllama/features/chat/models/stream_chunk.dart';
 import '../../support/stream_chunks.dart';
 import 'dart:io';
@@ -21,7 +22,7 @@ import 'package:servllama/features/chat/models/ai_turn.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/models/chat_model_option.dart';
 import 'package:servllama/features/chat/models/chat_run_config.dart';
-import 'package:servllama/features/chat/models/chat_timeline.dart';
+import 'package:servllama/features/chat/models/message_part.dart';
 import 'package:servllama/features/chat/presentation/chat_timeline_projection.dart';
 import 'package:servllama/features/chat/repositories/chat_session_repository.dart';
 import 'package:servllama/features/chat/repositories/generation_run_repository.dart';
@@ -208,25 +209,25 @@ void main() {
           .value
           .message;
       expect(
-        live.toolCallPreviews['series']!.input,
+        (live.parts.single as ToolPart).input,
         contains('private-preview'),
       );
-      expect(live.timeline.single.inputComplete, isFalse);
-      expect(service.activeInvocations, isEmpty);
+      expect((live.parts.single as ToolPart).inputComplete, isFalse);
+      expect(service.activeTools, isEmpty);
       expect(service.pendingCount, 0);
       runner.cancelStreaming();
       await running;
       final saved = (await repository.loadMessage(live.id))!;
-      expect(saved.timeline.single.streamId, 'series');
-      expect(saved.timeline.single.inputComplete, isFalse);
-      expect(saved.toolCallPreviews, isEmpty);
-      expect(
-        ChatTimelinePart.encode(saved.timeline),
-        isNot(contains('private-preview')),
-      );
+      expect(saved.parts.single.id, 'series');
+      expect((saved.parts.single as ToolPart).inputComplete, isFalse);
+      expect(MessagePart.encode(saved.parts), contains('private-preview'));
       expect(
         await service.repository.forRun(saved.sessionId!, saved.runId!),
-        isEmpty,
+        everyElement(
+          predicate<ToolActivity>(
+            (a) => a.state == 'cancelled' && a.part.startedAt == null,
+          ),
+        ),
       );
     },
   );
@@ -266,15 +267,16 @@ void main() {
             .listenableFor(conversation.visibleMessages.last.id)!
             .value
             .message
-            .timeline
+            .parts
+            .whereType<ToolPart>()
             .single
             .inputComplete,
         isTrue,
       );
-      expect(service.activeInvocations, isEmpty);
+      expect(service.activeTools, isEmpty);
       release.complete();
       await waitForApproval();
-      expect(service.activeInvocations.single.callId, 'ask');
+      expect(service.activeTools.single.callId, 'ask');
       runner.cancelStreaming();
       await running;
     },
@@ -306,25 +308,20 @@ void main() {
         throw const FormatException('Invalid tool arguments JSON');
       };
       await runner.sendMessage('Hello');
-      expect(service.activeInvocations, isEmpty);
+      expect(service.activeTools, isEmpty);
       expect(service.pendingCount, 0);
       final saved = (await repository.loadMessage(
         conversation.visibleMessages.last.id,
       ))!;
-      expect(
-        saved.timeline.where((p) => p.kind == ChatTimelineKind.tool),
-        hasLength(2),
-      );
-      expect(
-        saved.timeline
-            .where((p) => p.kind == ChatTimelineKind.tool)
-            .last
-            .inputComplete,
-        isFalse,
-      );
+      expect(saved.parts.whereType<ToolPart>(), hasLength(2));
+      expect(saved.parts.whereType<ToolPart>().last.inputComplete, isFalse);
       expect(
         await service.repository.forRun(saved.sessionId!, saved.runId!),
-        isEmpty,
+        everyElement(
+          predicate<ToolActivity>(
+            (a) => a.state == 'cancelled' && a.part.startedAt == null,
+          ),
+        ),
       );
     },
   );
@@ -350,10 +347,7 @@ void main() {
       final saved = (await repository.loadMessage(
         conversation.visibleMessages.last.id,
       ))!;
-      expect(
-        saved.timeline.where((p) => p.kind == ChatTimelineKind.tool),
-        hasLength(1),
-      );
+      expect(saved.parts.whereType<ToolPart>(), hasLength(1));
       expect(
         await service.repository.forRun(saved.sessionId!, run),
         hasLength(1),
@@ -393,16 +387,16 @@ void main() {
           .listenableFor(draft.id)!
           .value
           .message;
-      expect(live.timeline.last.callId, 'ask');
+      expect((live.parts.last as ToolPart).callId, 'ask');
       final checkpoint = (await repository.loadMessage(draft.id))!;
-      expect(checkpoint.timeline.last.callId, 'ask');
-      expect(service.activeInvocations.single.payload['startedAt'], isNull);
+      expect((checkpoint.parts.last as ToolPart).callId, 'ask');
+      expect(service.activeTools.single.payload['startedAt'], isNull);
       final approvedAt = DateTime.now().millisecondsSinceEpoch;
       await service.decide('$run:ask', true, answer: 'Yes');
       await running;
       final saved = (await repository.loadMessage(draft.id))!;
       final receipts = await service.repository.forRun(saved.sessionId!, run);
-      final blocks = projectChatTimeline(saved, receipts);
+      final blocks = projectChatTimeline(saved);
       expect(
         blocks.map(
           (b) => b.text ?? b.steps.map((s) => s.part.kind.name).join(','),
@@ -411,9 +405,9 @@ void main() {
       );
       expect(blocks[2].steps.last.text, 'Second thought');
       expect(
-        saved.timeline
-            .where((p) => p.kind == ChatTimelineKind.reasoning)
-            .every((p) => p.finishedAt != null),
+        saved.parts.whereType<ReasoningPart>().every(
+          (p) => p.finishedAt != null,
+        ),
         isTrue,
       );
       expect(receipts.single.payload['durationMs'], isA<int>());
@@ -422,25 +416,25 @@ void main() {
         receipts.single.payload['startedAt'] as int,
         greaterThanOrEqualTo(approvedAt),
       );
-      final serialized = ChatTimelinePart.encode(saved.timeline);
+      final serialized = MessagePart.encode(saved.parts);
       protocol.responder = (_, _) => [
         ...fixtureChunks(text: 'New answer'),
         ...fixtureChunks(stopReason: 'stop'),
       ];
       await runner.regenerateFromMessage(saved.id);
-      expect(conversation.visibleMessages.last.timeline, hasLength(1));
+      expect(conversation.visibleMessages.last.parts, hasLength(1));
       await runner.selectMessageVersion(messageId: saved.id, versionIndex: 0);
       expect(
-        ChatTimelinePart.encode(conversation.visibleMessages.last.timeline),
+        MessagePart.encode(conversation.visibleMessages.last.parts),
         serialized,
       );
       await runner.editMessage(messageId: saved.id, newContent: 'Manual edit');
       final edited = (await repository.loadMessage(saved.id))!;
-      expect(edited.timeline, isEmpty);
+      expect(edited.parts.single, isA<TextPart>());
       expect(edited.runId, isNull);
       await runner.selectMessageVersion(messageId: saved.id, versionIndex: 0);
       expect(
-        ChatTimelinePart.encode(conversation.visibleMessages.last.timeline),
+        MessagePart.encode(conversation.visibleMessages.last.parts),
         serialized,
       );
     },
@@ -475,21 +469,23 @@ void main() {
         conversation.visibleMessages.last.id,
       ))!;
       expect(saved.reasoningContent, 'Plan');
-      expect(saved.timeline.map((p) => p.kind), [
-        ChatTimelineKind.reasoning,
-        ChatTimelineKind.tool,
-        ChatTimelineKind.tool,
+      expect(saved.parts.map((p) => p.kind), [
+        MessagePartKind.reasoning,
+        MessagePartKind.tool,
+        MessagePartKind.tool,
       ]);
-      expect(saved.timeline.first.finishedAt, isNotNull);
+      expect((saved.parts.first as ReasoningPart).finishedAt, isNotNull);
       final receipts = await service.repository.forRun(
         saved.sessionId!,
         saved.runId!,
       );
-      expect(receipts, hasLength(1));
-      expect(receipts.single.state, 'cancelled');
-      final steps = projectChatTimeline(saved, receipts).single.steps;
-      expect(steps.last.invocation, isNull);
-      expect(steps.last.part.callId, 'second');
+      expect(receipts, hasLength(2));
+      expect(receipts.every((a) => a.state == 'cancelled'), isTrue);
+      expect(receipts.last.part.startedAt, isNull);
+      final steps = projectChatTimeline(saved).single.steps;
+      expect(steps.last.invocation!.part.startedAt, isNull);
+      expect(steps.last.invocation!.state, 'cancelled');
+      expect((steps.last.part as ToolPart).callId, 'second');
     },
   );
 
@@ -569,7 +565,10 @@ void main() {
       await runner.selectMessageVersion(messageId: reply.id, versionIndex: 1);
       expect(conversation.visibleMessages.last.content, isEmpty);
       expect(conversation.visibleMessages.last.runId, run);
-      expect(await db.query('SELECT id FROM tool_invocations'), hasLength(1));
+      expect(
+        await service.repository.history(conversation.selectedSession!.id),
+        hasLength(1),
+      );
     },
   );
 
@@ -645,7 +644,10 @@ void main() {
         await service.repository.forRun(regenerated.sessionId!, regeneratedRun),
         hasLength(1),
       );
-      expect(await db.query('SELECT id FROM tool_invocations'), hasLength(2));
+      expect(
+        await service.repository.history(conversation.selectedSession!.id),
+        hasLength(2),
+      );
     },
   );
 
@@ -674,7 +676,10 @@ void main() {
       expect(messages.first.id, user.id);
       expect(messages.last.role, ChatRole.assistant);
       expect(messages.last.runId, isNot(isIn(removedRuns)));
-      expect(await db.query('SELECT id FROM tool_invocations'), isEmpty);
+      expect(
+        await service.repository.history(conversation.selectedSession!.id),
+        isEmpty,
+      );
       for (final runId in removedRuns) {
         expect(
           await db.query('SELECT id FROM generation_runs WHERE id=?', [runId]),

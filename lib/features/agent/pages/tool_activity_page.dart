@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:servllama/features/agent/models/agent_records.dart';
 import 'package:servllama/features/agent/services/agent_tool_service.dart';
-import 'package:servllama/features/agent/widgets/tool_invocation_card.dart';
+import 'package:servllama/features/agent/widgets/tool_part_card.dart';
 import 'package:servllama/l10n/l10n.dart';
 
 class ToolActivityPage extends StatelessWidget {
@@ -22,7 +22,7 @@ class ToolActivityPage extends StatelessWidget {
         children: [
           _LatestRunStatus(conversationId: conversationId),
           Expanded(
-            child: FutureBuilder<List<ToolInvocation>>(
+            child: FutureBuilder<List<ToolActivity>>(
               future: s.repository.history(conversationId),
               builder: (context, snap) {
                 if (snap.hasError) {
@@ -38,10 +38,7 @@ class ToolActivityPage extends StatelessWidget {
                   padding: const EdgeInsets.all(12),
                   children: snap.data!
                       .map(
-                        (i) => ToolInvocationCard(
-                          key: ValueKey(i.id),
-                          invocation: i,
-                        ),
+                        (i) => ToolPartCard(key: ValueKey(i.id), invocation: i),
                       )
                       .toList(),
                 );

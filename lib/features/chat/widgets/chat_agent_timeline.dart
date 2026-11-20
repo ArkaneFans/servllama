@@ -2,16 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
-import 'package:servllama/features/agent/models/agent_records.dart';
-import 'package:servllama/features/agent/widgets/tool_invocation_card.dart';
+import 'package:servllama/features/agent/widgets/tool_part_card.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
-import 'package:servllama/features/chat/models/chat_timeline.dart';
+import 'package:servllama/features/chat/models/message_part.dart';
 import 'package:servllama/features/chat/presentation/chat_timeline_projection.dart';
-import 'package:servllama/features/chat/widgets/chat_tool_activity.dart';
 import 'package:servllama/l10n/l10n.dart';
-import 'package:servllama/shared/widgets/text_sheen.dart';
 
-/// Message-owned view of existing Run receipts and revision-owned ranges.
+/// Message-owned view of ordered text, reasoning and tool parts.
 class ChatAgentTimeline extends StatelessWidget {
   const ChatAgentTimeline({
     super.key,
@@ -23,14 +20,10 @@ class ChatAgentTimeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget body(BuildContext context, List<ToolInvocation> receipts) => Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final block in projectChatTimeline(
-          message,
-          receipts,
-          streaming: streaming,
-        ))
+        for (final block in projectChatTimeline(message, streaming: streaming))
           Padding(
             key: ValueKey('timeline_block_${block.key}'),
             padding: const EdgeInsets.only(bottom: 12),
@@ -55,15 +48,6 @@ class ChatAgentTimeline extends StatelessWidget {
                   ),
           ),
       ],
-    );
-    if (message.sessionId == null || message.runId == null) {
-      return body(context, const []);
-    }
-    return ChatToolActivity(
-      key: ValueKey((message.sessionId, message.runId)),
-      conversationId: message.sessionId!,
-      runId: message.runId!,
-      builder: body,
     );
   }
 }
@@ -173,9 +157,12 @@ class _TimelineStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final reasoning = step.part.kind == ChatTimelineKind.reasoning;
+    final reasoning = step.part is ReasoningPart;
     final record = step.invocation;
-    final stoppedInput = !reasoning && !step.part.inputComplete && !streaming;
+    final stoppedInput =
+        step.part is ToolPart &&
+        !(step.part as ToolPart).inputComplete &&
+        !streaming;
     final icon = stoppedInput
         ? Icons.block_outlined
         : reasoning
@@ -184,7 +171,7 @@ class _TimelineStep extends StatelessWidget {
             'failed' || 'unknownOutcome' => Icons.error_outline,
             'pendingApproval' => Icons.pending_actions_outlined,
             'cancelled' || 'rejected' => Icons.block_outlined,
-            _ => switch (record?.name ?? step.part.toolName) {
+            _ => switch (record?.name) {
               'web_search' => Icons.travel_explore_rounded,
               'clock' => Icons.schedule_outlined,
               'read_file' || 'read_skill' => Icons.description_outlined,
@@ -196,8 +183,13 @@ class _TimelineStep extends StatelessWidget {
           };
     final busy =
         streaming &&
-        (const {'prepared', 'approved', 'executing'}.contains(record?.state) ||
-            (!reasoning && record == null));
+        (const {
+          'streaming',
+          'ready',
+          'prepared',
+          'approved',
+          'executing',
+        }.contains(record?.state));
     return CustomPaint(
       painter: _StepLine(
         first: first,
@@ -238,84 +230,13 @@ class _TimelineStep extends StatelessWidget {
                     step: step,
                     streaming: streaming,
                   )
-                : record != null
-                ? ToolInvocationCard(
-                    key: ValueKey(record.id),
-                    invocation: record,
+                : ToolPartCard(
+                    key: ValueKey(step.part.id),
+                    invocation: record!,
+                    streaming: streaming,
                     inTimeline: true,
-                  )
-                : _ToolPreviewStep(step: step, streaming: streaming),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ToolPreviewStep extends StatefulWidget {
-  const _ToolPreviewStep({required this.step, required this.streaming});
-  final ChatTimelineStep step;
-  final bool streaming;
-  @override
-  State<_ToolPreviewStep> createState() => _ToolPreviewStepState();
-}
-
-class _ToolPreviewStepState extends State<_ToolPreviewStep> {
-  bool _expanded = false;
-  @override
-  Widget build(BuildContext context) {
-    final step = widget.step;
-    final input = step.preview?.input ?? '';
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          InkWell(
-            key: ValueKey('timeline_tool_preview_${step.part.streamId}'),
-            onTap: input.isEmpty
-                ? null
-                : () => setState(() => _expanded = !_expanded),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextSheen(
-                    key: ValueKey('timeline_tool_sheen_${step.part.streamId}'),
-                    enabled: widget.streaming,
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
-                    child: Text(
-                      (step.part.toolName?.isNotEmpty ?? false)
-                          ? step.part.toolName!
-                          : context.l10n.v2ToolActivity,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
                   ),
-                ),
-                if (input.isNotEmpty)
-                  Icon(
-                    _expanded ? Icons.expand_less : Icons.expand_more,
-                    size: 18,
-                  ),
-              ],
-            ),
           ),
-          if (!widget.streaming && step.part.inputComplete)
-            Text(
-              context.l10n.chatTimelineToolNotExecuted,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          if (_expanded && input.isNotEmpty)
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 140),
-              child: SingleChildScrollView(
-                child: SelectableText(
-                  input.length > 8192 ? '${input.substring(0, 8192)}…' : input,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -367,7 +288,9 @@ class _ReasoningStepState extends State<_ReasoningStep> {
   Timer? _timer;
   final _scroll = ScrollController();
   final _tick = ValueNotifier<int>(0);
-  bool get _running => widget.streaming && widget.step.part.finishedAt == null;
+  bool get _running =>
+      widget.streaming &&
+      (widget.step.part as ReasoningPart).finishedAt == null;
   void _syncTimer() {
     if (_running) {
       _timer ??= Timer.periodic(
@@ -430,7 +353,7 @@ class _ReasoningStepState extends State<_ReasoningStep> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final part = widget.step.part;
+    final part = widget.step.part as ReasoningPart;
     final visible = _expanded || _running;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
