@@ -5201,6 +5201,90 @@ abstract class AppLocalizations {
   /// **'User bubbles, open assistant text, inline tools and message metadata.'**
   String get uiLabChatHint;
 
+  /// No description provided for @uiLabAgentTimeline.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent activity timeline'**
+  String get uiLabAgentTimeline;
+
+  /// No description provided for @uiLabAgentTimelineHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Play a tool round from reasoning to the final answer, or advance one step at a time. Expand the timeline and tool details. This demo uses local sample data.'**
+  String get uiLabAgentTimelineHint;
+
+  /// No description provided for @uiLabAgentPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Play flow'**
+  String get uiLabAgentPlay;
+
+  /// No description provided for @uiLabAgentPause.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get uiLabAgentPause;
+
+  /// No description provided for @uiLabAgentNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next step'**
+  String get uiLabAgentNext;
+
+  /// No description provided for @uiLabAgentReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart flow'**
+  String get uiLabAgentReset;
+
+  /// No description provided for @uiLabAgentInputStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating tool arguments'**
+  String get uiLabAgentInputStep;
+
+  /// No description provided for @uiLabAgentSummaryStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Reviewing tool results'**
+  String get uiLabAgentSummaryStep;
+
+  /// No description provided for @uiLabAgentAnswerStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating the answer'**
+  String get uiLabAgentAnswerStep;
+
+  /// No description provided for @uiLabAgentQuery.
+  ///
+  /// In en, this message translates to:
+  /// **'Focused reading and note-taking methods'**
+  String get uiLabAgentQuery;
+
+  /// No description provided for @uiLabAgentIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'I’ll look up reading methods, then put together today’s plan.'**
+  String get uiLabAgentIntro;
+
+  /// No description provided for @uiLabAgentReasoning.
+  ///
+  /// In en, this message translates to:
+  /// **'First, find focused reading and note-taking methods, then suggest a manageable schedule.'**
+  String get uiLabAgentReasoning;
+
+  /// No description provided for @uiLabAgentResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Found 3 reading tips:\n1. Focus on one chapter at a time.\n2. Take a short break after 25 minutes.\n3. Record three key ideas and one question.'**
+  String get uiLabAgentResult;
+
+  /// No description provided for @uiLabAgentSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'The results suggest focused reading followed by reflection. I’ll allow 25 minutes for reading and 5 minutes for notes.'**
+  String get uiLabAgentSummary;
+
   /// No description provided for @uiLabYou.
   ///
   /// In en, this message translates to:

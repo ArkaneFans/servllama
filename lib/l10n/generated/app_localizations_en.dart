@@ -2868,6 +2868,53 @@ class AppLocalizationsEn extends AppLocalizations {
       'User bubbles, open assistant text, inline tools and message metadata.';
 
   @override
+  String get uiLabAgentTimeline => 'Agent activity timeline';
+
+  @override
+  String get uiLabAgentTimelineHint =>
+      'Play a tool round from reasoning to the final answer, or advance one step at a time. Expand the timeline and tool details. This demo uses local sample data.';
+
+  @override
+  String get uiLabAgentPlay => 'Play flow';
+
+  @override
+  String get uiLabAgentPause => 'Pause';
+
+  @override
+  String get uiLabAgentNext => 'Next step';
+
+  @override
+  String get uiLabAgentReset => 'Restart flow';
+
+  @override
+  String get uiLabAgentInputStep => 'Generating tool arguments';
+
+  @override
+  String get uiLabAgentSummaryStep => 'Reviewing tool results';
+
+  @override
+  String get uiLabAgentAnswerStep => 'Generating the answer';
+
+  @override
+  String get uiLabAgentQuery => 'Focused reading and note-taking methods';
+
+  @override
+  String get uiLabAgentIntro =>
+      'I’ll look up reading methods, then put together today’s plan.';
+
+  @override
+  String get uiLabAgentReasoning =>
+      'First, find focused reading and note-taking methods, then suggest a manageable schedule.';
+
+  @override
+  String get uiLabAgentResult =>
+      'Found 3 reading tips:\n1. Focus on one chapter at a time.\n2. Take a short break after 25 minutes.\n3. Record three key ideas and one question.';
+
+  @override
+  String get uiLabAgentSummary =>
+      'The results suggest focused reading followed by reflection. I’ll allow 25 minutes for reading and 5 minutes for notes.';
+
+  @override
   String get uiLabYou => 'You';
 
   @override

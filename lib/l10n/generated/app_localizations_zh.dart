@@ -2713,6 +2713,50 @@ class AppLocalizationsZh extends AppLocalizations {
   String get uiLabChatHint => '用户气泡、助手正文、工具过程与消息末尾信息。';
 
   @override
+  String get uiLabAgentTimeline => 'Agent 调度轨迹';
+
+  @override
+  String get uiLabAgentTimelineHint =>
+      '播放从思考、工具调用到最终回答的主流程，也可逐步查看，展开轨迹与工具详情。演示使用本地示例数据。';
+
+  @override
+  String get uiLabAgentPlay => '播放流程';
+
+  @override
+  String get uiLabAgentPause => '暂停';
+
+  @override
+  String get uiLabAgentNext => '下一步';
+
+  @override
+  String get uiLabAgentReset => '重新开始';
+
+  @override
+  String get uiLabAgentInputStep => '工具参数生成';
+
+  @override
+  String get uiLabAgentSummaryStep => '整理工具结果';
+
+  @override
+  String get uiLabAgentAnswerStep => '生成回答';
+
+  @override
+  String get uiLabAgentQuery => '专注阅读与笔记方法';
+
+  @override
+  String get uiLabAgentIntro => '我会先检索阅读方法，再整理今天的计划。';
+
+  @override
+  String get uiLabAgentReasoning => '先查找专注阅读与笔记方法，再结合时间安排给出建议。';
+
+  @override
+  String get uiLabAgentResult =>
+      '找到 3 条阅读建议：\n1. 一次专注读完一个章节。\n2. 阅读 25 分钟后短暂休息。\n3. 记录三个要点和一个问题。';
+
+  @override
+  String get uiLabAgentSummary => '资料建议分段阅读与及时复盘。我会安排 25 分钟阅读，再用 5 分钟记录要点。';
+
+  @override
   String get uiLabYou => '用户';
 
   @override
