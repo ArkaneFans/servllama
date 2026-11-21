@@ -3,8 +3,8 @@
   <h1>ServLlama</h1>
   <p><strong>一个支持本地大模型和云端模型的Android AI应用</strong></p>
   <p>
-    <a href="https://github.com/ArkaneFans/Servllama/releases/latest">
-      <img alt="下载最新版本" src="https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD%E6%9C%80%E6%96%B0%E7%89%88%E6%9C%AC-Android-3DDC84?style=for-the-badge&logo=android&logoColor=white" />
+    <a href="https://github.com/ArkaneFans/servllama/releases">
+      <img alt="下载最新版本" src="https://img.shields.io/badge/%e4%b8%8b%e8%bd%bd%e6%9c%80%e6%96%b0%e7%89%88%e6%9c%ac-Android-3DDC84?style=for-the-badge&logo=android&logoColor=white" />
     </a>
   </p>
 
@@ -31,7 +31,9 @@ ServLlama 是一款开源 Android AI 应用，将本地模型与云端供应商�
 
 ## 下载安装
 
-从 [GitHub Releases](https://github.com/ArkaneFans/Servllama/releases/latest) 下载 APK 并安装。
+从 [GitHub Releases](https://github.com/ArkaneFans/servllama/releases) 下载 APK 并安装。
+
+> **注：** 当前 ServLlama 2.0 为实验版本，如遇到问题，欢迎通过 [GitHub Issues](https://github.com/ArkaneFans/servllama/issues) 反馈。
 
 | 项目 | 要求 |
 | --- | --- |

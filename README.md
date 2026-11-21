@@ -3,8 +3,8 @@
   <h1>ServLlama</h1>
   <p><strong>An Android AI app supporting local and cloud models</strong></p>
   <p>
-    <a href="https://github.com/ArkaneFans/Servllama/releases/latest">
-      <img alt="Download the latest release" src="https://img.shields.io/badge/Download-Latest_Release-3DDC84?style=for-the-badge&logo=android&logoColor=white" />
+    <a href="https://github.com/ArkaneFans/servllama/releases">
+      <img alt="Download the latest releases" src="https://img.shields.io/badge/Download-Latest_Releases-3DDC84?style=for-the-badge&logo=android&logoColor=white" />
     </a>
   </p>
 
@@ -31,7 +31,9 @@ ServLlama is an open-source Android AI app that integrates local models and clou
 
 ## Download
 
-Download the APK from [GitHub Releases](https://github.com/ArkaneFans/Servllama/releases/latest).
+Download the APK from [GitHub Releases](https://github.com/ArkaneFans/servllama/releases).
+
+> **Experimental release:** ServLlama 2.0 is currently experimental. If you encounter any issues, please report them through [GitHub Issues](https://github.com/ArkaneFans/servllama/issues).
 
 | Requirement | Supported |
 | --- | --- |
