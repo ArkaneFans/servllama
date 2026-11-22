@@ -2414,27 +2414,15 @@ class $MessageRevisionsTable extends MessageRevisions
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _contentMeta = const VerificationMeta(
-    'content',
-  );
+  static const VerificationMeta _partsMeta = const VerificationMeta('parts');
   @override
-  late final GeneratedColumn<String> content = GeneratedColumn<String>(
-    'content',
+  late final GeneratedColumn<String> parts = GeneratedColumn<String>(
+    'parts',
     aliasedName,
     false,
     type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _reasoningContentMeta = const VerificationMeta(
-    'reasoningContent',
-  );
-  @override
-  late final GeneratedColumn<String> reasoningContent = GeneratedColumn<String>(
-    'reasoning_content',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
     requiredDuringInsert: false,
+    defaultValue: const Constant('[]'),
   );
   static const VerificationMeta _modelNameMeta = const VerificationMeta(
     'modelName',
@@ -2465,8 +2453,7 @@ class $MessageRevisionsTable extends MessageRevisions
     isDraft,
     isSelected,
     createdAt,
-    content,
-    reasoningContent,
+    parts,
     modelName,
     author,
   ];
@@ -2529,21 +2516,10 @@ class $MessageRevisionsTable extends MessageRevisions
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
-    if (data.containsKey('content')) {
+    if (data.containsKey('parts')) {
       context.handle(
-        _contentMeta,
-        content.isAcceptableOrUnknown(data['content']!, _contentMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_contentMeta);
-    }
-    if (data.containsKey('reasoning_content')) {
-      context.handle(
-        _reasoningContentMeta,
-        reasoningContent.isAcceptableOrUnknown(
-          data['reasoning_content']!,
-          _reasoningContentMeta,
-        ),
+        _partsMeta,
+        parts.isAcceptableOrUnknown(data['parts']!, _partsMeta),
       );
     }
     if (data.containsKey('model_name')) {
@@ -2595,14 +2571,10 @@ class $MessageRevisionsTable extends MessageRevisions
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
       )!,
-      content: attachedDatabase.typeMapping.read(
+      parts: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}content'],
+        data['${effectivePrefix}parts'],
       )!,
-      reasoningContent: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}reasoning_content'],
-      ),
       modelName: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}model_name'],
@@ -2629,8 +2601,7 @@ class DbMessageRevisions extends DataClass
   final int isDraft;
   final int isSelected;
   final int createdAt;
-  final String content;
-  final String? reasoningContent;
+  final String parts;
   final String? modelName;
   final String? author;
   const DbMessageRevisions({
@@ -2641,8 +2612,7 @@ class DbMessageRevisions extends DataClass
     required this.isDraft,
     required this.isSelected,
     required this.createdAt,
-    required this.content,
-    this.reasoningContent,
+    required this.parts,
     this.modelName,
     this.author,
   });
@@ -2658,10 +2628,7 @@ class DbMessageRevisions extends DataClass
     map['is_draft'] = Variable<int>(isDraft);
     map['is_selected'] = Variable<int>(isSelected);
     map['created_at'] = Variable<int>(createdAt);
-    map['content'] = Variable<String>(content);
-    if (!nullToAbsent || reasoningContent != null) {
-      map['reasoning_content'] = Variable<String>(reasoningContent);
-    }
+    map['parts'] = Variable<String>(parts);
     if (!nullToAbsent || modelName != null) {
       map['model_name'] = Variable<String>(modelName);
     }
@@ -2682,10 +2649,7 @@ class DbMessageRevisions extends DataClass
       isDraft: Value(isDraft),
       isSelected: Value(isSelected),
       createdAt: Value(createdAt),
-      content: Value(content),
-      reasoningContent: reasoningContent == null && nullToAbsent
-          ? const Value.absent()
-          : Value(reasoningContent),
+      parts: Value(parts),
       modelName: modelName == null && nullToAbsent
           ? const Value.absent()
           : Value(modelName),
@@ -2708,8 +2672,7 @@ class DbMessageRevisions extends DataClass
       isDraft: serializer.fromJson<int>(json['isDraft']),
       isSelected: serializer.fromJson<int>(json['isSelected']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
-      content: serializer.fromJson<String>(json['content']),
-      reasoningContent: serializer.fromJson<String?>(json['reasoningContent']),
+      parts: serializer.fromJson<String>(json['parts']),
       modelName: serializer.fromJson<String?>(json['modelName']),
       author: serializer.fromJson<String?>(json['author']),
     );
@@ -2725,8 +2688,7 @@ class DbMessageRevisions extends DataClass
       'isDraft': serializer.toJson<int>(isDraft),
       'isSelected': serializer.toJson<int>(isSelected),
       'createdAt': serializer.toJson<int>(createdAt),
-      'content': serializer.toJson<String>(content),
-      'reasoningContent': serializer.toJson<String?>(reasoningContent),
+      'parts': serializer.toJson<String>(parts),
       'modelName': serializer.toJson<String?>(modelName),
       'author': serializer.toJson<String?>(author),
     };
@@ -2740,8 +2702,7 @@ class DbMessageRevisions extends DataClass
     int? isDraft,
     int? isSelected,
     int? createdAt,
-    String? content,
-    Value<String?> reasoningContent = const Value.absent(),
+    String? parts,
     Value<String?> modelName = const Value.absent(),
     Value<String?> author = const Value.absent(),
   }) => DbMessageRevisions(
@@ -2752,10 +2713,7 @@ class DbMessageRevisions extends DataClass
     isDraft: isDraft ?? this.isDraft,
     isSelected: isSelected ?? this.isSelected,
     createdAt: createdAt ?? this.createdAt,
-    content: content ?? this.content,
-    reasoningContent: reasoningContent.present
-        ? reasoningContent.value
-        : this.reasoningContent,
+    parts: parts ?? this.parts,
     modelName: modelName.present ? modelName.value : this.modelName,
     author: author.present ? author.value : this.author,
   );
@@ -2770,10 +2728,7 @@ class DbMessageRevisions extends DataClass
           ? data.isSelected.value
           : this.isSelected,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
-      content: data.content.present ? data.content.value : this.content,
-      reasoningContent: data.reasoningContent.present
-          ? data.reasoningContent.value
-          : this.reasoningContent,
+      parts: data.parts.present ? data.parts.value : this.parts,
       modelName: data.modelName.present ? data.modelName.value : this.modelName,
       author: data.author.present ? data.author.value : this.author,
     );
@@ -2789,8 +2744,7 @@ class DbMessageRevisions extends DataClass
           ..write('isDraft: $isDraft, ')
           ..write('isSelected: $isSelected, ')
           ..write('createdAt: $createdAt, ')
-          ..write('content: $content, ')
-          ..write('reasoningContent: $reasoningContent, ')
+          ..write('parts: $parts, ')
           ..write('modelName: $modelName, ')
           ..write('author: $author')
           ..write(')'))
@@ -2806,8 +2760,7 @@ class DbMessageRevisions extends DataClass
     isDraft,
     isSelected,
     createdAt,
-    content,
-    reasoningContent,
+    parts,
     modelName,
     author,
   );
@@ -2822,8 +2775,7 @@ class DbMessageRevisions extends DataClass
           other.isDraft == this.isDraft &&
           other.isSelected == this.isSelected &&
           other.createdAt == this.createdAt &&
-          other.content == this.content &&
-          other.reasoningContent == this.reasoningContent &&
+          other.parts == this.parts &&
           other.modelName == this.modelName &&
           other.author == this.author);
 }
@@ -2836,8 +2788,7 @@ class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
   final Value<int> isDraft;
   final Value<int> isSelected;
   final Value<int> createdAt;
-  final Value<String> content;
-  final Value<String?> reasoningContent;
+  final Value<String> parts;
   final Value<String?> modelName;
   final Value<String?> author;
   final Value<int> rowid;
@@ -2849,8 +2800,7 @@ class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
     this.isDraft = const Value.absent(),
     this.isSelected = const Value.absent(),
     this.createdAt = const Value.absent(),
-    this.content = const Value.absent(),
-    this.reasoningContent = const Value.absent(),
+    this.parts = const Value.absent(),
     this.modelName = const Value.absent(),
     this.author = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -2863,16 +2813,14 @@ class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
     this.isDraft = const Value.absent(),
     this.isSelected = const Value.absent(),
     required int createdAt,
-    required String content,
-    this.reasoningContent = const Value.absent(),
+    this.parts = const Value.absent(),
     this.modelName = const Value.absent(),
     this.author = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        messageId = Value(messageId),
        position = Value(position),
-       createdAt = Value(createdAt),
-       content = Value(content);
+       createdAt = Value(createdAt);
   static Insertable<DbMessageRevisions> custom({
     Expression<String>? id,
     Expression<String>? messageId,
@@ -2881,8 +2829,7 @@ class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
     Expression<int>? isDraft,
     Expression<int>? isSelected,
     Expression<int>? createdAt,
-    Expression<String>? content,
-    Expression<String>? reasoningContent,
+    Expression<String>? parts,
     Expression<String>? modelName,
     Expression<String>? author,
     Expression<int>? rowid,
@@ -2895,8 +2842,7 @@ class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
       if (isDraft != null) 'is_draft': isDraft,
       if (isSelected != null) 'is_selected': isSelected,
       if (createdAt != null) 'created_at': createdAt,
-      if (content != null) 'content': content,
-      if (reasoningContent != null) 'reasoning_content': reasoningContent,
+      if (parts != null) 'parts': parts,
       if (modelName != null) 'model_name': modelName,
       if (author != null) 'author': author,
       if (rowid != null) 'rowid': rowid,
@@ -2911,8 +2857,7 @@ class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
     Value<int>? isDraft,
     Value<int>? isSelected,
     Value<int>? createdAt,
-    Value<String>? content,
-    Value<String?>? reasoningContent,
+    Value<String>? parts,
     Value<String?>? modelName,
     Value<String?>? author,
     Value<int>? rowid,
@@ -2925,8 +2870,7 @@ class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
       isDraft: isDraft ?? this.isDraft,
       isSelected: isSelected ?? this.isSelected,
       createdAt: createdAt ?? this.createdAt,
-      content: content ?? this.content,
-      reasoningContent: reasoningContent ?? this.reasoningContent,
+      parts: parts ?? this.parts,
       modelName: modelName ?? this.modelName,
       author: author ?? this.author,
       rowid: rowid ?? this.rowid,
@@ -2957,11 +2901,8 @@ class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
-    if (content.present) {
-      map['content'] = Variable<String>(content.value);
-    }
-    if (reasoningContent.present) {
-      map['reasoning_content'] = Variable<String>(reasoningContent.value);
+    if (parts.present) {
+      map['parts'] = Variable<String>(parts.value);
     }
     if (modelName.present) {
       map['model_name'] = Variable<String>(modelName.value);
@@ -2985,8 +2926,7 @@ class MessageRevisionsCompanion extends UpdateCompanion<DbMessageRevisions> {
           ..write('isDraft: $isDraft, ')
           ..write('isSelected: $isSelected, ')
           ..write('createdAt: $createdAt, ')
-          ..write('content: $content, ')
-          ..write('reasoningContent: $reasoningContent, ')
+          ..write('parts: $parts, ')
           ..write('modelName: $modelName, ')
           ..write('author: $author, ')
           ..write('rowid: $rowid')
@@ -3263,459 +3203,6 @@ class RevisionAttachmentsCompanion
           ..write('revisionId: $revisionId, ')
           ..write('position: $position, ')
           ..write('path: $path, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
-class $ToolInvocationsTable extends ToolInvocations
-    with TableInfo<$ToolInvocationsTable, DbToolInvocations> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $ToolInvocationsTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
-  @override
-  late final GeneratedColumn<String> id = GeneratedColumn<String>(
-    'id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _runIdMeta = const VerificationMeta('runId');
-  @override
-  late final GeneratedColumn<String> runId = GeneratedColumn<String>(
-    'run_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES generation_runs (id) ON DELETE CASCADE',
-    ),
-  );
-  static const VerificationMeta _callIdMeta = const VerificationMeta('callId');
-  @override
-  late final GeneratedColumn<String> callId = GeneratedColumn<String>(
-    'call_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _nameMeta = const VerificationMeta('name');
-  @override
-  late final GeneratedColumn<String> name = GeneratedColumn<String>(
-    'name',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _stateMeta = const VerificationMeta('state');
-  @override
-  late final GeneratedColumn<String> state = GeneratedColumn<String>(
-    'state',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _payloadMeta = const VerificationMeta(
-    'payload',
-  );
-  @override
-  late final GeneratedColumn<String> payload = GeneratedColumn<String>(
-    'payload',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _createdAtMeta = const VerificationMeta(
-    'createdAt',
-  );
-  @override
-  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
-    'created_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [
-    id,
-    runId,
-    callId,
-    name,
-    state,
-    payload,
-    createdAt,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'tool_invocations';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<DbToolInvocations> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('id')) {
-      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    } else if (isInserting) {
-      context.missing(_idMeta);
-    }
-    if (data.containsKey('run_id')) {
-      context.handle(
-        _runIdMeta,
-        runId.isAcceptableOrUnknown(data['run_id']!, _runIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_runIdMeta);
-    }
-    if (data.containsKey('call_id')) {
-      context.handle(
-        _callIdMeta,
-        callId.isAcceptableOrUnknown(data['call_id']!, _callIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_callIdMeta);
-    }
-    if (data.containsKey('name')) {
-      context.handle(
-        _nameMeta,
-        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_nameMeta);
-    }
-    if (data.containsKey('state')) {
-      context.handle(
-        _stateMeta,
-        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_stateMeta);
-    }
-    if (data.containsKey('payload')) {
-      context.handle(
-        _payloadMeta,
-        payload.isAcceptableOrUnknown(data['payload']!, _payloadMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_payloadMeta);
-    }
-    if (data.containsKey('created_at')) {
-      context.handle(
-        _createdAtMeta,
-        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_createdAtMeta);
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {id};
-  @override
-  DbToolInvocations map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return DbToolInvocations(
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}id'],
-      )!,
-      runId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}run_id'],
-      )!,
-      callId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}call_id'],
-      )!,
-      name: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}name'],
-      )!,
-      state: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}state'],
-      )!,
-      payload: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}payload'],
-      )!,
-      createdAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}created_at'],
-      )!,
-    );
-  }
-
-  @override
-  $ToolInvocationsTable createAlias(String alias) {
-    return $ToolInvocationsTable(attachedDatabase, alias);
-  }
-}
-
-class DbToolInvocations extends DataClass
-    implements Insertable<DbToolInvocations> {
-  final String id;
-  final String runId;
-  final String callId;
-  final String name;
-  final String state;
-  final String payload;
-  final int createdAt;
-  const DbToolInvocations({
-    required this.id,
-    required this.runId,
-    required this.callId,
-    required this.name,
-    required this.state,
-    required this.payload,
-    required this.createdAt,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<String>(id);
-    map['run_id'] = Variable<String>(runId);
-    map['call_id'] = Variable<String>(callId);
-    map['name'] = Variable<String>(name);
-    map['state'] = Variable<String>(state);
-    map['payload'] = Variable<String>(payload);
-    map['created_at'] = Variable<int>(createdAt);
-    return map;
-  }
-
-  ToolInvocationsCompanion toCompanion(bool nullToAbsent) {
-    return ToolInvocationsCompanion(
-      id: Value(id),
-      runId: Value(runId),
-      callId: Value(callId),
-      name: Value(name),
-      state: Value(state),
-      payload: Value(payload),
-      createdAt: Value(createdAt),
-    );
-  }
-
-  factory DbToolInvocations.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return DbToolInvocations(
-      id: serializer.fromJson<String>(json['id']),
-      runId: serializer.fromJson<String>(json['runId']),
-      callId: serializer.fromJson<String>(json['callId']),
-      name: serializer.fromJson<String>(json['name']),
-      state: serializer.fromJson<String>(json['state']),
-      payload: serializer.fromJson<String>(json['payload']),
-      createdAt: serializer.fromJson<int>(json['createdAt']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'id': serializer.toJson<String>(id),
-      'runId': serializer.toJson<String>(runId),
-      'callId': serializer.toJson<String>(callId),
-      'name': serializer.toJson<String>(name),
-      'state': serializer.toJson<String>(state),
-      'payload': serializer.toJson<String>(payload),
-      'createdAt': serializer.toJson<int>(createdAt),
-    };
-  }
-
-  DbToolInvocations copyWith({
-    String? id,
-    String? runId,
-    String? callId,
-    String? name,
-    String? state,
-    String? payload,
-    int? createdAt,
-  }) => DbToolInvocations(
-    id: id ?? this.id,
-    runId: runId ?? this.runId,
-    callId: callId ?? this.callId,
-    name: name ?? this.name,
-    state: state ?? this.state,
-    payload: payload ?? this.payload,
-    createdAt: createdAt ?? this.createdAt,
-  );
-  DbToolInvocations copyWithCompanion(ToolInvocationsCompanion data) {
-    return DbToolInvocations(
-      id: data.id.present ? data.id.value : this.id,
-      runId: data.runId.present ? data.runId.value : this.runId,
-      callId: data.callId.present ? data.callId.value : this.callId,
-      name: data.name.present ? data.name.value : this.name,
-      state: data.state.present ? data.state.value : this.state,
-      payload: data.payload.present ? data.payload.value : this.payload,
-      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('DbToolInvocations(')
-          ..write('id: $id, ')
-          ..write('runId: $runId, ')
-          ..write('callId: $callId, ')
-          ..write('name: $name, ')
-          ..write('state: $state, ')
-          ..write('payload: $payload, ')
-          ..write('createdAt: $createdAt')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode =>
-      Object.hash(id, runId, callId, name, state, payload, createdAt);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is DbToolInvocations &&
-          other.id == this.id &&
-          other.runId == this.runId &&
-          other.callId == this.callId &&
-          other.name == this.name &&
-          other.state == this.state &&
-          other.payload == this.payload &&
-          other.createdAt == this.createdAt);
-}
-
-class ToolInvocationsCompanion extends UpdateCompanion<DbToolInvocations> {
-  final Value<String> id;
-  final Value<String> runId;
-  final Value<String> callId;
-  final Value<String> name;
-  final Value<String> state;
-  final Value<String> payload;
-  final Value<int> createdAt;
-  final Value<int> rowid;
-  const ToolInvocationsCompanion({
-    this.id = const Value.absent(),
-    this.runId = const Value.absent(),
-    this.callId = const Value.absent(),
-    this.name = const Value.absent(),
-    this.state = const Value.absent(),
-    this.payload = const Value.absent(),
-    this.createdAt = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  ToolInvocationsCompanion.insert({
-    required String id,
-    required String runId,
-    required String callId,
-    required String name,
-    required String state,
-    required String payload,
-    required int createdAt,
-    this.rowid = const Value.absent(),
-  }) : id = Value(id),
-       runId = Value(runId),
-       callId = Value(callId),
-       name = Value(name),
-       state = Value(state),
-       payload = Value(payload),
-       createdAt = Value(createdAt);
-  static Insertable<DbToolInvocations> custom({
-    Expression<String>? id,
-    Expression<String>? runId,
-    Expression<String>? callId,
-    Expression<String>? name,
-    Expression<String>? state,
-    Expression<String>? payload,
-    Expression<int>? createdAt,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (id != null) 'id': id,
-      if (runId != null) 'run_id': runId,
-      if (callId != null) 'call_id': callId,
-      if (name != null) 'name': name,
-      if (state != null) 'state': state,
-      if (payload != null) 'payload': payload,
-      if (createdAt != null) 'created_at': createdAt,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  ToolInvocationsCompanion copyWith({
-    Value<String>? id,
-    Value<String>? runId,
-    Value<String>? callId,
-    Value<String>? name,
-    Value<String>? state,
-    Value<String>? payload,
-    Value<int>? createdAt,
-    Value<int>? rowid,
-  }) {
-    return ToolInvocationsCompanion(
-      id: id ?? this.id,
-      runId: runId ?? this.runId,
-      callId: callId ?? this.callId,
-      name: name ?? this.name,
-      state: state ?? this.state,
-      payload: payload ?? this.payload,
-      createdAt: createdAt ?? this.createdAt,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (id.present) {
-      map['id'] = Variable<String>(id.value);
-    }
-    if (runId.present) {
-      map['run_id'] = Variable<String>(runId.value);
-    }
-    if (callId.present) {
-      map['call_id'] = Variable<String>(callId.value);
-    }
-    if (name.present) {
-      map['name'] = Variable<String>(name.value);
-    }
-    if (state.present) {
-      map['state'] = Variable<String>(state.value);
-    }
-    if (payload.present) {
-      map['payload'] = Variable<String>(payload.value);
-    }
-    if (createdAt.present) {
-      map['created_at'] = Variable<int>(createdAt.value);
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('ToolInvocationsCompanion(')
-          ..write('id: $id, ')
-          ..write('runId: $runId, ')
-          ..write('callId: $callId, ')
-          ..write('name: $name, ')
-          ..write('state: $state, ')
-          ..write('payload: $payload, ')
-          ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -5736,9 +5223,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final $RevisionAttachmentsTable revisionAttachments =
       $RevisionAttachmentsTable(this);
-  late final $ToolInvocationsTable toolInvocations = $ToolInvocationsTable(
-    this,
-  );
   late final $ModelAssetsTable modelAssets = $ModelAssetsTable(this);
   late final $SpeechJobsTable speechJobs = $SpeechJobsTable(this);
   late final $VoiceProfilesTable voiceProfiles = $VoiceProfilesTable(this);
@@ -5773,10 +5257,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final Index runsActive = Index(
     'runs_active',
     'CREATE INDEX runs_active ON generation_runs (state) WHERE state IN (\'running\', \'awaitingApproval\', \'cancelling\')',
-  );
-  late final Index invocationsRun = Index(
-    'invocations_run',
-    'CREATE INDEX invocations_run ON tool_invocations (run_id, created_at)',
   );
   late final Index speechJobsRecent = Index(
     'speech_jobs_recent',
@@ -5816,7 +5296,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     generationRuns,
     messageRevisions,
     revisionAttachments,
-    toolInvocations,
     modelAssets,
     speechJobs,
     voiceProfiles,
@@ -5830,7 +5309,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     attachmentsPath,
     runsConversation,
     runsActive,
-    invocationsRun,
     speechJobsRecent,
     speechJobsAsset,
     speechJobsVoice,
@@ -5874,13 +5352,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('revision_attachments', kind: UpdateKind.delete)],
-    ),
-    WritePropagation(
-      on: TableUpdateQuery.onTableName(
-        'generation_runs',
-        limitUpdateKind: UpdateKind.delete,
-      ),
-      result: [TableUpdate('tool_invocations', kind: UpdateKind.delete)],
     ),
   ]);
 }

@@ -6,6 +6,7 @@ import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/models/chat_message_version_record.dart';
 import 'package:servllama/features/chat/models/chat_session_record.dart';
 import 'package:servllama/features/chat/models/message_author.dart';
+import 'package:servllama/features/chat/models/message_part.dart';
 import 'package:servllama/features/chat/repositories/chat_record_codec.dart';
 
 /// The relational chat mapping shared by normal writes, recovery and Hive import.
@@ -105,6 +106,7 @@ class ChatRecordStore {
         createdAt: m.createdAt,
         modelName: m.modelName,
         reasoningContent: m.reasoningContent,
+        parts: m.parts,
         imageFilePaths: m.imageFilePaths,
       ),
       draft: running,
@@ -149,9 +151,9 @@ class ChatRecordStore {
             [v.messageId],
           )).single.read<int>('next');
     await db.execute(
-      'INSERT INTO message_revisions(id,message_id,position,run_id,is_draft,created_at,content,reasoning_content,model_name,author) '
-      'VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET '
-      'is_draft=excluded.is_draft,content=excluded.content,reasoning_content=excluded.reasoning_content,'
+      'INSERT INTO message_revisions(id,message_id,position,run_id,is_draft,created_at,parts,model_name,author) '
+      'VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET '
+      'is_draft=excluded.is_draft,parts=excluded.parts,'
       'model_name=excluded.model_name,author=excluded.author,run_id=excluded.run_id,created_at=excluded.created_at',
       [
         v.id,
@@ -160,8 +162,14 @@ class ChatRecordStore {
         v.runId,
         draft ? 1 : 0,
         v.createdAt.millisecondsSinceEpoch,
-        v.content,
-        v.reasoningContent,
+        MessagePart.encode(
+          existing.isEmpty
+              ? v.parts
+              : mergeToolExecution(
+                  v.parts,
+                  MessagePart.decode(existing.single.read<String>('parts')),
+                ),
+        ),
         v.modelName,
         v.author == null ? null : jsonEncode(v.author!.toJson()),
       ],
@@ -230,6 +238,7 @@ class ChatRecordStore {
         author: v.author,
         modelName: v.modelName,
         reasoningContent: v.reasoningContent,
+        parts: v.parts,
         imageFilePaths: v.imageFilePaths,
         versionIds: ids[id]!,
         currentVersionIndex: ids[id]!.indexOf(selected),
@@ -261,10 +270,9 @@ class ChatRecordStore {
       id: r.read<String>('id'),
       messageId: r.read<String>('message_id'),
       runId: r.readNullable<String>('run_id'),
-      content: r.read<String>('content'),
+      parts: MessagePart.decode(r.read<String>('parts')),
       createdAt: DateTime.fromMillisecondsSinceEpoch(r.read<int>('created_at')),
       modelName: r.readNullable<String>('model_name'),
-      reasoningContent: r.readNullable<String>('reasoning_content'),
       author: author == null
           ? null
           : MessageAuthor.fromJson(jsonDecode(author)),

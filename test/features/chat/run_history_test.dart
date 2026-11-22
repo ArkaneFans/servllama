@@ -4,6 +4,7 @@ import 'package:servllama/features/assistants/models/assistant.dart';
 import 'package:servllama/features/chat/controllers/chat_runner.dart';
 import 'package:servllama/features/chat/models/ai_turn.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
+import 'package:servllama/features/chat/models/message_part.dart';
 import 'package:servllama/features/chat/repositories/chat_record_store.dart';
 import '../../support/agent_database_fixture.dart';
 import 'package:servllama/features/chat/models/chat_run_config.dart';
@@ -76,7 +77,12 @@ void main() {
         await runs.history(message.copyWith(content: 'Manually changed')),
         isNull,
       );
-      expect(await db.query('SELECT id FROM tool_invocations'), isEmpty);
+      expect(
+        await db.query(
+          "SELECT name FROM sqlite_master WHERE name='tool_invocations'",
+        ),
+        isEmpty,
+      );
     },
   );
   test(
@@ -107,6 +113,14 @@ void main() {
       );
       final key = ChatRunner.historyContextKey(config(), [user]);
       expect(ChatRunner.historyContextKey(config(), [user]), key);
+      expect(
+        ChatRunner.historyContextKey(config(), [
+          user.copyWith(
+            parts: const [TextPart('different-display-id', 'Original')],
+          ),
+        ]),
+        key,
+      );
       expect(
         ChatRunner.historyContextKey(config(), [
           user.copyWith(content: 'Edited'),

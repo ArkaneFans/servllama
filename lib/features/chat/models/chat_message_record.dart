@@ -1,6 +1,7 @@
 import 'package:hive/hive.dart';
 import 'package:servllama/features/chat/models/message_author.dart';
 import 'package:servllama/features/chat/models/chat_message_version_record.dart';
+import 'package:servllama/features/chat/models/message_part.dart';
 
 part 'chat_message_record.g.dart';
 
@@ -18,17 +19,20 @@ class ChatMessageRecord {
   const ChatMessageRecord({
     required this.id,
     required this.role,
-    required this.content,
+    String content = '',
     required this.createdAt,
     this.sessionId,
     this.runId,
     this.author,
     this.modelName,
-    this.reasoningContent,
+    String? reasoningContent,
+    List<MessagePart>? parts,
     this.imageFilePaths = const [],
     this.versionIds = const [],
     this.currentVersionIndex = 0,
-  });
+  }) : _parts = parts,
+       _bodyText = parts == null ? content : '',
+       _bodyReasoning = parts == null ? reasoningContent : null;
 
   @HiveField(0)
   final String id;
@@ -37,7 +41,7 @@ class ChatMessageRecord {
   final ChatRole role;
 
   @HiveField(2)
-  final String content;
+  String get content => messageText(parts);
 
   @HiveField(3)
   final DateTime createdAt;
@@ -47,12 +51,19 @@ class ChatMessageRecord {
 
   final String? runId;
   final MessageAuthor? author;
+  final List<MessagePart>? _parts;
+  // Text constructors and frozen Hive adapters share the plain-body builder.
+  final String _bodyText;
+  final String? _bodyReasoning;
+  List<MessagePart> get parts =>
+      _parts ??
+      messagePartsFromText(content: _bodyText, reasoning: _bodyReasoning);
 
   @HiveField(4)
   final String? modelName;
 
   @HiveField(5)
-  final String? reasoningContent;
+  String? get reasoningContent => messageReasoning(parts);
 
   @HiveField(6)
   final List<String> imageFilePaths;
@@ -80,6 +91,7 @@ class ChatMessageRecord {
         reasoningContent: version.reasoningContent,
         clearReasoningContent: version.reasoningContent == null,
         imageFilePaths: version.imageFilePaths,
+        parts: version.parts,
         currentVersionIndex: index,
       );
 
@@ -98,6 +110,7 @@ class ChatMessageRecord {
     String? reasoningContent,
     bool clearModelName = false,
     bool clearReasoningContent = false,
+    List<MessagePart>? parts,
     List<String>? imageFilePaths,
     bool clearImageFilePaths = false,
     List<String>? versionIds,
@@ -116,6 +129,16 @@ class ChatMessageRecord {
       reasoningContent: clearReasoningContent
           ? null
           : reasoningContent ?? this.reasoningContent,
+      parts:
+          parts ??
+          (content != null || reasoningContent != null || clearReasoningContent
+              ? messagePartsFromText(
+                  content: content ?? this.content,
+                  reasoning: clearReasoningContent
+                      ? null
+                      : reasoningContent ?? this.reasoningContent,
+                )
+              : this.parts),
       imageFilePaths: clearImageFilePaths
           ? const []
           : imageFilePaths ?? this.imageFilePaths,

@@ -1,5 +1,4 @@
-import 'dart:convert';
-import 'package:drift/drift.dart';
+import 'package:servllama/features/chat/models/message_part.dart';
 
 enum McpTransport { streamableHttp, sse }
 
@@ -212,25 +211,20 @@ class SkillDetails {
   int get totalBytes => files.fold(0, (total, file) => total + file.size);
 }
 
-class ToolInvocation {
-  const ToolInvocation({
-    required this.id,
+/// A scoped projection of a revision's ToolPart for approvals/history pages.
+/// The message revision is the only persisted execution record.
+class ToolActivity {
+  const ToolActivity({
     required this.runId,
-    required this.callId,
     required this.conversationId,
-    required this.name,
-    required this.state,
-    required this.payload,
+    required this.revisionId,
+    required this.part,
   });
-  final String id, runId, callId, conversationId, name, state;
-  final Map<String, dynamic> payload;
-  factory ToolInvocation.fromRow(QueryRow r) => ToolInvocation(
-    id: r.read('id'),
-    runId: r.read('run_id'),
-    callId: r.read('call_id'),
-    conversationId: r.read('conversation_id'),
-    name: r.read('name'),
-    state: r.read('state'),
-    payload: jsonDecode(r.read<String>('payload')),
-  );
+  final String runId, conversationId, revisionId;
+  final ToolPart part;
+  String get id => '$runId:${part.callId ?? part.id}';
+  String get callId => part.callId ?? '';
+  String get name => part.name;
+  String get state => part.state.name;
+  Map<String, dynamic> get payload => part.payload;
 }

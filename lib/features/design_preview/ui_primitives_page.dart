@@ -5,6 +5,7 @@ import 'package:servllama/shared/widgets/app_message.dart';
 import 'package:servllama/shared/widgets/numeric_slider.dart';
 import 'package:servllama/shared/widgets/settings_menu_tile.dart';
 import 'package:servllama/shared/widgets/settings_tile_list.dart';
+import 'package:servllama/features/design_preview/agent_timeline_preview.dart';
 import 'package:servllama/features/design_preview/preview_theme.dart';
 import 'package:servllama/l10n/l10n.dart';
 
@@ -725,7 +726,14 @@ class _UiPrimitivesPageState extends State<UiPrimitivesPage> {
                   ),
                 ],
               ),
-              _Section('02', l.uiLabManagement, l.uiLabManagementHint),
+              _Section('02', l.uiLabAgentTimeline, l.uiLabAgentTimelineHint),
+              const _Surface(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: AgentTimelinePreview(key: Key('ui_lab_agent_preview')),
+                ),
+              ),
+              _Section('03', l.uiLabManagement, l.uiLabManagementHint),
               _Surface(
                 child: SettingsTileList.grouped(
                   children: [

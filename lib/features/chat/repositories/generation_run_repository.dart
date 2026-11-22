@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:servllama/core/database/app_database.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
+import 'package:servllama/features/chat/models/message_part.dart';
 import 'package:servllama/features/chat/repositories/chat_record_store.dart';
 
 class GenerationRunRepository {
@@ -10,7 +11,7 @@ class GenerationRunRepository {
   final AppDatabase db;
 
   /// A shared run survives until its last revision reference disappears.
-  /// The receipt FK cascades; checkpoints never own or recreate a message.
+  /// Tool parts disappear with their revision; checkpoints never recreate a message.
   Future<void> deleteUnreferenced(Iterable<String> runIds) async {
     for (final id in runIds.toSet()) {
       await db.execute(
@@ -20,11 +21,6 @@ class GenerationRunRepository {
       );
     }
   }
-
-  Future<bool> hasToolInvocations(String runId) async => (await db.query(
-    'SELECT 1 FROM tool_invocations WHERE run_id=? LIMIT 1',
-    [runId],
-  )).isNotEmpty;
 
   Future<String?> latestState(String conversationId) async {
     final rows = await db.query(
@@ -62,11 +58,20 @@ class GenerationRunRepository {
     String? finalText,
   }) async {
     await db.transaction(() async {
-      final written = await db.execute(
-        'UPDATE message_revisions SET content=?,reasoning_content=? '
-        'WHERE message_id=? AND run_id=? AND is_draft=1 '
+      final rows = await db.query(
+        'SELECT id,parts FROM message_revisions WHERE message_id=? AND run_id=? AND is_draft=1 '
         "AND EXISTS(SELECT 1 FROM generation_runs WHERE id=? AND state='running')",
-        [message.content, message.reasoningContent, message.id, id, id],
+        [message.id, id, id],
+      );
+      if (rows.isEmpty) return;
+      final row = rows.single;
+      final parts = mergeToolExecution(
+        message.parts,
+        MessagePart.decode(row.read<String>('parts')),
+      );
+      final written = await db.execute(
+        'UPDATE message_revisions SET parts=? WHERE id=?',
+        [MessagePart.encode(parts), row.read<String>('id')],
       );
       if (written == 0) return;
       final needsContinuation = trace.any(
@@ -96,11 +101,11 @@ class GenerationRunRepository {
     final rows = await db.query(
       'SELECT g.state,g.snapshot,g.checkpoint FROM generation_runs g '
       'JOIN message_revisions r ON r.run_id=g.id '
-      "WHERE g.id=? AND r.id=? AND r.content=? AND r.is_draft=0 AND json_extract(g.snapshot,'\$.versionId')=r.id",
+      "WHERE g.id=? AND r.id=? AND r.parts=? AND r.is_draft=0 AND json_extract(g.snapshot,'\$.versionId')=r.id",
       [
         message.runId!,
         message.versionIds[message.currentVersionIndex],
-        message.content,
+        MessagePart.encode(message.parts),
       ],
     );
     return rows.firstOrNull;
@@ -153,20 +158,43 @@ class GenerationRunRepository {
           'SELECT * FROM message_revisions WHERE run_id=? AND is_draft=1',
           [runId],
         );
-        final hasTools = await hasToolInvocations(runId);
         for (final draft in drafts) {
           final id = draft.read<String>('id');
           final messageId = draft.read<String>('message_id');
-          if (draft.read<String>('content').trim().isNotEmpty ||
-              (draft
-                      .readNullable<String>('reasoning_content')
-                      ?.trim()
-                      .isNotEmpty ??
-                  false) ||
-              hasTools) {
+          final parts = MessagePart.decode(draft.read<String>('parts'));
+          if (messageText(parts).trim().isNotEmpty ||
+              (messageReasoning(parts)?.trim().isNotEmpty ?? false) ||
+              parts.any((p) => p is ToolPart)) {
+            final checkpointAt = DateTime.fromMillisecondsSinceEpoch(
+              row.read<int>('updated_at'),
+              isUtc: true,
+            );
+            final settled = parts.map((p) {
+              if (p is ReasoningPart && p.finishedAt == null) {
+                return p.copyWith(
+                  finishedAt: p.startedAt?.isAfter(checkpointAt) == true
+                      ? p.startedAt
+                      : checkpointAt,
+                );
+              }
+              if (p is ToolPart) {
+                return switch (p.state) {
+                  ToolState.executing => p.copyWith(
+                    state: ToolState.unknownOutcome,
+                  ),
+                  ToolState.streaming ||
+                  ToolState.ready ||
+                  ToolState.prepared ||
+                  ToolState.pendingApproval ||
+                  ToolState.approved => p.copyWith(state: ToolState.cancelled),
+                  _ => p,
+                };
+              }
+              return p;
+            }).toList();
             await db.execute(
-              'UPDATE message_revisions SET is_draft=0 WHERE id=?',
-              [id],
+              'UPDATE message_revisions SET is_draft=0,parts=? WHERE id=?',
+              [MessagePart.encode(settled), id],
             );
           } else {
             final fallback = snapshot['fallbackVersionId'] as String?;

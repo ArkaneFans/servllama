@@ -1,10 +1,11 @@
+import '../../support/tool_part_fixture.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/core/database/app_database.dart';
-import 'package:servllama/features/agent/models/agent_records.dart';
 import 'package:servllama/features/agent/repositories/agent_repository.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/models/chat_session_record.dart';
 import 'package:servllama/features/chat/models/message_author.dart';
+import 'package:servllama/features/chat/models/message_part.dart';
 import 'package:servllama/features/chat/repositories/chat_record_store.dart';
 import 'package:servllama/features/chat/repositories/generation_run_repository.dart';
 
@@ -46,6 +47,68 @@ void main() {
   }
 
   test(
+    'interrupted reasoning keeps revision order and settles at the last checkpoint',
+    () async {
+      final m = await draft('thinking');
+      final start = DateTime.utc(2026);
+      final parts = [
+        ReasoningPart('reason', 'Still thinking', startedAt: start),
+      ];
+      await runs.checkpoint('thinking', m.copyWith(parts: parts));
+      final end = start.add(const Duration(seconds: 2));
+      await db.execute(
+        "UPDATE generation_runs SET updated_at=? WHERE id='thinking'",
+        [end.millisecondsSinceEpoch],
+      );
+      await runs.recover();
+      final saved = (await store.message('thinking'))!;
+      expect((saved.parts.single as ReasoningPart).finishedAt, end);
+      expect((saved.parts.single as ReasoningPart).text, 'Still thinking');
+      expect(saved.reasoningContent, 'Still thinking');
+      expect(
+        await db.query(
+          "SELECT name FROM sqlite_master WHERE name='tool_invocations'",
+        ),
+        isEmpty,
+      );
+      await runs.recover();
+      expect(
+        MessagePart.encode((await store.message('thinking'))!.parts),
+        MessagePart.encode(saved.parts),
+      );
+    },
+  );
+
+  test(
+    'recovery keeps a tool that never received its vendor ID as incomplete',
+    () async {
+      final m = await draft('partial-tool');
+      await runs.checkpoint(
+        'partial-tool',
+        m.copyWith(
+          parts: const [
+            ToolPart(id: 'series', name: 'clock', input: '{"zone":'),
+          ],
+        ),
+      );
+      await runs.recover();
+      final saved = (await store.message('partial-tool'))!;
+      expect(saved.parts.single.id, 'series');
+      expect((saved.parts.single as ToolPart).callId, isNull);
+      expect((saved.parts.single as ToolPart).inputComplete, isFalse);
+      expect((saved.parts.single as ToolPart).input, '{"zone":');
+      expect((saved.parts.single as ToolPart).state, ToolState.cancelled);
+      expect(
+        await db.query(
+          "SELECT name FROM sqlite_master WHERE name='tool_invocations'",
+        ),
+        isEmpty,
+      );
+      expect(await runs.latestState('c'), 'interrupted');
+    },
+  );
+
+  test(
     'recovery retains tool-only replies and never replays their receipts',
     () async {
       final tools = AgentRepository(db);
@@ -53,7 +116,7 @@ void main() {
         final m = await draft(id);
         if (id == 'executing') await runs.checkpoint(id, m);
         await tools.insert(
-          ToolInvocation(
+          toolActivity(
             id: '$id:call',
             runId: id,
             callId: 'call',
@@ -64,7 +127,6 @@ void main() {
           ),
         );
       }
-      await tools.recover();
       await runs.recover();
       await runs.recover();
       final messages = await store.messages('m.conversation_id=?', ['c']);

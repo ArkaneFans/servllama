@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:servllama/core/database/message_parts_migration.dart';
 
 part 'app_database.g.dart';
 
@@ -126,8 +127,7 @@ class MessageRevisions extends Table {
       .check(isSelected.isIn([0, 1]))
       .withDefault(const Constant(0))();
   IntColumn get createdAt => integer()();
-  TextColumn get content => text()();
-  TextColumn get reasoningContent => text().nullable()();
+  TextColumn get parts => text().withDefault(const Constant('[]'))();
   TextColumn get modelName => text().nullable()();
   TextColumn get author => text().nullable()();
 
@@ -176,25 +176,6 @@ class GenerationRuns extends Table {
 
   @override
   Set<Column<Object>> get primaryKey => {id};
-}
-
-@TableIndex(name: 'invocations_run', columns: {#runId, #createdAt})
-@DataClassName('DbToolInvocations', companion: 'ToolInvocationsCompanion')
-class ToolInvocations extends Table {
-  TextColumn get id => text()();
-  TextColumn get runId =>
-      text().references(GenerationRuns, #id, onDelete: KeyAction.cascade)();
-  TextColumn get callId => text()();
-  TextColumn get name => text()();
-  TextColumn get state => text()();
-  TextColumn get payload => text()();
-  IntColumn get createdAt => integer()();
-
-  @override
-  Set<Column<Object>> get primaryKey => {id};
-
-  @override
-  List<String> get customConstraints => const ['UNIQUE (run_id, call_id)'];
 }
 
 @DataClassName('DbModelAssets', companion: 'ModelAssetsCompanion')
@@ -304,7 +285,6 @@ class AppMetadata extends Table {
     MessageRevisions,
     RevisionAttachments,
     GenerationRuns,
-    ToolInvocations,
     ModelAssets,
     SpeechJobs,
     VoiceProfiles,
@@ -333,11 +313,15 @@ class AppDatabase extends _$AppDatabase {
   }();
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onUpgrade: (m, from, to) async {
-      if (from < 2) await m.deleteTable('chat_drafts');
+      if (from < 3 && to == 3) {
+        await migrateMessageParts(this, m, from: from);
+      } else {
+        throw StateError('Unsupported database schema transition: $from → $to');
+      }
     },
     beforeOpen: (_) async {
       await customStatement('PRAGMA foreign_keys = ON');

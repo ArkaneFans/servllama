@@ -72,20 +72,3 @@ class AiTool {
   final String name, description;
   final Map<String, dynamic> schema;
 }
-
-class AiEvent {
-  const AiEvent({
-    this.text = '',
-    this.reasoning = '',
-    this.calls = const [],
-    this.providerParts = const [],
-    this.inputTokens = 0,
-    this.outputTokens = 0,
-    this.stopReason,
-  });
-  final String text, reasoning;
-  final List<AiToolCall> calls;
-  final List<Map<String, dynamic>> providerParts;
-  final int inputTokens, outputTokens;
-  final String? stopReason;
-}

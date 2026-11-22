@@ -1,8 +1,8 @@
+import 'package:servllama/features/chat/models/message_part.dart';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servllama/core/database/app_database.dart';
-import 'package:servllama/features/agent/models/agent_records.dart';
 import 'package:servllama/features/agent/repositories/agent_repository.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/models/chat_message_version_record.dart';
@@ -54,7 +54,19 @@ void main() {
           content: 'answer $i',
           createdAt: date.add(Duration(minutes: i)),
           modelName: 'model $i',
-          reasoningContent: i == 0 ? null : 'reason $i',
+          parts: [
+            if (i != 0) ReasoningPart('reasoning', 'reason $i'),
+            ToolPart(
+              id: 'call',
+              callId: 'call',
+              name: 'clock',
+              input: '{}',
+              inputComplete: true,
+              state: ToolState.succeeded,
+              result: 'saved',
+            ),
+            TextPart('text', 'answer $i'),
+          ],
           author: MessageAuthor(assistantId: 'a$i', name: 'Assistant $i'),
           imageFilePaths: images?[i] ?? const [],
         ),
@@ -104,17 +116,6 @@ void main() {
       await store.saveMessage(message);
       for (final id in runIds.toSet()) {
         await runs.finish(id, 'completed');
-        await tools.insert(
-          ToolInvocation(
-            id: '$id:call',
-            runId: id,
-            callId: 'call',
-            conversationId: 'c',
-            name: 'clock',
-            state: 'succeeded',
-            payload: const {'result': 'saved'},
-          ),
-        );
       }
     });
   }
@@ -228,6 +229,7 @@ void main() {
       final original = (await repository.loadMessage('after'))!;
       final other = original.copyWith(
         runId: 'r0',
+        parts: versions.first.parts,
         versionIds: [...original.versionIds, 'shared-ref'],
         currentVersionIndex: 1,
       );
@@ -371,30 +373,13 @@ void main() {
     await seed();
     await runs.begin('orphan', 'c', {});
     await runs.finish('orphan', 'completed');
-    await tools.insert(
-      const ToolInvocation(
-        id: 'orphan:call',
-        runId: 'orphan',
-        callId: 'call',
-        conversationId: 'c',
-        name: 'clock',
-        state: 'succeeded',
-        payload: {},
-      ),
+    await expectLater(
+      tools.prepare('orphan', 'c', 'call', 'clock', {}),
+      throwsStateError,
     );
     await expectLater(
-      tools.insert(
-        const ToolInvocation(
-          id: 'missing:call',
-          runId: 'missing',
-          callId: 'call',
-          conversationId: 'c',
-          name: 'clock',
-          state: 'succeeded',
-          payload: {},
-        ),
-      ),
-      throwsA(anything),
+      tools.prepare('missing', 'c', 'call', 'clock', {}),
+      throwsStateError,
     );
     await runs.recover();
     await runs.deleteUnreferenced(['orphan', 'missing', 'r0', 'r1', 'r2']);
@@ -414,16 +399,9 @@ void main() {
       );
       await runs.begin('orphan', 'c', {'versionId': 'deleted-version'});
       await runs.checkpoint('orphan', deleted);
-      await tools.insert(
-        const ToolInvocation(
-          id: 'orphan:tool',
-          runId: 'orphan',
-          callId: 'tool',
-          conversationId: 'c',
-          name: 'clock',
-          state: 'succeeded',
-          payload: {},
-        ),
+      await expectLater(
+        tools.prepare('orphan', 'c', 'tool', 'clock', {}),
+        throwsStateError,
       );
       await runs.recover();
       expect(await repository.loadMessageVersion('deleted-version'), isNull);

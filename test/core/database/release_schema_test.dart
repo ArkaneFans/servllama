@@ -41,8 +41,8 @@ void main() {
   test(
     'release schema is known to Drift and rejects dangling ownership',
     () async {
-      expect(db.allTables.length, 16);
-      expect(db.schemaVersion, 2);
+      expect(db.allTables.length, 15);
+      expect(db.schemaVersion, 3);
       expect(
         (await db.query(
           'PRAGMA foreign_keys',
@@ -55,7 +55,7 @@ void main() {
       );
       await expectLater(
         db.execute(
-          "INSERT INTO tool_invocations VALUES('t','missing','call','clock','succeeded','{}',0)",
+          "INSERT INTO message_revisions(id,message_id,position,created_at) VALUES('r','missing',0,0)",
         ),
         throwsA(anything),
       );
@@ -164,64 +164,4 @@ void main() {
       await root.delete(recursive: true);
     }
   });
-
-  test(
-    'version 1 upgrade removes input drafts and preserves sent messages',
-    () async {
-      final root = await Directory.systemTemp.createTemp(
-        'servllama-input-upgrade-',
-      );
-      var disk = AppDatabase.at(root);
-      try {
-        final records = ChatRecordStore(disk);
-        final date = DateTime(2026);
-        await records.saveSession(
-          ChatSessionRecord(
-            id: 'existing',
-            title: 'Saved chat',
-            createdAt: date,
-            updatedAt: date,
-          ),
-        );
-        await records.saveMessage(
-          ChatMessageRecord(
-            id: 'sent',
-            sessionId: 'existing',
-            role: ChatRole.user,
-            content: 'Keep this message',
-            createdAt: date,
-          ),
-        );
-        await disk.execute(
-          'CREATE TABLE chat_drafts(key TEXT PRIMARY KEY, content TEXT NOT NULL)',
-        );
-        await disk.execute(
-          "INSERT INTO chat_drafts VALUES('existing','Unsent text')",
-        );
-        await disk.execute('PRAGMA user_version = 1');
-        await disk.close();
-        disk = AppDatabase.at(root);
-        expect(
-          await disk.query(
-            "SELECT name FROM sqlite_master WHERE name='chat_drafts'",
-          ),
-          isEmpty,
-        );
-        expect(
-          (await ChatRecordStore(disk).message('sent'))!.content,
-          'Keep this message',
-        );
-        expect(
-          (await disk.query(
-            'SELECT title FROM conversations',
-          )).single.read<String>('title'),
-          'Saved chat',
-        );
-        expect(await disk.query('PRAGMA foreign_key_check'), isEmpty);
-      } finally {
-        await disk.close();
-        await root.delete(recursive: true);
-      }
-    },
-  );
 }

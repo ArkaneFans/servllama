@@ -9,7 +9,7 @@ import 'package:servllama/core/models/server_launch_settings.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/models/chat_session_record.dart';
-import 'package:servllama/features/chat/models/chat_stream_delta.dart';
+import 'package:servllama/features/chat/models/stream_chunk.dart';
 import 'package:servllama/features/chat/providers/chat_provider.dart';
 import 'package:servllama/features/chat/repositories/chat_session_repository.dart';
 import 'package:servllama/features/chat/services/llama_chat_api_client.dart';
@@ -297,12 +297,12 @@ class _FakeLlamaChatApiClient extends LlamaChatApiClient {
     : super(settingsLoader: _FixedServerLaunchSettingsLoader());
 
   @override
-  Stream<ChatStreamDelta> streamChatCompletion({
+  Stream<StreamChunk> streamChatCompletion({
     required String modelId,
     required List<ChatMessageRecord> messages,
     required CancelToken cancelToken,
   }) {
-    return const Stream<ChatStreamDelta>.empty();
+    return const Stream<StreamChunk>.empty();
   }
 }
 

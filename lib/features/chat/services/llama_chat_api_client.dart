@@ -5,7 +5,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:servllama/core/services/server_launch_settings_loader.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
-import 'package:servllama/features/chat/models/chat_stream_delta.dart';
+import 'package:servllama/features/chat/models/stream_chunk.dart';
+import 'package:servllama/features/chat/services/stream_chunk_emitter.dart';
 import 'package:servllama/features/chat/services/image_attachment_service.dart';
 
 /// Runs on a background isolate via [compute]. Returns null when the file
@@ -64,7 +65,7 @@ class LlamaChatApiClient {
     _dio.options.receiveTimeout = timeout;
   }
 
-  Stream<ChatStreamDelta> streamChatCompletion({
+  Stream<StreamChunk> streamChatCompletion({
     required String modelId,
     required List<ChatMessageRecord> messages,
     required CancelToken cancelToken,
@@ -106,6 +107,8 @@ class LlamaChatApiClient {
         .cast<List<int>>()
         .transform(const Utf8Decoder(allowMalformed: true))
         .transform(const LineSplitter());
+    final emitter = StreamChunkEmitter();
+    String? stopReason;
     try {
       await for (final line in lines) {
         final parsed = _parseSseLine(line);
@@ -113,12 +116,28 @@ class LlamaChatApiClient {
           continue;
         }
         if (parsed.isDone) {
+          for (final chunk in emitter.close()) {
+            yield chunk;
+          }
+          yield Finish(stopReason: stopReason ?? 'stop');
           return;
         }
-        final delta = parsed.delta;
-        if (delta != null && !delta.isEmpty) {
-          yield delta;
+        for (final chunk in emitter.reasoning(parsed.reasoning)) {
+          yield chunk;
         }
+        for (final chunk in emitter.text(parsed.content)) {
+          yield chunk;
+        }
+        stopReason = parsed.stopReason ?? stopReason;
+      }
+      if (!cancelToken.isCancelled) {
+        if (stopReason == null) {
+          throw StateError('Local stream interrupted before completion');
+        }
+        for (final chunk in emitter.close()) {
+          yield chunk;
+        }
+        yield Finish(stopReason: stopReason);
       }
     } on DioException catch (error) {
       if (CancelToken.isCancel(error)) {
@@ -190,12 +209,15 @@ class LlamaChatApiClient {
       }
     }
 
-    if (content.isEmpty && reasoningContent.isEmpty) {
+    final stopReason = normalized['finish_reason'] as String?;
+    if (content.isEmpty && reasoningContent.isEmpty && stopReason == null) {
       return null;
     }
 
-    return _ParsedSseLine.delta(
-      ChatStreamDelta(content: content, reasoningContent: reasoningContent),
+    return _ParsedSseLine(
+      content: content,
+      reasoning: reasoningContent,
+      stopReason: stopReason,
     );
   }
 
@@ -336,10 +358,17 @@ class LlamaChatApiClient {
 }
 
 class _ParsedSseLine {
-  const _ParsedSseLine.done() : isDone = true, delta = null;
-
-  const _ParsedSseLine.delta(this.delta) : isDone = false;
-
+  const _ParsedSseLine({
+    this.content = '',
+    this.reasoning = '',
+    this.stopReason,
+  }) : isDone = false;
+  const _ParsedSseLine.done()
+    : isDone = true,
+      stopReason = null,
+      content = '',
+      reasoning = '';
+  final String content, reasoning;
+  final String? stopReason;
   final bool isDone;
-  final ChatStreamDelta? delta;
 }

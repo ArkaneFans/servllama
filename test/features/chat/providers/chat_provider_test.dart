@@ -1,7 +1,7 @@
+import '../../../support/stream_chunks.dart';
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:servllama/features/chat/models/ai_turn.dart';
 import 'package:servllama/features/chat/models/chat_message_record.dart';
 import 'package:servllama/features/chat/models/chat_session_record.dart';
 import 'package:servllama/features/chat/providers/chat_provider.dart';
@@ -21,11 +21,11 @@ void main() {
     'sending commits the question, streamed reasoning and reply together with ownership',
     () async {
       final chat = fixture.chat;
-      fixture.protocol.events = const [
-        AiEvent(reasoning: 'Think'),
-        AiEvent(text: 'First '),
-        AiEvent(text: 'reply'),
-        AiEvent(stopReason: 'stop'),
+      fixture.protocol.events = [
+        ...fixtureChunks(reasoning: 'Think'),
+        ...fixtureChunks(text: 'First '),
+        ...fixtureChunks(text: 'reply'),
+        ...fixtureChunks(stopReason: 'stop'),
       ];
       chat.updateInputText('Question');
       await chat.sendMessage(chat.inputText);
@@ -58,7 +58,7 @@ void main() {
   test(
     'concurrent sends have one owner and cancellation saves the partial reply',
     () async {
-      fixture.protocol.events = const [AiEvent(text: 'Partial reply')];
+      fixture.protocol.events = [...fixtureChunks(text: 'Partial reply')];
       fixture.protocol.blocked = Completer<void>();
       final sending = fixture.chat.sendMessage('Question');
       await fixture.protocol.started.future;
@@ -83,15 +83,15 @@ void main() {
   test(
     'provider failure preserves the question and makes another send possible',
     () async {
-      fixture.protocol.events = const [];
+      fixture.protocol.events = [];
       fixture.protocol.error = StateError('Provider unavailable');
       await fixture.chat.sendMessage('Keep this question');
       expect(fixture.chat.isSending, isFalse);
       expect(fixture.chat.visibleMessages.first.content, 'Keep this question');
       fixture.protocol.error = null;
-      fixture.protocol.events = const [
-        AiEvent(text: 'Recovered'),
-        AiEvent(stopReason: 'stop'),
+      fixture.protocol.events = [
+        ...fixtureChunks(text: 'Recovered'),
+        ...fixtureChunks(stopReason: 'stop'),
       ];
       await fixture.chat.sendMessage('Try again');
       expect(fixture.chat.visibleMessages.last.content, 'Recovered');

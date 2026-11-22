@@ -11,7 +11,7 @@ This guide describes the project map and durable development boundaries. Version
 - Chat: local/cloud models, streaming text and reasoning, image input, conversation history, editing and message revisions.
 - Assistants and providers: assistant instructions/model selection, remote provider configuration and model-level capabilities; OpenAI-compatible, Anthropic and Gemini protocols.
 - Local models and serving: GGUF/MNN import, discovery, downloads, model configuration and an OpenAI-compatible HTTP service with lifecycle controls.
-- Tools: built-in tools, static Skill packages and remote MCP, with authorization, user approval and persistent invocation records.
+- Tools: built-in tools, static Skill packages and remote MCP, with authorization, user approval and persistent tool state in message parts.
 - Offline speech: ASR/TTS, recording/audio input, speech models and queued jobs with saved results.
 - Diagnostics: unified application/runtime logs, filtering and export.
 
@@ -66,6 +66,7 @@ Pages present UI and route interactions; providers/controllers coordinate flows;
 
 ## Development and Verification
 
+- Preserve data when upgrading from published SQLite schemas. Update unreleased schema iterations directly without adding intermediate compatibility migrations.
 - Run `flutter analyze` and relevant `flutter test` cases. Add unit coverage for business changes and focused widget coverage for interaction changes.
 - Never hand-edit generated files. Use localization/database generators; `build.yaml` limits database generation and preserves frozen Hive adapters.
 - Build APKs through Flutter and verify manifest/version, signing and native contents with `tool/verify_android_bundle.py`. Build success does not establish hardware/model/provider correctness; report unexecuted checks explicitly.
