@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:servllama/core/database/message_parts_migration.dart';
 
 part 'app_database.g.dart';
 
@@ -312,9 +313,16 @@ class AppDatabase extends _$AppDatabase {
   }();
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 3;
   @override
   MigrationStrategy get migration => MigrationStrategy(
+    onUpgrade: (m, from, to) async {
+      if (from < 3 && to == 3) {
+        await migrateMessageParts(this, m, from: from);
+      } else {
+        throw StateError('Unsupported database schema transition: $from → $to');
+      }
+    },
     beforeOpen: (_) async {
       await customStatement('PRAGMA foreign_keys = ON');
       await customStatement('PRAGMA busy_timeout = 5000');

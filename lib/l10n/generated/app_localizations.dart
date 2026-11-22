@@ -5213,6 +5213,18 @@ abstract class AppLocalizations {
   /// **'Play a tool round from reasoning to the final answer, or advance one step at a time. Expand the timeline and tool details. This demo uses local sample data.'**
   String get uiLabAgentTimelineHint;
 
+  /// No description provided for @uiLabAgentThinking.
+  ///
+  /// In en, this message translates to:
+  /// **'Deep thinking'**
+  String get uiLabAgentThinking;
+
+  /// No description provided for @uiLabAgentThinkingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'When off, the demo generates no reasoning steps. Tool calls and the answer still appear.'**
+  String get uiLabAgentThinkingHint;
+
   /// No description provided for @uiLabAgentPlay.
   ///
   /// In en, this message translates to:

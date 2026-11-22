@@ -30,10 +30,17 @@ class _AgentTimelinePreviewState extends State<AgentTimelinePreview> {
   _Stage _stage = _Stage.completed;
   Timer? _timer;
   int _replay = 0;
+  bool _thinkingEnabled = true;
   DateTime _startedAt = DateTime.now();
 
   bool get _playing => _timer != null;
   bool get _completed => _stage == _Stage.completed;
+  List<_Stage> get _stages => [
+    for (final stage in _Stage.values)
+      if (_thinkingEnabled ||
+          (stage != _Stage.reasoning && stage != _Stage.summarizing))
+        stage,
+  ];
 
   void _pause() {
     _timer?.cancel();
@@ -44,13 +51,25 @@ class _AgentTimelinePreviewState extends State<AgentTimelinePreview> {
     _pause();
     _replay++;
     _startedAt = DateTime.now();
-    _stage = _Stage.reasoning;
+    _stage = _stages.first;
   }
 
   void _advance() {
     if (_completed) return;
-    _stage = _Stage.values[_stage.index + 1];
+    final stages = _stages;
+    _stage = stages[stages.indexOf(_stage) + 1];
     if (_completed) _pause();
+  }
+
+  void _setThinking(bool enabled) {
+    setState(() {
+      _pause();
+      _thinkingEnabled = enabled;
+      if (!enabled) {
+        if (_stage == _Stage.reasoning) _stage = _Stage.toolInput;
+        if (_stage == _Stage.summarizing) _stage = _Stage.answer;
+      }
+    });
   }
 
   void _togglePlayback() {
@@ -82,14 +101,15 @@ class _AgentTimelinePreviewState extends State<AgentTimelinePreview> {
       createdAt: _startedAt,
       parts: [
         TextPart('intro', l.uiLabAgentIntro),
-        ReasoningPart(
-          'plan',
-          l.uiLabAgentReasoning,
-          startedAt: _startedAt,
-          finishedAt: _stage == _Stage.reasoning
-              ? null
-              : _startedAt.add(const Duration(milliseconds: 1400)),
-        ),
+        if (_thinkingEnabled)
+          ReasoningPart(
+            'plan',
+            l.uiLabAgentReasoning,
+            startedAt: _startedAt,
+            finishedAt: _stage == _Stage.reasoning
+                ? null
+                : _startedAt.add(const Duration(milliseconds: 1400)),
+          ),
         if (_stage.index >= _Stage.toolInput.index)
           ToolPart(
             id: 'search',
@@ -115,7 +135,7 @@ class _AgentTimelinePreviewState extends State<AgentTimelinePreview> {
                 : null,
             durationMs: hasResult ? 820 : null,
           ),
-        if (_stage.index >= _Stage.summarizing.index)
+        if (_thinkingEnabled && _stage.index >= _Stage.summarizing.index)
           ReasoningPart(
             'summary',
             l.uiLabAgentSummary,
@@ -136,6 +156,8 @@ class _AgentTimelinePreviewState extends State<AgentTimelinePreview> {
   @override
   Widget build(BuildContext context) {
     final l = context.l10n;
+    final stages = _stages;
+    final step = stages.indexOf(_stage) + 1;
     final phase = switch (_stage) {
       _Stage.reasoning => l.chatReasoningProcess,
       _Stage.toolInput => l.uiLabAgentInputStep,
@@ -149,6 +171,15 @@ class _AgentTimelinePreviewState extends State<AgentTimelinePreview> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        SwitchListTile.adaptive(
+          key: const Key('ui_lab_agent_thinking'),
+          contentPadding: EdgeInsets.zero,
+          title: Text(l.uiLabAgentThinking),
+          subtitle: Text(l.uiLabAgentThinkingHint),
+          value: _thinkingEnabled,
+          onChanged: _setThinking,
+        ),
+        const SizedBox(height: 12),
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -184,13 +215,13 @@ class _AgentTimelinePreviewState extends State<AgentTimelinePreview> {
         ),
         const SizedBox(height: 12),
         Text(
-          '${_stage.index + 1} / ${_Stage.values.length} · $phase',
+          '$step / ${stages.length} · $phase',
           key: const Key('ui_lab_agent_stage'),
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 8),
         LinearProgressIndicator(
-          value: (_stage.index + 1) / _Stage.values.length,
+          value: step / stages.length,
           minHeight: 3,
           borderRadius: BorderRadius.circular(3),
         ),

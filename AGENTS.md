@@ -66,7 +66,7 @@ Pages present UI and route interactions; providers/controllers coordinate flows;
 
 ## Development and Verification
 
-- Update the current SQLite schema directly during development; do not add compatibility code or SQL upgrade migrations for unreleased schema iterations.
+- Preserve data when upgrading from published SQLite schemas. Update unreleased schema iterations directly without adding intermediate compatibility migrations.
 - Run `flutter analyze` and relevant `flutter test` cases. Add unit coverage for business changes and focused widget coverage for interaction changes.
 - Never hand-edit generated files. Use localization/database generators; `build.yaml` limits database generation and preserves frozen Hive adapters.
 - Build APKs through Flutter and verify manifest/version, signing and native contents with `tool/verify_android_bundle.py`. Build success does not establish hardware/model/provider correctness; report unexecuted checks explicitly.

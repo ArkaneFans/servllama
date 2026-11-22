@@ -2720,6 +2720,12 @@ class AppLocalizationsZh extends AppLocalizations {
       '播放从思考、工具调用到最终回答的主流程，也可逐步查看，展开轨迹与工具详情。演示使用本地示例数据。';
 
   @override
+  String get uiLabAgentThinking => '深度思考';
+
+  @override
+  String get uiLabAgentThinkingHint => '关闭后不生成思考节点，工具调用与正文照常展示。';
+
+  @override
   String get uiLabAgentPlay => '播放流程';
 
   @override

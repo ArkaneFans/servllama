@@ -2875,6 +2875,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Play a tool round from reasoning to the final answer, or advance one step at a time. Expand the timeline and tool details. This demo uses local sample data.';
 
   @override
+  String get uiLabAgentThinking => 'Deep thinking';
+
+  @override
+  String get uiLabAgentThinkingHint =>
+      'When off, the demo generates no reasoning steps. Tool calls and the answer still appear.';
+
+  @override
   String get uiLabAgentPlay => 'Play flow';
 
   @override

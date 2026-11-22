@@ -12,6 +12,7 @@ const _play = Key('ui_lab_agent_play');
 const _next = Key('ui_lab_agent_next');
 const _reset = Key('ui_lab_agent_reset');
 const _stage = Key('ui_lab_agent_stage');
+const _thinking = Key('ui_lab_agent_thinking');
 
 Widget _host(Widget child, {Locale locale = const Locale('zh')}) => MaterialApp(
   locale: locale,
@@ -21,7 +22,11 @@ Widget _host(Widget child, {Locale locale = const Locale('zh')}) => MaterialApp(
 );
 
 Future<void> _tap(WidgetTester tester, Key key) async {
-  await tester.ensureVisible(find.byKey(key));
+  await Scrollable.ensureVisible(
+    tester.element(find.byKey(key)),
+    alignment: 0.5,
+  );
+  await tester.pump();
   await tester.tap(find.byKey(key));
   await tester.pump();
 }
@@ -52,7 +57,9 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     await _tap(
       tester,
-      ValueKey('tool_toggle_${tester.widget<ToolPartCard>(card).invocation.id}'),
+      ValueKey(
+        'tool_toggle_${tester.widget<ToolPartCard>(card).invocation.id}',
+      ),
     );
     expect(find.text(part.input), findsOneWidget);
 
@@ -138,6 +145,91 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('thinking toggle preserves the completed tool and answer', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_host(const AgentTimelinePreview()));
+    await tester.pumpAndSettle();
+    final original = _timeline(tester).message;
+    final tool = original.parts.whereType<ToolPart>().single.toJson();
+
+    await _tap(tester, _thinking);
+    final withoutThinking = _timeline(tester).message;
+    expect(withoutThinking.parts.whereType<ReasoningPart>(), isEmpty);
+    expect(withoutThinking.parts.whereType<ToolPart>().single.toJson(), tool);
+    expect(withoutThinking.content, original.content);
+    expect(find.byType(ToolPartCard), findsOneWidget);
+    expect(tester.widget<Text>(find.byKey(_stage)).data, startsWith('6 / 6'));
+
+    await _tap(tester, _thinking);
+    expect(
+      _timeline(tester).message.parts.whereType<ReasoningPart>(),
+      hasLength(2),
+    );
+    expect(_timeline(tester).message.content, original.content);
+    expect(tester.widget<Text>(find.byKey(_stage)).data, startsWith('8 / 8'));
+  });
+
+  testWidgets('plays the entire tool flow without reasoning or empty stages', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_host(const AgentTimelinePreview()));
+    await tester.pumpAndSettle();
+    await _tap(tester, _thinking);
+    await _tap(tester, _reset);
+    expect(tester.widget<Text>(find.byKey(_stage)).data, startsWith('1 / 6'));
+    expect(find.byType(ToolPartCard), findsOneWidget);
+    expect(tester.widget<TextSheen>(find.byType(TextSheen)).enabled, isTrue);
+
+    await _tap(tester, _play);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 1600));
+      expect(
+        _timeline(tester).message.parts.whereType<ReasoningPart>(),
+        isEmpty,
+      );
+    }
+    expect(_timeline(tester).streaming, isFalse);
+    final tool = _timeline(tester).message.parts.whereType<ToolPart>().single;
+    expect(tool.state, ToolState.succeeded);
+    expect(tool.inputComplete, isTrue);
+    expect(tool.result, isNotEmpty);
+    expect(tester.widget<Text>(find.byKey(_stage)).data, startsWith('6 / 6'));
+    expect(tester.widget<TextSheen>(find.byType(TextSheen)).enabled, isFalse);
+  });
+
+  testWidgets('switching thinking pauses playback and skips active reasoning', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_host(const AgentTimelinePreview()));
+    await tester.pumpAndSettle();
+    final l = AppLocalizations.of(tester.element(find.byKey(_play)))!;
+    await _tap(tester, _play);
+    await _tap(tester, _thinking);
+    expect(find.text(l.uiLabAgentPlay), findsOneWidget);
+    expect(tester.widget<Text>(find.byKey(_stage)).data, startsWith('1 / 6'));
+    final paused = tester.widget<Text>(find.byKey(_stage)).data;
+    await tester.pump(const Duration(seconds: 3));
+    expect(tester.widget<Text>(find.byKey(_stage)).data, paused);
+
+    await _tap(tester, _thinking);
+    for (var i = 0; i < 4; i++) {
+      await _tap(tester, _next);
+    }
+    expect(find.text(l.uiLabAgentSummary), findsOneWidget);
+    await _tap(tester, _thinking);
+    expect(_timeline(tester).message.parts.whereType<ReasoningPart>(), isEmpty);
+    expect(tester.widget<Text>(find.byKey(_stage)).data, startsWith('5 / 6'));
+    expect(
+      _timeline(tester).message.content,
+      contains(l.uiLabAnswer.split('\n\n').first),
+    );
+    await _tap(tester, _next);
+    expect(_timeline(tester).streaming, isFalse);
+    await tester.pumpWidget(const SizedBox.shrink());
+    expect(tester.takeException(), isNull);
+  });
+
   for (final locale in [const Locale('zh'), const Locale('en')]) {
     testWidgets(
       'gallery exposes the demo at 320 px in ${locale.languageCode}',
@@ -169,6 +261,12 @@ void main() {
         await _tap(tester, _play);
         await tester.pump(const Duration(milliseconds: 1600));
         await _tap(tester, _play);
+        await _tap(tester, _thinking);
+        expect(
+          _timeline(tester).message.parts.whereType<ReasoningPart>(),
+          isEmpty,
+        );
+        await _tap(tester, _thinking);
         await tester.tap(find.byKey(const Key('ui_lab_brightness')));
         await tester.pump();
         expect(tester.takeException(), isNull);
