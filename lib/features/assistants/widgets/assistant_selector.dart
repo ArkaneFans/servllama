@@ -51,11 +51,16 @@ class AssistantSelector extends StatelessWidget {
           contentPadding: EdgeInsets.zero,
           minLeadingWidth: 48,
           horizontalTitleGap: 12,
-          leading: IdentityAvatar(
-            value: assistant?.avatar ?? '',
-            name: assistant?.name ?? '',
-            size: 48,
-            fallbackIcon: Icons.smart_toy_outlined,
+          leading: SizedBox.square(
+            dimension: 48,
+            child: Center(
+              child: IdentityAvatar(
+                value: assistant?.avatar ?? '',
+                name: assistant?.name ?? '',
+                size: 40,
+                fallbackIcon: Icons.smart_toy_outlined,
+              ),
+            ),
           ),
           title: Text(
             assistant?.name ?? l.v2UnassignedAssistant,

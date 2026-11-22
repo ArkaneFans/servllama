@@ -419,7 +419,7 @@ void main() {
     );
     final actionStyle = tester.widget<IconButton>(drawerAction).style!;
     final drawerColors = Theme.of(tester.element(drawerAction)).colorScheme;
-    expect(actionStyle.fixedSize?.resolve(<WidgetState>{}), const Size(48, 48));
+    expect(actionStyle.fixedSize?.resolve(<WidgetState>{}), const Size(40, 40));
     expect(
       actionStyle.backgroundColor?.resolve(<WidgetState>{}),
       drawerColors.surfaceContainerLow,
@@ -433,7 +433,7 @@ void main() {
       of: find.byKey(const Key('drawer_assistants_action')),
       matching: find.byType(IconButton),
     );
-    expect(tester.getSize(avatar), const Size(48, 48));
+    expect(tester.getSize(avatar), const Size(40, 40));
     expect(tester.getCenter(avatar).dx, tester.getCenter(assistantAction).dx);
     expect(
       tester

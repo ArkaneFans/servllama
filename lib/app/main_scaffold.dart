@@ -319,7 +319,8 @@ class _DrawerActionButton extends StatelessWidget {
         tooltip: tooltip,
         onPressed: onPressed,
         style: IconButton.styleFrom(
-          fixedSize: const Size(48, 48),
+          fixedSize: const Size(40, 40),
+          minimumSize: const Size(40, 40),
           padding: EdgeInsets.zero,
           backgroundColor: colors.surfaceContainerLow,
           foregroundColor: colors.onSurfaceVariant,
